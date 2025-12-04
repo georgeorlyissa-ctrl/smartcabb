@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { 
   Mail, 
   Send, 
