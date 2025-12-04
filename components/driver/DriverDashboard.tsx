@@ -44,7 +44,6 @@ import {
   notifyPaymentReceived,
   notifyRideCancelled
 } from '../../lib/sms-service';
-
 async function updateBalanceInBackend(
   driverId: string,
   operation: 'add' | 'subtract',
@@ -70,7 +69,7 @@ async function updateBalanceInBackend(
       const data = await response.json();
       if (data.success) {
         console.log(
-          
+         
         );
         return data.balance;
       }
@@ -102,8 +101,6 @@ export function DriverDashboard() {
   const [paymentOperator, setPaymentOperator] = useState('');
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [rechargeAmount, setRechargeAmount] = useState(''); // Nouveau : montant de recharge
-  
-  // Force re-render du solde
   const [balanceRenderKey, setBalanceRenderKey] = useState(0);
   
   // 🆕 State séparé pour forcer l'affichage
