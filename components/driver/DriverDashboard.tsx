@@ -45,7 +45,6 @@ import {
   notifyRideCancelled
 } from '../../lib/sms-service';
 
-// ✅ Fonction helper pour mettre à jour le solde dans le backend
 async function updateBalanceInBackend(
   driverId: string,
   operation: 'add' | 'subtract',
@@ -71,7 +70,7 @@ async function updateBalanceInBackend(
       const data = await response.json();
       if (data.success) {
         console.log(
-          `✅ Solde mis à jour dans le backend: ${data.balance.toLocaleString()} CDF`
+          
         );
         return data.balance;
       }
