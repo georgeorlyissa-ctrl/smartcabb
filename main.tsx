@@ -3,9 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './styles/globals.css'
 
-// 🚀 ACTIVATION DU SERVICE WORKER PWA
-// Configuration optimisée avec stratégie de cache intelligente
-
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker
