@@ -1,26 +1,34 @@
+/**
+ * ============================================================================
+ * SMARTCABB - ÉCRAN DE CONFIGURATION EMAIL
+ * ============================================================================
+ * 
+ * Ce composant permet à l'administrateur de configurer les paramètres d'envoi
+ * d'emails pour l'application SmartCabb.
+ * 
+ * FONCTIONNALITÉS :
+ * - Configuration de 3 providers : Resend, SendGrid, SMTP
+ * - Test d'envoi d'email
+ * - Sauvegarde des paramètres dans le backend
+ * - Interface responsive avec Motion animations
+ * 
+ * IMPORTANT : Ce fichier utilise 'sonner' SANS version pour compatibilité production
+ * ============================================================================
+ */
+
+// ============================================================================
+// IMPORTS - Dépendances React et UI
+// ============================================================================
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+
+// ============================================================================
+// IMPORTS - Composants UI personnalisés
+// ============================================================================
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { toast } from 'sonner';
-
-import { 
-  Mail, 
-  Send, 
-  Settings, 
-  CheckCircle2, 
-  XCircle, 
-  Loader2,
-  Key,
-  Server,
-  User,
-  Lock,
-  Eye,
-  EyeOff
-} from 'lucide-react';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
   Select,
   SelectContent,
@@ -30,49 +38,103 @@ import {
 } from '../ui/select';
 import { Switch } from '../ui/switch';
 
+// ============================================================================
+// IMPORT CRITIQUE : Toast notifications
+// ATTENTION : Utiliser 'sonner' SANS @version pour production Vercel/Vite
+// ============================================================================
+import { toast } from 'sonner';
+
+// ============================================================================
+// IMPORTS - Icônes Lucide React
+// ============================================================================
+import { 
+  Mail,           // Icône principale email
+  Send,           // Icône envoi email de test
+  Settings,       // Icône paramètres de base
+  CheckCircle2,   // Icône statut OK
+  XCircle,        // Icône statut désactivé
+  Loader2,        // Icône chargement/spinner
+  Key,            // Icône clé API
+  Server,         // Icône serveur/provider
+  User,           // Icône utilisateur (non utilisé actuellement)
+  Lock,           // Icône sécurité (non utilisé actuellement)
+  Eye,            // Icône afficher mot de passe
+  EyeOff          // Icône masquer mot de passe
+} from 'lucide-react';
+
+// ============================================================================
+// IMPORTS - Configuration Supabase
+// ============================================================================
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+
+// ============================================================================
+// TYPES - Interface de configuration email
+// ============================================================================
 interface EmailConfig {
+  // Type de provider email
   provider: 'resend' | 'sendgrid' | 'smtp';
-  fromEmail: string;
-  fromName: string;
-  replyToEmail: string;
-  // Resend
+  
+  // Paramètres de base
+  fromEmail: string;      // Adresse d'expédition (ex: noreply@smartcabb.com)
+  fromName: string;       // Nom affiché (ex: SmartCabb)
+  replyToEmail: string;   // Adresse de réponse
+  
+  // Configuration Resend
   resendApiKey?: string;
-  // SendGrid
+  
+  // Configuration SendGrid
   sendgridApiKey?: string;
-  // SMTP
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpUser?: string;
-  smtpPassword?: string;
-  smtpSecure?: boolean;
-  // Status
-  isConfigured: boolean;
-  isEnabled: boolean;
+  
+  // Configuration SMTP personnalisé
+  smtpHost?: string;       // Serveur SMTP (ex: smtp.gmail.com)
+  smtpPort?: number;       // Port (587, 465, etc.)
+  smtpUser?: string;       // Nom d'utilisateur SMTP
+  smtpPassword?: string;   // Mot de passe SMTP
+  smtpSecure?: boolean;    // SSL/TLS activé
+  
+  // Statut de la configuration
+  isConfigured: boolean;   // Configuration complétée
+  isEnabled: boolean;      // Emails activés/désactivés
 }
 
+// ============================================================================
+// COMPOSANT PRINCIPAL - EmailSettingsScreen
+// ============================================================================
 export function EmailSettingsScreen() {
+  // ==========================================================================
+  // ÉTATS - Configuration email
+  // ==========================================================================
   const [config, setConfig] = useState<EmailConfig>({
-    provider: 'resend',
-    fromEmail: 'noreply@smartcabb.com',
-    fromName: 'SmartCabb',
-    replyToEmail: 'support@smartcabb.com',
-    isConfigured: false,
-    isEnabled: false
+    provider: 'resend',                      // Provider par défaut
+    fromEmail: 'noreply@smartcabb.com',      // Email expéditeur par défaut
+    fromName: 'SmartCabb',                   // Nom expéditeur par défaut
+    replyToEmail: 'support@smartcabb.com',   // Email de réponse par défaut
+    isConfigured: false,                     // Configuration initiale vide
+    isEnabled: false                         // Emails désactivés par défaut
   });
 
-  const [testEmail, setTestEmail] = useState('');
-  const [isTesting, setIsTesting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
+  // ==========================================================================
+  // ÉTATS - Interface utilisateur
+  // ==========================================================================
+  const [testEmail, setTestEmail] = useState('');        // Email pour test
+  const [isTesting, setIsTesting] = useState(false);     // État envoi en cours
+  const [isSaving, setIsSaving] = useState(false);       // État sauvegarde en cours
+  const [showPassword, setShowPassword] = useState(false); // Afficher mot de passe SMTP
+  const [showApiKey, setShowApiKey] = useState(false);   // Afficher clé API
 
-  // Charger la configuration
+  // ==========================================================================
+  // EFFET - Chargement de la configuration au montage du composant
+  // ==========================================================================
   useEffect(() => {
     loadConfig();
   }, []);
 
+  // ==========================================================================
+  // FONCTION - Charger la configuration depuis le backend
+  // ==========================================================================
   const loadConfig = async () => {
     try {
+      // Appel API vers le backend Supabase Edge Function
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/email-config`,
         {
@@ -82,6 +144,7 @@ export function EmailSettingsScreen() {
         }
       );
 
+      // Si la réponse est OK, mettre à jour l'état
       if (response.ok) {
         const data = await response.json();
         if (data.config) {
@@ -89,13 +152,18 @@ export function EmailSettingsScreen() {
         }
       }
     } catch (error) {
+      // Log de l'erreur en console pour debug
       console.error('❌ Erreur chargement config email:', error);
     }
   };
 
+  // ==========================================================================
+  // FONCTION - Sauvegarder la configuration
+  // ==========================================================================
   const saveConfig = async () => {
     setIsSaving(true);
     try {
+      // Envoi de la configuration au backend via POST
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/email-config`,
         {
@@ -109,7 +177,9 @@ export function EmailSettingsScreen() {
       );
 
       if (response.ok) {
+        // Notification de succès
         toast.success('Configuration email sauvegardée');
+        // Recharger la config pour confirmer
         loadConfig();
       } else {
         throw new Error('Erreur sauvegarde');
@@ -122,7 +192,11 @@ export function EmailSettingsScreen() {
     }
   };
 
+  // ==========================================================================
+  // FONCTION - Tester l'envoi d'email
+  // ==========================================================================
   const testEmailConnection = async () => {
+    // Validation : email requis
     if (!testEmail) {
       toast.error('Veuillez entrer une adresse email de test');
       return;
@@ -130,6 +204,7 @@ export function EmailSettingsScreen() {
 
     setIsTesting(true);
     try {
+      // Appel API pour envoyer un email de test
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/test-email`,
         {
@@ -148,6 +223,7 @@ export function EmailSettingsScreen() {
       const data = await response.json();
 
       if (response.ok && data.success) {
+        // Succès : email envoyé
         toast.success('Email de test envoyé avec succès ! Vérifiez votre boîte de réception.');
       } else {
         throw new Error(data.error || 'Erreur envoi test');
@@ -160,6 +236,9 @@ export function EmailSettingsScreen() {
     }
   };
 
+  // ==========================================================================
+  // RENDU - Interface utilisateur
+  // ==========================================================================
   return (
     <div className="h-full overflow-auto bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <motion.div
@@ -167,7 +246,9 @@ export function EmailSettingsScreen() {
         animate={{ opacity: 1, y: 0 }}
         className="max-w-4xl mx-auto space-y-6"
       >
-        {/* Header */}
+        {/* ================================================================== */}
+        {/* SECTION - En-tête de la page */}
+        {/* ================================================================== */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Configuration Email</h1>
@@ -180,11 +261,14 @@ export function EmailSettingsScreen() {
           </div>
         </div>
 
-        {/* Status Card */}
+        {/* ================================================================== */}
+        {/* CARTE - Statut de la configuration */}
+        {/* ================================================================== */}
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
+                {/* Affichage conditionnel selon l'état de configuration */}
                 {config.isConfigured && config.isEnabled ? (
                   <>
                     <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -207,6 +291,7 @@ export function EmailSettingsScreen() {
                   </>
                 )}
               </div>
+              {/* Switch pour activer/désactiver les emails */}
               <Switch
                 checked={config.isEnabled}
                 onCheckedChange={(checked) => setConfig({ ...config, isEnabled: checked })}
@@ -215,7 +300,9 @@ export function EmailSettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* Provider Selection */}
+        {/* ================================================================== */}
+        {/* CARTE - Sélection du provider email */}
+        {/* ================================================================== */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -229,6 +316,7 @@ export function EmailSettingsScreen() {
           <CardContent className="space-y-4">
             <div>
               <Label>Service d'envoi</Label>
+              {/* Dropdown de sélection du provider */}
               <Select
                 value={config.provider}
                 onValueChange={(value: 'resend' | 'sendgrid' | 'smtp') => 
@@ -239,12 +327,15 @@ export function EmailSettingsScreen() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* Option 1 : Resend - Recommandé */}
                   <SelectItem value="resend">
                     Resend (Recommandé - Gratuit jusqu'à 3000/mois)
                   </SelectItem>
+                  {/* Option 2 : SendGrid */}
                   <SelectItem value="sendgrid">
                     SendGrid (Gratuit jusqu'à 100/jour)
                   </SelectItem>
+                  {/* Option 3 : SMTP personnalisé */}
                   <SelectItem value="smtp">
                     SMTP Custom (Votre serveur)
                   </SelectItem>
@@ -252,6 +343,7 @@ export function EmailSettingsScreen() {
               </Select>
             </div>
 
+            {/* Encadré de recommandation */}
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <strong>Recommandation :</strong> Resend est le plus simple à configurer et offre 3000 emails gratuits par mois.
@@ -261,7 +353,9 @@ export function EmailSettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* Basic Settings */}
+        {/* ================================================================== */}
+        {/* CARTE - Paramètres de base (communes à tous les providers) */}
+        {/* ================================================================== */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -270,6 +364,7 @@ export function EmailSettingsScreen() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Champ : Adresse d'expédition */}
             <div>
               <Label>Adresse d'expédition (From)</Label>
               <Select
@@ -289,6 +384,7 @@ export function EmailSettingsScreen() {
               </Select>
             </div>
 
+            {/* Champ : Nom d'expédition */}
             <div>
               <Label>Nom d'expédition</Label>
               <Input
@@ -299,6 +395,7 @@ export function EmailSettingsScreen() {
               />
             </div>
 
+            {/* Champ : Adresse de réponse */}
             <div>
               <Label>Adresse de réponse (Reply-To)</Label>
               <Select
@@ -318,7 +415,9 @@ export function EmailSettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* Provider Configuration */}
+        {/* ================================================================== */}
+        {/* CARTE CONDITIONNELLE - Configuration Resend */}
+        {/* ================================================================== */}
         {config.provider === 'resend' && (
           <Card>
             <CardHeader>
@@ -341,6 +440,7 @@ export function EmailSettingsScreen() {
             <CardContent>
               <div>
                 <Label>Clé API Resend</Label>
+                {/* Champ avec bouton pour afficher/masquer la clé */}
                 <div className="relative mt-2">
                   <Input
                     type={showApiKey ? 'text' : 'password'}
@@ -361,6 +461,9 @@ export function EmailSettingsScreen() {
           </Card>
         )}
 
+        {/* ================================================================== */}
+        {/* CARTE CONDITIONNELLE - Configuration SendGrid */}
+        {/* ================================================================== */}
         {config.provider === 'sendgrid' && (
           <Card>
             <CardHeader>
@@ -383,6 +486,7 @@ export function EmailSettingsScreen() {
             <CardContent>
               <div>
                 <Label>Clé API SendGrid</Label>
+                {/* Champ avec bouton pour afficher/masquer la clé */}
                 <div className="relative mt-2">
                   <Input
                     type={showApiKey ? 'text' : 'password'}
@@ -403,6 +507,9 @@ export function EmailSettingsScreen() {
           </Card>
         )}
 
+        {/* ================================================================== */}
+        {/* CARTE CONDITIONNELLE - Configuration SMTP */}
+        {/* ================================================================== */}
         {config.provider === 'smtp' && (
           <Card>
             <CardHeader>
@@ -412,6 +519,7 @@ export function EmailSettingsScreen() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Champ : Serveur SMTP */}
               <div>
                 <Label>Serveur SMTP (Host)</Label>
                 <Input
@@ -422,7 +530,9 @@ export function EmailSettingsScreen() {
                 />
               </div>
 
+              {/* Grille : Port et SSL/TLS */}
               <div className="grid grid-cols-2 gap-4">
+                {/* Colonne 1 : Port */}
                 <div>
                   <Label>Port</Label>
                   <Input
@@ -433,6 +543,7 @@ export function EmailSettingsScreen() {
                   />
                 </div>
 
+                {/* Colonne 2 : Switch SSL/TLS */}
                 <div className="flex items-end pb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <Switch
@@ -444,6 +555,7 @@ export function EmailSettingsScreen() {
                 </div>
               </div>
 
+              {/* Champ : Utilisateur SMTP */}
               <div>
                 <Label>Utilisateur SMTP</Label>
                 <Input
@@ -454,8 +566,10 @@ export function EmailSettingsScreen() {
                 />
               </div>
 
+              {/* Champ : Mot de passe SMTP */}
               <div>
                 <Label>Mot de passe SMTP</Label>
+                {/* Champ avec bouton pour afficher/masquer le mot de passe */}
                 <div className="relative mt-2">
                   <Input
                     type={showPassword ? 'text' : 'password'}
@@ -476,7 +590,9 @@ export function EmailSettingsScreen() {
           </Card>
         )}
 
-        {/* Test Section */}
+        {/* ================================================================== */}
+        {/* CARTE - Section de test d'email */}
+        {/* ================================================================== */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -488,6 +604,7 @@ export function EmailSettingsScreen() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Champ : Email de test */}
             <div>
               <Label>Email de test</Label>
               <Input
@@ -499,6 +616,7 @@ export function EmailSettingsScreen() {
               />
             </div>
 
+            {/* Bouton : Envoyer email de test */}
             <Button
               onClick={testEmailConnection}
               disabled={isTesting || !testEmail}
@@ -519,14 +637,16 @@ export function EmailSettingsScreen() {
           </CardContent>
         </Card>
 
-        {/* Save Button */}
+        {/* ================================================================== */}
+        {/* SECTION - Bouton de sauvegarde principal */}
+        {/* ================================================================== */}
         <div className="flex gap-3">
           <Button
             onClick={saveConfig}
             disabled={isSaving}
             className="flex-1 h-14 bg-gradient-to-r from-cyan-500 to-blue-500"
           >
-            {isSaving ? (-
+            {isSaving ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Sauvegarde...
