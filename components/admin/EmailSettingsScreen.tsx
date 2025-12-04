@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { toast } from 'sonner';
+
 import { 
   Mail, 
   Send, 
@@ -525,7 +526,7 @@ export function EmailSettingsScreen() {
             disabled={isSaving}
             className="flex-1 h-14 bg-gradient-to-r from-cyan-500 to-blue-500"
           >
-            {isSaving ? (
+            {isSaving ? (-
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Sauvegarde...
