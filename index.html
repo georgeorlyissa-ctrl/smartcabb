@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=2.0, user-scalable=yes, viewport-fit=cover, interactive-widget=resizes-visual" />
+    
+    <!-- 🔄 CACHE CONTROL - Force le rafraîchissement dans l'aperçu Figma -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <!-- 🧭 Permissions Policy - Autoriser TOUTES les fonctionnalités de géolocalisation -->
+    <meta http-equiv="Permissions-Policy" content="geolocation=*, camera=*, microphone=*, payment=*" />
+    
+    <!-- 🚀 Performance & Mobile Optimization -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    
+    <!-- 📱 PWA Configuration -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#00BFA5" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SmartCabb" />
+    
+    <!-- 📄 SEO Meta Tags -->
+    <title>SmartCabb - Votre chauffeur à Kinshasa</title>
+    <meta name="description" content="SmartCabb - Service de transport avec chauffeur à Kinshasa. Réservez votre course en quelques clics avec nos véhicules climatisés et nos chauffeurs professionnels." />
+    <meta name="keywords" content="transport, kinshasa, chauffeur, taxi, course, smartcabb, congo, rdc, vtc, réservation, paiement mobile" />
+    <meta name="author" content="SmartCabb" />
+    
+    <!-- 🌐 Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://smartcabb.com/" />
+    <meta property="og:title" content="SmartCabb - Transport à Kinshasa" />
+    <meta property="og:description" content="Réservez votre chauffeur à Kinshasa en quelques clics. Service de qualité, paiement sécurisé." />
+    <meta property="og:locale" content="fr_FR" />
+    <meta property="og:site_name" content="SmartCabb" />
+    
+    <!-- 🐦 Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://smartcabb.com/" />
+    <meta property="twitter:title" content="SmartCabb - Transport à Kinshasa" />
+    <meta property="twitter:description" content="Réservez votre chauffeur à Kinshasa en quelques clics" />
+  </head>
+  <body>
+    <div id="root">
+      <!-- Preloader HTML natif - Affiché avant le chargement de React -->
+      <div id="preloader" style="position: fixed; inset: 0; background: linear-gradient(135deg, #ecfeff 0%, #ffffff 50%, #f0fdf4 100%); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="text-align: center;">
+          <!-- Logo SmartCabb -->
+          <div style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%); border-radius: 16px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(6, 182, 212, 0.3); animation: pulse 2s ease-in-out infinite;">
+            <span style="color: white; font-size: 32px; font-weight: 900; font-family: system-ui, -apple-system, sans-serif;">SC</span>
+          </div>
+          
+          <!-- Spinner -->
+          <svg style="width: 40px; height: 40px; margin: 0 auto 16px; animation: spin 1s linear infinite;" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#06b6d4" stroke-width="4" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round" opacity="0.25"/>
+            <circle cx="12" cy="12" r="10" stroke="#06b6d4" stroke-width="4" stroke-dasharray="31.4" stroke-dashoffset="10" stroke-linecap="round"/>
+          </svg>
+          
+          <!-- Texte -->
+          <p style="color: #6b7280; font-size: 16px; font-weight: 500; font-family: system-ui, -apple-system, sans-serif;">Chargement de SmartCabb...</p>
+        </div>
+      </div>
+      
+      <!-- Animations CSS -->
+      <style>
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.05); opacity: 0.9; }
+        }
+      </style>
+    </div>
+    
+    <script type="module" src="/main.tsx"></script>
+    
+    <!-- Supprimer le preloader une fois React chargé -->
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const preloader = document.getElementById('preloader');
+          if (preloader) {
+            preloader.style.opacity = '0';
+            preloader.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(function() {
+              preloader.remove();
+            }, 300);
+          }
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "SmartCabb - Transport Kinshasa",
+  "short_name": "SmartCabb",
+  "description": "L'intelligence au service de votre mobilité - Transport avec chauffeur à Kinshasa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0098FF",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr-FR",
+  "dir": "ltr",
+  "categories": ["travel", "navigation", "transportation"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Réserver une course",
+      "short_name": "Réserver",
+      "description": "Réserver une course rapidement",
+      "url": "/passenger"
+    },
+    {
+      "name": "Conducteur",
+      "short_name": "Conduire",
+      "description": "Se connecter en tant que conducteur",
+      "url": "/driver"
+    },
+    {
+      "name": "Administration",
+      "short_name": "Admin",
+      "description": "Accès administration",
+      "url": "/admin"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}
