@@ -504,7 +504,7 @@ export function DriversLandingPage() {
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              © 2025 SmartCabb. Tous droits réservés.
+              © 2026 SmartCabb. Tous droits réservés.
             </p>
           </div>
         </div>
