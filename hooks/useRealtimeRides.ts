@@ -8,7 +8,9 @@
  * - Pas de données en mémoire, tout vient du backend
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useAppState } from './useAppState';
+import { supabase } from '../lib/supabase';
+import { syncRidesFromSupabase } from '../lib/sync-service';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 

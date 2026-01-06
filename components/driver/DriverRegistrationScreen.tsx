@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
 import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from 'lucide-react';
+import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from '../../lucide-react';
 import { signUpDriver } from '../../lib/auth-service-driver-signup';
 import { sendSMS } from '../../lib/sms-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
@@ -13,6 +13,7 @@ import { PhoneInput } from '../PhoneInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Checkbox } from '../ui/checkbox';
 import { PolicyModal } from '../PolicyModal';
+import { useNavigate } from '../../lib/simple-router';
 
 // Congolese names for realistic data
 const congoleseNames = [
@@ -31,9 +32,12 @@ const congoleseNames = [
 export function DriverRegistrationScreen() {
   console.log('🚗 DriverRegistrationScreen - Début du chargement');
   
+  const navigate = useNavigate();
+  
   const { setCurrentScreen } = useAppState();
-  console.log('✅ useAppState chargé');
     
+  const [step, setStep] = useState(1);
+  
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -53,11 +57,29 @@ export function DriverRegistrationScreen() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isOtherMake, setIsOtherMake] = useState(false);
 
-  const documentTypes = [
-    { key: 'license', label: 'Permis de conduire', required: true },
-    { key: 'volet_jaune_carte_rose', label: 'Volet jaune ou carte rose', required: true },
-    { key: 'insurance', label: 'Attestation d\'assurance', required: false },
-    { key: 'registration', label: 'Carte grise du véhicule', required: true }
+  // ✅ Un seul document obligatoire à télécharger : Permis de conduire
+  const requiredDocumentLabel = 'Permis de conduire';
+  
+  // 📋 Documents à déposer physiquement (mentionnés pour information)
+  const physicalDocuments = [
+    'Volet jaune ou carte rose',
+    'Attestation d\'assurance',
+    'Carte grise du véhicule'
+  ];
+
+  // 🎨 Couleurs prédéfinies pour le véhicule
+  const vehicleColors = [
+    { value: 'Noir', label: 'Noir' },
+    { value: 'Blanc', label: 'Blanc' },
+    { value: 'Gris', label: 'Gris' },
+    { value: 'Argent', label: 'Argent' },
+    { value: 'Bleu', label: 'Bleu' },
+    { value: 'Rouge', label: 'Rouge' },
+    { value: 'Vert', label: 'Vert' },
+    { value: 'Jaune', label: 'Jaune' },
+    { value: 'Marron', label: 'Marron' },
+    { value: 'Beige', label: 'Beige' },
+    { value: 'Orange', label: 'Orange' },
   ];
 
   // NOUVEAU : Mapping des véhicules complets avec leur type - Grille Officielle 2025
@@ -177,9 +199,9 @@ export function DriverRegistrationScreen() {
       return;
     }
 
-    // Vérifier qu'il y a au moins 3 documents (permis, volet jaune/carte rose, carte grise)
-    if (documents.length < 3) {
-      toast.error('Veuillez télécharger au minimum le permis de conduire, le volet jaune/carte rose et la carte grise');
+    // ✅ Vérifier qu'il y a au moins le permis de conduire (1 document minimum)
+    if (documents.length < 1) {
+      toast.error('Veuillez télécharger votre permis de conduire');
       return;
     }
 
@@ -580,13 +602,21 @@ export function DriverRegistrationScreen() {
               </div>
               <div>
                 <Label htmlFor="vehicleColor">Couleur *</Label>
-                <Input
-                  id="vehicleColor"
-                  placeholder="Noir"
+                <Select
                   value={formData.vehicleColor}
-                  onChange={(e) => handleInputChange('vehicleColor', e.target.value)}
-                  className="mt-1 h-11 bg-gray-50 border-gray-200"
-                />
+                  onValueChange={(value) => handleInputChange('vehicleColor', value)}
+                >
+                  <SelectTrigger className="mt-1 h-11 bg-gray-50 border-gray-200">
+                    <SelectValue placeholder="Sélectionnez la couleur" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vehicleColors.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        {color.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
@@ -595,18 +625,41 @@ export function DriverRegistrationScreen() {
           <div className="bg-white rounded-xl p-4 space-y-4">
             <h3 className="font-medium text-gray-800">Documents requis</h3>
             
-            <div className="space-y-3">
-              {documentTypes.map((docType) => (
-                <div key={docType.key} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <FileCheck className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">{docType.label}</span>
-                    {docType.required && <span className="text-red-500 text-xs">*</span>}
+            {/* Document obligatoire à télécharger */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
+                <div className="flex items-center space-x-3">
+                  <FileCheck className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">{requiredDocumentLabel}</p>
+                    <p className="text-xs text-blue-600">À télécharger ci-dessous</p>
                   </div>
                 </div>
-              ))}
+                <span className="text-red-500 font-bold">*</span>
+              </div>
             </div>
 
+            {/* Documents à déposer physiquement */}
+            <div className="p-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg space-y-2">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-900 mb-2">
+                    Documents à déposer physiquement au bureau :
+                  </p>
+                  <ul className="space-y-1">
+                    {physicalDocuments.map((doc, index) => (
+                      <li key={index} className="text-xs text-yellow-800 flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 bg-yellow-600 rounded-full"></span>
+                        <span>{doc}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Zone de téléchargement */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
               <input
                 type="file"
@@ -618,8 +671,8 @@ export function DriverRegistrationScreen() {
               />
               <label htmlFor="documents-upload" className="cursor-pointer">
                 <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-1">
-                  Cliquez pour télécharger vos documents
+                <p className="text-sm text-gray-600 mb-1 font-medium">
+                  Cliquez pour télécharger votre permis de conduire
                 </p>
                 <p className="text-xs text-gray-500">
                   JPG ou PDF uniquement (max. 5MB par fichier)
@@ -629,7 +682,7 @@ export function DriverRegistrationScreen() {
 
             {documents.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Documents téléchargés:</h4>
+                <h4 className="text-sm font-medium text-gray-700">Documents téléchargés :</h4>
                 {documents.map((file, index) => (
                   <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
                     <div className="flex items-center space-x-2">
@@ -651,7 +704,7 @@ export function DriverRegistrationScreen() {
               <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
               <p className="text-xs text-blue-700">
                 Vos documents seront vérifiés par notre équipe. 
-                Vous recevrez une confirmation par email une fois la validation terminée.
+                Vous recevrez une confirmation par SMS une fois la validation terminée.
               </p>
             </div>
           </div>

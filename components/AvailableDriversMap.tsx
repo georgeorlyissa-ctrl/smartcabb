@@ -1,7 +1,9 @@
-import { motion } from 'motion/react';
+import { useEffect, useState, useRef } from 'react';
+import mapboxgl from 'mapbox-gl';
 import { useAppState } from '../hooks/useAppState';
 import { Car, Star } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { motion } from '../framer-motion';
 
 export function AvailableDriversMap() {
   const { drivers } = useAppState();
@@ -21,8 +23,25 @@ export function AvailableDriversMap() {
     { top: '30%', left: '55%' },
   ];
 
+  const mapContainer = useRef(null);
+  const map = useRef(null);
+  const [lng, setLng] = useState(-70.9);
+  const [lat, setLat] = useState(43.6532);
+  const [zoom, setZoom] = useState(9);
+
+  useEffect(() => {
+    if (map.current) return; // initialize map only once
+    map.current = new mapboxgl.Map({
+      container: mapContainer.current,
+      style: 'mapbox://styles/mapbox/streets-v11',
+      center: [lng, lat],
+      zoom: zoom
+    });
+  }, []);
+
   return (
     <>
+      <div ref={mapContainer} className="map-container" />
       {availableDrivers.slice(0, 6).map((driver, index) => {
         const position = driverPositions[index] || driverPositions[0];
         

@@ -5,6 +5,11 @@ let updateCheckInterval: ReturnType<typeof setInterval> | null = null;
 
 // 🔧 Détection d'environnement robuste
 const isDevelopment = () => {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  
   try {
     return (
       window.location.hostname === 'localhost' ||
@@ -19,6 +24,11 @@ const isDevelopment = () => {
 };
 
 export function startUpdateDetection() {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return;
+  }
+  
   console.log('🔍 Détection de mise à jour activée');
 
   // Ne pas activer en mode prévisualisation ou si on ne peut pas accéder à index.html
@@ -65,7 +75,7 @@ export function stopUpdateDetection() {
   }
 }
 
-async function checkForUpdates() {
+export async function checkForUpdates() {
   // Ne pas vérifier en mode prévisualisation Figma
   if (window.location.hostname.includes('figma') || 
       window.location.hostname.includes('preview') ||
@@ -137,11 +147,17 @@ async function checkForUpdates() {
         forceReload();
       }
     }
+    
+    return hasChanged;
   } catch (error) {
     // Ignorer complètement toutes les erreurs en mode prévisualisation
     // Ne rien logger pour éviter de polluer la console
+    return false;
   }
 }
+
+// Export alias pour compatibilité
+export const checkForUpdate = checkForUpdates;
 
 function forceReload() {
   // Afficher une notification à l'utilisateur

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
+import { Car, Search, Phone, MapPin, Star, Shield, Calendar, DollarSign } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -7,23 +8,6 @@ import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData, type EnrichedDriver } from '../../hooks/useSupabaseData';
 import { DriverDetailModal } from './DriverDetailModal';
-import { 
-  ArrowLeft, 
-  Search, 
-  Users, 
-  Star,
-  Car,
-  Phone,
-  Mail,
-  CheckCircle,
-  XCircle,
-  Filter,
-  FileText,
-  Eye,
-  RefreshCw,
-  Download
-} from 'lucide-react';
-import { toast } from 'sonner';
 import type { Vehicle } from '../../lib/supabase';
 
 interface DriversListScreenProps {
@@ -336,7 +320,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-indigo-600">
-                  {drivers.length > 0 ? (drivers.reduce((sum, d) => sum + d.rating, 0) / drivers.length).toFixed(1) : '0.0'}
+                  {drivers.length > 0 ? ((drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length) || 0).toFixed(1) : '0.0'}
                 </p>
                 <p className="text-sm text-gray-600">Note moyenne</p>
               </div>

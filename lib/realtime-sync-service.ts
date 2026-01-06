@@ -44,6 +44,19 @@ class RealtimeSyncService {
   private subscriptions: Map<string, NodeJS.Timeout> = new Map();
   private cache: Map<string, any> = new Map();
   private subscriptionCounter = 0;
+  private userId: string | null = null;
+  private userType: 'passenger' | 'driver' | 'admin' | null = null;
+  private connected = false;
+
+  /**
+   * Initialiser le service avec l'ID et le type d'utilisateur
+   */
+  initialize(userId: string, userType: 'passenger' | 'driver' | 'admin'): void {
+    this.userId = userId;
+    this.userType = userType;
+    this.connected = true;
+    console.log(`🔗 Connexion établie pour ${userType} ${userId}`);
+  }
 
   /**
    * Souscrire aux mises à jour en temps réel d'une entité
@@ -177,6 +190,9 @@ class RealtimeSyncService {
     });
     this.subscriptions.clear();
     this.cache.clear();
+    this.connected = false;
+    this.userId = null;
+    this.userType = null;
   }
 
   /**
@@ -186,13 +202,73 @@ class RealtimeSyncService {
     console.log(`⚡ Synchronisation forcée: ${entityType} ${entityId || 'all'}`);
     return await this.fetchData(entityType, entityId);
   }
+
+  /**
+   * Mettre à jour une course et synchroniser
+   */
+  async syncRideUpdate(rideId: string, updates: Partial<any>): Promise<void> {
+    console.log(`🔄 Mise à jour de la course ${rideId}:`, updates);
+    const url = `${SERVER_URL}/rides/${rideId}`;
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${publicAnonKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    // Recharger les données pour refléter les changements
+    await this.sync('ride', rideId);
+  }
+
+  /**
+   * Obtenir le statut de la connexion
+   */
+  getConnectionStatus(): { connected: boolean; userId: string | null; userType: string | null } {
+    return {
+      connected: this.connected,
+      userId: this.userId,
+      userType: this.userType
+    };
+  }
 }
 
 // ============================================
 // INSTANCE SINGLETON
 // ============================================
 
-export const realtimeSyncService = new RealtimeSyncService();
+// ✅ FIX PRODUCTION V3: Factory function au lieu de Proxy
+let realtimeSyncServiceInstance: RealtimeSyncService | null = null;
+
+export function getRealtimeSyncService(): RealtimeSyncService {
+  if (typeof window === 'undefined') {
+    // SSR: retourner un mock
+    return {} as RealtimeSyncService;
+  }
+  
+  if (!realtimeSyncServiceInstance) {
+    realtimeSyncServiceInstance = new RealtimeSyncService();
+  }
+  return realtimeSyncServiceInstance;
+}
+
+// Export pour compatibilité (utilise la factory)
+export const realtimeSyncService = {
+  initialize: (userId: string, userType: 'passenger' | 'driver' | 'admin') => 
+    getRealtimeSyncService().initialize(userId, userType),
+  subscribe: (config: SyncConfig) => getRealtimeSyncService().subscribe(config),
+  cleanup: () => getRealtimeSyncService().cleanup(),
+  sync: (entityType: EntityType, entityId?: string) => 
+    getRealtimeSyncService().sync(entityType, entityId),
+  syncRideUpdate: (rideId: string, updates: Partial<any>) => 
+    getRealtimeSyncService().syncRideUpdate(rideId, updates),
+  getConnectionStatus: () => getRealtimeSyncService().getConnectionStatus(),
+};
 
 // ============================================
 // HOOKS REACT POUR FACILITER L'UTILISATION

@@ -611,7 +611,7 @@ export function PassengerDetailModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-500">Note moyenne</p>
-                    <p className="text-2xl font-bold">{avgRating.toFixed(1)}</p>
+                    <p className="text-2xl font-bold">{(avgRating || 0).toFixed(1)}</p>
                   </div>
                   <Star className="w-8 h-8 text-yellow-600" />
                 </div>

@@ -1,99 +1,106 @@
 /**
- * Utilitaire de détection de navigateur mobile
- * Pour gérer les comportements spécifiques à chaque navigateur
+ * Détection et optimisation du navigateur
+ * Gère les spécificités de chaque navigateur (Chrome, Safari, Firefox, etc.)
  */
 
+// Types de navigateur
 export interface BrowserInfo {
   name: string;
   version: string;
-  isMobile: boolean;
+  isChrome: boolean;
+  isSafari: boolean;
+  isFirefox: boolean;
+  isEdge: boolean;
   isIOS: boolean;
   isAndroid: boolean;
-  isSafari: boolean;
-  isChrome: boolean;
-  isFirefox: boolean;
-  isOpera: boolean;
-  isSamsung: boolean;
-  isEdge: boolean;
-  isUC: boolean;
+  isMobile: boolean;
+  supportsWebGL: boolean;
   supportsServiceWorker: boolean;
-  supportsGeolocation: boolean;
-  supportsPushNotifications: boolean;
 }
 
 /**
- * Détecte le navigateur et retourne les informations
+ * Détecte le navigateur utilisé
  */
 export function detectBrowser(): BrowserInfo {
-  const userAgent = navigator.userAgent;
-  const isIOS = /iPhone|iPad|iPod/.test(userAgent);
-  const isAndroid = /Android/.test(userAgent);
-  const isMobile = isIOS || isAndroid || /Mobile|Tablet/.test(userAgent);
-
-  // Détection spécifique des navigateurs
-  const isSafari = /Safari/.test(userAgent) && !/Chrome/.test(userAgent);
-  const isChrome = /Chrome/.test(userAgent) && !/Edg/.test(userAgent) && !/OPR/.test(userAgent);
-  const isFirefox = /Firefox/.test(userAgent);
-  const isOpera = /OPR/.test(userAgent) || /Opera/.test(userAgent);
-  const isSamsung = /SamsungBrowser/.test(userAgent);
-  const isEdge = /Edg/.test(userAgent);
-  const isUC = /UCBrowser/.test(userAgent);
-
-  // Extraction de la version
-  let version = 'unknown';
-  let name = 'unknown';
-
-  if (isSafari) {
-    name = 'Safari';
-    const match = userAgent.match(/Version\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isChrome) {
-    name = 'Chrome';
-    const match = userAgent.match(/Chrome\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isFirefox) {
-    name = 'Firefox';
-    const match = userAgent.match(/Firefox\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isSamsung) {
-    name = 'Samsung Internet';
-    const match = userAgent.match(/SamsungBrowser\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isOpera) {
-    name = 'Opera';
-    const match = userAgent.match(/OPR\/(\d+\.\d+)/) || userAgent.match(/Opera\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isEdge) {
-    name = 'Edge';
-    const match = userAgent.match(/Edg\/(\d+\.\d+)/);
-    if (match) version = match[1];
-  } else if (isUC) {
-    name = 'UC Browser';
-    const match = userAgent.match(/UCBrowser\/(\d+\.\d+)/);
-    if (match) version = match[1];
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      name: 'Unknown',
+      version: '0.0.0',
+      isChrome: false,
+      isSafari: false,
+      isFirefox: false,
+      isEdge: false,
+      isIOS: false,
+      isAndroid: false,
+      isMobile: false,
+      supportsWebGL: false,
+      supportsServiceWorker: false,
+    };
   }
 
-  // Vérifier les fonctionnalités supportées
+  const ua = navigator.userAgent;
+  
+  // Détection du système d'exploitation
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+  const isAndroid = /Android/.test(ua);
+  const isMobile = isIOS || isAndroid || /Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(ua);
+  
+  // Détection du navigateur
+  const isChrome = /Chrome/.test(ua) && /Google Inc/.test(navigator.vendor);
+  const isSafari = /Safari/.test(ua) && /Apple Computer/.test(navigator.vendor);
+  const isFirefox = /Firefox/.test(ua);
+  const isEdge = /Edg/.test(ua);
+  
+  // Version du navigateur
+  let version = '0.0.0';
+  let name = 'Unknown';
+  
+  if (isEdge) {
+    name = 'Edge';
+    const match = ua.match(/Edg\/(\d+\.\d+)/);
+    version = match ? match[1] : '0.0.0';
+  } else if (isChrome) {
+    name = 'Chrome';
+    const match = ua.match(/Chrome\/(\d+\.\d+)/);
+    version = match ? match[1] : '0.0.0';
+  } else if (isSafari) {
+    name = 'Safari';
+    const match = ua.match(/Version\/(\d+\.\d+)/);
+    version = match ? match[1] : '0.0.0';
+  } else if (isFirefox) {
+    name = 'Firefox';
+    const match = ua.match(/Firefox\/(\d+\.\d+)/);
+    version = match ? match[1] : '0.0.0';
+  }
+  
+  // Support WebGL
+  let supportsWebGL = false;
+  try {
+    const canvas = document.createElement('canvas');
+    supportsWebGL = !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch (e) {
+    supportsWebGL = false;
+  }
+  
+  // Support Service Worker
   const supportsServiceWorker = 'serviceWorker' in navigator;
-  const supportsGeolocation = 'geolocation' in navigator;
-  const supportsPushNotifications = 'PushManager' in window && 'Notification' in window;
-
+  
   return {
     name,
     version,
-    isMobile,
+    isChrome,
+    isSafari,
+    isFirefox,
+    isEdge,
     isIOS,
     isAndroid,
-    isSafari,
-    isChrome,
-    isFirefox,
-    isOpera,
-    isSamsung,
-    isEdge,
-    isUC,
+    isMobile,
+    supportsWebGL,
     supportsServiceWorker,
-    supportsGeolocation,
-    supportsPushNotifications
   };
 }
 
@@ -101,202 +108,153 @@ export function detectBrowser(): BrowserInfo {
  * Applique les optimisations spécifiques au navigateur
  */
 export function applyBrowserOptimizations(): void {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return;
+  }
+
   const browser = detectBrowser();
   
-  console.log('🌐 Navigateur détecté:', browser.name, browser.version);
-  console.log('📱 Mobile:', browser.isMobile);
-  console.log('🍎 iOS:', browser.isIOS);
-  console.log('🤖 Android:', browser.isAndroid);
+  console.log(`🌐 Navigateur détecté: ${browser.name} ${browser.version}`);
+  console.log(`📱 Mobile: ${browser.isMobile ? 'Oui' : 'Non'}`);
+  console.log(`🎨 WebGL: ${browser.supportsWebGL ? 'Supporté' : 'Non supporté'}`);
+  console.log(`⚙️ Service Worker: ${browser.supportsServiceWorker ? 'Supporté' : 'Non supporté'}`);
   
-  // iOS Safari - Fix viewport height
-  if (browser.isIOS && browser.isSafari) {
-    console.log('🍏 Optimisations iOS Safari activées');
+  // Optimisations spécifiques Safari
+  if (browser.isSafari || browser.isIOS) {
+    console.log('🍎 Application des optimisations Safari/iOS...');
     
-    // Fix pour la hauteur de viewport sur iOS Safari
-    const setIOSHeight = () => {
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-    };
+    // Fix pour les problèmes de hauteur viewport sur Safari mobile
+    if (browser.isIOS) {
+      const setVh = () => {
+        const vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+      };
+      setVh();
+      window.addEventListener('resize', setVh);
+      window.addEventListener('orientationchange', setVh);
+    }
     
-    setIOSHeight();
-    window.addEventListener('resize', setIOSHeight);
-    window.addEventListener('orientationchange', setIOSHeight);
+    // Ajouter une classe CSS pour les optimisations Safari
+    document.documentElement.classList.add('safari-browser');
   }
   
-  // Samsung Internet - Optimisations
-  if (browser.isSamsung) {
-    console.log('📱 Optimisations Samsung Internet activées');
-    // Samsung Internet a des problèmes avec certaines animations
-    document.documentElement.classList.add('samsung-browser');
+  // Optimisations Chrome
+  if (browser.isChrome) {
+    console.log('🔷 Application des optimisations Chrome...');
+    document.documentElement.classList.add('chrome-browser');
   }
   
-  // UC Browser - Optimisations
-  if (browser.isUC) {
-    console.log('🌐 Optimisations UC Browser activées');
-    // UC Browser a des limitations avec certaines features
-    document.documentElement.classList.add('uc-browser');
+  // Optimisations Firefox
+  if (browser.isFirefox) {
+    console.log('🦊 Application des optimisations Firefox...');
+    document.documentElement.classList.add('firefox-browser');
   }
   
-  // Firefox Mobile - Optimisations
-  if (browser.isFirefox && browser.isMobile) {
-    console.log('🦊 Optimisations Firefox Mobile activées');
-    document.documentElement.classList.add('firefox-mobile');
-  }
-  
-  // Opera Mobile - Optimisations
-  if (browser.isOpera && browser.isMobile) {
-    console.log('🅾️ Optimisations Opera Mobile activées');
-    document.documentElement.classList.add('opera-mobile');
-  }
-  
-  // Désactiver les animations si le navigateur est ancien ou lent
-  if (browser.version && parseFloat(browser.version) < 80) {
-    console.log('⚠️ Navigateur ancien détecté - Animations réduites');
-    document.documentElement.classList.add('reduce-animations');
-  }
-  
-  // Ajouter une classe pour tous les mobiles
+  // Optimisations Mobile génériques
   if (browser.isMobile) {
+    console.log('📱 Application des optimisations mobile...');
     document.documentElement.classList.add('mobile-browser');
+    
+    // Désactiver le zoom sur les inputs (mobile)
+    const metaViewport = document.querySelector('meta[name="viewport"]');
+    if (metaViewport) {
+      metaViewport.setAttribute(
+        'content',
+        'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'
+      );
+    }
   }
   
-  // Log des fonctionnalités
-  console.log('✅ Service Worker:', browser.supportsServiceWorker);
-  console.log('📍 Géolocalisation:', browser.supportsGeolocation);
-  console.log('🔔 Push Notifications:', browser.supportsPushNotifications);
+  // Avertir si Service Worker n'est pas supporté
+  if (!browser.supportsServiceWorker) {
+    console.log('ℹ️ Service Workers non supportés - Mode hors ligne limité');
+  }
+  
+  // ✅ WebGL n'est pas utilisé dans SmartCabb - Pas besoin d'avertir
+  // Les animations utilisent CSS et Motion/React, pas WebGL
+  if (!browser.supportsWebGL) {
+    console.log('ℹ️ WebGL non disponible (non critique pour SmartCabb)');
+  }
 }
 
 /**
- * Retourne les options optimales pour la géolocalisation selon le navigateur
+ * Vérifie si on est en mode développement
  */
-export function getGeolocationOptions(): PositionOptions {
-  const browser = detectBrowser();
-  
-  // Options de base
-  const baseOptions: PositionOptions = {
-    enableHighAccuracy: true,
-    timeout: 20000,
-    maximumAge: 30000
-  };
-  
-  // iOS Safari - timeout plus court, cache plus long
-  if (browser.isIOS && browser.isSafari) {
-    return {
-      enableHighAccuracy: false, // iOS Safari est plus rapide sans high accuracy
-      timeout: 15000,
-      maximumAge: 60000 // Cache plus long sur iOS
-    };
-  }
-  
-  // Samsung Internet - options conservatrices
-  if (browser.isSamsung) {
-    return {
-      enableHighAccuracy: true,
-      timeout: 25000, // Plus de temps pour Samsung
-      maximumAge: 20000
-    };
-  }
-  
-  // UC Browser - très conservatif
-  if (browser.isUC) {
-    return {
-      enableHighAccuracy: false,
-      timeout: 30000,
-      maximumAge: 60000
-    };
-  }
-  
-  // Firefox Mobile - optimisé
-  if (browser.isFirefox && browser.isMobile) {
-    return {
-      enableHighAccuracy: true,
-      timeout: 18000,
-      maximumAge: 25000
-    };
-  }
-  
-  return baseOptions;
-}
-
-/**
- * Vérifie si le navigateur peut utiliser watchPosition de manière efficace
- */
-export function canUseWatchPosition(): boolean {
-  const browser = detectBrowser();
-  
-  // Désactiver watchPosition sur iOS Safari (problèmes de batterie)
-  if (browser.isIOS && browser.isSafari) {
+export function isDevelopment(): boolean {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined') {
     return false;
   }
-  
-  // Désactiver sur UC Browser (performance)
-  if (browser.isUC) {
+
+  try {
+    return (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.port === '5173' ||
+      window.location.port === '3000'
+    );
+  } catch {
     return false;
   }
+}
+
+/**
+ * Log les informations du navigateur dans la console
+ */
+export function logBrowserInfo(): void {
+  const browser = detectBrowser();
   
-  // Désactiver sur Samsung Internet vieux (< v12)
-  if (browser.isSamsung && parseFloat(browser.version) < 12) {
+  console.group('🌐 Informations du navigateur');
+  console.table({
+    'Navigateur': browser.name,
+    'Version': browser.version,
+    'Mobile': browser.isMobile ? 'Oui' : 'Non',
+    'iOS': browser.isIOS ? 'Oui' : 'Non',
+    'Android': browser.isAndroid ? 'Oui' : 'Non',
+    'WebGL': browser.supportsWebGL ? 'Supporté' : 'Non supporté',
+    'Service Worker': browser.supportsServiceWorker ? 'Supporté' : 'Non supporté',
+  });
+  console.groupEnd();
+}
+
+/**
+ * Applique les correctifs spécifiques à Safari
+ * (Alias de applyBrowserOptimizations pour compatibilité)
+ */
+export function applySafariFixes(): void {
+  applyBrowserOptimizations();
+}
+
+/**
+ * Détecte si le navigateur est en mode navigation privée
+ */
+export async function isPrivateBrowsing(): Promise<boolean> {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined') {
     return false;
   }
-  
-  return true;
-}
 
-/**
- * Retourne la stratégie de cache optimale selon le navigateur
- */
-export function getCacheStrategy(): 'aggressive' | 'moderate' | 'minimal' {
-  const browser = detectBrowser();
-  
-  // iOS - cache agressif (mémoire limitée)
-  if (browser.isIOS) {
-    return 'aggressive';
-  }
-  
-  // UC Browser - cache minimal
-  if (browser.isUC) {
-    return 'minimal';
-  }
-  
-  // Android avec beaucoup de mémoire - modéré
-  if (browser.isAndroid) {
-    return 'moderate';
-  }
-  
-  return 'moderate';
-}
+  try {
+    // Test pour Safari
+    if ('storage' in navigator && 'estimate' in navigator.storage) {
+      const { quota } = await navigator.storage.estimate();
+      // Safari en mode privé limite le quota à 0
+      if (quota && quota < 120000000) {
+        return true;
+      }
+    }
 
-/**
- * Vérifie si le navigateur supporte les PWA complètes
- */
-export function supportsPWA(): boolean {
-  const browser = detectBrowser();
-  
-  return browser.supportsServiceWorker && 
-         (browser.isChrome || browser.isFirefox || browser.isSafari || browser.isEdge);
-}
-
-/**
- * Retourne le délai optimal pour les animations selon le navigateur
- */
-export function getAnimationDuration(): number {
-  const browser = detectBrowser();
-  
-  // UC Browser - animations plus lentes
-  if (browser.isUC) {
-    return 400;
+    // Test pour Firefox
+    const db = indexedDB.open('test');
+    return new Promise((resolve) => {
+      db.onerror = () => resolve(true);
+      db.onsuccess = () => {
+        indexedDB.deleteDatabase('test');
+        resolve(false);
+      };
+    });
+  } catch {
+    return false;
   }
-  
-  // Samsung Internet ancien - animations plus lentes
-  if (browser.isSamsung && parseFloat(browser.version) < 12) {
-    return 400;
-  }
-  
-  // iOS Safari - animations rapides
-  if (browser.isIOS && browser.isSafari) {
-    return 250;
-  }
-  
-  // Standard
-  return 300;
 }

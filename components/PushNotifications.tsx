@@ -339,7 +339,7 @@ export function PushNotifications({ className = "" }: PushNotificationsProps) {
                 </div>
               </div>
 
-              {/* Demande de permission si n��cessaire */}
+              {/* Demande de permission si ncessaire */}
               {permission === 'default' && (
                 <div className="p-4 bg-blue-50 border-b border-blue-200">
                   <p className="text-sm text-blue-900 mb-2">

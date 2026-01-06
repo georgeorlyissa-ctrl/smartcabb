@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../framer-motion';
 import { User, Car, Shield, CheckCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 

@@ -1,5 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Button } from './ui/button';
+import React from 'react';
 import { CheckCircle, Clock, MapPin, CreditCard } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
@@ -72,7 +71,7 @@ export function RideCompletionSummary({
               <div className="flex items-center justify-between border-t pt-2">
                 <span className="text-gray-600">Pourboire</span>
                 <span className="font-medium text-green-600">
-                  +{ride.tip.toLocaleString()} {t('cdf')}
+                  +{(ride.tip || 0).toLocaleString()} {t('cdf')}
                 </span>
               </div>
             )}
@@ -81,7 +80,7 @@ export function RideCompletionSummary({
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Réduction ({ride.promoCode})</span>
                 <span className="font-medium text-green-600">
-                  -{ride.promoDiscount.toLocaleString()} {t('cdf')}
+                  -{(ride.promoDiscount || 0).toLocaleString()} {t('cdf')}
                 </span>
               </div>
             )}
@@ -89,7 +88,7 @@ export function RideCompletionSummary({
             <div className="border-t pt-2 flex items-center justify-between">
               <span className="font-medium">Total à payer</span>
               <span className="font-bold text-xl text-green-600">
-                {totalAmount.toLocaleString()} {t('cdf')}
+                {(totalAmount || 0).toLocaleString()} {t('cdf')}
               </span>
             </div>
           </div>
@@ -100,7 +99,7 @@ export function RideCompletionSummary({
               <div className="w-3 h-3 bg-blue-500 rounded-full mt-1"></div>
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Départ</p>
-                <p className="font-medium">{ride.pickup.address}</p>
+                <p className="font-medium">{ride.pickup?.address || 'Point de départ non spécifié'}</p>
               </div>
             </div>
             
@@ -108,7 +107,7 @@ export function RideCompletionSummary({
               <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Arrivée</p>
-                <p className="font-medium">{ride.destination.address}</p>
+                <p className="font-medium">{ride.destination?.address || 'Destination non spécifiée'}</p>
               </div>
             </div>
           </div>

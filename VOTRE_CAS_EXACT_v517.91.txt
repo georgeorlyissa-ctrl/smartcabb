@@ -1,0 +1,72 @@
+═══════════════════════════════════════════════════════════════════
+  🎯 VOTRE CAS EXACT - ANALYSE DU PROBLÈME
+═══════════════════════════════════════════════════════════════════
+
+📊 SITUATION
+────────────
+Vous avez observé :
+  Solde AVANT la course  : 103,400 CDF
+  Prix de la course      : 22,000 CDF
+  Solde APRÈS la course  : 144,100 CDF
+  Différence             : +40,700 CDF
+
+📐 CALCUL ATTENDU (CORRECT)
+────────────────────────────
+Prix de la course        : 22,000 CDF
+Commission SmartCabb 15% : 22,000 × 0.15 = 3,300 CDF
+Gain net conducteur      : 22,000 - 3,300 = 18,700 CDF
+─────────────────────────────────────────────────────────────
+Solde AVANT              : 103,400 CDF
+Gain net ajouté          : +18,700 CDF
+─────────────────────────────────────────────────────────────
+Nouveau solde ATTENDU    : 122,100 CDF  ✅
+
+📊 CALCUL OBSERVÉ (BUGGÉ)
+──────────────────────────
+Solde AVANT              : 103,400 CDF
+Gain ajouté (bug)        : +40,700 CDF
+─────────────────────────────────────────────────────────────
+Nouveau solde AFFICHÉ    : 144,100 CDF  ❌
+
+🔍 DIFFÉRENCE
+─────────────
+Attendu  : 122,100 CDF
+Affiché  : 144,100 CDF
+Écart    : +22,000 CDF (exactement le prix brut de la course!)
+
+🎯 DIAGNOSTIC
+─────────────
+Le système ajoutait le gain DEUX FOIS avec des montants différents :
+  1ère addition : 22,000 CDF (prix brut, sans commission)
+  2ème addition : 18,700 CDF (prix net, après commission)
+  Total ajouté  : 40,700 CDF au lieu de 18,700 CDF
+
+Preuve :
+  103,400 + 22,000 + 18,700 = 144,100 CDF ✅ (ce que vous voyez)
+
+✅ CORRECTION v517.91
+─────────────────────
+Désormais, le gain est ajouté UNE SEULE FOIS :
+  103,400 + 18,700 = 122,100 CDF ✅
+
+🧪 TEST APRÈS DÉPLOIEMENT
+──────────────────────────
+Refaites une course de 22,000 CDF et vérifiez :
+
+SI le nouveau solde = Ancien solde + 18,700 CDF :
+  ✅ BUG CORRIGÉ !
+
+SI le nouveau solde = Ancien solde + 22,000 CDF :
+  ❌ Bug partiellement corrigé (commission non appliquée)
+
+SI le nouveau solde = Ancien solde + 40,700 CDF :
+  ❌ Bug toujours présent (double addition)
+
+═══════════════════════════════════════════════════════════════════
+
+Résumé en 1 ligne :
+  144,100 - 103,400 = 40,700 ajoutés (au lieu de 18,700)
+  → Gain ajouté en double (22,000 + 18,700)
+  → v517.91 corrige en ajoutant UNE fois (18,700)
+
+═══════════════════════════════════════════════════════════════════

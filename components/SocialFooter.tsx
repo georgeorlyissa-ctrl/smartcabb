@@ -1,10 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../lib/simple-router';
 
-interface SocialFooterProps {
-  language: 'fr' | 'en';
-}
-
-export function SocialFooter({ language }: SocialFooterProps) {
+export function SocialFooter({ language = 'fr' }: { language?: string }) {
   return (
     <footer className="bg-gray-900 text-white py-12 px-4">
       <div className="max-w-7xl mx-auto">
@@ -17,35 +13,32 @@ export function SocialFooter({ language }: SocialFooterProps) {
               <span className="text-xl font-bold">SMARTCABB</span>
             </div>
             <p className="text-gray-400 text-sm">
-              {language === 'fr' 
-                ? 'La solution de transport moderne en République Démocratique du Congo.'
-                : 'The modern transport solution in the Democratic Republic of Congo.'
-              }
+              La solution de transport moderne en République Démocratique du Congo.
             </p>
           </div>
 
           <div>
-            <h3 className="font-bold mb-4">{language === 'fr' ? 'Liens rapides' : 'Quick links'}</h3>
+            <h3 className="font-bold mb-4">Liens rapides</h3>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Accueil' : 'Home'}</Link></li>
+              <li><Link to="/" className="hover:text-cyan-500 transition">Accueil</Link></li>
               <li><Link to="/services" className="hover:text-cyan-500 transition">Services</Link></li>
-              <li><Link to="/drivers" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Chauffeurs' : 'Drivers'}</Link></li>
+              <li><Link to="/drivers" className="hover:text-cyan-500 transition">Chauffeurs</Link></li>
               <li><Link to="/contact" className="hover:text-cyan-500 transition">Contact</Link></li>
-              <li><Link to="/about" className="hover:text-cyan-500 transition">{language === 'fr' ? 'À Propos' : 'About'}</Link></li>
+              <li><Link to="/about" className="hover:text-cyan-500 transition">À Propos</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="font-bold mb-4">Applications</h3>
             <ul className="space-y-2 text-sm text-gray-400">
-              <li><Link to="/app" className="hover:text-cyan-500 transition">{language === 'fr' ? 'App Passagers' : 'Passenger App'}</Link></li>
-              <li><Link to="/driver" className="hover:text-cyan-500 transition">{language === 'fr' ? 'App Conducteurs' : 'Driver App'}</Link></li>
-              <li><Link to="/admin" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Panel Admin' : 'Admin Panel'}</Link></li>
+              <li><Link to="/app" className="hover:text-cyan-500 transition">App Passagers</Link></li>
+              <li><Link to="/driver" className="hover:text-cyan-500 transition">App Conducteurs</Link></li>
+              <li><Link to="/admin" className="hover:text-cyan-500 transition">Panel Admin</Link></li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-bold mb-4">{language === 'fr' ? 'Réseaux sociaux' : 'Social Media'}</h3>
+            <h3 className="font-bold mb-4">Réseaux sociaux</h3>
             <div className="flex gap-3">
               <a 
                 href="https://facebook.com/smartcabb" 
@@ -99,7 +92,7 @@ export function SocialFooter({ language }: SocialFooterProps) {
         </div>
 
         <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-          <p>&copy; 2025 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
+          <p>&copy; 2025 SmartCabb. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

@@ -117,6 +117,7 @@ app.post('/send', async (c) => {
                   username: username,
                   to: phoneNumber,
                   message: smsMessage,
+                  from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
                 }),
               });
 

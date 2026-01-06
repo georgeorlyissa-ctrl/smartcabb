@@ -1,10 +1,9 @@
+"use client";
+
+// 🔥 v311.3 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
 import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
 import { 
   TrendingUp, 
   DollarSign, 
@@ -13,12 +12,14 @@ import {
   Calendar,
   Download,
   RefreshCw,
-  Star
+  Star,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft
 } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+import { useAppState } from '../../hooks/useAppState';
 
 const CATEGORY_NAMES = {
   smart_standard: 'Standard',
@@ -28,19 +29,23 @@ const CATEGORY_NAMES = {
 };
 
 export function AdminAnalyticsDashboard() {
+  const { setCurrentScreen } = useAppState();
   const [stats, setStats] = useState<any>(null);
   const [periodData, setPeriodData] = useState<any[]>([]);
   const [categoryStats, setCategoryStats] = useState<any>({});
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [period, setPeriod] = useState(7); // 7 jours par défaut
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadAllData();
+    // ❌ PAS de rechargement automatique
   }, [period]);
 
   const loadAllData = async () => {
     setLoading(true);
+    setIsRefreshing(true);
     try {
       await Promise.all([
         loadOverviewStats(),
@@ -53,7 +58,13 @@ export function AdminAnalyticsDashboard() {
       toast.error('Erreur lors du chargement des statistiques');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  // ✅ Fonction pour actualiser manuellement
+  const handleRefresh = () => {
+    loadAllData();
   };
 
   const loadOverviewStats = async () => {
@@ -137,12 +148,17 @@ export function AdminAnalyticsDashboard() {
   };
 
   const formatCurrency = (value: number) => {
-    return `${value.toLocaleString()} CDF`;
+    return `${(value || 0).toLocaleString()} CDF`;
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  };
+
+  const calculateTrend = (current: number, previous: number) => {
+    if (previous === 0) return 0;
+    return ((current - previous) / previous) * 100;
   };
 
   if (loading) {
@@ -156,23 +172,27 @@ export function AdminAnalyticsDashboard() {
     );
   }
 
-  const categoryPieData = Object.entries(categoryStats).map(([key, value]: [string, any]) => ({
-    name: CATEGORY_NAMES[key as keyof typeof CATEGORY_NAMES] || key,
-    value: value.rides,
-    revenue: value.revenue
-  }));
-
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
-            <p className="text-gray-600 mt-1">Vue d'ensemble des performances SmartCabb</p>
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={() => setCurrentScreen('admin-dashboard')} 
+              variant="ghost" 
+              size="icon"
+              className="shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Analytics Dashboard</h1>
+              <p className="text-gray-600 mt-1">Vue d'ensemble des performances SmartCabb</p>
+            </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={loadAllData} variant="outline">
+            <Button onClick={handleRefresh} variant="outline">
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
@@ -265,91 +285,63 @@ export function AdminAnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Évolution des revenus */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Évolution des revenus ({period} jours)</h3>
-          <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={periodData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
-                <YAxis />
-                <Tooltip formatter={(value: any) => formatCurrency(value)} />
-                <Legend />
-                <Line type="monotone" dataKey="revenue" stroke="#3b82f6" name="Revenus" />
-                <Line type="monotone" dataKey="commissions" stroke="#10b981" name="Commissions" />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      {/* Stats par catégorie */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Répartition par catégorie</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Object.entries(categoryStats).map(([key, value]: [string, any]) => (
+            <div key={key} className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-2">
+                {CATEGORY_NAMES[key as keyof typeof CATEGORY_NAMES] || key}
+              </h4>
+              <div className="space-y-1">
+                <p className="text-2xl font-bold text-blue-900">{value.rides}</p>
+                <p className="text-sm text-blue-700">courses</p>
+                <p className="text-sm font-semibold text-blue-800 mt-2">
+                  {formatCurrency(value.revenue)}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
-        {/* Courses par catégorie */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Répartition par catégorie</h3>
-          <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryPieData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {categoryPieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Nombre de courses par jour */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Courses quotidiennes</h3>
-          <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={periodData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="rides" fill="#3b82f6" name="Courses" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Conducteurs actifs par jour */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Conducteurs actifs par jour</h3>
-          <div className="w-full h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={periodData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={formatDate} />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="activeDrivers" fill="#10b981" name="Conducteurs" />
-                <Bar dataKey="activePassengers" fill="#f59e0b" name="Passagers" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-      </div>
+      {/* Tableau des données périodiques */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4">Évolution sur {period} jours</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-3 px-4">Date</th>
+                <th className="text-right py-3 px-4">Courses</th>
+                <th className="text-right py-3 px-4">Revenus</th>
+                <th className="text-right py-3 px-4">Commissions</th>
+                <th className="text-right py-3 px-4">Conducteurs actifs</th>
+                <th className="text-right py-3 px-4">Passagers actifs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {periodData.map((day, index) => (
+                <tr key={day.date} className="border-b hover:bg-gray-50">
+                  <td className="py-3 px-4">{formatDate(day.date)}</td>
+                  <td className="text-right py-3 px-4 font-semibold">{day.rides}</td>
+                  <td className="text-right py-3 px-4">{formatCurrency(day.revenue)}</td>
+                  <td className="text-right py-3 px-4 text-green-600">{formatCurrency(day.commissions)}</td>
+                  <td className="text-right py-3 px-4">{day.activeDrivers}</td>
+                  <td className="text-right py-3 px-4">{day.activePassengers}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {periodData.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              Aucune donnée disponible pour cette période
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* Leaderboard */}
       <Card className="p-6">
@@ -379,14 +371,18 @@ export function AdminAnalyticsDashboard() {
                       #{index + 1}
                     </span>
                   </td>
-                  <td className="py-3 px-4">{driver.driverId}</td>
+                  <td className="py-3 px-4 font-medium">{driver.driverId}</td>
                   <td className="text-right py-3 px-4">{driver.totalRides}</td>
-                  <td className="text-right py-3 px-4">{formatCurrency(driver.totalEarnings)}</td>
-                  <td className="text-right py-3 px-4">{formatCurrency(driver.totalCommissions)}</td>
+                  <td className="text-right py-3 px-4 font-semibold text-green-600">
+                    {formatCurrency(driver.totalEarnings)}
+                  </td>
+                  <td className="text-right py-3 px-4 text-orange-600">
+                    {formatCurrency(driver.totalCommissions)}
+                  </td>
                   <td className="text-right py-3 px-4">
                     <div className="flex items-center justify-end gap-1">
                       <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                      <span className="font-semibold">{driver.averageRating.toFixed(1)}</span>
+                      <span className="font-semibold">{(driver.averageRating || 0).toFixed(1)}</span>
                     </div>
                   </td>
                 </tr>

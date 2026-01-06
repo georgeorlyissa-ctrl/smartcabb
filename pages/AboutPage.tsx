@@ -1,6 +1,6 @@
-import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Link } from '../lib/simple-router';
+import { motion } from '../framer-motion';
 import { ChatWidget } from '../components/ChatWidget';
 
 export function AboutPage() {
@@ -202,8 +202,8 @@ export function AboutPage() {
             className="text-xl md:text-2xl text-white/90"
           >
             {language === 'fr' 
-              ? 'Notre mission : Transformer la mobilité à Kinshasa.'
-              : 'Our mission: Transform mobility in Kinshasa.'
+              ? 'Notre mission : Transformer la mobilité en Rép Dem Congo.'
+              : 'Our mission: Transform mobility in the DRC.'
             }
           </motion.p>
         </div>
@@ -220,13 +220,13 @@ export function AboutPage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-4xl font-bold mb-6">
-                {language === 'fr' ? 'Notre mission : Transformer la mobilité à Kinshasa.' : 'Our mission: Transform mobility in Kinshasa.'}
+                {language === 'fr' ? 'Notre mission : Transformer la mobilité en Rép Dem Congo.' : 'Our mission: Transform mobility in the DRC.'}
               </h2>
               <div className="space-y-4 text-gray-600 leading-relaxed">
                 <p>
                   {language === 'fr' 
-                    ? 'Nous sommes une entreprise congolaise passionnée par la technologie et la mobilité urbaine. Face aux défis de transport à Kinshasa, nous avons créé SMART CAB pour offrir une alternative moderne, sûre et accessible. Notre mission est de connecter les passagers et les chauffeurs de manière efficace, contribuant ainsi à l\'essor économique et social de notre ville. Nous sommes fiers de bâtir une plateforme qui non seulement facilite la vie de nos utilisateurs, mais crée également des opportunités d\'emploi pour nos chauffeurs partenaires.'
-                    : 'We are a Congolese company passionate about technology and urban mobility. Facing transportation challenges in Kinshasa, we created SMART CAB to offer a modern, safe and accessible alternative. Our mission is to connect passengers and drivers efficiently, contributing to the economic and social development of our city. We are proud to build a platform that not only makes life easier for our users, but also creates employment opportunities for our partner drivers.'
+                    ? 'Nous sommes une entreprise congolaise passionnée par la technologie et la mobilité urbaine. Face aux défis de transport en Rép Dem Congo, nous avons créé SMART CABB pour offrir une alternative moderne, sûre et accessible. Notre mission est de connecter les passagers et les chauffeurs de manière efficace, contribuant ainsi à l\'essor économique et social de notre pays. Nous sommes fiers de bâtir une plateforme qui non seulement facilite la vie de nos utilisateurs, mais crée également des opportunités d\'emploi pour nos chauffeurs partenaires.'
+                    : 'We are a Congolese company passionate about technology and urban mobility. Facing transportation challenges in the DRC, we created SMART CABB to offer a modern, safe and accessible alternative. Our mission is to connect passengers and drivers efficiently, contributing to the economic and social development of our country. We are proud to build a platform that not only makes life easier for our users, but also creates employment opportunities for our partner drivers.'
                   }
                 </p>
               </div>
@@ -302,8 +302,8 @@ export function AboutPage() {
             </h2>
             <p className="text-xl text-white/90">
               {language === 'fr' 
-                ? 'Notre impact sur la mobilité urbaine à Kinshasa'
-                : 'Our impact on urban mobility in Kinshasa'
+                ? 'Notre impact sur la mobilité urbaine en Rép Dem Congo'
+                : 'Our impact on urban mobility in the DRC'
               }
             </p>
           </motion.div>
@@ -352,11 +352,10 @@ export function AboutPage() {
             <div>
               <h3 className="font-bold mb-4">Services</h3>
               <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Smart Flex</Link></li>
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Smart Confort</Link></li>
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Smart Plus</Link></li>
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Smart Familial</Link></li>
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Smart VIP</Link></li>
+                <li><Link to="/services" className="hover:text-cyan-500 transition">SmartCabb Standard</Link></li>
+                <li><Link to="/services" className="hover:text-cyan-500 transition">SmartCabb Confort</Link></li>
+                <li><Link to="/services" className="hover:text-cyan-500 transition">SmartCabb Plus</Link></li>
+                <li><Link to="/services" className="hover:text-cyan-500 transition">SmartCabb Business</Link></li>
               </ul>
             </div>
 

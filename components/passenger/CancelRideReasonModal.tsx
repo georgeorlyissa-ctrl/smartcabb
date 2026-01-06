@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CancelRideReasonModalProps {
   isOpen: boolean;
@@ -23,6 +25,14 @@ export function CancelRideReasonModal({
   const [selectedReason, setSelectedReason] = useState('');
   const [customReason, setCustomReason] = useState('');
 
+  // ✅ Réinitialiser les états quand le modal se ferme
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedReason('');
+      setCustomReason('');
+    }
+  }, [isOpen]);
+
   // Liste des motifs prédéfinis
   const cancelReasons = [
     { id: 1, text: '⏰ Attente trop longue', icon: '⏰' },
@@ -40,42 +50,41 @@ export function CancelRideReasonModal({
       ? customReason 
       : selectedReason;
     
+    console.log('🔍 Confirmation annulation:', {
+      selectedReason,
+      customReason,
+      finalReason,
+      isEmpty: !finalReason.trim()
+    });
+    
     if (!finalReason.trim()) {
+      console.warn('⚠️ Aucune raison sélectionnée');
+      toast.error('Raison requise', {
+        description: 'Veuillez sélectionner une raison d\'annulation',
+        duration: 3000
+      });
       return;
     }
     
+    console.log('✅ Envoi de la raison:', finalReason);
     onConfirm(finalReason);
+    
+    // ✅ Fermer le modal immédiatement après confirmation
+    onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Annuler la course</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="w-8 h-8"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold">Annuler la course</DialogTitle>
+          <DialogDescription className="text-gray-600 mb-6">
+            Pourquoi souhaitez-vous annuler cette course ?
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Warning if penalty applies */}
         {hasPenalty && (
@@ -95,11 +104,6 @@ export function CancelRideReasonModal({
             </div>
           </motion.div>
         )}
-
-        {/* Subtitle */}
-        <p className="text-gray-600 mb-6">
-          Pourquoi souhaitez-vous annuler cette course ?
-        </p>
 
         {/* Predefined reasons */}
         <div className="space-y-2 mb-6">
@@ -172,7 +176,7 @@ export function CancelRideReasonModal({
             Confirmer l'annulation
           </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }

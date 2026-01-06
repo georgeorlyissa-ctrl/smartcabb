@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from '../framer-motion';
 import { Mail, Phone } from 'lucide-react';
-import { detectInputType, isValidEmail, isValidPhoneNumber } from '../lib/phone-utils';
+import { Input } from './ui/input';
 
 interface EmailPhoneInputProps {
   value: string;

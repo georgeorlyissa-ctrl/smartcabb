@@ -25,6 +25,16 @@ export async function ensureSMSTableExists(): Promise<boolean> {
       return true;
     }
 
+    // Vérifier si c'est une erreur de service indisponible (Cloudflare, etc.)
+    if (error.message && (
+      error.message.includes('<!DOCTYPE html>') || 
+      error.message.includes('Cloudflare') ||
+      error.message.includes('Temporarily unavailable')
+    )) {
+      console.warn('⚠️ Service Supabase temporairement indisponible, réessayez plus tard');
+      return false;
+    }
+
     // Si la table n'existe pas (erreur PGRST205)
     if (error.code === 'PGRST205' || error.message.includes('Could not find the table')) {
       console.log('⚠️ Table sms_logs_2eb02e52 introuvable, création automatique...');
@@ -119,11 +129,22 @@ export async function ensureSMSTableExists(): Promise<boolean> {
       }
     }
 
-    // Autre erreur
-    console.error('❌ Erreur inattendue lors de la vérification:', error);
+    // Autre erreur - N'afficher que le message court, pas le HTML complet
+    const errorMsg = error.message && error.message.includes('<!DOCTYPE html>')
+      ? 'Service temporairement indisponible (Cloudflare/Supabase)'
+      : error.message || 'Erreur inconnue';
+    console.error('❌ Erreur inattendue lors de la vérification:', { 
+      code: error.code, 
+      message: errorMsg.substring(0, 200) 
+    });
     return false;
   } catch (error) {
-    console.error('❌ Erreur dans ensureSMSTableExists:', error);
+    // Simplifier l'affichage des erreurs HTML
+    if (error instanceof Error && error.message.includes('<!DOCTYPE html>')) {
+      console.error('❌ Service Supabase temporairement indisponible');
+    } else {
+      console.error('❌ Erreur dans ensureSMSTableExists:', error instanceof Error ? error.message : 'Erreur inconnue');
+    }
     return false;
   }
 }

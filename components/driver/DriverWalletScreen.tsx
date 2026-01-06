@@ -1,27 +1,81 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
 import { usePayment } from '../../hooks/usePayment';
-import { 
-  ArrowLeft, 
-  Wallet, 
-  CreditCard, 
+import { supabase } from '../../lib/supabase';
+import { sendSMS } from '../../lib/sms-service';
+import {
+  Wallet,
   Calendar,
   CheckCircle,
   AlertCircle,
-  Loader2,
-  Smartphone,
-  TrendingUp,
-  Clock,
   Gift,
+  Clock,
+  TrendingUp,
+  Loader2,
+  CreditCard,
+  Smartphone,
+  ArrowLeft,
   DollarSign,
-  FileText,
-  Download
+  FileText
 } from 'lucide-react';
-import { toast } from 'sonner';
+
+// Types
+interface WalletPackage {
+  id: string;
+  name: string;
+  description: string;
+  amount: number;
+  days: number;
+  popular?: boolean;
+  discount?: number;
+}
+
+// Forfaits de recharge disponibles
+const WALLET_PACKAGES: WalletPackage[] = [
+  {
+    id: 'basic',
+    name: 'Forfait Basique',
+    description: 'Idéal pour démarrer',
+    amount: 5000,
+    days: 7,
+  },
+  {
+    id: 'standard',
+    name: 'Forfait Standard',
+    description: 'Le plus populaire',
+    amount: 15000,
+    days: 30,
+    popular: true,
+    discount: 10,
+  },
+  {
+    id: 'premium',
+    name: 'Forfait Premium',
+    description: 'Meilleur rapport qualité-prix',
+    amount: 40000,
+    days: 90,
+    discount: 20,
+  },
+  {
+    id: 'enterprise',
+    name: 'Forfait Professionnel',
+    description: 'Pour conducteurs actifs',
+    amount: 70000,
+    days: 180,
+    discount: 25,
+  },
+];
+
+// ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
+const formatCDF = (amount: number | null | undefined): string => {
+  const safeAmount = Number(amount) || 0;
+  return `${safeAmount.toLocaleString('fr-FR')} CDF`;
+};
 
 export function DriverWalletScreen() {
   const { setCurrentScreen, currentDriver } = useAppState();
@@ -349,7 +403,7 @@ export function DriverWalletScreen() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Solde actuel</p>
-                  <h2 className="text-3xl">{(walletInfo?.wallet_balance || 0).toLocaleString()} CDF</h2>
+                  <h2 className="text-3xl">{formatCDF(walletInfo?.wallet_balance)}</h2>
                 </div>
               </div>
               
@@ -410,7 +464,7 @@ export function DriverWalletScreen() {
                     </Badge>
                   </div>
                   <div className="text-2xl text-yellow-900">
-                    {postpaidStats.pending_amount.toLocaleString()} CDF
+                    {formatCDF(postpaidStats.pending_amount)}
                   </div>
                   <p className="text-xs text-yellow-700 mt-1">
                     En attente de validation admin

@@ -121,6 +121,7 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
         username: username,
         to: formattedPhone, // ✅ UTILISER LE NUMÉRO FORMATÉ
         message: message,
+        from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
       }),
       signal: controller.signal,
     });

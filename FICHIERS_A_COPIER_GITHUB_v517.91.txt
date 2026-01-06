@@ -1,0 +1,85 @@
+═══════════════════════════════════════════════════════════════════
+  📦 FICHIERS À COPIER DANS GITHUB - v517.91
+═══════════════════════════════════════════════════════════════════
+
+🔥 FICHIER MODIFIÉ (CRITIQUE - À COPIER EN PRIORITÉ)
+────────────────────────────────────────────────────────────────
+
+1. /supabase/functions/server/ride-routes.tsx
+   └─ Correction double addition solde conducteur
+   └─ Lignes 653-667 modifiées
+   └─ Suppression code qui ajoutait le gain au solde dans le backend
+
+
+📚 FICHIERS DE DOCUMENTATION (OPTIONNELS)
+────────────────────────────────────────────────────────────────
+
+2. /DEPLOY_v517.91_FIX_DOUBLE_ADDITION_SOLDE.md
+   └─ Documentation complète du déploiement
+   └─ Explications détaillées du problème et de la solution
+
+3. /TEST_CALCUL_SOLDE_v517.91.md
+   └─ Scénarios de test avec calculs détaillés
+   └─ Guide de vérification après déploiement
+
+4. /RESUME_v517.91.txt
+   └─ Résumé court pour référence rapide
+
+5. /FICHIERS_A_COPIER_GITHUB_v517.91.txt
+   └─ Ce fichier (liste des fichiers)
+
+
+═══════════════════════════════════════════════════════════════════
+  🚀 COMMANDES GIT
+═══════════════════════════════════════════════════════════════════
+
+# Option 1 : Copier UNIQUEMENT le fichier critique
+git add supabase/functions/server/ride-routes.tsx
+git commit -m "fix(v517.91): Correction double addition solde conducteur"
+git push origin main
+
+# Option 2 : Copier TOUS les fichiers (code + documentation)
+git add supabase/functions/server/ride-routes.tsx
+git add DEPLOY_v517.91_FIX_DOUBLE_ADDITION_SOLDE.md
+git add TEST_CALCUL_SOLDE_v517.91.md
+git add RESUME_v517.91.txt
+git add FICHIERS_A_COPIER_GITHUB_v517.91.txt
+git commit -m "fix(v517.91): Correction double addition solde + documentation"
+git push origin main
+
+
+═══════════════════════════════════════════════════════════════════
+  ⚡ OPTION ULTRA-RAPIDE (SI URGENCE)
+═══════════════════════════════════════════════════════════════════
+
+1. Ouvrir GitHub → Repository SmartCabb
+2. Naviguer vers : supabase/functions/server/ride-routes.tsx
+3. Cliquer "Edit" (icône crayon)
+4. Copier TOUT le contenu du fichier depuis Figma Make
+5. Coller dans GitHub (remplacer tout)
+6. Commit message : "fix(v517.91): Correction double addition solde"
+7. Cliquer "Commit changes"
+8. Attendre déploiement automatique Vercel (~2-3 minutes)
+9. Tester sur smartcabb.com
+
+
+═══════════════════════════════════════════════════════════════════
+  ✅ APRÈS DÉPLOIEMENT
+═══════════════════════════════════════════════════════════════════
+
+1. Aller sur smartcabb.com
+2. Se connecter en tant que conducteur
+3. Effectuer une course test
+4. VÉRIFIER : Solde augmente de (Prix - Commission 15%)
+   
+   Exemple avec votre cas :
+   - Course de 22,000 CDF
+   - Gain net = 22,000 - 3,300 = 18,700 CDF
+   - Nouveau solde = Ancien + 18,700 CDF ✅
+   - PAS Ancien + 22,000 CDF ❌
+   - PAS Ancien + 40,700 CDF ❌
+
+
+═══════════════════════════════════════════════════════════════════
+Version : v517.91 | Date : 23/12/2024 | Urgence : HAUTE 🔥
+═══════════════════════════════════════════════════════════════════

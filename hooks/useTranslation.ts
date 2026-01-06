@@ -21,7 +21,7 @@ const translations = {
     'smart_confort': 'SmartCabb Confort',
     'smart_plus': 'SmartCabb Plus',
     'smart_business': 'SmartCabb Business',
-    'confirm_booking': 'Confirmer la réservation',
+    'confirm_booking': 'Confirmer la commande', // ✅ FIX #1: Changé de "réservation" à "commande"
     
     // Payment
     'payment_method': 'Mode de paiement',

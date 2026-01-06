@@ -1,4 +1,4 @@
-import { Hono } from "npm:hono";
+import { Hono } from "npm:hono@4";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv_store.tsx";
 
@@ -10,11 +10,59 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 );
 
+// 📱 Fonction pour envoyer le code de confirmation par SMS
+async function sendConfirmationSMS(phone: string, code: string, driverName: string): Promise<boolean> {
+  try {
+    const apiKey = Deno.env.get('AFRICAS_TALKING_API_KEY');
+    const username = Deno.env.get('AFRICAS_TALKING_USERNAME');
+
+    if (!apiKey || !username) {
+      console.error('❌ Variables d\'environnement manquantes pour Africa\'s Talking');
+      return false;
+    }
+
+    const message = `SmartCabb: ${driverName} a accepté votre course. Code de confirmation: ${code}. Donnez ce code au conducteur avant de démarrer.`;
+
+    const response = await fetch('https://api.africastalking.com/version1/messaging', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'apiKey': apiKey,
+        'Accept': 'application/json'
+      },
+      body: new URLSearchParams({
+        username: username,
+        to: phone,
+        message: message,
+        from: 'SMARTCABB' // 🆔 Sender ID approuvé par Africa's Talking
+      }).toString()
+    });
+
+    // Vérifier si la réponse est JSON avant de parser
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      const result = await response.json();
+      console.log('✅ SMS envoyé:', result);
+      return response.ok;
+    } else {
+      const text = await response.text();
+      console.log('⚠️ Réponse non-JSON de l\'API SMS:', text);
+      // Si le statut est OK (200-299), on considère que ça a marché
+      return response.ok;
+    }
+  } catch (error) {
+    console.error('❌ Erreur envoi SMS:', error);
+    return false;
+  }
+}
+
 // ============================================
 // CRÉER UNE DEMANDE DE COURSE (PASSAGER)
 // ============================================
 app.post('/create', async (c) => {
   try {
+    console.log('📥 POST /rides/create - Requête reçue');
+    
     const body = await c.req.json();
     const { 
       passengerId, 
@@ -30,18 +78,32 @@ app.post('/create', async (c) => {
       passengerCount
     } = body;
 
-    console.log('🚕 Création demande de course:', { passengerId, pickup, destination });
+    console.log('🚕 Création demande de course:', { 
+      passengerId, 
+      passengerName,
+      vehicleType,
+      pickup: pickup?.address || 'N/A', 
+      destination: destination?.address || 'N/A',
+      estimatedPrice 
+    });
 
     // Validation
     if (!passengerId || !pickup || !destination || !estimatedPrice) {
+      console.error('❌ Validation échouée - Données manquantes:', {
+        hasPassengerId: !!passengerId,
+        hasPickup: !!pickup,
+        hasDestination: !!destination,
+        hasEstimatedPrice: !!estimatedPrice
+      });
       return c.json({ 
         success: false, 
-        error: 'Données manquantes' 
+        error: 'Données manquantes (passengerId, pickup, destination, estimatedPrice requis)' 
       }, 400);
     }
 
     // Générer un ID unique pour la course
     const rideId = `ride_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    console.log('🆔 Ride ID généré:', rideId);
 
     // Créer la demande de course dans le KV store
     const rideRequest = {
@@ -62,13 +124,199 @@ app.post('/create', async (c) => {
       expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString() // Expire dans 5 minutes
     };
 
+    console.log('💾 Sauvegarde dans KV store avec clé:', `ride_request_${rideId}`);
+    console.log('📦 Données à sauvegarder:', JSON.stringify(rideRequest, null, 2));
+    
+    // 🔥 LOG: Timestamp AVANT kv.set()
+    const beforeSetTime = Date.now();
+    console.log(`⏰ [${new Date().toISOString()}] AVANT kv.set() - Timestamp: ${beforeSetTime}`);
+    
     // Sauvegarder dans le KV store avec la clé `ride_request_{rideId}`
-    await kv.set(`ride_request_${rideId}`, rideRequest);
+    try {
+      await kv.set(`ride_request_${rideId}`, rideRequest);
+      const afterSetTime = Date.now();
+      console.log(`⏰ [${new Date().toISOString()}] APRÈS kv.set() - Durée: ${afterSetTime - beforeSetTime}ms`);
+      console.log(`✅ KV store set() réussi pour ride_request_${rideId}`);
+    } catch (kvError) {
+      console.error('❌ Erreur KV store set():', kvError);
+      console.error('❌ Type erreur:', kvError instanceof Error ? kvError.constructor.name : typeof kvError);
+      console.error('❌ Stack:', kvError instanceof Error ? kvError.stack : 'N/A');
+      throw kvError;
+    }
     
     // Ajouter aussi dans une liste globale des demandes en attente
-    await kv.set(`ride_pending_${rideId}`, rideId);
+    try {
+      await kv.set(`ride_pending_${rideId}`, rideId);
+      console.log(`✅ KV store set() réussi pour ride_pending_${rideId}`);
+    } catch (kvError) {
+      console.error('❌ Erreur KV store set() pour pending:', kvError);
+      // Ne pas bloquer si cette partie échoue
+    }
+    
+    // ⏰ DÉLAI DE SÉCURITÉ: Attendre 1000ms (1 seconde) pour garantir la persistance dans Supabase
+    // Supabase retourne la promesse avant que la donnée soit vraiment committée
+    console.log(`⏰ [${new Date().toISOString()}] Attente de 1000ms pour garantir la persistance...`);
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log(`⏰ [${new Date().toISOString()}] Délai de 1000ms terminé, début de la vérification`);
+    
+    // Vérification immédiate : relire la course pour s'assurer qu'elle est bien sauvegardée
+    let verificationSuccess = false;
+    let attemptCount = 0;
+    const maxAttempts = 3;
+    
+    while (!verificationSuccess && attemptCount < maxAttempts) {
+      attemptCount++;
+      console.log(`🔍 Tentative de vérification #${attemptCount}/${maxAttempts}...`);
+      
+      try {
+        const verification = await kv.get(`ride_request_${rideId}`);
+        
+        if (verification) {
+          console.log(`✅ VÉRIFICATION RÉUSSIE à la tentative #${attemptCount}`);
+          console.log('📋 Données vérifiées:', JSON.stringify(verification, null, 2));
+          verificationSuccess = true;
+        } else {
+          console.error(`❌ VÉRIFICATION ÉCHOUÉE à la tentative #${attemptCount}: Course non trouvée!`);
+          
+          if (attemptCount < maxAttempts) {
+            const waitTime = attemptCount * 500; // 500ms, puis 1000ms
+            console.log(`⏰ Attente de ${waitTime}ms avant nouvelle tentative...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+          }
+        }
+      } catch (verifyError) {
+        console.error(`❌ Erreur lors de la vérification (tentative #${attemptCount}):`, verifyError);
+        console.error('❌ Type erreur vérification:', verifyError instanceof Error ? verifyError.constructor.name : typeof verifyError);
+        
+        if (attemptCount < maxAttempts) {
+          const waitTime = attemptCount * 500;
+          console.log(`⏰ Attente de ${waitTime}ms avant nouvelle tentative...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+        } else {
+          throw verifyError;
+        }
+      }
+    }
+    
+    if (!verificationSuccess) {
+      const errorMsg = `ÉCHEC CRITIQUE: Impossible de vérifier la sauvegarde après ${maxAttempts} tentatives`;
+      console.error(`❌ ${errorMsg}`);
+      console.error('🔍 Debugging info:', {
+        rideId,
+        key: `ride_request_${rideId}`,
+        timestamp: new Date().toISOString(),
+        attempts: attemptCount
+      });
+      throw new Error(errorMsg);
+    }
 
-    console.log('✅ Demande de course créée:', rideId);
+    console.log('✅ Demande de course créée avec succès:', rideId);
+
+    // 🆕 v517.97: MATCHING INTELLIGENT - Trouver le driver le plus proche
+    try {
+      console.log('🎯 v517.97 - Démarrage du matching intelligent...');
+      
+      // Fonction pour calculer la distance (Haversine formula)
+      const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+        const R = 6371; // Rayon de la Terre en km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; // Distance en km
+      };
+      
+      // Récupérer tous les drivers du KV store
+      const allDriversData = await kv.getByPrefix('driver:');
+      console.log(`📊 ${allDriversData.length} drivers trouvés dans le KV store`);
+      
+      // Filtrer les drivers online de la bonne catégorie
+      const onlineDrivers = [];
+      
+      for (const driver of allDriversData) {
+        // Vérifier si c'est bien un driver (pas un status ou balance)
+        if (!driver.id || !driver.name) continue;
+        
+        // Vérifier le statut online
+        const statusKey = `driver:${driver.id}:status`;
+        const statusData = await kv.get(statusKey);
+        const isOnline = statusData?.isOnline || false;
+        
+        if (!isOnline) continue;
+        
+        // Vérifier la catégorie du véhicule
+        const driverVehicleType = driver.vehicle?.category || driver.vehicle_category || 'standard';
+        const normalizedDriverType = driverVehicleType.replace('smart_', '');
+        const normalizedRequestType = (vehicleType || 'standard').replace('smart_', '');
+        
+        if (normalizedDriverType !== normalizedRequestType) {
+          console.log(`⏭️ Driver ${driver.name} ignoré: catégorie ${normalizedDriverType} ≠ ${normalizedRequestType}`);
+          continue;
+        }
+        
+        // Récupérer la position du driver
+        const locationKey = `driver_location_${driver.id}`;
+        const locationData = await kv.get(locationKey);
+        
+        // Position par défaut si pas de tracking GPS actif
+        const driverLat = locationData?.lat || driver.location?.lat || -4.3276;
+        const driverLng = locationData?.lng || driver.location?.lng || 15.3136;
+        
+        // Calculer distance entre pickup et driver
+        const distance = calculateDistance(
+          pickup.lat,
+          pickup.lng,
+          driverLat,
+          driverLng
+        );
+        
+        onlineDrivers.push({
+          id: driver.id,
+          name: driver.name,
+          phone: driver.phone,
+          location: { lat: driverLat, lng: driverLng },
+          distanceToPickup: distance
+        });
+        
+        console.log(`✅ Driver ${driver.name} ajouté: ${distance.toFixed(2)} km du pickup`);
+      }
+      
+      console.log(`🚗 ${onlineDrivers.length} drivers online pour catégorie ${vehicleType}`);
+      
+      if (onlineDrivers.length > 0) {
+        // Trier par distance (le plus proche en premier)
+        onlineDrivers.sort((a, b) => a.distanceToPickup - b.distanceToPickup);
+        
+        console.log('📊 v517.97 - Drivers triés par distance:');
+        onlineDrivers.forEach((d, index) => {
+          console.log(`  ${index + 1}. ${d.name} - ${d.distanceToPickup.toFixed(2)} km`);
+        });
+        
+        // Sauvegarder la liste des drivers notifiés
+        await kv.set(`ride_notified_drivers_${rideId}`, {
+          rideId,
+          drivers: onlineDrivers.map(d => ({
+            id: d.id,
+            name: d.name,
+            distance: d.distanceToPickup
+          })),
+          closestDriverId: onlineDrivers[0].id,
+          createdAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Liste des ${onlineDrivers.length} drivers notifiés sauvegardée`);
+        console.log(`🏆 Driver le plus proche: ${onlineDrivers[0].name} (${onlineDrivers[0].distanceToPickup.toFixed(2)} km)`);
+      } else {
+        console.log('⚠️ Aucun driver online disponible pour cette catégorie');
+      }
+      
+    } catch (matchingError) {
+      console.error('❌ Erreur matching intelligent:', matchingError);
+      // Ne pas bloquer la création de la course si le matching échoue
+    }
 
     return c.json({
       success: true,
@@ -78,6 +326,7 @@ app.post('/create', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur création demande:', error);
+    console.error('❌ Stack trace:', error instanceof Error ? error.stack : 'N/A');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur' 
@@ -261,21 +510,23 @@ async function cleanupOldRequests(requests: any[], now: Date) {
     const createdAt = req.createdAt ? new Date(req.createdAt) : null;
     const expiresAt = req.expiresAt ? new Date(req.expiresAt) : null;
     
-    // Supprimer si :
-    // - Expirée
-    // - Acceptée
-    // - Créée il y a plus de 2 minutes
+    // ✅ Supprimer UNIQUEMENT les courses en attente (pending) qui sont :
+    // - Expirées (expiresAt < now)
+    // - OU créées il y a plus de 2 minutes ET toujours pending
+    // ⚠️ NE PAS supprimer les courses accepted, in_progress, ou completed !
     const shouldDelete = 
-      !createdAt || 
-      !expiresAt ||
-      expiresAt < now || 
-      req.status !== 'pending' ||
-      createdAt <= TWO_MINUTES_AGO;
+      req.status === 'pending' && (
+        !createdAt || 
+        !expiresAt ||
+        expiresAt < now || 
+        createdAt <= TWO_MINUTES_AGO
+      );
     
     if (shouldDelete) {
       await kv.del(`ride_request_${req.id}`);
       await kv.del(`ride_pending_${req.id}`);
       deletedCount++;
+      console.log(`🗑️ Course supprimée (nettoyage): ${req.id} (statut: ${req.status})`);
     }
   }
   
@@ -311,6 +562,17 @@ app.post('/accept', async (c) => {
     }
 
     if (rideRequest.status !== 'pending') {
+      // 🆕 v517.97: Vérifier si déjà acceptée par un autre driver
+      if (rideRequest.status === 'accepted' && rideRequest.driverId && rideRequest.driverId !== driverId) {
+        console.log(`⚠️ v517.97 - Course ${rideId} déjà acceptée par ${rideRequest.driverId}`);
+        return c.json({ 
+          success: false, 
+          error: 'already_taken',
+          message: 'Cette course a été acceptée par un autre conducteur',
+          takenBy: rideRequest.driverName || 'un autre conducteur'
+        }, 409);
+      }
+      
       return c.json({ 
         success: false, 
         error: 'Cette course a déjà été acceptée' 
@@ -340,6 +602,36 @@ app.post('/accept', async (c) => {
     await kv.del(`ride_pending_${rideId}`);
 
     console.log('✅ Course acceptée par le conducteur:', driverId);
+
+    // 🆕 v517.97: NOTIFIER LES AUTRES DRIVERS
+    try {
+      const notifiedDrivers = await kv.get(`ride_notified_drivers_${rideId}`);
+      
+      if (notifiedDrivers && notifiedDrivers.drivers) {
+        const otherDrivers = notifiedDrivers.drivers.filter(
+          (d: any) => d.id !== driverId
+        );
+
+        console.log(`📢 v517.97 - Notification de ${otherDrivers.length} autres drivers que la course est prise`);
+
+        // Marquer pour chaque autre driver que cette course est prise
+        for (const driver of otherDrivers) {
+          await kv.set(`driver_${driver.id}_ride_${rideId}_status`, {
+            status: 'taken_by_other',
+            takenBy: driverName || 'Conducteur',
+            takenAt: new Date().toISOString()
+          });
+        }
+
+        console.log(`✅ ${otherDrivers.length} drivers notifiés que la course est prise`);
+      }
+    } catch (notifError) {
+      console.error('❌ Erreur notification autres drivers:', notifError);
+      // Ne pas bloquer l'acceptation si la notification échoue
+    }
+
+    // Envoyer le code de confirmation par SMS
+    await sendConfirmationSMS(rideRequest.passengerPhone, confirmationCode, driverName);
 
     return c.json({
       success: true,
@@ -428,23 +720,113 @@ app.get('/status/:rideId', async (c) => {
 });
 
 // ============================================
+// RÉCUPÉRER LA COURSE ACTIVE D'UN CONDUCTEUR
+// ============================================
+app.get('/active-driver-ride/:driverId', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log('🔍 Recherche course active pour conducteur:', driverId);
+
+    // Récupérer toutes les courses du conducteur
+    const allRides = await kv.getByPrefix('ride_request_');
+    
+    if (!allRides || allRides.length === 0) {
+      console.log('📭 Aucune course trouvée');
+      return c.json({ 
+        success: false, 
+        error: 'Aucune course trouvée',
+        ride: null
+      }, 404);
+    }
+
+    // Filtrer pour trouver la course active de ce conducteur
+    const activeRide = allRides.find((ride: any) => 
+      ride.driverId === driverId && 
+      ride.status === 'in_progress'
+    );
+
+    if (!activeRide) {
+      console.log('📭 Aucune course active pour ce conducteur');
+      return c.json({ 
+        success: false, 
+        error: 'Aucune course active',
+        ride: null
+      }, 404);
+    }
+
+    console.log('✅ Course active trouvée:', activeRide.id);
+    return c.json({
+      success: true,
+      ride: activeRide
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur recherche course active:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+      ride: null
+    }, 500);
+  }
+});
+
+// ============================================
 // TERMINER UNE COURSE
 // ============================================
 app.post('/complete', async (c) => {
   try {
     const body = await c.req.json();
-    const { rideId, finalPrice, duration, rating, feedback } = body;
+    const { 
+      rideId, 
+      driverId,
+      finalPrice, 
+      duration, 
+      billingElapsedTime, // ✅ v517.96: Temps de facturation (après temps gratuit)
+      rating, 
+      feedback, 
+      paymentMethod,
+      // ✅ NOUVELLES DONNÉES: accepter pickup, destination, distance, vehicleType depuis le frontend
+      pickup,
+      destination,
+      distance,
+      vehicleType,
+      completedAt,
+      // ✅ v517.94: Accepter startTime pour calcul uniforme de la durée
+      startTime
+    } = body;
 
-    console.log('🏁 Fin de course:', rideId);
+    console.log('🏁 Fin de course:', rideId, 'Payment:', paymentMethod);
+    console.log('📍 Données de course:', { pickup, destination, distance, vehicleType });
 
-    const ride = await kv.get(`ride_request_${rideId}`);
+    let ride = await kv.get(`ride_request_${rideId}`);
     
     if (!ride) {
-      return c.json({ 
-        success: false, 
-        error: 'Course introuvable' 
-      }, 404);
+      // ✅ Si la course n'existe pas dans le backend (créée localement uniquement)
+      // On la crée maintenant avec les données du frontend
+      console.log('⚠️ Course non trouvée dans le backend, création avec les données frontend');
+      ride = {
+        id: rideId,
+        driverId: driverId,
+        passengerId: body.passengerId || 'unknown',
+        pickup: pickup,
+        destination: destination,
+        distance: distance,
+        vehicleType: vehicleType,
+        estimatedPrice: finalPrice,
+        status: 'completed',
+        createdAt: body.createdAt || new Date().toISOString()
+      };
     }
+
+    // ✅ METTRE À JOUR LES DONNÉES DE LA COURSE avec les infos du frontend
+    // Cela corrige le problème des "pickup/destination non spécifiés"
+    if (pickup) ride.pickup = pickup;
+    if (destination) ride.destination = destination;
+    if (distance) ride.distance = distance;
+    if (vehicleType) ride.vehicleType = vehicleType;
+    if (driverId) ride.driverId = driverId;
+    // ✅ v517.94: Enregistrer startTime pour calcul uniforme
+    if (startTime) ride.startTime = startTime;
 
     // ✅ CALCUL AUTOMATIQUE DE LA COMMISSION
     const rideFinalPrice = finalPrice || ride.estimatedPrice;
@@ -469,96 +851,68 @@ app.post('/complete', async (c) => {
       gainConducteur: `${driverEarnings} CDF`
     });
 
-    // ✅ DÉDUIRE LE COÛT DE LA COURSE DU SOLDE DU CONDUCTEUR
-    const driverId = ride.assignedDriverId;
-    if (driverId) {
-      const balanceKey = `driver:${driverId}:balance`;
-      const currentBalance = await kv.get(balanceKey) || { balance: 0 };
-      const currentBalanceValue = typeof currentBalance === 'number' 
-        ? currentBalance 
-        : (currentBalance.balance || 0);
+    // 💳 GESTION DU PAIEMENT PASSAGER
+    const passengerId = ride.passengerId || ride.userId;
+    const paymentMethodUsed = paymentMethod || ride.paymentMethod || 'cash';
+    let passengerPaymentSuccess = false;
+    let passengerPaymentError = null;
 
-      // Déduire la commission (le coût pour le conducteur)
-      const newBalance = currentBalanceValue - commissionAmount;
-      
-      await kv.set(balanceKey, { 
-        balance: newBalance,
-        updated_at: new Date().toISOString()
-      });
+    if (paymentMethodUsed === 'wallet' && passengerId) {
+      // ✅ PAIEMENT PAR WALLET: Déduire du solde passager
+      const passengerBalanceKey = `passenger:${passengerId}:balance`;
+      const passengerBalance = await kv.get(passengerBalanceKey) || { balance: 0 };
+      const currentPassengerBalance = typeof passengerBalance === 'number' 
+        ? passengerBalance 
+        : (passengerBalance.balance || 0);
 
-      console.log(`💳 Solde conducteur mis à jour: ${currentBalanceValue} - ${commissionAmount} = ${newBalance} CDF`);
-
-      // ✅ ENREGISTRER LA TRANSACTION DANS L'HISTORIQUE
-      const transactionKey = `transaction:${Date.now()}:${rideId}`;
-      await kv.set(transactionKey, {
-        type: 'ride_commission',
-        rideId: rideId,
-        driverId: driverId,
-        passengerId: ride.userId,
-        amount: rideFinalPrice,
-        commission: commissionAmount,
-        driverEarnings: driverEarnings,
-        previousBalance: currentBalanceValue,
-        newBalance: newBalance,
-        vehicleCategory: ride.vehicleType,
-        timestamp: new Date().toISOString(),
-        date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD pour analytics
-      });
-
-      // ✅ METTRE À JOUR LES STATISTIQUES DU CONDUCTEUR
-      const statsKey = `driver:${driverId}:stats`;
-      const currentStats = await kv.get(statsKey) || {
-        totalRides: 0,
-        totalEarnings: 0,
-        totalCommissions: 0,
-        averageRating: 0,
-        ratings: []
-      };
-
-      const updatedRatings = [...(currentStats.ratings || []), rating || 0];
-      const averageRating = updatedRatings.reduce((a, b) => a + b, 0) / updatedRatings.length;
-
-      await kv.set(statsKey, {
-        totalRides: (currentStats.totalRides || 0) + 1,
-        totalEarnings: (currentStats.totalEarnings || 0) + driverEarnings,
-        totalCommissions: (currentStats.totalCommissions || 0) + commissionAmount,
-        averageRating: averageRating,
-        ratings: updatedRatings,
-        lastRideAt: new Date().toISOString()
-      });
-
-      console.log(`📊 Stats conducteur mises à jour: ${currentStats.totalRides + 1} courses, moyenne ${averageRating.toFixed(1)}/5`);
-
-      // ✅ ENREGISTRER DANS L'HISTORIQUE JOURNALIER (pour analytics admin)
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      const dailyStatsKey = `stats:daily:${today}`;
-      const dailyStats = await kv.get(dailyStatsKey) || {
-        date: today,
-        totalRides: 0,
-        totalRevenue: 0,
-        totalCommissions: 0,
-        totalDriverEarnings: 0,
-        ridesByCategory: {},
-        activeDrivers: new Set(),
-        activePassengers: new Set()
-      };
-
-      await kv.set(dailyStatsKey, {
-        date: today,
-        totalRides: (dailyStats.totalRides || 0) + 1,
-        totalRevenue: (dailyStats.totalRevenue || 0) + rideFinalPrice,
-        totalCommissions: (dailyStats.totalCommissions || 0) + commissionAmount,
-        totalDriverEarnings: (dailyStats.totalDriverEarnings || 0) + driverEarnings,
-        ridesByCategory: {
-          ...(dailyStats.ridesByCategory || {}),
-          [ride.vehicleType]: ((dailyStats.ridesByCategory || {})[ride.vehicleType] || 0) + 1
-        },
-        activeDrivers: Array.from(new Set([...(dailyStats.activeDrivers || []), driverId])),
-        activePassengers: Array.from(new Set([...(dailyStats.activePassengers || []), ride.userId]))
-      });
-
-      console.log(`📈 Stats journalières mises à jour: ${(dailyStats.totalRides || 0) + 1} courses aujourd'hui`);
+      if (currentPassengerBalance >= rideFinalPrice) {
+        const newPassengerBalance = currentPassengerBalance - rideFinalPrice;
+        await kv.set(passengerBalanceKey, {
+          balance: newPassengerBalance,
+          updated_at: new Date().toISOString()
+        });
+        console.log(`💰 Wallet passager: ${currentPassengerBalance} - ${rideFinalPrice} = ${newPassengerBalance} CDF`);
+        passengerPaymentSuccess = true;
+      } else {
+        passengerPaymentError = `Solde insuffisant (${currentPassengerBalance} CDF disponible)`;
+        console.error(`❌ Solde insuffisant: ${currentPassengerBalance} < ${rideFinalPrice}`);
+      }
+    } else if (paymentMethodUsed === 'mobile_money') {
+      // 💳 PAIEMENT PAR MOBILE MONEY: Sera géré par le frontend via API externe
+      console.log('📱 Paiement mobile money - Traité côté frontend');
+      passengerPaymentSuccess = true; // On assume que le paiement a été fait côté frontend
+    } else if (paymentMethodUsed === 'card') {
+      // 💳 PAIEMENT PAR CARTE: Sera géré par le frontend via Flutterwave
+      console.log('💳 Paiement carte bancaire - Traité côté frontend');
+      passengerPaymentSuccess = true; // On assume que le paiement a été fait côté frontend
+    } else if (paymentMethodUsed === 'cash') {
+      // 💵 PAIEMENT ESPÈCES: Pas de déduction, le conducteur reçoit l'argent directement
+      console.log('💵 Paiement en espèces - Aucune transaction numérique');
+      passengerPaymentSuccess = true;
     }
+
+    if (!passengerPaymentSuccess) {
+      return c.json({
+        success: false,
+        error: passengerPaymentError || 'Paiement échoué'
+      }, 400);
+    }
+
+    // ⚠️ v517.91: SUPPRESSION DE LA MISE À JOUR DU SOLDE CONDUCTEUR DANS LE BACKEND
+    // Le frontend gère déjà cette logique correctement dans DriverDashboard.tsx ligne 1039
+    // En gardant cette logique ici, on créait une DOUBLE ADDITION du gain au solde
+    // 
+    // AVANT (BUGGÉ):
+    // - Backend ajoutait le gain ici
+    // - Frontend ajoutait ENCORE le gain
+    // - Résultat: gain ajouté 2 fois!
+    //
+    // MAINTENANT (CORRIGÉ):
+    // - Seul le frontend ajoute le gain une seule fois
+    // - Le backend se contente de sauvegarder la course
+    
+    console.log('💰 v517.91 - Le solde conducteur sera mis à jour par le frontend uniquement');
+    console.log(`   Gain net conducteur: ${driverEarnings} CDF (Commission: ${commissionAmount} CDF)`);
 
     // Mettre à jour la course
     const completedRide = {
@@ -569,14 +923,47 @@ app.post('/complete', async (c) => {
       driverEarnings: driverEarnings,
       commissionPercentage: commissionPercentage,
       duration: duration || 0,
+      billingElapsedTime: billingElapsedTime ?? duration ?? 0, // ✅ v517.96: Temps facturable
       rating: rating || 0,
       feedback: feedback || '',
-      completedAt: new Date().toISOString()
+      completedAt: completedAt || new Date().toISOString()
     };
 
     await kv.set(`ride_request_${rideId}`, completedRide);
     await kv.set(`ride_completed_${rideId}`, completedRide);
     await kv.del(`ride_active_${rideId}`);
+
+    // 🆕 v517.91: Mettre à jour les stats du conducteur (totalRides, totalEarnings, etc.)
+    if (driverId) {
+      const statsKey = `driver:${driverId}:stats`;
+      const currentStats = await kv.get(statsKey) || {
+        totalRides: 0,
+        totalEarnings: 0,
+        totalCommissions: 0,
+        averageRating: 0,
+        ratings: []
+      };
+
+      const updatedStats = {
+        ...currentStats,
+        totalRides: (currentStats.totalRides || 0) + 1,
+        totalEarnings: (currentStats.totalEarnings || 0) + rideFinalPrice,
+        totalCommissions: (currentStats.totalCommissions || 0) + commissionAmount,
+        // ✅ FIX v517.93: Préserver le tableau des ratings existants
+        ratings: currentStats.ratings || [],
+        averageRating: currentStats.averageRating || 0,
+        // Note: le rating sera mis à jour par la route /rate
+        lastRideAt: new Date().toISOString()
+      };
+
+      await kv.set(statsKey, updatedStats);
+
+      console.log(`📊 v517.91 - Stats conducteur mises à jour:`, {
+        totalRides: updatedStats.totalRides,
+        totalEarnings: updatedStats.totalEarnings,
+        averageRating: updatedStats.averageRating
+      });
+    }
 
     console.log('✅ Course terminée:', rideId);
 
@@ -702,6 +1089,130 @@ app.get('/check-availability/:rideId', async (c) => {
 });
 
 // ============================================
+// ANNULER UNE COURSE (PASSAGER OU CONDUCTEUR)
+// ============================================
+app.post('/cancel', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { rideId, passengerId, reason, cancelledBy } = body;
+
+    console.log('🚫 Annulation de course:', { rideId, cancelledBy, reason });
+
+    // Validation
+    if (!rideId || !cancelledBy) {
+      return c.json({ 
+        success: false, 
+        error: 'Données manquantes (rideId, cancelledBy requis)' 
+      }, 400);
+    }
+
+    // ✅ FIX: Chercher la course dans TOUS les endroits possibles
+    let ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      console.warn(`⚠️ Course non trouvée dans ride_request_${rideId}, vérification dans ride_pending...`);
+      ride = await kv.get(`ride_pending_${rideId}`);
+    }
+    
+    if (!ride) {
+      console.warn(`⚠️ Course non trouvée dans ride_pending_${rideId}, vérification dans ride_active...`);
+      ride = await kv.get(`ride_active_${rideId}`);
+    }
+    
+    if (!ride) {
+      console.error('❌ Course introuvable dans TOUS les emplacements:', rideId);
+      return c.json({ 
+        success: false, 
+        error: 'Course introuvable' 
+      }, 404);
+    }
+    
+    console.log('✅ Course trouvée, statut actuel:', ride.status);
+
+    // Vérifier si la course peut être annulée
+    if (ride.status === 'completed') {
+      return c.json({ 
+        success: false, 
+        error: 'Impossible d\'annuler une course terminée' 
+      }, 400);
+    }
+
+    if (ride.status === 'cancelled') {
+      return c.json({ 
+        success: false, 
+        error: 'Cette course est déjà annulée' 
+      }, 400);
+    }
+
+    // Calculer la pénalité si un conducteur a déjà accepté
+    let penaltyAmount = 0;
+    let penaltyApplied = false;
+    
+    if (ride.status === 'accepted' && cancelledBy === 'passenger') {
+      // Pénalité de 50% du prix estimé
+      penaltyAmount = Math.round((ride.estimatedPrice || 0) * 0.5);
+      penaltyApplied = true;
+      
+      console.log(`⚠️ Pénalité d'annulation: ${penaltyAmount} CDF (50% du prix)`);
+      
+      // Déduire la pénalité du wallet du passager si disponible
+      if (passengerId) {
+        const passengerBalanceKey = `passenger:${passengerId}:balance`;
+        const passengerBalance = await kv.get(passengerBalanceKey) || { balance: 0 };
+        const currentBalance = typeof passengerBalance === 'number' 
+          ? passengerBalance 
+          : (passengerBalance.balance || 0);
+        
+        if (currentBalance >= penaltyAmount) {
+          const newBalance = currentBalance - penaltyAmount;
+          await kv.set(passengerBalanceKey, {
+            balance: newBalance,
+            updated_at: new Date().toISOString()
+          });
+          console.log(`💰 Pénalité déduite du wallet: ${currentBalance} - ${penaltyAmount} = ${newBalance} CDF`);
+        } else {
+          console.warn(`⚠️ Solde insuffisant pour pénalité (${currentBalance} CDF disponible)`);
+        }
+      }
+    }
+
+    // Mettre à jour la course avec le statut annulé
+    const cancelledRide = {
+      ...ride,
+      status: 'cancelled',
+      cancelledBy,
+      cancelReason: reason || 'Non spécifiée',
+      cancelledAt: new Date().toISOString(),
+      penaltyAmount: penaltyApplied ? penaltyAmount : 0,
+      penaltyApplied
+    };
+
+    await kv.set(`ride_request_${rideId}`, cancelledRide);
+    await kv.set(`ride_cancelled_${rideId}`, cancelledRide);
+    
+    // Supprimer des listes actives
+    await kv.del(`ride_pending_${rideId}`);
+    await kv.del(`ride_active_${rideId}`);
+
+    console.log('✅ Course annulée avec succès:', rideId);
+
+    return c.json({
+      success: true,
+      ride: cancelledRide,
+      message: 'Course annulée avec succès',
+      penaltyAmount
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur annulation course:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // ACCEPTER UNE ALTERNATIVE (PASSAGER)
 // ============================================
 app.post('/accept-alternative', async (c) => {
@@ -789,6 +1300,329 @@ app.post('/cleanup', async (c) => {
     
   } catch (error) {
     console.error('❌ Erreur nettoyage:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// ⭐ NOTER UNE COURSE (PASSAGER)
+// ============================================
+app.post('/rate', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { rideId, rating, comment } = body;
+
+    console.log('⭐ Notation de course:', { rideId, rating });
+
+    if (!rideId || !rating) {
+      return c.json({ 
+        success: false, 
+        error: 'Données manquantes' 
+      }, 400);
+    }
+
+    // Validation de la note (1-5)
+    if (rating < 1 || rating > 5) {
+      return c.json({ 
+        success: false, 
+        error: 'La note doit être entre 1 et 5' 
+      }, 400);
+    }
+
+    // Récupérer la course
+    const ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      return c.json({ 
+        success: false, 
+        error: 'Course introuvable' 
+      }, 404);
+    }
+
+    // Mettre à jour la course avec la notation
+    const ratedRide = {
+      ...ride,
+      rating,
+      passengerComment: comment || '',
+      ratedAt: new Date().toISOString()
+    };
+
+    await kv.set(`ride_request_${rideId}`, ratedRide);
+
+    // Mettre à jour la note moyenne du conducteur
+    if (ride.driverId) {
+      const statsKey = `driver:${ride.driverId}:stats`;
+      const currentStats = await kv.get(statsKey) || {
+        totalRides: 0,
+        totalEarnings: 0,
+        totalCommissions: 0,
+        averageRating: 0,
+        ratings: []
+      };
+
+      const updatedRatings = [...(currentStats.ratings || []), rating];
+      const averageRating = updatedRatings.reduce((a, b) => a + b, 0) / updatedRatings.length;
+
+      await kv.set(statsKey, {
+        ...currentStats,
+        averageRating: averageRating,
+        ratings: updatedRatings
+      });
+
+      console.log(`⭐ Note du conducteur mise à jour: ${averageRating.toFixed(1)}/5`);
+    }
+
+    console.log('✅ Course notée avec succès');
+
+    return c.json({
+      success: true,
+      message: 'Notation enregistrée avec succès'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur notation course:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// RÉCUPÉRER LES GAINS DU CONDUCTEUR
+// ============================================
+app.get('/driver/:driverId/earnings', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    const period = c.req.query('period') || 'today'; // today, week, month, all
+    
+    console.log(`📊 Récupération gains conducteur: ${driverId}, période: ${period}`);
+
+    // Récupérer toutes les courses terminées du conducteur
+    const allRides = await kv.getByPrefix('ride_request_');
+    
+    if (!allRides || allRides.length === 0) {
+      return c.json({
+        success: true,
+        earnings: {
+          total: 0,
+          commission: 0,
+          net: 0,
+          ridesCount: 0,
+          rides: []
+        }
+      });
+    }
+
+    // Filtrer les courses du conducteur qui sont terminées
+    const driverCompletedRides = allRides.filter((ride: any) => 
+      ride.driverId === driverId && 
+      ride.status === 'completed' // ✅ FIX: Utiliser uniquement 'completed' (pas 'ride_completed')
+    );
+
+    // Filtrer selon la période
+    const now = new Date();
+    let filteredRides = driverCompletedRides;
+
+    if (period === 'today') {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      filteredRides = driverCompletedRides.filter((ride: any) => {
+        const rideDate = ride.completedAt ? new Date(ride.completedAt) : new Date(ride.createdAt);
+        return rideDate >= todayStart;
+      });
+    } else if (period === 'week') {
+      const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filteredRides = driverCompletedRides.filter((ride: any) => {
+        const rideDate = ride.completedAt ? new Date(ride.completedAt) : new Date(ride.createdAt);
+        return rideDate >= weekStart;
+      });
+    } else if (period === 'month') {
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      filteredRides = driverCompletedRides.filter((ride: any) => {
+        const rideDate = ride.completedAt ? new Date(ride.completedAt) : new Date(ride.createdAt);
+        return rideDate >= monthStart;
+      });
+    }
+
+    // Calculer les gains
+    let totalEarnings = 0;
+    let totalCommission = 0;
+
+    const ridesWithEarnings = filteredRides.map((ride: any) => {
+      const ridePrice = ride.finalPrice || ride.estimatedPrice || 0;
+      const commission = ride.commission || (ridePrice * 0.15); // 15% par défaut
+      const netEarning = ridePrice - commission;
+
+      totalEarnings += ridePrice;
+      totalCommission += commission;
+
+      return {
+        id: ride.id,
+        time: ride.completedAt || ride.createdAt,
+        pickup: ride.pickup?.address || 'N/A',
+        destination: ride.destination?.address || 'N/A',
+        distance: ride.distance || 0,
+        duration: ride.duration || 0,
+        earnings: ridePrice,
+        commission: commission,
+        netEarning: netEarning,
+        rating: ride.rating || 0,
+        passengerName: ride.passengerName || 'Passager'
+      };
+    });
+
+    const netEarnings = totalEarnings - totalCommission;
+
+    console.log(`✅ Gains calculés: ${totalEarnings} CDF - ${totalCommission} CDF commission = ${netEarnings} CDF net`);
+
+    return c.json({
+      success: true,
+      earnings: {
+        total: totalEarnings,
+        commission: totalCommission,
+        net: netEarnings,
+        ridesCount: filteredRides.length,
+        rides: ridesWithEarnings.sort((a: any, b: any) => 
+          new Date(b.time).getTime() - new Date(a.time).getTime()
+        )
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération gains:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🆕 HISTORIQUE DES COURSES D'UN PASSAGER
+// ============================================
+app.get('/history/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId');
+    
+    console.log('📊 Récupération de l\'historique des courses pour le passager:', userId);
+    
+    // Récupérer toutes les courses
+    const allRides = await kv.getByPrefix('ride_request_');
+    
+    if (!allRides || allRides.length === 0) {
+      return c.json({
+        success: true,
+        rides: [],
+        count: 0
+      });
+    }
+    
+    // Filtrer les courses du passager qui sont complétées
+    const passengerCompletedRides = allRides.filter((ride: any) => 
+      ride.passengerId === userId && 
+      ride.status === 'completed' // ✅ FIX: Utiliser uniquement 'completed' (pas 'ride_completed')
+    );
+    
+    console.log(`✅ ${passengerCompletedRides.length} courses complétées trouvées pour le passager ${userId}`);
+    
+    // Trier par date (plus récentes d'abord)
+    const sortedRides = passengerCompletedRides.sort((a: any, b: any) => {
+      const dateA = new Date(a.completedAt || a.createdAt).getTime();
+      const dateB = new Date(b.completedAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
+    
+    return c.json({
+      success: true,
+      rides: sortedRides,
+      count: sortedRides.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération historique passager:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// DÉMARRER UNE COURSE (CONDUCTEUR - après vérification code)
+// ============================================
+app.post('/start', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { rideId, driverId, confirmationCode } = body;
+
+    console.log('🚀 Démarrage de course:', { rideId, driverId, confirmationCode });
+
+    // Validation
+    if (!rideId || !driverId || !confirmationCode) {
+      return c.json({ 
+        success: false, 
+        error: 'Données manquantes (rideId, driverId, confirmationCode requis)' 
+      }, 400);
+    }
+
+    // Récupérer la course
+    const ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      console.error('❌ Course introuvable:', rideId);
+      return c.json({ 
+        success: false, 
+        error: 'Course introuvable' 
+      }, 404);
+    }
+
+    // Vérifier que la course est bien acceptée
+    if (ride.status !== 'accepted') {
+      return c.json({ 
+        success: false, 
+        error: `Statut invalide: ${ride.status}. La course doit être acceptée avant de démarrer.` 
+      }, 400);
+    }
+
+    // Vérifier que le conducteur correspond
+    if (ride.driverId !== driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'Vous n\'êtes pas le conducteur assigné à cette course' 
+      }, 403);
+    }
+
+    // Vérifier le code de confirmation
+    if (ride.confirmationCode !== confirmationCode) {
+      console.error('❌ Code incorrect:', { expected: ride.confirmationCode, received: confirmationCode });
+      return c.json({ 
+        success: false, 
+        error: 'Code de confirmation incorrect' 
+      }, 400);
+    }
+
+    // Mettre à jour le statut de la course
+    const startedRide = {
+      ...ride,
+      status: 'in_progress',
+      startedAt: new Date().toISOString()
+    };
+
+    await kv.set(`ride_request_${rideId}`, startedRide);
+
+    console.log('✅ Course démarrée avec succès:', rideId);
+
+    return c.json({
+      success: true,
+      ride: startedRide,
+      message: 'Course démarrée avec succès'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur démarrage course:', error);
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur' 

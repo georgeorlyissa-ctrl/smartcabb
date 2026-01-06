@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { Input } from './ui/input';
+import React from 'react';
 import { Phone } from 'lucide-react';
 
 interface PhoneInputProps {

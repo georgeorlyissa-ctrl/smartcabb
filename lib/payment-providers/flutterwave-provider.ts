@@ -42,7 +42,7 @@ export class FlutterwaveProvider implements PaymentProvider {
    */
   private getPublicKey(): string {
     // Essayer d'abord la variable d'environnement (PRODUCTION)
-    const envKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
+    const envKey = typeof import.meta !== 'undefined' && import.meta.env?.VITE_FLUTTERWAVE_PUBLIC_KEY;
     if (envKey) {
       console.log('🔑 Flutterwave: Utilisation clé depuis .env.local');
       return envKey;
@@ -263,5 +263,29 @@ export class FlutterwaveProvider implements PaymentProvider {
   }
 }
 
-// Instance singleton
-export const flutterwaveProvider = new FlutterwaveProvider();
+// ✅ FIX PRODUCTION V3: Factory function au lieu de Proxy
+let flutterwaveProviderInstance: FlutterwaveProvider | null = null;
+
+export function getFlutterwaveProvider(): FlutterwaveProvider {
+  if (typeof window === 'undefined') {
+    // SSR: retourner un mock
+    return {} as FlutterwaveProvider;
+  }
+  
+  if (!flutterwaveProviderInstance) {
+    flutterwaveProviderInstance = new FlutterwaveProvider();
+  }
+  return flutterwaveProviderInstance;
+}
+
+// Export pour compatibilité (utilise la factory)
+export const flutterwaveProvider = {
+  getName: () => getFlutterwaveProvider().name,
+  isConfigured: () => getFlutterwaveProvider().isConfigured(),
+  initPayment: (data: PaymentInitData) => getFlutterwaveProvider().initiatePayment(data),
+  verifyPayment: (transactionId: string) => getFlutterwaveProvider().verifyPayment(transactionId),
+  refundPayment: (transactionId: string, amount?: number) => 
+    getFlutterwaveProvider().refundPayment(transactionId, amount),
+  handleWebhook: (payload: any, signature: string) => 
+    getFlutterwaveProvider().handleWebhook(payload, signature),
+};

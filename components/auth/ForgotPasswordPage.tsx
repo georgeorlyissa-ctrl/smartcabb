@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { Input } from '../ui/input';
+import { Card } from '../ui/card';
+import { Mail, Check, ArrowLeft, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from '../../lib/simple-router';
+import { supabase } from '../../lib/supabase';
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -77,175 +78,157 @@ export function ForgotPasswordPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-600 flex items-center justify-center p-4">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="w-full max-w-md p-8">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-              className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
-            >
-              <Check className="w-10 h-10 text-green-600" />
-            </motion.div>
+        <Card className="w-full max-w-md p-8">
+          <div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+          >
+            <Check className="w-10 h-10 text-green-600" />
+          </div>
 
-            <h1 className="text-2xl text-center mb-4">Email envoyé !</h1>
+          <h1 className="text-2xl text-center mb-4">Email envoyé !</h1>
+          
+          <div className="space-y-4 text-center text-gray-600">
+            <p>
+              Si un compte existe avec l'adresse <strong>{email}</strong>, 
+              vous recevrez un email avec un lien pour réinitialiser votre mot de passe.
+            </p>
             
-            <div className="space-y-4 text-center text-gray-600">
-              <p>
-                Si un compte existe avec l'adresse <strong>{email}</strong>, 
-                vous recevrez un email avec un lien pour réinitialiser votre mot de passe.
-              </p>
-              
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-left">
-                <p className="mb-2">📧 <strong>Vérifiez votre boîte mail :</strong></p>
-                <ul className="space-y-1 text-blue-800">
-                  <li>• Vérifiez votre dossier spam/courrier indésirable</li>
-                  <li>• Le lien est valide pendant 1 heure</li>
-                  <li>• Cliquez sur le lien dans l'email pour réinitialiser</li>
-                </ul>
-              </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-left">
+              <p className="mb-2">📧 <strong>Vérifiez votre boîte mail :</strong></p>
+              <ul className="space-y-1 text-blue-800">
+                <li>• Vérifiez votre dossier spam/courrier indésirable</li>
+                <li>• Le lien est valide pendant 1 heure</li>
+                <li>• Cliquez sur le lien dans l'email pour réinitialiser</li>
+              </ul>
+            </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-left">
-                <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-yellow-800">
-                      <strong>Configuration requise :</strong>
-                    </p>
-                    <p className="text-yellow-700 mt-1">
-                      Si le lien pointe vers localhost, veuillez configurer l'URL 
-                      de redirection dans Supabase Dashboard → Authentication → URL Configuration
-                    </p>
-                  </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-left">
+              <div className="flex items-start space-x-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-yellow-800">
+                    <strong>Configuration requise :</strong>
+                  </p>
+                  <p className="text-yellow-700 mt-1">
+                    Si le lien pointe vers localhost, veuillez configurer l'URL 
+                    de redirection dans Supabase Dashboard → Authentication → URL Configuration
+                  </p>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-8 space-y-3">
-              <Button
-                onClick={() => navigate('/login')}
-                className="w-full"
-                variant="outline"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour à la connexion
-              </Button>
-              
-              <Button
-                onClick={() => {
-                  setSuccess(false);
-                  setEmail('');
-                }}
-                variant="link"
-                className="w-full"
-              >
-                Envoyer à nouveau
-              </Button>
-            </div>
-          </Card>
-        </motion.div>
+          <div className="mt-8 space-y-3">
+            <Button
+              onClick={() => navigate('/login')}
+              className="w-full"
+              variant="outline"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Retour à la connexion
+            </Button>
+            
+            <Button
+              onClick={() => {
+                setSuccess(false);
+                setEmail('');
+              }}
+              variant="link"
+              className="w-full"
+            >
+              Envoyer à nouveau
+            </Button>
+          </div>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-cyan-600 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
-        <Card className="p-8">
-          {/* En-tête */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-white" />
+      <Card className="p-8">
+        {/* En-tête */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-2xl mb-2">Mot de passe oublié ?</h1>
+          <p className="text-gray-600">
+            Entrez votre email pour recevoir un lien de réinitialisation
+          </p>
+        </div>
+
+        {/* Formulaire */}
+        <form onSubmit={handleResetRequest} className="space-y-6">
+          <div>
+            <label className="block text-sm mb-2">Adresse email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Input
+                type="email"
+                placeholder="votre@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10"
+                disabled={loading}
+                autoComplete="email"
+              />
             </div>
-            <h1 className="text-2xl mb-2">Mot de passe oublié ?</h1>
-            <p className="text-gray-600">
-              Entrez votre email pour recevoir un lien de réinitialisation
-            </p>
           </div>
 
-          {/* Formulaire */}
-          <form onSubmit={handleResetRequest} className="space-y-6">
-            <div>
-              <label className="block text-sm mb-2">Adresse email</label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
-                  type="email"
-                  placeholder="votre@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  disabled={loading}
-                  autoComplete="email"
-                />
+          <Button
+            type="submit"
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            disabled={loading}
+          >
+            {loading ? (
+              <div className="flex items-center justify-center space-x-2">
+                <Mail className="w-4 h-4" />
+                <span>Envoi en cours...</span>
               </div>
-            </div>
+            ) : (
+              'Envoyer le lien de réinitialisation'
+            )}
+          </Button>
+        </form>
 
-            <Button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              disabled={loading}
-            >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  >
-                    <Mail className="w-4 h-4" />
-                  </motion.div>
-                  <span>Envoi en cours...</span>
-                </div>
-              ) : (
-                'Envoyer le lien de réinitialisation'
-              )}
-            </Button>
-          </form>
+        {/* Lien retour */}
+        <div className="text-center mt-6">
+          <Button
+            variant="link"
+            onClick={() => navigate('/login')}
+            disabled={loading}
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Retour à la connexion
+          </Button>
+        </div>
 
-          {/* Lien retour */}
-          <div className="text-center mt-6">
-            <Button
-              variant="link"
-              onClick={() => navigate('/login')}
-              disabled={loading}
-              className="text-sm text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Retour à la connexion
-            </Button>
-          </div>
+        {/* Option SMS */}
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
+          <p className="text-sm text-blue-800 mb-2">
+            📱 Vous préférez recevoir un code par SMS ?
+          </p>
+          <Button
+            variant="link"
+            onClick={() => navigate('/auth/reset-password-by-phone')}
+            disabled={loading}
+            className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Réinitialiser par téléphone
+          </Button>
+        </div>
 
-          {/* Option SMS */}
-          <div className="mt-4 p-4 bg-blue-50 rounded-lg text-center">
-            <p className="text-sm text-blue-800 mb-2">
-              📱 Vous préférez recevoir un code par SMS ?
-            </p>
-            <Button
-              variant="link"
-              onClick={() => navigate('/auth/reset-password-by-phone')}
-              disabled={loading}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Réinitialiser par téléphone
-            </Button>
-          </div>
-
-          {/* Aide */}
-          <div className="mt-8 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
-            <p className="mb-2">💡 <strong>Besoin d'aide ?</strong></p>
-            <p>Contactez l'administrateur si vous n'arrivez pas à réinitialiser votre mot de passe.</p>
-          </div>
-        </Card>
-      </motion.div>
+        {/* Aide */}
+        <div className="mt-8 p-4 bg-gray-50 rounded-lg text-sm text-gray-600">
+          <p className="mb-2">💡 <strong>Besoin d'aide ?</strong></p>
+          <p>Contactez l'administrateur si vous n'arrivez pas à réinitialiser votre mot de passe.</p>
+        </div>
+      </Card>
     </div>
   );
 }

@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Search, MapPin, X } from 'lucide-react';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../framer-motion';
+import { Search, MapPin, Navigation, X } from 'lucide-react';
+import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 
 interface Address {
   id: string;
@@ -17,13 +15,15 @@ interface AddressSearchInputProps {
   onAddressSelect: (address: Address) => void;
   value?: string;
   onChange?: (value: string) => void;
+  currentLocation?: { lat: number; lng: number; address: string }; // 🆕 Position actuelle pour filtrage contextuel
 }
 
 export function AddressSearchInput({ 
   placeholder = "Rechercher une adresse...", 
   onAddressSelect,
   value = "",
-  onChange 
+  onChange,
+  currentLocation
 }: AddressSearchInputProps) {
   // ✅ SOLUTION FINALE : State local avec synchronisation ONE-WAY (parent → enfant uniquement)
   const [inputValue, setInputValue] = useState(value);
@@ -45,165 +45,6 @@ export function AddressSearchInput({
       setInputValue(value);
     }
   }, [value]);
-
-  // Addresses populaires de Kinshasa pour suggestions
-  const kinshasaAddresses: Address[] = [
-    // Communes centrales
-    {
-      id: '1',
-      name: 'Boulevard du 30 Juin',
-      description: 'Gombe, Kinshasa, RDC',
-      coordinates: { lat: -4.3276, lng: 15.3136 }
-    },
-    {
-      id: '2',
-      name: 'Avenue Kasavubu',
-      description: 'Kalamu, Kinshasa, RDC',
-      coordinates: { lat: -4.3372, lng: 15.3168 }
-    },
-    {
-      id: '3',
-      name: 'Marché Central',
-      description: 'Kalamu, Kinshasa, RDC',
-      coordinates: { lat: -4.3300, lng: 15.3100 }
-    },
-    {
-      id: '4',
-      name: 'Avenue de la Libération',
-      description: 'Gombe, Kinshasa, RDC',
-      coordinates: { lat: -4.3180, lng: 15.3050 }
-    },
-    {
-      id: '5',
-      name: 'Avenue Colonel Mondjiba',
-      description: 'Ngaliema, Kinshasa, RDC',
-      coordinates: { lat: -4.3350, lng: 15.2720 }
-    },
-    
-    // Communes périphériques
-    {
-      id: '6',
-      name: 'Lemba',
-      description: 'Commune de Lemba, Kinshasa, RDC',
-      coordinates: { lat: -4.3890, lng: 15.2950 }
-    },
-    {
-      id: '7',
-      name: 'Université de Kinshasa (UNIKIN)',
-      description: 'Lemba, Kinshasa, RDC',
-      coordinates: { lat: -4.4050, lng: 15.2980 }
-    },
-    {
-      id: '8',
-      name: 'Kintambo',
-      description: 'Commune de Kintambo, Kinshasa, RDC',
-      coordinates: { lat: -4.3250, lng: 15.2900 }
-    },
-    {
-      id: '9',
-      name: 'Masina',
-      description: 'Commune de Masina, Kinshasa, RDC',
-      coordinates: { lat: -4.3850, lng: 15.3750 }
-    },
-    {
-      id: '10',
-      name: 'Ngaba',
-      description: 'Commune de Ngaba, Kinshasa, RDC',
-      coordinates: { lat: -4.3620, lng: 15.2920 }
-    },
-    {
-      id: '11',
-      name: 'Matete',
-      description: 'Commune de Matete, Kinshasa, RDC',
-      coordinates: { lat: -4.3720, lng: 15.2820 }
-    },
-    {
-      id: '12',
-      name: 'Bandalungwa',
-      description: 'Commune de Bandalungwa, Kinshasa, RDC',
-      coordinates: { lat: -4.3420, lng: 15.2950 }
-    },
-    {
-      id: '13',
-      name: 'Selembao',
-      description: 'Commune de Selembao, Kinshasa, RDC',
-      coordinates: { lat: -4.3980, lng: 15.2720 }
-    },
-    {
-      id: '14',
-      name: 'Limete',
-      description: 'Commune de Limete, Kinshasa, RDC',
-      coordinates: { lat: -4.3650, lng: 15.3250 }
-    },
-    
-    // Lieux importants
-    {
-      id: '15',
-      name: 'Aéroport de N\'djili',
-      description: 'N\'djili, Kinshasa, RDC',
-      coordinates: { lat: -4.3976, lng: 15.4447 }
-    },
-    {
-      id: '16',
-      name: 'Stade des Martyrs',
-      description: 'Lingwala, Kinshasa, RDC',
-      coordinates: { lat: -4.3205, lng: 15.3099 }
-    },
-    {
-      id: '17',
-      name: 'Marché de la Liberté',
-      description: 'Kinshasa, RDC',
-      coordinates: { lat: -4.3290, lng: 15.3120 }
-    },
-    {
-      id: '18',
-      name: 'Avenue Victoire',
-      description: 'Ngaliema, Kinshasa, RDC',
-      coordinates: { lat: -4.3420, lng: 15.2810 }
-    },
-    {
-      id: '19',
-      name: 'Avenue des Aviateurs',
-      description: 'Gombe, Kinshasa, RDC',
-      coordinates: { lat: -4.3230, lng: 15.3090 }
-    },
-    {
-      id: '20',
-      name: 'Avenue de l\'Equateur',
-      description: 'Gombe, Kinshasa, RDC',
-      coordinates: { lat: -4.3195, lng: 15.3145 }
-    },
-    {
-      id: '21',
-      name: 'Place de la Gare',
-      description: 'Kinshasa, RDC',
-      coordinates: { lat: -4.3310, lng: 15.3150 }
-    },
-    {
-      id: '22',
-      name: 'Boulevard Lumumba',
-      description: 'Limete, Kinshasa, RDC',
-      coordinates: { lat: -4.3680, lng: 15.3280 }
-    },
-    {
-      id: '23',
-      name: 'Commune de Ngaliema',
-      description: 'Ngaliema, Kinshasa, RDC',
-      coordinates: { lat: -4.3550, lng: 15.2650 }
-    },
-    {
-      id: '24',
-      name: 'Commune de Barumbu',
-      description: 'Barumbu, Kinshasa, RDC',
-      coordinates: { lat: -4.3165, lng: 15.3250 }
-    },
-    {
-      id: '25',
-      name: 'Kinshasa Centre',
-      description: 'Centre-ville, Kinshasa, RDC',
-      coordinates: { lat: -4.3276, lng: 15.3136 }
-    }
-  ];
 
   // Calculer la position du dropdown
   const updateDropdownPosition = () => {
@@ -255,7 +96,7 @@ export function AddressSearchInput({
     // ✅ ÉTAPE 2: Notifier le parent
     onChange?.(query);
     
-    if (query.length < 2) {
+    if (query.length < 1) {
       setSuggestions([]);
       setIsOpen(false);
       isUserTypingRef.current = false;
@@ -265,25 +106,66 @@ export function AddressSearchInput({
     setIsLoading(true);
     updateDropdownPosition();
     
-    // Simulation d'une recherche avec délai
     setTimeout(() => {
-      const filtered = kinshasaAddresses.filter(address =>
-        address.name.toLowerCase().includes(query.toLowerCase()) ||
-        address.description.toLowerCase().includes(query.toLowerCase())
-      );
+      const queryLower = query.toLowerCase().trim();
       
-      // Si l'utilisateur tape une adresse qui n'existe pas dans les suggestions,
-      // créer une suggestion personnalisée avec l'adresse exacte tapée
-      if (filtered.length === 0 && query.trim().length >= 2) {
-        // Générer des coordonnées approximatives autour de Kinshasa
+      // 🇨🇩 RECHERCHE CONTEXTUELLE : Quartiers de Kinshasa
+      const matchedQuartiers = searchQuartiers(queryLower);
+      
+      // 🎯 FILTRAGE PAR PROXIMITÉ : Si position actuelle disponible
+      let finalQuartiers: Quartier[] = matchedQuartiers;
+      
+      if (currentLocation && matchedQuartiers.length > 0) {
+        // Trouver les quartiers proches (rayon de 10km)
+        const nearbyQuartiers = findNearbyQuartiers(
+          currentLocation.lat, 
+          currentLocation.lng, 
+          10 // rayon en km
+        );
+        
+        // Filtrer les résultats pour ne garder que ceux proches
+        // SI l'utilisateur cherche dans une commune proche
+        const nearbyNames = new Set(nearbyQuartiers.map(q => q.nom.toLowerCase()));
+        const nearbyCommunes = new Set(nearbyQuartiers.map(q => q.commune.toLowerCase()));
+        
+        finalQuartiers = matchedQuartiers.filter(q => {
+          const isNearbyQuartier = nearbyNames.has(q.nom.toLowerCase());
+          const isNearbyCommune = nearbyCommunes.has(q.commune.toLowerCase());
+          
+          // Garder si le quartier OU sa commune est proche
+          return isNearbyQuartier || isNearbyCommune || q.populaire; // Toujours garder les lieux populaires
+        });
+        
+        // Si aucun résultat proche, utiliser tous les matchs (éviter liste vide)
+        if (finalQuartiers.length === 0) {
+          finalQuartiers = matchedQuartiers;
+        }
+        
+        console.log(`🔍 Recherche "${query}":`, {
+          totalMatches: matchedQuartiers.length,
+          nearby: nearbyQuartiers.length,
+          filtered: finalQuartiers.length
+        });
+      }
+      
+      // Convertir en format Address
+      const suggestions: Address[] = finalQuartiers.slice(0, 15).map((quartier, index) => ({
+        id: `quartier-${index}`,
+        name: quartier.nom,
+        description: `${quartier.commune}, Kinshasa, RDC`,
+        coordinates: { lat: quartier.lat, lng: quartier.lng }
+      }));
+      
+      // Si aucune suggestion trouvée, créer une suggestion personnalisée
+      if (suggestions.length === 0 && queryLower.length >= 2) {
         const baseLatKinshasa = -4.3276;
         const baseLngKinshasa = 15.3136;
-        const randomOffset = () => (Math.random() - 0.5) * 0.1; // ±5km environ
+        const randomOffset = () => (Math.random() - 0.5) * 0.05;
         
-        filtered.push({
+        suggestions.push({
           id: 'custom',
           name: query.trim(),
-          description: 'Kinshasa, RDC',
+          description: 'Adresse personnalisée, Kinshasa, RDC',
           coordinates: { 
             lat: baseLatKinshasa + randomOffset(), 
             lng: baseLngKinshasa + randomOffset() 
@@ -291,11 +173,11 @@ export function AddressSearchInput({
         });
       }
       
-      setSuggestions(filtered);
-      setIsOpen(filtered.length > 0);
+      setSuggestions(suggestions);
+      setIsOpen(suggestions.length > 0);
       setIsLoading(false);
       isUserTypingRef.current = false;
-    }, 300);
+    }, 200);
   };
 
   const handleAddressSelect = (address: Address) => {

@@ -11,8 +11,8 @@ const emailRoutes = new Hono();
 emailRoutes.get('/admin/email-config', async (c) => {
   try {
     const config = await kv.get('system:email_config') || {
-      provider: 'resend',
-      fromEmail: 'noreply@smartcabb.com',
+      provider: 'sendgrid',
+      fromEmail: 'contact@smartcabb.com',
       fromName: 'SmartCabb',
       replyToEmail: 'support@smartcabb.com',
       isConfigured: false,
@@ -22,6 +22,29 @@ emailRoutes.get('/admin/email-config', async (c) => {
     return c.json({ success: true, config });
   } catch (error) {
     console.error('❌ Erreur récupération config email:', error);
+    return c.json({ success: false, error: 'Erreur serveur' }, 500);
+  }
+});
+
+// 🆕 RÉINITIALISER LA CONFIGURATION EMAIL (Force SendGrid)
+emailRoutes.post('/admin/email-config/reset', async (c) => {
+  try {
+    const defaultConfig = {
+      provider: 'sendgrid',
+      fromEmail: 'contact@smartcabb.com',
+      fromName: 'SmartCabb',
+      replyToEmail: 'support@smartcabb.com',
+      isConfigured: false,
+      isEnabled: false
+    };
+
+    await kv.set('system:email_config', defaultConfig);
+
+    console.log('✅ Configuration email réinitialisée avec SendGrid par défaut');
+
+    return c.json({ success: true, config: defaultConfig });
+  } catch (error) {
+    console.error('❌ Erreur réinitialisation config email:', error);
     return c.json({ success: false, error: 'Erreur serveur' }, 500);
   }
 });
@@ -112,6 +135,7 @@ async function sendViaSendGrid(apiKey: string, emailData: any) {
 
   if (!response.ok) {
     const error = await response.text();
+    console.error('❌ SendGrid error:', error);
     throw new Error(error || 'Erreur SendGrid');
   }
 
@@ -171,10 +195,12 @@ emailRoutes.post('/send-email', async (c) => {
         break;
 
       case 'sendgrid':
-        if (!config.sendgridApiKey) {
-          throw new Error('Clé API SendGrid manquante');
+        // Utiliser la clé d'environnement si aucune clé n'est fournie
+        const sendgridKey = config.sendgridApiKey || Deno.env.get('SENDGRID_API_KEY');
+        if (!sendgridKey) {
+          throw new Error('Clé API SendGrid manquante. Veuillez configurer SENDGRID_API_KEY dans l\'environnement ou sauvegarder votre configuration.');
         }
-        result = await sendViaSendGrid(config.sendgridApiKey, emailData);
+        result = await sendViaSendGrid(sendgridKey, emailData);
         break;
 
       case 'smtp':
@@ -323,10 +349,12 @@ emailRoutes.post('/admin/test-email', async (c) => {
         break;
 
       case 'sendgrid':
-        if (!config.sendgridApiKey) {
-          throw new Error('Clé API SendGrid manquante');
+        // Utiliser la clé d'environnement si aucune clé n'est fournie
+        const sendgridKey = config.sendgridApiKey || Deno.env.get('SENDGRID_API_KEY');
+        if (!sendgridKey) {
+          throw new Error('Clé API SendGrid manquante. Veuillez configurer SENDGRID_API_KEY dans l\'environnement ou sauvegarder votre configuration.');
         }
-        result = await sendViaSendGrid(config.sendgridApiKey, emailData);
+        result = await sendViaSendGrid(sendgridKey, emailData);
         break;
 
       case 'smtp':
@@ -358,6 +386,140 @@ emailRoutes.get('/admin/email-logs', async (c) => {
   } catch (error) {
     console.error('❌ Erreur récupération logs:', error);
     return c.json({ success: false, error: 'Erreur serveur' }, 500);
+  }
+});
+
+// ============================================
+// 🚀 TEST RAPIDE SENDGRID (avec clé env)
+// ============================================
+
+// Test rapide SendGrid avec la clé d'environnement
+emailRoutes.post('/admin/quick-test-sendgrid', async (c) => {
+  try {
+    const { to } = await c.req.json();
+
+    if (!to) {
+      return c.json({ success: false, error: 'Email destinataire requis' }, 400);
+    }
+
+    // Récupérer la clé API depuis l'environnement
+    const sendgridApiKey = Deno.env.get('SENDGRID_API_KEY');
+    
+    if (!sendgridApiKey) {
+      return c.json({ 
+        success: false, 
+        error: 'SENDGRID_API_KEY non configurée dans l\'environnement' 
+      }, 400);
+    }
+
+    console.log('🔑 Clé SendGrid trouvée dans l\'environnement');
+
+    const emailHtml = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .success { background: #d1fae5; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            .info-box { background: #dbeafe; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 5px; }
+            .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+            ul { line-height: 1.8; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🎉 SendGrid est Configuré !</h1>
+            </div>
+            <div class="content">
+              <div class="success">
+                <strong>✅ Félicitations !</strong>
+                <p>SendGrid est maintenant opérationnel sur SmartCabb.</p>
+              </div>
+              
+              <h2>📧 Configuration Email Active</h2>
+              <div class="info-box">
+                <ul>
+                  <li><strong>Provider:</strong> SendGrid</li>
+                  <li><strong>Expéditeur:</strong> SmartCabb &lt;contact@smartcabb.com&gt;</li>
+                  <li><strong>Limite gratuite:</strong> 100 emails/jour</li>
+                  <li><strong>Date de test:</strong> ${new Date().toLocaleString('fr-FR', { timeZone: 'Africa/Kinshasa' })}</li>
+                </ul>
+              </div>
+
+              <h2>✨ Fonctionnalités Activées</h2>
+              <p>SmartCabb peut maintenant envoyer automatiquement :</p>
+              <ul>
+                <li>📧 <strong>Confirmations de réservation</strong> - Détails complets de la course</li>
+                <li>🔔 <strong>Notifications aux conducteurs</strong> - Nouvelles demandes de course</li>
+                <li>🧾 <strong>Factures électroniques</strong> - Reçus de paiement détaillés</li>
+                <li>🔐 <strong>Codes de vérification</strong> - Sécurité des comptes</li>
+                <li>📊 <strong>Rapports administratifs</strong> - Statistiques quotidiennes/hebdomadaires</li>
+                <li>💰 <strong>Notifications de solde</strong> - Rechargements et transactions</li>
+              </ul>
+
+              <h2>🇨🇩 Configuration Congo</h2>
+              <p>Tous les emails sont optimisés pour la RDC :</p>
+              <ul>
+                <li>✅ Montants en Franc Congolais (CDF)</li>
+                <li>✅ Fuseau horaire Africa/Kinshasa</li>
+                <li>✅ Interface en français</li>
+                <li>✅ Support local via contact@smartcabb.com</li>
+              </ul>
+
+              <div class="info-box">
+                <strong>💡 Astuce :</strong> Vous pouvez surveiller tous les emails envoyés depuis le panel administrateur dans la section "Historique des emails".
+              </div>
+            </div>
+            <div class="footer">
+              <p><strong>SmartCabb</strong> - Transport intelligent en République Démocratique du Congo</p>
+              <p>📍 Kinshasa • 📧 contact@smartcabb.com</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const emailData = {
+      from: 'contact@smartcabb.com',
+      fromName: 'SmartCabb',
+      replyTo: 'contact@smartcabb.com',
+      to,
+      subject: '🎉 SendGrid Configuré - SmartCabb est Prêt !',
+      html: emailHtml,
+    };
+
+    const result = await sendViaSendGrid(sendgridApiKey, emailData);
+
+    // Sauvegarder dans l'historique
+    const emailLog = {
+      id: crypto.randomUUID(),
+      to,
+      subject: emailData.subject,
+      provider: 'sendgrid',
+      status: 'sent',
+      sentAt: new Date().toISOString(),
+      result,
+    };
+
+    const logs = await kv.get('system:email_logs') || [];
+    logs.unshift(emailLog);
+    await kv.set('system:email_logs', logs.slice(0, 1000));
+
+    console.log('✅ Email de test SendGrid envoyé à:', to);
+
+    return c.json({ success: true, result });
+
+  } catch (error: any) {
+    console.error('❌ Erreur test SendGrid:', error);
+    return c.json({ 
+      success: false, 
+      error: error.message || 'Erreur test SendGrid' 
+    }, 500);
   }
 });
 

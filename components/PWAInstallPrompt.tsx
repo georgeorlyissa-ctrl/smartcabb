@@ -1,174 +1,196 @@
 import { useState, useEffect } from 'react';
-import { Download, X } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent } from './ui/card';
-import { usePWA } from '../hooks/usePWA';
-import { motion, AnimatePresence } from 'motion/react';
+import { X, Download, Smartphone, WifiOff, Wifi } from 'lucide-react';
 
-export function PWAInstallPrompt() {
-  const { isInstallable, isInstalled, promptInstall } = usePWA();
-  const [showPrompt, setShowPrompt] = useState(false);
-  const [isDismissed, setIsDismissed] = useState(false);
-
-  useEffect(() => {
-    // Vérifier si l'utilisateur a déjà refusé
-    const dismissed = localStorage.getItem('pwa-install-dismissed');
-    if (dismissed) {
-      setIsDismissed(true);
-      return;
-    }
-
-    // Afficher le prompt après 30 secondes si installable
-    if (isInstallable && !isInstalled) {
-      const timer = setTimeout(() => {
-        setShowPrompt(true);
-      }, 30000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [isInstallable, isInstalled]);
-
-  const handleInstall = async () => {
-    const success = await promptInstall();
-    if (success) {
-      setShowPrompt(false);
-    }
-  };
-
-  const handleDismiss = () => {
-    setShowPrompt(false);
-    setIsDismissed(true);
-    localStorage.setItem('pwa-install-dismissed', 'true');
-  };
-
-  // Ne rien afficher si déjà installé ou refusé
-  if (isInstalled || isDismissed || !isInstallable) {
-    return null;
-  }
-
-  return (
-    <AnimatePresence>
-      {showPrompt && (
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 50 }}
-          className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96"
-        >
-          <Card className="border-orange-500 shadow-lg">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <Download className="w-5 h-5 text-orange-600" />
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900 mb-1">
-                    Installer SmartCabb
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Installez l'application pour un accès rapide et une meilleure expérience.
-                  </p>
-                  
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={handleInstall}
-                      className="bg-orange-500 hover:bg-orange-600 text-white"
-                      size="sm"
-                    >
-                      Installer
-                    </Button>
-                    <Button
-                      onClick={handleDismiss}
-                      variant="outline"
-                      size="sm"
-                    >
-                      Plus tard
-                    </Button>
-                  </div>
-                </div>
-                
-                <button
-                  onClick={handleDismiss}
-                  className="flex-shrink-0 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// Composant pour afficher le statut en ligne/hors ligne
+// Online/Offline Status Indicator
 export function OnlineStatusIndicator() {
-  const [isOnline, setIsOnline] = useState(true); // Optimiste par défaut
-  const [showOffline, setShowOffline] = useState(false);
-  const [offlineConfirmed, setOfflineConfirmed] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
-    // Initialiser l'état avec navigator.onLine
-    setIsOnline(navigator.onLine);
-    
-    const handleOnline = () => {
-      console.log('✅ Connexion rétablie');
-      setIsOnline(true);
-      setShowOffline(false);
-      setOfflineConfirmed(false);
-    };
-
-    const handleOffline = () => {
-      console.log('⚠️ Connexion perdue');
-      setIsOnline(false);
-      
-      // Vérifier réellement si on est hors ligne avec un ping
-      // Attendre 2 secondes avant de confirmer (éviter les faux positifs)
-      setTimeout(() => {
-        if (!navigator.onLine) {
-          console.log('❌ Hors ligne confirmé');
-          setOfflineConfirmed(true);
-          setShowOffline(true);
-        }
-      }, 2000);
-    };
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Vérifier périodiquement la connexion (toutes les 30 secondes)
-    const intervalId = setInterval(() => {
-      if (!navigator.onLine && !offlineConfirmed) {
-        handleOffline();
-      } else if (navigator.onLine && offlineConfirmed) {
-        handleOnline();
-      }
-    }, 30000);
-
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(intervalId);
     };
-  }, [offlineConfirmed]);
+  }, []);
 
-  // Ne rien afficher si on est en ligne ou si ce n'est pas confirmé
-  if (!showOffline || !offlineConfirmed) return null;
+  // Ne rien afficher si en ligne
+  if (isOnline) return null;
 
   return (
-    <AnimatePresence>
-      {!isOnline && (
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
-          className="fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white py-2 px-4 text-center text-sm shadow-lg"
-        >
-          <p>📡 Connexion limitée - Vérifiez votre connexion Internet</p>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div className="fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white py-2 px-4 text-center text-sm font-medium flex items-center justify-center gap-2">
+      <WifiOff className="w-4 h-4" />
+      Vous êtes hors ligne
+    </div>
+  );
+}
+
+export function PWAInstallPrompt() {
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Détecter iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    setIsIOS(iOS);
+
+    // Détecter si déjà installé (mode standalone)
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || 
+                      (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+
+    // Vérifier si déjà fermé
+    const hasClosedPrompt = localStorage.getItem('smartcabb_pwa_prompt_closed');
+    
+    if (hasClosedPrompt === 'true' || standalone) {
+      return;
+    }
+
+    // Attendre 5 secondes avant d'afficher le prompt
+    const timer = setTimeout(() => {
+      if (iOS && !standalone) {
+        // Pour iOS, afficher les instructions manuelles
+        setShowPrompt(true);
+      }
+    }, 5000);
+
+    // Écouter l'événement beforeinstallprompt (Android/Chrome)
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      const promptEvent = e as BeforeInstallPromptEvent;
+      setDeferredPrompt(promptEvent);
+      
+      // Attendre 5 secondes avant d'afficher
+      setTimeout(() => {
+        setShowPrompt(true);
+      }, 5000);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+
+    // Afficher le prompt natif
+    deferredPrompt.prompt();
+
+    // Attendre le choix de l'utilisateur
+    const { outcome } = await deferredPrompt.userChoice;
+    
+    if (outcome === 'accepted') {
+      console.log('✅ PWA installée avec succès');
+    }
+
+    // Nettoyer
+    setDeferredPrompt(null);
+    setShowPrompt(false);
+  };
+
+  const handleClose = () => {
+    setShowPrompt(false);
+    localStorage.setItem('smartcabb_pwa_prompt_closed', 'true');
+  };
+
+  // Ne rien afficher si déjà installé
+  if (isStandalone || !showPrompt) {
+    return null;
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 z-50 animate-in slide-in-from-bottom-8 duration-500 md:left-auto md:right-4 md:max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-cyan-500 to-emerald-500 p-4 text-white relative">
+          <button
+            onClick={handleClose}
+            className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
+            aria-label="Fermer"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center">
+              <span className="text-2xl font-black bg-gradient-to-br from-cyan-500 to-emerald-500 bg-clip-text text-transparent">
+                SC
+              </span>
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Installer SmartCabb</h3>
+              <p className="text-sm text-white/90">Accès rapide depuis votre écran d'accueil</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-4">
+          {isIOS ? (
+            // Instructions iOS
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Pour installer SmartCabb sur votre iPhone :
+              </p>
+              <ol className="text-sm text-gray-600 space-y-2 ml-4 list-decimal">
+                <li>Appuyez sur le bouton <strong>Partager</strong> <span className="inline-block">□↑</span></li>
+                <li>Faites défiler et sélectionnez <strong>"Sur l'écran d'accueil"</strong></li>
+                <li>Appuyez sur <strong>"Ajouter"</strong></li>
+              </ol>
+              <div className="flex items-center gap-2 mt-4 p-3 bg-cyan-50 rounded-lg">
+                <Smartphone className="w-5 h-5 text-cyan-600 flex-shrink-0" />
+                <p className="text-xs text-cyan-700">
+                  L'app fonctionnera comme une vraie application native !
+                </p>
+              </div>
+            </div>
+          ) : (
+            // Bouton Android/Chrome
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Installez SmartCabb pour un accès rapide et une meilleure expérience.
+              </p>
+              
+              <button
+                onClick={handleInstallClick}
+                className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                <Download className="w-5 h-5" />
+                Installer l'application
+              </button>
+
+              <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                <Smartphone className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                <p className="text-xs text-gray-600">
+                  Fonctionne hors ligne • Notifications en temps réel • Géolocalisation
+                </p>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={handleClose}
+            className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 py-2"
+          >
+            Plus tard
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

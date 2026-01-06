@@ -1,21 +1,20 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { motion } from '../../framer-motion';
+import { Mail, Search, Filter, Send, Calendar, User, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { Badge } from '../ui/badge';
-import {
-  Mail,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Search,
-  Filter,
-  RefreshCcw
-} from 'lucide-react';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Input } from '../ui/input';
-import { Button } from '../ui/button';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+
+// Fonction de formatage de date simple
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 interface EmailLog {
   id: string;
@@ -28,7 +27,11 @@ interface EmailLog {
   result?: any;
 }
 
-export function EmailHistoryScreen() {
+interface EmailHistoryScreenProps {
+  onBack?: () => void;
+}
+
+export function EmailHistoryScreen({ onBack }: EmailHistoryScreenProps) {
   const [logs, setLogs] = useState<EmailLog[]>([]);
   const [filteredLogs, setFilteredLogs] = useState<EmailLog[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -102,14 +105,26 @@ export function EmailHistoryScreen() {
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Historique des emails</h1>
-            <p className="text-gray-600 mt-1">
-              {stats.total} email{stats.total > 1 ? 's' : ''} envoyé{stats.total > 1 ? 's' : ''}
-            </p>
+          <div className="flex items-center gap-4">
+            {onBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onBack}
+                className="hover:bg-gray-200"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Historique des emails</h1>
+              <p className="text-gray-600 mt-1">
+                {stats.total} email{stats.total > 1 ? 's' : ''} envoyé{stats.total > 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
           <Button onClick={loadLogs} variant="outline" className="gap-2">
-            <RefreshCcw className="w-4 h-4" />
+            <RefreshCw className="w-4 h-4" />
             Actualiser
           </Button>
         </div>
@@ -207,7 +222,7 @@ export function EmailHistoryScreen() {
           <CardContent>
             {isLoading ? (
               <div className="text-center py-12">
-                <RefreshCcw className="w-8 h-8 animate-spin mx-auto text-cyan-500 mb-2" />
+                <RefreshCw className="w-8 h-8 animate-spin mx-auto text-cyan-500 mb-2" />
                 <p className="text-gray-600">Chargement...</p>
               </div>
             ) : filteredLogs.length === 0 ? (
@@ -244,7 +259,7 @@ export function EmailHistoryScreen() {
                           <div className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             <span>
-                              {format(new Date(log.sentAt), 'dd MMM yyyy HH:mm', { locale: fr })}
+                              {formatDate(log.sentAt)}
                             </span>
                           </div>
 

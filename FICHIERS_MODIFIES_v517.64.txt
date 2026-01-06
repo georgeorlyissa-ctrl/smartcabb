@@ -1,0 +1,55 @@
+═══════════════════════════════════════════════════════════════════
+📋 LISTE COMPLÈTE DES FICHIERS MODIFIÉS - v517.64
+═══════════════════════════════════════════════════════════════════
+
+🎯 4 FICHIERS À COPIER DANS GITHUB ET DÉPLOYER SUR VERCEL
+
+═══════════════════════════════════════════════════════════════════
+
+1️⃣ /components/BackendSyncProvider.tsx
+   ✅ Suppression rechargement automatique (setInterval)
+   ✅ Ajout migration localStorage → backend
+   ✅ Ajout hook useManualSync() pour actualisation manuelle
+   ✅ Graceful degradation si backend non accessible
+
+2️⃣ /components/LiveStatsPanel.tsx
+   ✅ Suppression auto-refresh 10 secondes
+   ✅ Ajout bouton "Actualiser" manuel
+   ✅ État isRefreshing pour animation
+   ✅ Import RefreshCw icon et Button component
+
+3️⃣ /components/admin/AdminAnalyticsDashboard.tsx
+   ✅ Suppression auto-refresh 10 secondes
+   ✅ État isRefreshing pour le bouton existant
+   ✅ Fonction handleRefresh() pour actualisation manuelle
+
+4️⃣ /App.tsx
+   ✅ Mise à jour BUILD version → v517.64
+   ✅ Messages console mis à jour
+   ✅ Documentation des changements
+
+═══════════════════════════════════════════════════════════════════
+🚀 COMMANDES GIT POUR DÉPLOIEMENT
+═══════════════════════════════════════════════════════════════════
+
+# Ajouter les fichiers
+git add components/BackendSyncProvider.tsx
+git add components/LiveStatsPanel.tsx
+git add components/admin/AdminAnalyticsDashboard.tsx
+git add App.tsx
+
+# Commit
+git commit -m "v517.64 - Actualisation manuelle uniquement + migration localStorage→backend
+
+- Suppression rechargement automatique (10-30 secondes)
+- Ajout boutons Actualiser manuels
+- Migration automatique localStorage → backend
+- Fix problème 0 CDF et données vides
+- Une seule source de vérité : backend KV store"
+
+# Push vers GitHub
+git push origin main
+
+# Vercel déploiera automatiquement sur smartcabb.com
+
+═══════════════════════════════════════════════════════════════════

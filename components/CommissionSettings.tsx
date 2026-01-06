@@ -1,22 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Card } from './ui/card';
-import { Switch } from './ui/switch';
-import { Label } from './ui/label';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { useAppState } from '../hooks/useAppState';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
 import {
-  Percent,
   DollarSign,
-  TrendingUp,
-  Clock,
-  Settings as SettingsIcon,
-  AlertCircle,
-  CheckCircle,
+  Percent,
+  Save,
+  Calculator,
   Receipt,
   Info
 } from 'lucide-react';
@@ -34,14 +20,25 @@ export function CommissionSettings({ userType, driverId }: CommissionSettingsPro
   const [minimumCommission, setMinimumCommission] = useState(500); // CDF
   const [paymentFrequency, setPaymentFrequency] = useState<'immediate' | 'daily' | 'weekly'>('immediate');
   const [autoDeduction, setAutoDeduction] = useState(true);
-  const [totalCommissionToday, setTotalCommissionToday] = useState(8750);
-  const [totalCommissionWeek, setTotalCommissionWeek] = useState(45230);
-  const [pendingCommission, setPendingCommission] = useState(2150);
+  const [totalCommissionToday, setTotalCommissionToday] = useState(0); // ✅ Initialisé à 0
+  const [totalCommissionWeek, setTotalCommissionWeek] = useState(0); // ✅ Initialisé à 0
+  const [pendingCommission, setPendingCommission] = useState(0); // ✅ Initialisé à 0
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Charger les paramètres depuis le backend au démarrage
     loadSettings();
-  }, []);
+    
+    // ✅ CORRECTION : Charger les commissions réelles pour le conducteur avec auto-refresh
+    if (userType === 'driver' && driverId) {
+      loadDriverCommissions();
+      
+      // ✅ NOUVEAU : Rafraîchir toutes les 10 secondes
+      const intervalId = setInterval(loadDriverCommissions, 10000);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [userType, driverId]);
 
   const loadSettings = async () => {
     try {
@@ -80,6 +77,59 @@ export function CommissionSettings({ userType, driverId }: CommissionSettingsPro
     } catch (error) {
       console.error('❌ Erreur chargement paramètres admin:', error);
       toast.error('Erreur lors du chargement des paramètres');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ NOUVEAU : Charger les commissions réelles du conducteur
+  const loadDriverCommissions = async () => {
+    if (!driverId) return;
+
+    try {
+      setLoading(true);
+
+      // Récupérer les gains d'aujourd'hui
+      const todayResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/driver/${driverId}/earnings?period=today`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      // Récupérer les gains de la semaine
+      const weekResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/driver/${driverId}/earnings?period=week`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (todayResponse.ok && weekResponse.ok) {
+        const todayData = await todayResponse.json();
+        const weekData = await weekResponse.json();
+
+        if (todayData.success && weekData.success) {
+          setTotalCommissionToday(todayData.earnings.commission || 0);
+          setTotalCommissionWeek(weekData.earnings.commission || 0);
+          setPendingCommission(0); // Pour l'instant pas de commission en attente
+          
+          console.log('✅ Commissions conducteur chargées:', {
+            today: todayData.earnings.commission,
+            week: weekData.earnings.commission
+          });
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement commissions conducteur:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -173,7 +223,7 @@ export function CommissionSettings({ userType, driverId }: CommissionSettingsPro
             <div>
               <p className="text-sm text-gray-600">Aujourd'hui</p>
               <p className="text-xl font-semibold text-green-600">
-                {totalCommissionToday.toLocaleString()} CDF
+                {(totalCommissionToday || 0).toLocaleString()} CDF
               </p>
             </div>
             <TrendingUp className="w-8 h-8 text-green-500" />
@@ -185,7 +235,7 @@ export function CommissionSettings({ userType, driverId }: CommissionSettingsPro
             <div>
               <p className="text-sm text-gray-600">Cette semaine</p>
               <p className="text-xl font-semibold text-blue-600">
-                {totalCommissionWeek.toLocaleString()} CDF
+                {(totalCommissionWeek || 0).toLocaleString()} CDF
               </p>
             </div>
             <Clock className="w-8 h-8 text-blue-500" />
@@ -197,7 +247,7 @@ export function CommissionSettings({ userType, driverId }: CommissionSettingsPro
             <div>
               <p className="text-sm text-gray-600">En attente</p>
               <p className="text-xl font-semibold text-orange-600">
-                {pendingCommission.toLocaleString()} CDF
+                {(pendingCommission || 0).toLocaleString()} CDF
               </p>
             </div>
             <Receipt className="w-8 h-8 text-orange-500" />

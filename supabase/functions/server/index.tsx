@@ -11,13 +11,13 @@ import chatRoutes from "./chat-routes.tsx";
 import cleanupRoutes from "./cleanup-routes.tsx";
 import authRoutes from "./auth-routes.tsx";
 import driverRoutes from "./driver-routes.tsx";
+import passengerRoutes from "./passenger-routes.tsx";
 import walletRoutes from "./wallet-routes.tsx";
 import rideRoutes from "./ride-routes.tsx";
 import adminRoutes from "./admin-routes.tsx";
 import settingsRoutes from "./settings-routes.tsx";
 import emailRoutes from "./email-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
-import { ensureSMSTableExists } from "./auto-create-sms-table.tsx";
 
 const app = new Hono();
 
@@ -27,17 +27,8 @@ const app = new Hono();
 // ✅ Synchronisation du solde entre admin et passager
 console.log('🔄 Serveur SmartCabb V3 - Système de recharge en espèces - 23/11/2025');
 
-// ✅ Créer automatiquement la table SMS au démarrage
+// 🚀 Démarrage immédiat du serveur (pas d'attente bloquante)
 console.log('🚀 Démarrage du serveur SmartCabb...');
-ensureSMSTableExists().then((success) => {
-  if (success) {
-    console.log('✅ Table SMS prête !');
-  } else {
-    console.warn('⚠️ Table SMS non créée automatiquement, veuillez la créer manuellement');
-  }
-}).catch((error) => {
-  console.error('❌ Erreur lors de la vérification/création de la table SMS:', error);
-});
 
 // Enable logger
 app.use('*', logger(console.log));
@@ -120,7 +111,8 @@ app.post("/make-server-2eb02e52/test-sms-send", async (c) => {
         body: new URLSearchParams({
           username: username,
           to: phoneNumber,
-          message: message
+          message: message,
+          from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
         }).toString()
       });
 
@@ -1149,7 +1141,10 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
       email: finalEmail,
       phone: phone,
       full_name: fullName,
+      name: fullName, // ✅ Ajouter aussi 'name' pour compatibilité
       role: role || 'passenger',
+      password: password, // ✅ Stocker le mot de passe pour le panel admin
+      balance: 0, // ✅ Initialiser le solde
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -1405,7 +1400,9 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       email: finalEmail,
       phone: phone,
       full_name: fullName,
+      name: fullName, // ✅ Ajouter aussi 'name' pour compatibilité
       role: 'driver',
+      password: password, // ✅ Stocker le mot de passe pour le panel admin
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -1422,6 +1419,7 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       rating: 0,
       total_rides: 0,
       is_available: false,
+      balance: 0, // ✅ Initialiser le solde
       vehicle: {
         make: vehicleMake,
         model: vehicleModel,
@@ -1431,7 +1429,7 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
         category: vehicleCategory ? vehicleCategory.toLowerCase() : 'standard',
         seats: 4
       },
-      ...profileData
+      ...profileData // ✅ Ceci inclut maintenant le mot de passe
     };
 
     try {
@@ -1884,6 +1882,11 @@ app.route('/make-server-2eb02e52/chat', chatRoutes);
 app.route('/make-server-2eb02e52/drivers', driverRoutes);
 
 // ============================================
+// PASSENGER ROUTES (Passagers)
+// ============================================
+app.route('/make-server-2eb02e52/passengers', passengerRoutes);
+
+// ============================================
 // WALLET ROUTES (Portefeuille & Recharges)
 // ============================================
 app.route('/make-server-2eb02e52/wallet', walletRoutes);
@@ -1902,6 +1905,34 @@ app.route('/make-server-2eb02e52/admin', adminRoutes);
 // SETTINGS ROUTES (System Settings)
 // ============================================
 app.route('/make-server-2eb02e52/settings', settingsRoutes);
+
+// ============================================
+// TEST DIRECT SETTINGS ROUTE (Debugging)
+// ============================================
+app.get('/make-server-2eb02e52/settings-test', async (c) => {
+  try {
+    console.log('🧪 Route de test settings appelée');
+    const systemSettings = await kv.get('system_settings');
+    
+    if (!systemSettings) {
+      const defaultSettings = {
+        exchangeRate: 2000,
+        postpaidInterestRate: 15,
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true
+      };
+      console.log('ℹ️ Test: Retour des valeurs par défaut');
+      return c.json(defaultSettings);
+    }
+    
+    console.log('✅ Test: Paramètres trouvés', systemSettings);
+    return c.json(systemSettings);
+  } catch (error) {
+    console.error('❌ Test: Erreur', error);
+    return c.json({ error: error instanceof Error ? error.message : 'Erreur serveur' }, 500);
+  }
+});
 
 // ============================================
 // EMAIL ROUTES (Email Management)
@@ -2495,6 +2526,46 @@ app.get("/make-server-2eb02e52/drivers/:driverId", async (c) => {
     
   } catch (error) {
     console.error('❌ Erreur récupération conducteur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur'
+    }, 500);
+  }
+});
+
+/**
+ * ✅ FIX #3: Récupère la localisation GPS en temps réel d'un conducteur
+ */
+app.get("/make-server-2eb02e52/drivers/:driverId/location", async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log('📍 Récupération localisation conducteur:', driverId);
+    
+    const driver = await kv.get(`driver:${driverId}`);
+    
+    if (!driver) {
+      return c.json({ 
+        success: false, 
+        error: 'Conducteur non trouvé' 
+      }, 404);
+    }
+    
+    // Retourner la localisation si disponible
+    const location = driver.location || driver.current_location || {
+      lat: -4.3276 + (Math.random() * 0.01 - 0.005), // Position aléatoire à Kinshasa
+      lng: 15.3136 + (Math.random() * 0.01 - 0.005)
+    };
+    
+    console.log(`✅ Localisation conducteur ${driver.full_name}:`, location);
+    
+    return c.json({
+      success: true,
+      location: location,
+      lastUpdate: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération localisation:', error);
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur'

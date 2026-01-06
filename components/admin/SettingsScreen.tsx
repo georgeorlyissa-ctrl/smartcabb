@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { useAppState } from '../../hooks/useAppState';
+import { useExchangeRate } from '../../hooks/useExchangeRate';
 import { PolicyModal } from '../PolicyModal';
 import { CommissionSettings } from '../CommissionSettings';
 import { 
@@ -44,7 +45,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
   });
 
   const [currencySettings, setCurrencySettings] = useState(() => ({
-    exchangeRateUSDToCDF: state.systemSettings?.exchangeRate || 2850,
+    exchangeRateUSDToCDF: state.systemSettings?.exchangeRate || 2000, // 🔄 Mis à jour : 2000 CDF par défaut
     postpaidInterestRate: state.systemSettings?.postpaidInterestRate || 15,
     allowMixedPayment: true,
     allowUSDPayment: true
@@ -99,6 +100,8 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         updatedAt: new Date().toISOString()
       };
       
+      console.log('📤 Envoi au backend:', systemSettings);
+      
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/settings/update`,
         {
@@ -115,13 +118,22 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       
       if (!result.success) {
         console.warn('⚠️ Erreur sauvegarde KV store:', result.error);
-        // Ne pas bloquer, on a déjà sauvegardé dans localStorage
+        toast.error('Erreur lors de la sauvegarde backend', {
+          description: result.error || 'Impossible de sauvegarder dans le backend'
+        });
+        return;
       } else {
-        console.log('✅ Paramètres sauvegardés dans le KV store serveur');
+        console.log('✅ Paramètres sauvegardés dans le KV store serveur:', result);
+        toast.success('Paramètres sauvegardés avec succès !', {
+          description: `Taux de change: ${currencySettings.exchangeRateUSDToCDF} CDF - Synchronisé sur tous les appareils`
+        });
       }
     } catch (err) {
       console.error('⚠️ Erreur appel serveur pour KV store:', err);
-      // Ne pas bloquer l'interface
+      toast.error('Erreur réseau', {
+        description: 'Impossible de contacter le serveur backend'
+      });
+      return;
     }
     
     // ✅ AUSSI sauvegarder dans Supabase (seulement SMS car c'est la seule colonne qui existe)
@@ -143,8 +155,6 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     } catch (err) {
       console.error('Erreur lors de la sauvegarde Supabase:', err);
     }
-    
-    toast.success('Paramètres sauvegardés avec succès !');
   };
 
   const handleResetPolicy = () => {
@@ -162,7 +172,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
     // Initialiser les paramètres de devise et de tarification à partir des paramètres du système
     if (state.systemSettings) {
       setCurrencySettings({
-        exchangeRateUSDToCDF: state.systemSettings.exchangeRate || 2850,
+        exchangeRateUSDToCDF: state.systemSettings.exchangeRate || 2000, // 🔄 Mis à jour : 2000 CDF par défaut
         postpaidInterestRate: state.systemSettings.postpaidInterestRate || 15,
         allowMixedPayment: true,
         allowUSDPayment: true
@@ -250,6 +260,11 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
                   <p className="text-sm text-gray-500 mt-1">
                     1 USD = {formatCDF(currencySettings.exchangeRateUSDToCDF)}
                   </p>
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-xs text-blue-800">
+                      💡 <strong>Synchronisation automatique :</strong> Lorsque vous sauvegardez, le taux sera synchronisé sur tous les appareils (desktop, mobile, etc.) automatiquement.
+                    </p>
+                  </div>
                 </div>
 
                 <div>

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { motion } from '../../framer-motion';
+import { Wallet, CreditCard, CheckCircle, XCircle, Clock, AlertCircle, DollarSign, Search, Filter } from 'lucide-react';
 import { useAppState } from '../../hooks/useAppState';
 import { formatCDF } from '../../lib/pricing';
 import { toast } from 'sonner';
@@ -9,7 +11,7 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone, RefreshCw } from 'lucide-react';
+import { ArrowLeft, User, Phone, RefreshCw, Calendar, History as HistoryIcon } from 'lucide-react';
 
 interface Recharge {
   id: string;
@@ -412,7 +414,7 @@ export function PendingRechargesScreenNew() {
                 En attente ({stats.pending})
               </TabsTrigger>
               <TabsTrigger value="history">
-                <History className="w-4 h-4 mr-2" />
+                <HistoryIcon className="w-4 h-4 mr-2" />
                 Historique ({stats.total})
               </TabsTrigger>
             </TabsList>
@@ -442,7 +444,7 @@ export function PendingRechargesScreenNew() {
             <TabsContent value="history">
               {allRecharges.length === 0 ? (
                 <div className="bg-white rounded-2xl p-12 text-center border border-border">
-                  <History className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-30" />
+                  <HistoryIcon className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-30" />
                   <h2 className="text-xl font-semibold text-foreground mb-2">
                     Aucun historique
                   </h2>

@@ -1,12 +1,16 @@
 /**
- * Service Principal de Paiement
- * Gère tous les types de paiements et coordonne les providers
+ * SERVICE DE PAIEMENT UNIFIÉ
+ * Gère tous les modes de paiement de SmartCabb
+ * ✅ FIX PRODUCTION V4: Utilise providers sans classes
  */
 
-import { supabase } from './supabase';
-import type { PaymentInitData, PaymentResult, PaymentMethod, PaymentStatus } from './payment-providers/base-provider';
-import { cashProvider } from './payment-providers/cash-provider';
-import { flutterwaveProvider } from './payment-providers/flutterwave-provider';
+import type { PaymentMethod, PaymentInitData, PaymentResult, PaymentVerification } from './payment-providers/base-provider';
+import { cashProvider } from './payment-providers/cash-provider-pure';
+import { flutterwaveProvider } from './payment-providers/flutterwave-provider-pure';
+import { supabase } from './supabase'; // ✅ UTILISER LE SINGLETON
+
+// Types
+type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
 
 /**
  * Transaction dans Supabase
@@ -86,10 +90,10 @@ class PaymentService {
 
       // Sélectionner le provider
       const provider = this.getProvider(data.method);
-      console.log(`📱 Provider sélectionné: ${provider.name}`);
+      console.log(`📱 Provider sélectionné: ${provider.getName()}`);
 
       // Initier le paiement avec le provider
-      const result = await provider.initiatePayment(data);
+      const result = await provider.initPayment(data);
 
       // Enregistrer la transaction dans Supabase seulement si c'est une course
       if (result.success && data.rideId && data.passengerId) {
@@ -104,7 +108,7 @@ class PaymentService {
           provider_reference: result.transactionId,
           description: data.description || `Paiement course #${data.rideId.slice(-8)}`,
           metadata: {
-            provider: provider.name,
+            provider: provider.getName(),
             driverId: data.driverId,
             ...result.metadata,
             ...data.metadata,
@@ -424,5 +428,31 @@ class PaymentService {
   }
 }
 
-// Instance singleton
-export const paymentService = new PaymentService();
+// ✅ FIX PRODUCTION V3: Factory function au lieu de Proxy
+let paymentServiceInstance: PaymentService | null = null;
+
+export function getPaymentService(): PaymentService {
+  if (typeof window === 'undefined') {
+    // SSR: retourner un mock
+    return {} as PaymentService;
+  }
+  
+  if (!paymentServiceInstance) {
+    paymentServiceInstance = new PaymentService();
+  }
+  return paymentServiceInstance;
+}
+
+// Export pour compatibilité (utilise la factory)
+export const paymentService = {
+  initPayment: (data: PaymentInitData) => getPaymentService().initPayment(data),
+  initiatePayment: (data: PaymentInitData) => getPaymentService().initiatePayment(data),
+  processMixedPayment: (data: PaymentInitData) => getPaymentService().processMixedPayment(data),
+  verifyPayment: (transactionId: string, method?: PaymentMethod) => 
+    getPaymentService().verifyPayment(transactionId, method),
+  confirmCashPayment: (transactionId: string, amountReceived: number, driverId: string) => 
+    getPaymentService().confirmCashPayment(transactionId, amountReceived, driverId),
+  refundPayment: (transactionId: string, method: PaymentMethod, amount?: number) => 
+    getPaymentService().refundPayment(transactionId, method, amount),
+  getRideTransactions: (rideId: string) => getPaymentService().getRideTransactions(rideId),
+};

@@ -1,5 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { Button } from './ui/button';
+import React from 'react';
 import { CheckCircle, Clock, Star } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
@@ -48,7 +47,7 @@ export function PaymentSuccessDialog({
           {/* Success message */}
           <div className="bg-green-50 rounded-lg p-4">
             <p className="text-green-800">
-              {t('your_payment_of')} <span className="font-bold">{totalPaid.toLocaleString()} {t('cdf')}</span> {t('to_smartcab_successful')}
+              {t('your_payment_of')} <span className="font-bold">{(totalPaid || 0).toLocaleString()} {t('cdf')}</span> {t('to_smartcab_successful')}
             </p>
           </div>
 
@@ -68,20 +67,20 @@ export function PaymentSuccessDialog({
             {ride.tip && ride.tip > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Pourboire:</span>
-                <span>+{ride.tip.toLocaleString()} {t('cdf')}</span>
+                <span>+{(ride.tip || 0).toLocaleString()} {t('cdf')}</span>
               </div>
             )}
             
             {ride.promoDiscount && ride.promoDiscount > 0 && (
               <div className="flex justify-between text-blue-600">
                 <span>Réduction ({ride.promoCode}):</span>
-                <span>-{ride.promoDiscount.toLocaleString()} {t('cdf')}</span>
+                <span>-{(ride.promoDiscount || 0).toLocaleString()} {t('cdf')}</span>
               </div>
             )}
             
             <div className="border-t pt-2 flex justify-between font-semibold">
               <span>Total payé:</span>
-              <span>{totalPaid.toLocaleString()} {t('cdf')}</span>
+              <span>{(totalPaid || 0).toLocaleString()} {t('cdf')}</span>
             </div>
           </div>
 

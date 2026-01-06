@@ -1,14 +1,17 @@
+"use client";
+
+// 🔥 v311.4 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { motion } from '../../framer-motion';
 import { TrendingUp, TrendingDown, DollarSign, Users, Car, Calendar, Download, Filter, RefreshCw, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { ResponsiveContainer, AreaChart, LineChart, BarChart, PieChart, Pie, Cell, Area, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 interface AnalyticsData {
   revenue: {
@@ -257,6 +260,11 @@ export function AdvancedAnalyticsDashboard({ onBack }: AdvancedAnalyticsDashboar
 
   if (!data) return null;
 
+  const maxRevenue = Math.max(...data.revenueByDay.map(d => d.revenue), 1);
+  const maxRides = Math.max(...data.revenueByDay.map(d => d.rides), 1);
+  const maxHourlyRides = Math.max(...data.hourlyDistribution.map(d => d.rides), 1);
+  const totalCategoryRides = data.ridesByCategory.reduce((sum, cat) => sum + cat.count, 0);
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -359,18 +367,29 @@ export function AdvancedAnalyticsDashboard({ onBack }: AdvancedAnalyticsDashboar
         <TabsContent value="revenue" className="space-y-4">
           <Card className="p-6">
             <h3 className="mb-4">Évolution des revenus</h3>
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data.revenueByDay}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Revenus (CDF)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {data && data.revenueByDay && data.revenueByDay.length > 0 ? (
+              <div className="space-y-3">
+                {data.revenueByDay.map((day, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <div className="w-24 text-sm text-gray-600">{new Date(day.date).toLocaleDateString('fr-FR')}</div>
+                    <div className="flex-1">
+                      <div className="bg-gray-200 rounded-full h-8 overflow-hidden">
+                        <div 
+                          className="bg-blue-500 h-full flex items-center justify-end px-3 text-white text-sm font-semibold"
+                          style={{ width: `${(day.revenue / maxRevenue) * 100}%` }}
+                        >
+                          {day.revenue > 0 && `${day.revenue.toLocaleString()} CDF`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="w-full h-[300px] flex items-center justify-center text-gray-500">
+                Aucune donnée disponible
+              </div>
+            )}
           </Card>
         </TabsContent>
 
@@ -378,34 +397,56 @@ export function AdvancedAnalyticsDashboard({ onBack }: AdvancedAnalyticsDashboar
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="p-6">
               <h3 className="mb-4">Courses par jour</h3>
-              <div className="w-full h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data.revenueByDay}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="rides" stroke="#10b981" name="Courses" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {data && data.revenueByDay && data.revenueByDay.length > 0 ? (
+                <div className="space-y-2">
+                  {data.revenueByDay.map((day, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-20 text-xs text-gray-600">{new Date(day.date).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' })}</div>
+                      <div className="flex-1">
+                        <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                          <div 
+                            className="bg-green-500 h-full flex items-center justify-end px-2 text-white text-xs font-semibold"
+                            style={{ width: `${(day.rides / maxRides) * 100}%` }}
+                          >
+                            {day.rides > 0 && day.rides}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-[300px] flex items-center justify-center text-gray-500">
+                  Aucune donnée disponible
+                </div>
+              )}
             </Card>
 
             <Card className="p-6">
               <h3 className="mb-4">Distribution horaire</h3>
-              <div className="w-full h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.hourlyDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="hour" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="rides" fill="#f59e0b" name="Courses" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {data && data.hourlyDistribution && data.hourlyDistribution.length > 0 ? (
+                <div className="space-y-2">
+                  {data.hourlyDistribution.map((hour, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-12 text-xs text-gray-600">{hour.hour}</div>
+                      <div className="flex-1">
+                        <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                          <div 
+                            className="bg-orange-500 h-full flex items-center justify-end px-2 text-white text-xs font-semibold"
+                            style={{ width: `${(hour.rides / maxHourlyRides) * 100}%` }}
+                          >
+                            {hour.rides > 0 && hour.rides}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-[300px] flex items-center justify-center text-gray-500">
+                  Aucune donnée disponible
+                </div>
+              )}
             </Card>
           </div>
         </TabsContent>
@@ -414,43 +455,61 @@ export function AdvancedAnalyticsDashboard({ onBack }: AdvancedAnalyticsDashboar
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="p-6">
               <h3 className="mb-4">Répartition par catégorie</h3>
-              <div className="w-full h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={data.ridesByCategory}
-                      dataKey="count"
-                      nameKey="category"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
-                      label
-                    >
-                      {data.ridesByCategory.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
+              {data && data.ridesByCategory && data.ridesByCategory.length > 0 ? (
+                <div className="space-y-4">
+                  {data.ridesByCategory.map((cat, index) => (
+                    <div key={index}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium">{cat.category}</span>
+                        <span className="text-sm text-gray-600">{cat.count} courses ({((cat.count / totalCategoryRides) * 100).toFixed(1)}%)</span>
+                      </div>
+                      <div className="bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div 
+                          className="h-full"
+                          style={{ 
+                            width: `${(cat.count / totalCategoryRides) * 100}%`,
+                            backgroundColor: COLORS[index % COLORS.length]
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-[300px] flex items-center justify-center text-gray-500">
+                  Aucune donnée disponible
+                </div>
+              )}
             </Card>
 
             <Card className="p-6">
               <h3 className="mb-4">Revenus par catégorie</h3>
-              <div className="w-full h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data.ridesByCategory}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="revenue" fill="#8b5cf6" name="Revenus (CDF)" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {data && data.ridesByCategory && data.ridesByCategory.length > 0 ? (
+                <div className="space-y-3">
+                  {data.ridesByCategory.map((cat, index) => (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-32 text-sm truncate">{cat.category}</div>
+                      <div className="flex-1">
+                        <div className="bg-gray-200 rounded-full h-8 overflow-hidden">
+                          <div 
+                            className="h-full flex items-center justify-end px-3 text-white text-sm font-semibold"
+                            style={{ 
+                              width: `${(cat.revenue / Math.max(...data.ridesByCategory.map(c => c.revenue))) * 100}%`,
+                              backgroundColor: COLORS[index % COLORS.length]
+                            }}
+                          >
+                            {cat.revenue > 0 && `${cat.revenue.toLocaleString()} CDF`}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-[300px] flex items-center justify-center text-gray-500">
+                  Aucune donnée disponible
+                </div>
+              )}
             </Card>
           </div>
         </TabsContent>
@@ -479,7 +538,7 @@ export function AdvancedAnalyticsDashboard({ onBack }: AdvancedAnalyticsDashboar
                   <div className="text-right">
                     <p className="font-bold text-green-600">{driver.revenue.toLocaleString()} CDF</p>
                     <div className="flex items-center gap-1 text-sm text-yellow-600">
-                      ⭐ {driver.rating.toFixed(1)}
+                      ⭐ {(driver.rating || 0).toFixed(1)}
                     </div>
                   </div>
                 </motion.div>

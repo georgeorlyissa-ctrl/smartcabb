@@ -1,13 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAppState } from '../hooks/useAppState';
-import { RLSFixModal } from '../components/RLSFixModal';
-import { RLSBlockingScreen } from '../components/RLSBlockingScreen';
-import { LoadingScreen } from '../components/LoadingScreen';
-import { LandingScreen } from '../components/LandingScreen';
-import { UserSelectionScreen } from '../components/UserSelectionScreen';
-import { WelcomeBackScreen } from '../components/WelcomeBackScreen';
-
-// Import direct sans lazy loading pour debug
+import { Routes, Route, useLocation } from '../lib/simple-router';
 import { DriverWelcomeScreen } from '../components/driver/DriverWelcomeScreen';
 import { DriverLoginScreen } from '../components/driver/DriverLoginScreen';
 import { DriverRegistrationScreen } from '../components/driver/DriverRegistrationScreen';
@@ -17,9 +8,17 @@ import { EarningsScreen } from '../components/driver/EarningsScreen';
 import { DriverSettingsScreen } from '../components/driver/DriverSettingsScreen';
 import { DriverProfileScreen } from '../components/driver/DriverProfileScreen';
 import { ClientInfoScreen } from '../components/driver/ClientInfoScreen';
+import { ConfirmationCodeScreen } from '../components/driver/ConfirmationCodeScreen';
 import { DriverWalletScreen } from '../components/driver/DriverWalletScreen';
+import { ActiveRideScreen } from '../components/driver/ActiveRideScreen';
+import { PaymentConfirmationScreen } from '../components/driver/PaymentConfirmationScreen';
+import { useAppState } from '../hooks/useAppState';
+import { WelcomeBackScreen } from '../components/WelcomeBackScreen';
 import { ForgotPasswordScreen } from '../components/ForgotPasswordScreen';
 import { ResetPasswordOTPScreen } from '../components/ResetPasswordOTPScreen';
+import { RLSFixModal } from '../components/RLSFixModal';
+import { RLSBlockingScreen } from '../components/RLSBlockingScreen';
+import { LoadingScreen } from '../components/LoadingScreen';
 import { useEffect } from 'react';
 
 function DriverAppContent() {
@@ -27,7 +26,7 @@ function DriverAppContent() {
   const { currentScreen, currentUser: user } = state;
   const showRLSModal = false; // Désactivé pour chauffeur
   const showRLSBlockingScreen = false; // Désactivé pour chauffeur
-  
+
   // Pour l'app conducteur, on ne charge pas les données Supabase en mode démo
   // const { loading: dataLoading } = useSupabaseData();
   const dataLoading = false; // Désactivé pour app conducteur
@@ -37,14 +36,17 @@ function DriverAppContent() {
   useEffect(() => {
     console.log('🚗 DriverApp - Démarrage avec currentScreen:', currentScreen);
     console.log('🚗 DriverApp - Location pathname:', location.pathname);
+    console.log('🚗 DriverApp - currentView:', state.currentView);
     
-    // ✅ Si on est sur /driver, s'assurer qu'on est en mode conducteur
-    if (location.pathname.startsWith('/driver')) {
-      // Si on a déjà un écran driver valide, ne rien faire
+    // ✅ Si on est sur /driver OU /app/driver, s'assurer qu'on est en mode conducteur
+    if (location.pathname.includes('/driver')) {
+      // ✅ TOUJOURS forcer la vue à 'driver' dès qu'on est sur /driver
+      console.log('🔄 Forçage de la vue à driver');
+      setCurrentView('driver');
+      
+      // Si on a déjà un écran driver valide, ne rien changer
       if (currentScreen && currentScreen.startsWith('driver-')) {
         console.log('✅ Écran driver déjà défini, on garde:', currentScreen);
-        // Juste s'assurer que la vue est bien "driver"
-        setCurrentView('driver');
         return; // Important : ne pas continuer
       }
       
@@ -55,11 +57,10 @@ function DriverAppContent() {
           currentScreen.startsWith('admin-') ||
           currentScreen.startsWith('passenger-')) {
         console.log('🔄 Initialisation vers driver-welcome');
-        setCurrentView('driver');
         setCurrentScreen('driver-welcome');
       }
     }
-  }, [location.pathname]); // Dépendance sur le pathname
+  }, [location.pathname, currentScreen, state.currentView, setCurrentView, setCurrentScreen]); // Toutes les dépendances
 
   // Show RLS blocking screen if there's a critical RLS issue
   if (showRLSBlockingScreen) {
@@ -78,27 +79,27 @@ function DriverAppContent() {
 
       {/* Main Driver App Screens */}
       <div className="h-screen">
-        {currentScreen === 'landing' && <LandingScreen />}
-        {currentScreen === 'user-selection' && <UserSelectionScreen />}
-        {(currentScreen === 'welcome-back' || currentScreen === 'welcome-back-driver') && (
-          <WelcomeBackScreen 
-            userName={state.currentDriver?.name || state.currentDriver?.email?.split('@')[0] || undefined}
-            userType="driver"
-            onComplete={() => setCurrentScreen('driver-login')}
-          />
-        )}
-        
         {/* Driver Screens */}
         {currentScreen === 'driver-welcome' && <DriverWelcomeScreen />}
         {currentScreen === 'driver-login' && <DriverLoginScreen />}
         {currentScreen === 'driver-registration' && <DriverRegistrationScreen />}
         {currentScreen === 'driver-dashboard' && <DriverDashboard />}
-        {currentScreen === 'driver-navigation' && <NavigationScreen />}
+        {(currentScreen === 'driver-navigation' || currentScreen === 'navigation') && <NavigationScreen />}
         {currentScreen === 'driver-earnings' && <EarningsScreen />}
         {currentScreen === 'driver-settings' && <DriverSettingsScreen />}
         {currentScreen === 'driver-profile' && <DriverProfileScreen />}
-        {currentScreen === 'driver-client-info' && <ClientInfoScreen />}
+        {(currentScreen === 'driver-client-info' || currentScreen === 'client-info') && <ClientInfoScreen />}
         {currentScreen === 'driver-wallet' && <DriverWalletScreen />}
+        {(currentScreen === 'driver-confirmation-code' || currentScreen === 'confirmation-code') && <ConfirmationCodeScreen />}
+        {(currentScreen === 'driver-active-ride' || currentScreen === 'active-ride') && <ActiveRideScreen />}
+        {(currentScreen === 'driver-payment-confirmation' || currentScreen === 'payment-confirmation') && <PaymentConfirmationScreen />}
+        {(currentScreen === 'welcome-back' || currentScreen === 'welcome-back-driver') && (
+          <WelcomeBackScreen 
+            userName={state.currentDriver?.name || state.currentDriver?.email?.split('@')[0] || undefined}
+            userType="driver"
+            onComplete={() => setCurrentScreen('driver-dashboard')}
+          />
+        )}
         
         {/* Forgot Password Flow */}
         {currentScreen === 'forgot-password-driver' && (
@@ -113,6 +114,16 @@ function DriverAppContent() {
             onSuccess={() => setCurrentScreen('driver-login')}
             userType="driver" 
           />
+        )}
+        
+        {/* Fallback: Si aucun écran driver n'est affiché, afficher le welcome screen */}
+        {!currentScreen && <DriverWelcomeScreen />}
+        {currentScreen && !currentScreen.startsWith('driver-') && 
+         currentScreen !== 'welcome-back' && 
+         currentScreen !== 'welcome-back-driver' &&
+         currentScreen !== 'forgot-password-driver' &&
+         currentScreen !== 'reset-password-otp-driver' && (
+          <DriverWelcomeScreen />
         )}
       </div>
     </>

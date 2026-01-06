@@ -1,6 +1,5 @@
-import { motion } from 'motion/react';
-import { Card } from './ui/card';
-import { DollarSign, Banknote } from 'lucide-react';
+import { motion } from '../framer-motion';
+import { DollarSign, ChevronDown } from 'lucide-react';
 
 interface CurrencySelectorProps {
   onCurrencySelect: (currency: 'USD' | 'CDF') => void;
@@ -34,7 +33,7 @@ export function CurrencySelector({
       id: 'CDF' as const,
       title: 'Franc congolais',
       symbol: 'CDF',
-      icon: Banknote,
+      icon: ChevronDown,
       color: 'bg-blue-500',
       borderColor: 'border-blue-200',
       bgColor: 'bg-blue-50',

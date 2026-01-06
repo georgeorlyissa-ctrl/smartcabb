@@ -1,4 +1,4 @@
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
 import { RLSFixModal } from '../components/RLSFixModal';
 import { RLSBlockingScreen } from '../components/RLSBlockingScreen';
@@ -9,7 +9,6 @@ import { WelcomeBackScreen } from '../components/WelcomeBackScreen';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
 // Import direct sans lazy loading pour debug
-import { WelcomeScreen } from '../components/passenger/WelcomeScreen';
 import { LoginScreen } from '../components/passenger/LoginScreen';
 import { RegisterScreen } from '../components/passenger/RegisterScreen';
 import { ForgotPasswordScreen } from '../components/ForgotPasswordScreen';
@@ -17,6 +16,10 @@ import { ResetPasswordOTPScreen } from '../components/ResetPasswordOTPScreen';
 import { MapScreen } from '../components/passenger/MapScreen';
 import { EstimateScreen } from '../components/passenger/EstimateScreen';
 import { RideScreen } from '../components/passenger/RideScreen';
+import { DriverFoundScreen } from '../components/passenger/DriverFoundScreen';
+import { LiveTrackingMap } from '../components/passenger/LiveTrackingMap';
+import { LiveTrackingScreen } from '../components/passenger/LiveTrackingScreen';
+import { RideTrackingScreen } from '../components/passenger/RideTrackingScreen';
 import { PaymentScreen } from '../components/passenger/PaymentScreen';
 import { RatingScreen } from '../components/passenger/RatingScreen';
 import { SettingsScreen } from '../components/passenger/SettingsScreen';
@@ -28,6 +31,8 @@ import { PrivacySettingsScreen } from '../components/passenger/PrivacySettingsSc
 import { PaymentMethodScreen } from '../components/passenger/PaymentMethodScreen';
 import { PaymentSettingsScreen } from '../components/passenger/PaymentSettingsScreen';
 import { SupportScreen } from '../components/passenger/SupportScreen';
+import { RideInProgressScreen } from '../components/passenger/RideInProgressScreen';
+import { DriverApproachingScreen } from '../components/passenger/DriverApproachingScreen';
 import { useEffect, useMemo } from 'react';
 
 function PassengerAppContent() {
@@ -44,6 +49,13 @@ function PassengerAppContent() {
   // ✅ Initialisation: définir l'écran par défaut
   useEffect(() => {
     console.log('🚀 PassengerApp monté - currentScreen:', currentScreen, 'location:', location.pathname);
+    console.log('🚀 PassengerApp - currentView:', state.currentView);
+    
+    // ✅ Si on est sur /app/passenger, forcer la vue à 'passenger'
+    if (location.pathname.includes('/passenger')) {
+      console.log('🔄 Forçage de la vue à passenger');
+      setCurrentView('passenger');
+    }
     
     // ❌ NE PAS charger PassengerApp si on est sur un écran admin ou driver
     if (currentScreen?.startsWith('admin-') || currentScreen?.startsWith('driver-')) {
@@ -51,11 +63,11 @@ function PassengerAppContent() {
       return;
     }
     
-    // Si on arrive sur /app sans écran défini, initialiser à 'welcome'
+    // Si on arrive sur /app sans écran défini, initialiser à 'landing'
     if (!currentScreen || currentScreen === '') {
-      console.log('🔄 Initialisation vers welcome depuis PassengerApp');
+      console.log('🔄 Initialisation vers landing depuis PassengerApp');
       setCurrentView('passenger');
-      setCurrentScreen('welcome');
+      setCurrentScreen('landing');
     }
     
     // Si on est sur user-selection et qu'on a déjà un utilisateur, aller à map
@@ -63,11 +75,11 @@ function PassengerAppContent() {
       console.log('✅ Utilisateur déjà connecté, redirection vers map');
       setCurrentScreen('map');
     }
-  }, []); // Une seule fois au montage
+  }, [location.pathname, currentScreen, state.currentView, user, setCurrentView, setCurrentScreen]); // Toutes les dépendances
 
   // ✅ Gérer le cas où currentScreen est vide PENDANT le render
   const screenToShow = useMemo(() => {
-    const screen = currentScreen && currentScreen !== '' ? currentScreen : 'welcome';
+    const screen = currentScreen && currentScreen !== '' ? currentScreen : 'landing';
     console.log('📺 PassengerApp - screenToShow calculé:', screen, '| currentUser:', user?.name || 'aucun');
     return screen;
   }, [currentScreen, user]);
@@ -99,12 +111,6 @@ function PassengerAppContent() {
             userType="passenger"
             onComplete={() => setCurrentScreen('login')}
           />
-        );
-      case 'welcome':
-        return (
-          <ErrorBoundary>
-            <WelcomeScreen />
-          </ErrorBoundary>
         );
       case 'login':
         return (
@@ -153,6 +159,58 @@ function PassengerAppContent() {
         return (
           <ErrorBoundary>
             <RideScreen />
+          </ErrorBoundary>
+        );
+      case 'driver-found':
+        return (
+          <ErrorBoundary>
+            <DriverFoundScreen 
+              driverData={{
+                id: state.currentRide?.driverId || '',
+                full_name: state.currentRide?.driverName || 'Conducteur',
+                phone: state.currentRide?.driverPhone || '',
+                rating: 4.8,
+                total_rides: 150,
+                vehicle: state.currentRide?.vehicleInfo
+              }}
+              confirmationCode={state.currentRide?.confirmationCode || '0000'}
+              estimatedArrival={3}
+            />
+          </ErrorBoundary>
+        );
+      case 'tracking':
+        return (
+          <ErrorBoundary>
+            <LiveTrackingMap 
+              driverId={state.currentRide?.driverId || ''}
+              pickup={state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
+              destination={state.destination || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
+              driverName={state.currentRide?.driverName || 'Conducteur'}
+            />
+          </ErrorBoundary>
+        );
+      case 'ride-tracking':
+        return (
+          <ErrorBoundary>
+            <RideTrackingScreen />
+          </ErrorBoundary>
+        );
+      case 'live-tracking':
+        return (
+          <ErrorBoundary>
+            <LiveTrackingScreen />
+          </ErrorBoundary>
+        );
+      case 'ride-in-progress':
+        return (
+          <ErrorBoundary>
+            <RideInProgressScreen />
+          </ErrorBoundary>
+        );
+      case 'driver-approaching':
+        return (
+          <ErrorBoundary>
+            <DriverApproachingScreen />
           </ErrorBoundary>
         );
       case 'payment':
@@ -234,11 +292,7 @@ function PassengerAppContent() {
           </ErrorBoundary>
         );
       default:
-        return (
-          <ErrorBoundary>
-            <WelcomeScreen />
-          </ErrorBoundary>
-        );
+        return <LandingScreen />;
     }
   }, [screenToShow]);
 

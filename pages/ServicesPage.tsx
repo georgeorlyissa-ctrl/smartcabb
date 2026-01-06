@@ -1,16 +1,173 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../lib/simple-router';
 import { useState, useEffect } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
 import { TestimonialsCarousel } from '../components/TestimonialsCarousel';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 export function ServicesPage() {
   const [language, setLanguage] = useState('fr');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(2000); // Taux par défaut
+  const [currentStandardIndex, setCurrentStandardIndex] = useState(0);
+  const [currentConfortIndex, setCurrentConfortIndex] = useState(0);
+  const [currentBusinessIndex, setCurrentBusinessIndex] = useState(0);
+  const [currentFamiliaIndex, setCurrentFamiliaIndex] = useState(0);
+
+  // Images pour SmartCabb Standard - vos vraies images + fallback
+  const standardVehicles = [
+    { 
+      src: '/vehicules/standard/Standard_1.png',
+      fallback: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
+      alt: 'SmartCabb Standard - Véhicule 1'
+    },
+    { 
+      src: '/vehicules/standard/Standard_2.png',
+      fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
+      alt: 'SmartCabb Standard - Véhicule 2'
+    },
+    { 
+      src: '/vehicules/standard/Standard_3.png',
+      fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
+      alt: 'SmartCabb Standard - Véhicule 3'
+    },
+    { 
+      src: '/vehicules/standard/Standard_4.png',
+      fallback: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
+      alt: 'SmartCabb Standard - Véhicule 4'
+    },
+    { 
+      src: '/vehicules/standard/Standard_5.png',
+      fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
+      alt: 'SmartCabb Standard - Véhicule 5'
+    },
+    { 
+      src: '/vehicules/standard/Standard_6.png',
+      fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
+      alt: 'SmartCabb Standard - Véhicule 6'
+    }
+  ];
+
+  // Images pour SmartCabb Confort - vos vraies images + fallback
+  const confortVehicles = [
+    { 
+      src: '/vehicules/confort/confort 1.png',
+      fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
+      alt: 'SmartCabb Confort - Véhicule 1'
+    },
+    { 
+      src: '/vehicules/confort/Confort_2.png',
+      fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
+      alt: 'SmartCabb Confort - Véhicule 2'
+    },
+    { 
+      src: '/vehicules/confort/Confort_3.png',
+      fallback: 'https://images.unsplash.com/photo-1687730594701-88cdea1ef5ae?w=600',
+      alt: 'SmartCabb Confort - Véhicule 3'
+    }
+  ];
+
+  // Images pour SmartCabb Business - vos vraies images + fallback
+  const businessVehicles = [
+    { 
+      src: '/vehicules/business/business_1.png',
+      fallback: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
+      alt: 'SmartCabb Business - Véhicule 1'
+    },
+    { 
+      src: '/vehicules/business/Business_2.png',
+      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
+      alt: 'SmartCabb Business - Véhicule 2'
+    },
+    { 
+      src: '/vehicules/business/Business_3.png',
+      fallback: 'https://images.unsplash.com/photo-1666846865666-d2d2525c3613?w=600',
+      alt: 'SmartCabb Business - Véhicule 3'
+    },
+    { 
+      src: '/vehicules/business/Business_4.png',
+      fallback: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
+      alt: 'SmartCabb Business - Véhicule 4'
+    },
+    { 
+      src: '/vehicules/business/Business_5.png',
+      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
+      alt: 'SmartCabb Business - Véhicule 5'
+    },
+    { 
+      src: '/vehicules/business/Business_6.png',
+      fallback: 'https://images.unsplash.com/photo-1666846865666-d2d2525c3613?w=600',
+      alt: 'SmartCabb Business - Véhicule 6'
+    }
+  ];
+
+  // Images pour SmartCabb Familia (anciennement Plus) - vos vraies images + fallback
+  const familiaVehicles = [
+    { 
+      src: '/vehicules/famille/Familiale_1.png',
+      fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
+      alt: 'SmartCabb Familia - Véhicule 1'
+    },
+    { 
+      src: '/vehicules/famille/Familiale_2.png',
+      fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
+      alt: 'SmartCabb Familia - Véhicule 2'
+    },
+    { 
+      src: '/vehicules/famille/Familiale_3.png',
+      fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
+      alt: 'SmartCabb Familia - Véhicule 3'
+    },
+    { 
+      src: '/vehicules/famille/Familiale_4.png',
+      fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
+      alt: 'SmartCabb Familia - Véhicule 4'
+    }
+  ];
 
   // Récupérer la langue depuis localStorage au chargement
   useEffect(() => {
     const savedLang = localStorage.getItem('smartcabb_lang') || 'fr';
     setLanguage(savedLang);
+  }, []);
+
+  // Récupérer le taux de change depuis localStorage
+  useEffect(() => {
+    const rate = localStorage.getItem('smartcabb_exchange_rate');
+    if (rate) {
+      setExchangeRate(parseInt(rate));
+    }
+  }, []);
+
+  // Carousel automatique pour SmartCabb Standard
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStandardIndex((prevIndex) => (prevIndex + 1) % standardVehicles.length);
+    }, 3000); // Change toutes les 3 secondes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Carousel automatique pour SmartCabb Confort
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentConfortIndex((prevIndex) => (prevIndex + 1) % confortVehicles.length);
+    }, 3000); // Change toutes les 3 secondes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Carousel automatique pour SmartCabb Business
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentBusinessIndex((prevIndex) => (prevIndex + 1) % businessVehicles.length);
+    }, 3000); // Change toutes les 3 secondes
+    return () => clearInterval(interval);
+  }, []);
+
+  // Carousel automatique pour SmartCabb Familia
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentFamiliaIndex((prevIndex) => (prevIndex + 1) % familiaVehicles.length);
+    }, 3000); // Change toutes les 3 secondes
+    return () => clearInterval(interval);
   }, []);
 
   // Sauvegarder la langue dans localStorage quand elle change
@@ -21,6 +178,12 @@ export function ServicesPage() {
   };
 
   const t = (fr: string, en: string) => language === 'fr' ? fr : en;
+
+  // Fonction helper pour formater les prix en CDF
+  const formatCDF = (usd: number) => {
+    const cdf = usd * exchangeRate;
+    return new Intl.NumberFormat('fr-CD').format(cdf) + ' CDF';
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -175,11 +338,41 @@ export function ServicesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
             {/* Smart Cabb Standard */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <img 
-                src="https://images.unsplash.com/photo-1614738361179-32669da738f9?w=600" 
-                alt="Smart Cabb Standard" 
-                className="w-full h-48 object-cover"
-              />
+              <div className="relative">
+                {/* Image du véhicule avec transition */}
+                <div className="relative h-48 overflow-hidden">
+                  {standardVehicles.map((vehicle, index) => (
+                    <ImageWithFallback
+                      key={index}
+                      src={vehicle.src}
+                      fallbackSrc={vehicle.fallback}
+                      alt={vehicle.alt}
+                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      style={{
+                        opacity: currentStandardIndex === index ? 1 : 0,
+                        transform: currentStandardIndex === index ? 'scale(1)' : 'scale(1.1)',
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Indicateurs de carousel */}
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  {standardVehicles.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentStandardIndex(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        currentStandardIndex === index
+                          ? 'bg-white w-6'
+                          : 'bg-white/50 w-1.5 hover:bg-white/75'
+                      }`}
+                      aria-label={`Go to vehicle ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              
               <div className="p-6">
                 <span className="inline-block bg-cyan-500 text-white px-4 py-2 rounded-full font-semibold text-sm mb-4">
                   SMARTCABB STANDARD
@@ -214,22 +407,22 @@ export function ServicesPage() {
                 <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (jour)', 'Ride/hour (day)')}</span>
-                    <span className="font-semibold">7$ / 19 600 CDF</span>
+                    <span className="font-semibold">7$ / {formatCDF(7)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (nuit)', 'Ride/hour (night)')}</span>
-                    <span className="font-semibold">10$ / 28 000 CDF</span>
+                    <span className="font-semibold">10$ / {formatCDF(10)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Location journalière', 'Daily rental')}</span>
-                    <span className="font-semibold">60$ / 168 000 CDF</span>
+                    <span className="font-semibold">60$ / {formatCDF(60)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Aéroport A/R', 'Airport RT')}</span>
-                    <span className="font-semibold">70$ / 196 000 CDF</span>
+                    <span className="font-semibold">70$ / {formatCDF(70)}</span>
                   </div>
                 </div>
-                <Link to="/app" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
+                <Link to="/app/passenger" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
                   {t('Demander maintenant', 'Request now')}
                 </Link>
               </div>
@@ -237,11 +430,41 @@ export function ServicesPage() {
 
             {/* Smart Cabb Confort */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <img 
-                src="https://images.unsplash.com/photo-1687730594701-88cdea1ef5ae?w=600" 
-                alt="Smart Cabb Confort" 
-                className="w-full h-48 object-cover"
-              />
+              <div className="relative">
+                {/* Image du véhicule avec transition */}
+                <div className="relative h-48 overflow-hidden">
+                  {confortVehicles.map((vehicle, index) => (
+                    <ImageWithFallback
+                      key={index}
+                      src={vehicle.src}
+                      fallbackSrc={vehicle.fallback}
+                      alt={vehicle.alt}
+                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      style={{
+                        opacity: currentConfortIndex === index ? 1 : 0,
+                        transform: currentConfortIndex === index ? 'scale(1)' : 'scale(1.1)',
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Indicateurs de carousel */}
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  {confortVehicles.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentConfortIndex(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        currentConfortIndex === index
+                          ? 'bg-white w-6'
+                          : 'bg-white/50 w-1.5 hover:bg-white/75'
+                      }`}
+                      aria-label={`Go to vehicle ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              
               <div className="p-6">
                 <span className="inline-block bg-cyan-500 text-white px-4 py-2 rounded-full font-semibold text-sm mb-4">
                   SMARTCABB CONFORT
@@ -272,43 +495,77 @@ export function ServicesPage() {
                     <span className="text-cyan-500">📶</span>
                     <span>Data {t('gratuit', 'free')}</span>
                   </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="text-cyan-500">🔒</span>
+                    <span>{t('Sécurisé', 'Secure')}</span>
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (jour)', 'Ride/hour (day)')}</span>
-                    <span className="font-semibold">15$ / 42 000 CDF</span>
+                    <span className="font-semibold">15$ / {formatCDF(15)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (nuit)', 'Ride/hour (night)')}</span>
-                    <span className="font-semibold">17$ / 47 600 CDF</span>
+                    <span className="font-semibold">17$ / {formatCDF(17)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Location journalière', 'Daily rental')}</span>
-                    <span className="font-semibold">80$ / 224 000 CDF</span>
+                    <span className="font-semibold">80$ / {formatCDF(80)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Aéroport A/R', 'Airport RT')}</span>
-                    <span className="font-semibold">90$ / 252 000 CDF</span>
+                    <span className="font-semibold">90$ / {formatCDF(90)}</span>
                   </div>
                 </div>
-                <Link to="/app" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
+                <Link to="/app/passenger" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
                   {t('Demander maintenant', 'Request now')}
                 </Link>
               </div>
             </div>
 
-            {/* Smart Cabb Plus */}
+            {/* Smart Cabb Familia */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <img 
-                src="https://images.unsplash.com/photo-1731142582229-e0ee70302c02?w=600" 
-                alt="Smart Cabb Plus" 
-                className="w-full h-48 object-cover"
-              />
+              <div className="relative">
+                {/* Image du véhicule avec transition */}
+                <div className="relative h-48 overflow-hidden">
+                  {familiaVehicles.map((vehicle, index) => (
+                    <ImageWithFallback
+                      key={index}
+                      src={vehicle.src}
+                      fallbackSrc={vehicle.fallback}
+                      alt={vehicle.alt}
+                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      style={{
+                        opacity: currentFamiliaIndex === index ? 1 : 0,
+                        transform: currentFamiliaIndex === index ? 'scale(1)' : 'scale(1.1)',
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Indicateurs de carousel */}
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  {familiaVehicles.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentFamiliaIndex(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        currentFamiliaIndex === index
+                          ? 'bg-white w-6'
+                          : 'bg-white/50 w-1.5 hover:bg-white/75'
+                      }`}
+                      aria-label={`Go to vehicle ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              
               <div className="p-6">
                 <span className="inline-block bg-cyan-500 text-white px-4 py-2 rounded-full font-semibold text-sm mb-4">
-                  SMARTCABB PLUS
+                  SMARTCABB FAMILIA
                 </span>
-                <h3 className="text-2xl font-bold mb-2">✨ SmartCabb Plus</h3>
+                <h3 className="text-2xl font-bold mb-2">✨ SmartCabb Familia</h3>
                 <p className="text-gray-600 mb-4 leading-relaxed">
                   {t(
                     '7 places avec connexion Data gratuit. Véhicules spacieux pour familles et groupes.',
@@ -334,26 +591,30 @@ export function ServicesPage() {
                     <span className="text-cyan-500">📶</span>
                     <span>Data {t('gratuit', 'free')}</span>
                   </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="text-cyan-500">🔒</span>
+                    <span>{t('Sécurisé', 'Secure')}</span>
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (jour)', 'Ride/hour (day)')}</span>
-                    <span className="font-semibold">15$ / 42 000 CDF</span>
+                    <span className="font-semibold">15$ / {formatCDF(15)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Course/heure (nuit)', 'Ride/hour (night)')}</span>
-                    <span className="font-semibold">20$ / 56 000 CDF</span>
+                    <span className="font-semibold">20$ / {formatCDF(20)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Location journalière', 'Daily rental')}</span>
-                    <span className="font-semibold">100$ / 280 000 CDF</span>
+                    <span className="font-semibold">100$ / {formatCDF(100)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Aéroport A/R', 'Airport RT')}</span>
-                    <span className="font-semibold">110$ / 308 000 CDF</span>
+                    <span className="font-semibold">110$ / {formatCDF(110)}</span>
                   </div>
                 </div>
-                <Link to="/app" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
+                <Link to="/app/passenger" className="block w-full bg-cyan-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-cyan-600 transition-colors">
                   {t('Demander maintenant', 'Request now')}
                 </Link>
               </div>
@@ -361,11 +622,41 @@ export function ServicesPage() {
 
             {/* Smart Cabb Business */}
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <img 
-                src="https://images.unsplash.com/photo-1707726149138-879308167d60?w=600" 
-                alt="Smart Cabb Business" 
-                className="w-full h-48 object-cover"
-              />
+              <div className="relative">
+                {/* Image du véhicule avec transition */}
+                <div className="relative h-48 overflow-hidden">
+                  {businessVehicles.map((vehicle, index) => (
+                    <ImageWithFallback
+                      key={index}
+                      src={vehicle.src}
+                      fallbackSrc={vehicle.fallback}
+                      alt={vehicle.alt}
+                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      style={{
+                        opacity: currentBusinessIndex === index ? 1 : 0,
+                        transform: currentBusinessIndex === index ? 'scale(1)' : 'scale(1.1)',
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Indicateurs de carousel */}
+                <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1.5 z-10">
+                  {businessVehicles.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentBusinessIndex(index)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        currentBusinessIndex === index
+                          ? 'bg-white w-6'
+                          : 'bg-white/50 w-1.5 hover:bg-white/75'
+                      }`}
+                      aria-label={`Go to vehicle ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              
               <div className="p-6">
                 <span className="inline-block bg-amber-500 text-white px-4 py-2 rounded-full font-semibold text-sm mb-4">
                   SMARTCABB BUSINESS
@@ -396,19 +687,23 @@ export function ServicesPage() {
                     <span className="text-amber-500">📶</span>
                     <span>Data {t('gratuit', 'free')}</span>
                   </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <span className="text-amber-500">🔒</span>
+                    <span>{t('Sécurisé', 'Secure')}</span>
+                  </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Location journalière', 'Daily rental')}</span>
-                    <span className="font-semibold">160$ / 448 000 CDF</span>
+                    <span className="font-semibold">160$ / {formatCDF(160)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Aéroport A/R', 'Airport RT')}</span>
-                    <span className="font-semibold">200$ / 560 000 CDF</span>
+                    <span className="font-semibold">200$ / {formatCDF(200)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">{t('Heures extra (après 21h)', 'Extra hours (after 9pm)')}</span>
-                    <span className="font-semibold">30$ / 84 000 CDF</span>
+                    <span className="font-semibold">30$ / {formatCDF(30)}</span>
                   </div>
                 </div>
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
@@ -416,7 +711,7 @@ export function ServicesPage() {
                     ⚠️ {t('Location journalière et trajet aéroport uniquement', 'Daily rental and airport transfer only')}
                   </p>
                 </div>
-                <Link to="/app" className="block w-full bg-amber-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-amber-600 transition-colors">
+                <Link to="/app/passenger" className="block w-full bg-amber-500 text-white py-3 rounded-xl font-semibold text-center hover:bg-amber-600 transition-colors">
                   {t('Demander maintenant', 'Request now')}
                 </Link>
               </div>
@@ -444,7 +739,7 @@ export function ServicesPage() {
                   <th className="py-4 px-6 text-left font-semibold">{t('Caractéristique', 'Feature')}</th>
                   <th className="py-4 px-6 text-left font-semibold">SmartCabb Standard</th>
                   <th className="py-4 px-6 text-left font-semibold">SmartCabb Confort</th>
-                  <th className="py-4 px-6 text-left font-semibold">SmartCabb Plus</th>
+                  <th className="py-4 px-6 text-left font-semibold">SmartCabb Familia</th>
                   <th className="py-4 px-6 text-left font-semibold">SmartCabb Business</th>
                 </tr>
               </thead>
@@ -472,31 +767,31 @@ export function ServicesPage() {
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-4 px-6 font-bold">{t('Prix jour (06h-20h)', 'Day price (06h-20h)')}</td>
-                  <td className="py-4 px-6">7$ / 19.6k CDF</td>
-                  <td className="py-4 px-6">15$ / 42k CDF</td>
-                  <td className="py-4 px-6">15$ / 42k CDF</td>
+                  <td className="py-4 px-6">7$ / {formatCDF(7)}</td>
+                  <td className="py-4 px-6">15$ / {formatCDF(15)}</td>
+                  <td className="py-4 px-6">15$ / {formatCDF(15)}</td>
                   <td className="py-4 px-6">-</td>
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-4 px-6 font-bold">{t('Prix nuit (21h-05h)', 'Night price (21h-05h)')}</td>
-                  <td className="py-4 px-6">10$ / 28k CDF</td>
-                  <td className="py-4 px-6">17$ / 47.6k CDF</td>
-                  <td className="py-4 px-6">20$ / 56k CDF</td>
+                  <td className="py-4 px-6">10$ / {formatCDF(10)}</td>
+                  <td className="py-4 px-6">17$ / {formatCDF(17)}</td>
+                  <td className="py-4 px-6">20$ / {formatCDF(20)}</td>
                   <td className="py-4 px-6">-</td>
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-4 px-6 font-bold">{t('Location journalière', 'Daily rental')}</td>
-                  <td className="py-4 px-6">60$ / 168k CDF</td>
-                  <td className="py-4 px-6">80$ / 224k CDF</td>
-                  <td className="py-4 px-6">100$ / 280k CDF</td>
-                  <td className="py-4 px-6">160$ / 448k CDF</td>
+                  <td className="py-4 px-6">60$ / {formatCDF(60)}</td>
+                  <td className="py-4 px-6">80$ / {formatCDF(80)}</td>
+                  <td className="py-4 px-6">100$ / {formatCDF(100)}</td>
+                  <td className="py-4 px-6">160$ / {formatCDF(160)}</td>
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-4 px-6 font-bold">{t('Aéroport Aller-Retour', 'Airport Round Trip')}</td>
-                  <td className="py-4 px-6">70$ / 196k CDF</td>
-                  <td className="py-4 px-6">90$ / 252k CDF</td>
-                  <td className="py-4 px-6">110$ / 308k CDF</td>
-                  <td className="py-4 px-6">200$ / 560k CDF</td>
+                  <td className="py-4 px-6">70$ / {formatCDF(70)}</td>
+                  <td className="py-4 px-6">90$ / {formatCDF(90)}</td>
+                  <td className="py-4 px-6">110$ / {formatCDF(110)}</td>
+                  <td className="py-4 px-6">200$ / {formatCDF(200)}</td>
                 </tr>
                 <tr className="border-b hover:bg-gray-50">
                   <td className="py-4 px-6 font-bold">{t('Connexion Data gratuit', 'Free Data connection')}</td>

@@ -606,4 +606,251 @@ adminRoutes.delete('/promo/delete/:code', async (c) => {
   }
 });
 
+// ============================================
+// 📱 STATISTIQUES SMS (AFRICA'S TALKING)
+// ============================================
+adminRoutes.get('/sms/balance', async (c) => {
+  try {
+    console.log('📱 Récupération de la balance SMS Africa\'s Talking...');
+
+    const username = Deno.env.get('AFRICAS_TALKING_USERNAME') ?? '';
+    const apiKey = Deno.env.get('AFRICAS_TALKING_API_KEY') ?? '';
+
+    if (!username || !apiKey) {
+      return c.json({
+        success: false,
+        error: 'Configuration Africa\'s Talking manquante'
+      }, 500);
+    }
+
+    // Récupérer la balance depuis Africa's Talking
+    try {
+      const balanceResponse = await fetch('https://api.africastalking.com/version1/user', {
+        method: 'GET',
+        headers: {
+          'apiKey': apiKey,
+          'Accept': 'application/json'
+        }
+      });
+
+      const balanceData = await balanceResponse.json();
+      console.log('💰 Données balance AT:', balanceData);
+
+      // Récupérer les statistiques de SMS envoyés depuis notre KV store
+      const smsStats = await kv.get('sms_stats') || {
+        totalSent: 0,
+        totalFailed: 0,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Compter les SMS dans les logs
+      const allSmsLogs = await kv.getByPrefix('sms_log:');
+      const successfulSms = allSmsLogs.filter((log: any) => log.status === 'Success' || log.status === 'Sent');
+      const failedSms = allSmsLogs.filter((log: any) => log.status !== 'Success' && log.status !== 'Sent');
+
+      // Calculer les stats par type
+      const smsByType = {
+        otp_code: 0,
+        reset_password_otp: 0,
+        ride_notification: 0,
+        other: 0
+      };
+
+      for (const log of allSmsLogs) {
+        const type = log.type || 'other';
+        smsByType[type] = (smsByType[type] || 0) + 1;
+      }
+
+      // Estimation du coût par SMS en RDC (Africa's Talking)
+      const costPerSms = 0.0084; // USD par SMS
+      const balance = parseFloat(balanceData.UserData?.balance || '0');
+      const currency = balanceData.UserData?.currency || 'USD';
+      
+      // Calculer le nombre de SMS restants
+      const remainingSms = balance > 0 ? Math.floor(balance / costPerSms) : 0;
+
+      return c.json({
+        success: true,
+        balance: {
+          amount: balance,
+          currency: currency,
+          formattedBalance: `${balance.toFixed(2)} ${currency}`
+        },
+        estimation: {
+          costPerSms: costPerSms,
+          remainingSms: remainingSms,
+          estimatedCost: {
+            perSms: `${costPerSms} USD`,
+            per100Sms: `${(costPerSms * 100).toFixed(2)} USD`,
+            per1000Sms: `${(costPerSms * 1000).toFixed(2)} USD`
+          }
+        },
+        usage: {
+          totalSent: successfulSms.length,
+          totalFailed: failedSms.length,
+          totalAttempted: allSmsLogs.length,
+          successRate: allSmsLogs.length > 0 
+            ? ((successfulSms.length / allSmsLogs.length) * 100).toFixed(2) + '%'
+            : '0%',
+          byType: smsByType
+        },
+        lastUpdated: new Date().toISOString()
+      });
+
+    } catch (apiError) {
+      console.error('❌ Erreur appel API Africa\'s Talking:', apiError);
+      
+      // En cas d'erreur API, retourner au moins les stats locales
+      const allSmsLogs = await kv.getByPrefix('sms_log:');
+      const successfulSms = allSmsLogs.filter((log: any) => log.status === 'Success' || log.status === 'Sent');
+      const failedSms = allSmsLogs.filter((log: any) => log.status !== 'Success' && log.status !== 'Sent');
+
+      return c.json({
+        success: true,
+        balance: {
+          amount: 0,
+          currency: 'USD',
+          error: 'Impossible de récupérer la balance depuis Africa\'s Talking'
+        },
+        estimation: {
+          costPerSms: 0.0084,
+          remainingSms: 0,
+          estimatedCost: {
+            perSms: '0.0084 USD',
+            per100Sms: '0.84 USD',
+            per1000Sms: '8.40 USD'
+          }
+        },
+        usage: {
+          totalSent: successfulSms.length,
+          totalFailed: failedSms.length,
+          totalAttempted: allSmsLogs.length,
+          successRate: allSmsLogs.length > 0 
+            ? ((successfulSms.length / allSmsLogs.length) * 100).toFixed(2) + '%'
+            : '0%'
+        },
+        lastUpdated: new Date().toISOString()
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur récupération balance SMS:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 👥 RÉCUPÉRER TOUS LES UTILISATEURS (avec mots de passe)
+// ============================================
+adminRoutes.get('/users/all', async (c) => {
+  try {
+    console.log('👥 Récupération de tous les utilisateurs...');
+
+    // Récupérer tous les passagers
+    const allPassengers = await kv.getByPrefix('passenger:');
+    console.log(`📥 ${allPassengers.length} passagers trouvés`);
+    
+    const passengers = allPassengers
+      .filter(p => p && p.id) // Filtrer les entrées invalides
+      .map(passenger => ({
+        id: passenger.id,
+        role: 'Passager',
+        name: passenger.name || passenger.full_name || 'N/A',
+        phone: passenger.phone || 'N/A',
+        email: passenger.email || 'N/A',
+        password: passenger.password || '******',
+        balance: passenger.balance || 0,
+        accountType: passenger.account_type || 'prepaid',
+        createdAt: passenger.created_at || new Date().toISOString(),
+        lastLoginAt: passenger.last_login_at,
+        status: 'active'
+      }));
+
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    console.log(`📥 ${allDrivers.length} conducteurs trouvés`);
+    
+    const drivers = allDrivers
+      .filter(d => d && d.id) // Filtrer les entrées invalides
+      .map(driver => {
+        // ✅ CORRECTION : Extraire les données du véhicule depuis l'objet imbriqué 'vehicle'
+        const vehicle = driver.vehicle || {};
+        
+        return {
+          id: driver.id,
+          role: 'Conducteur',
+          name: driver.name || driver.full_name || 'N/A',
+          phone: driver.phone || 'N/A',
+          email: driver.email || 'N/A',
+          password: driver.password || '******',
+          balance: driver.balance || 0,
+          // ✅ Extraire depuis driver.vehicle
+          vehicleCategory: vehicle.category || driver.vehicle_category || driver.vehicleCategory || 'N/A',
+          vehiclePlate: vehicle.license_plate || driver.vehicle_plate || driver.vehiclePlate || 'N/A',
+          vehicleModel: `${vehicle.make || driver.vehicle_make || ''} ${vehicle.model || driver.vehicle_model || ''}`.trim() || 'N/A',
+          vehicleColor: vehicle.color || driver.vehicle_color || driver.vehicleColor || 'N/A',
+          status: driver.status || 'offline',
+          rating: driver.rating || 0,
+          totalTrips: driver.total_trips || driver.totalTrips || 0,
+          createdAt: driver.created_at || new Date().toISOString(),
+          lastLoginAt: driver.last_login_at,
+          // Infos supplémentaires
+          isAvailable: driver.is_available || false,
+          licenseNumber: driver.license_number || 'N/A'
+        };
+      });
+
+    // Récupérer tous les admins
+    const allAdmins = await kv.getByPrefix('admin:');
+    console.log(`📥 ${allAdmins.length} admins trouvés`);
+    
+    const admins = allAdmins
+      .filter(a => a && a.id) // Filtrer les entrées invalides
+      .map(admin => ({
+        id: admin.id,
+        role: 'Administrateur',
+        name: admin.name || admin.full_name || 'N/A',
+        phone: admin.phone || 'N/A',
+        email: admin.email || 'N/A',
+        password: admin.password || '******',
+        createdAt: admin.created_at || new Date().toISOString(),
+        lastLoginAt: admin.last_login_at,
+        status: 'active'
+      }));
+
+    // Combiner tous les utilisateurs
+    const allUsers = [...passengers, ...drivers, ...admins];
+
+    // Trier par date de création (plus récent en premier)
+    allUsers.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    console.log(`✅ ${allUsers.length} utilisateurs récupérés (${passengers.length} passagers, ${drivers.length} conducteurs, ${admins.length} admins)`);
+
+    return c.json({
+      success: true,
+      total: allUsers.length,
+      stats: {
+        passengers: passengers.length,
+        drivers: drivers.length,
+        admins: admins.length
+      },
+      users: allUsers
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération utilisateurs:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
 export default adminRoutes;

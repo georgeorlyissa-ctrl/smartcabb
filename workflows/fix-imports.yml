@@ -1,0 +1,86 @@
+name: 🔧 Fix Lucide & Sonner Imports
+
+on:
+  # Permet de déclencher manuellement depuis GitHub Actions UI
+  workflow_dispatch:
+  # Ou déclenchement automatique sur push vers main
+  # push:
+  #   branches: [ main ]
+
+jobs:
+  fix-imports:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: 🐍 Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          
+      - name: 🔧 Run import fix script
+        run: |
+          python3 fix_all_now.py
+          
+      - name: 📊 Check if files were modified
+        id: check_changes
+        run: |
+          if [[ -n $(git status -s) ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Des fichiers ont été modifiés"
+            git status -s
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ Aucune modification nécessaire"
+          fi
+          
+      - name: 📝 Commit changes
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "GitHub Actions Bot"
+          git add -A
+          git commit -m "🔧 fix: Correction automatique des imports lucide-react@0.550.0 et sonner@2.0.3
+
+          - Remplace tous les imports 'lucide-react' par 'lucide-react@0.550.0'
+          - Remplace tous les imports 'sonner' par 'sonner@2.0.3'
+          - Correction automatique via GitHub Actions
+          
+          Version: v517.$(date +%s)
+          Build: Ready for Vercel deployment"
+          
+      - name: 🚀 Push changes
+        if: steps.check_changes.outputs.changes == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ github.ref }}
+          
+      - name: ✅ Summary
+        if: steps.check_changes.outputs.changes == 'true'
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║  ✅ CORRECTION TERMINÉE AVEC SUCCÈS !                          ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "🎉 Les imports ont été corrigés et committés"
+          echo "🚀 Vercel va déployer automatiquement la nouvelle version"
+          echo ""
+          echo "📋 Prochaines étapes :"
+          echo "   1. Vérifiez les logs de build sur Vercel"
+          echo "   2. Le déploiement devrait réussir maintenant"
+          echo ""
+          
+      - name: ℹ️ No changes needed
+        if: steps.check_changes.outputs.changes == 'false'
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║  ℹ️ AUCUNE CORRECTION NÉCESSAIRE                               ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "✅ Tous les imports sont déjà corrects !"
+          echo ""

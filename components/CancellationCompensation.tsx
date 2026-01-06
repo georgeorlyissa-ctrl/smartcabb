@@ -1,23 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
-import { Alert, AlertDescription } from './ui/alert';
-import { useAppState } from '../hooks/useAppState';
-import { 
-  AlertTriangle, 
-  MapPin, 
-  Clock, 
-  DollarSign,
-  CheckCircle,
-  XCircle,
-  Navigation,
-  User,
-  Phone
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { motion } from '../framer-motion';
+import { AlertTriangle, DollarSign, Clock, Calendar } from 'lucide-react';
 
 interface CancellationCompensationProps {
   rideId: string;
@@ -103,7 +86,7 @@ export function CancellationCompensation({
       onCompensationApproved(compensationAmount);
     }
     
-    toast.success(`Compensation de ${compensationAmount.toLocaleString()} CDF approuvée`);
+    toast.success(`Compensation de ${(compensationAmount || 0).toLocaleString()} CDF approuvée`);
   };
 
   const handleRejectCompensation = () => {
@@ -145,7 +128,7 @@ export function CancellationCompensation({
             <div>
               <p className="font-medium text-green-900">Compensation approuvée</p>
               <p className="text-sm text-green-700">
-                {compensationAmount.toLocaleString()} CDF ont été crédités à votre compte
+                {(compensationAmount || 0).toLocaleString()} CDF ont été crédités à votre compte
               </p>
             </div>
           </div>
@@ -251,31 +234,31 @@ export function CancellationCompensation({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Prix de course original</span>
-                  <span>{estimatedPrice.toLocaleString()} CDF</span>
+                  <span>{(estimatedPrice || 0).toLocaleString()} CDF</span>
                 </div>
                 
                 <div className="flex justify-between">
                   <span>Compensation de base (50%)</span>
-                  <span>{Math.round(estimatedPrice * 0.5).toLocaleString()} CDF</span>
+                  <span>{Math.round((estimatedPrice || 0) * 0.5).toLocaleString()} CDF</span>
                 </div>
                 
                 {distance >= 3 && (
                   <div className="flex justify-between text-orange-600">
                     <span>Bonus distance (+10%)</span>
-                    <span>+{Math.round(estimatedPrice * 0.1).toLocaleString()} CDF</span>
+                    <span>+{Math.round((estimatedPrice || 0) * 0.1).toLocaleString()} CDF</span>
                   </div>
                 )}
                 
                 {driverTravelTime <= 2 && (
                   <div className="flex justify-between text-blue-600">
                     <span>Bonus proximité (+15%)</span>
-                    <span>+{Math.round(estimatedPrice * 0.15).toLocaleString()} CDF</span>
+                    <span>+{Math.round((estimatedPrice || 0) * 0.15).toLocaleString()} CDF</span>
                   </div>
                 )}
                 
                 <div className="border-t pt-2 flex justify-between font-semibold">
                   <span>Total compensation</span>
-                  <span className="text-green-600">{compensationAmount.toLocaleString()} CDF</span>
+                  <span className="text-green-600">{(compensationAmount || 0).toLocaleString()} CDF</span>
                 </div>
               </div>
             </Card>

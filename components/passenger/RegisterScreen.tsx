@@ -1,18 +1,20 @@
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useNavigate } from '../../lib/simple-router';
+import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
+import { signUp } from '../../lib/auth-service';
+import { sendSMS } from '../../lib/sms-service';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
-import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, User, Lock, AlertCircle, Mail } from 'lucide-react';
 import { PhoneInput } from '../PhoneInput';
 import { PolicyModal } from '../PolicyModal';
-import { signUp } from '../../lib/auth-service';
-import { sendSMS, SMS_TEMPLATES } from '../../lib/sms-service';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 
 export function RegisterScreen() {
-  const { setCurrentScreen, setCurrentUser } = useAppState();
+  const { setCurrentScreen, setCurrentUser, setCurrentView } = useAppState();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -173,8 +175,10 @@ export function RegisterScreen() {
           variant="ghost"
           size="icon"
           onClick={() => {
-            console.log('⬅️ Retour à l\'écran de bienvenue');
-            setCurrentScreen('welcome');
+            console.log('⬅️ Retour vers la page d\'accueil');
+            setCurrentView(null);
+            setCurrentScreen('landing');
+            navigate('/');
           }}
           className="w-10 h-10"
         >

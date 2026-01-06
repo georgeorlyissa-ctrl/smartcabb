@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -31,10 +31,11 @@ export function PaymentReceiptScreen() {
   const [selectedTip, setSelectedTip] = useState(0);
   const [showTipSection, setShowTipSection] = useState(false);
 
-  const assignedDriver = drivers.find(d => d.id === state.currentRide?.driverId);
+  // ✅ FIX: Ajouter une vérification de sécurité pour éviter l'erreur "Cannot read properties of undefined"
+  const assignedDriver = drivers?.find(d => d.id === state.currentRide?.driverId) || null;
   const currentRide = state.currentRide;
 
-  // Simulate payment processing
+  // Traitement du paiement via backend
   useEffect(() => {
     const processPayment = setTimeout(() => {
       setIsProcessingPayment(false);

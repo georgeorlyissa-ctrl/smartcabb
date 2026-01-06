@@ -120,7 +120,60 @@ export class CashPaymentProvider implements PaymentProvider {
       };
     }
   }
+
+  /**
+   * Rembourser un paiement cash
+   */
+  async refundPayment(transactionId: string, amount?: number): Promise<PaymentResult> {
+    try {
+      console.log('💰 Remboursement cash:', {
+        transactionId,
+        amount,
+      });
+
+      return {
+        success: true,
+        transactionId,
+        status: 'refunded',
+        message: 'Remboursement cash effectué',
+        metadata: {
+          refundedAt: new Date().toISOString(),
+          amount: amount || 0,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        status: 'failed',
+        message: error.message || 'Erreur remboursement paiement',
+        error: 'REFUND_ERROR',
+      };
+    }
+  }
 }
 
-// Instance singleton
-export const cashProvider = new CashPaymentProvider();
+// ✅ FIX PRODUCTION V3: Factory function au lieu de Proxy
+let cashProviderInstance: CashPaymentProvider | null = null;
+
+export function getCashProvider(): CashPaymentProvider {
+  if (typeof window === 'undefined') {
+    // SSR: retourner un mock
+    return {} as CashPaymentProvider;
+  }
+  
+  if (!cashProviderInstance) {
+    cashProviderInstance = new CashPaymentProvider();
+  }
+  return cashProviderInstance;
+}
+
+// Export pour compatibilité (utilise la factory)
+export const cashProvider = {
+  getName: () => getCashProvider().name,
+  initPayment: (data: PaymentInitData) => getCashProvider().initiatePayment(data),
+  verifyPayment: (transactionId: string) => getCashProvider().verifyPayment(transactionId),
+  confirmCashReceived: (transactionId: string, amountReceived: number, driverId: string) => 
+    getCashProvider().confirmCashReceived(transactionId, amountReceived, driverId),
+  refundPayment: (transactionId: string, amount?: number) => 
+    getCashProvider().refundPayment(transactionId, amount),
+};

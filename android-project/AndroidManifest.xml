@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ========================================= -->
+    <!-- PERMISSIONS SMARTCABB                     -->
+    <!-- ========================================= -->
+    
+    <!-- Internet (obligatoire pour API) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+    <!-- GPS & Location (obligatoire pour tracking) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    
+    <!-- Notifications Push -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    
+    <!-- Téléphone (pour appeler conducteur/passager) -->
+    <uses-permission android:name="android.permission.CALL_PHONE" />
+    
+    <!-- Stockage (pour photos profil, reçus) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"
+        tools:ignore="ScopedStorage" />
+    
+    <!-- Android 13+ Photo Picker -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
+    <!-- Vibration pour notifications -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+    
+    <!-- Wake Lock (garder app active pendant course) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    
+    <!-- Foreground Service (pour tracking en arrière-plan) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
+    <application
+        android:name=".SmartCabbApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SmartCabb"
+        android:usesCleartextTraffic="false"
+        tools:targetApi="31">
+
+        <!-- ========================================= -->
+        <!-- SPLASH SCREEN                             -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.splash.SplashActivity"
+            android:exported="true"
+            android:theme="@style/Theme.SmartCabb.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ========================================= -->
+        <!-- MAIN ACTIVITY (Choix Passager/Conducteur) -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.main.MainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- ========================================= -->
+        <!-- AUTH ACTIVITIES                           -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.auth.LoginActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".ui.auth.RegisterActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- ========================================= -->
+        <!-- PASSENGER ACTIVITIES                      -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.passenger.PassengerMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.passenger.BookRideActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.passenger.TrackRideActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- ========================================= -->
+        <!-- DRIVER ACTIVITIES                         -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.driver.DriverMainActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.driver.ActiveRideActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
+            android:name=".ui.driver.NavigationActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- ========================================= -->
+        <!-- ADMIN ACTIVITY                            -->
+        <!-- ========================================= -->
+        <activity
+            android:name=".ui.admin.AdminDashboardActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <!-- ========================================= -->
+        <!-- GOOGLE MAPS API KEY                       -->
+        <!-- ========================================= -->
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="@string/google_maps_key" />
+
+        <!-- ========================================= -->
+        <!-- FIREBASE MESSAGING SERVICE                -->
+        <!-- ========================================= -->
+        <service
+            android:name=".services.SmartCabbMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ========================================= -->
+        <!-- LOCATION TRACKING SERVICE                 -->
+        <!-- ========================================= -->
+        <service
+            android:name=".services.LocationTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
+    </application>
+
+</manifest>

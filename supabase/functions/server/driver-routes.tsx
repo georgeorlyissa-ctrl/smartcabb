@@ -266,7 +266,29 @@ driverRoutes.get('/:driverId/balance', async (c) => {
       });
     }
 
-    const balanceValue = typeof balance === 'number' ? balance : parseFloat(String(balance));
+    // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
+    let balanceValue = 0;
+    
+    if (typeof balance === 'number') {
+      balanceValue = balance;
+    } else if (balance && typeof balance === 'object' && 'balance' in balance) {
+      // Extraire la propriété .balance de l'objet
+      balanceValue = balance.balance;
+      console.log(`🔧 v517.89 - Structure objet détectée, extraction de .balance: ${balanceValue}`);
+    } else {
+      balanceValue = parseFloat(String(balance));
+    }
+    
+    if (isNaN(balanceValue)) {
+      console.error('❌ v517.89 - Solde invalide (NaN) après extraction, initialisation à 0');
+      console.error('   Données reçues du KV:', balance, 'Type:', typeof balance);
+      await kv.set(balanceKey, 0);
+      return c.json({
+        success: true,
+        balance: 0
+      });
+    }
+    
     console.log(`✅ Solde récupéré: ${balanceValue} CDF`);
     return c.json({
       success: true,
@@ -290,15 +312,58 @@ driverRoutes.post('/:driverId/balance', async (c) => {
     const driverId = c.req.param('driverId');
     const { balance, operation, amount } = await c.req.json();
 
-    console.log('💰 Mise à jour du solde du conducteur:', driverId);
+    console.log('💰 Mise à jour du solde du conducteur:', driverId, { operation, amount });
+    
+    // ✅ v517.86: Validation stricte de l'amount reçu
+    if (amount !== undefined && (isNaN(amount) || amount < 0)) {
+      console.error('❌ v517.86 - Amount invalide reçu:', amount);
+      return c.json({
+        success: false,
+        error: 'Montant invalide (NaN ou négatif)'
+      }, 400);
+    }
 
     const balanceKey = `driver:${driverId}:balance`;
 
     if (operation === 'add' && amount) {
       // Ajouter au solde existant
       const currentBalance = await kv.get(balanceKey) || 0;
-      const currentBalanceValue = typeof currentBalance === 'number' ? currentBalance : parseFloat(String(currentBalance));
+      
+      // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
+      let currentBalanceValue = 0;
+      
+      if (typeof currentBalance === 'number') {
+        currentBalanceValue = currentBalance;
+      } else if (currentBalance && typeof currentBalance === 'object' && 'balance' in currentBalance) {
+        // Extraire la propriété .balance de l'objet
+        currentBalanceValue = currentBalance.balance;
+        console.log(`🔧 v517.89 - Structure objet détectée (add), extraction de .balance: ${currentBalanceValue}`);
+      } else {
+        currentBalanceValue = parseFloat(String(currentBalance));
+      }
+      
+      if (isNaN(currentBalanceValue)) {
+        console.error('❌ v517.89 - Solde actuel invalide (NaN) après extraction, initialisation avec amount');
+        console.error('   Données KV:', currentBalance, 'Type:', typeof currentBalance);
+        await kv.set(balanceKey, amount);
+        return c.json({
+          success: true,
+          balance: amount
+        });
+      }
+      
       const newBalance = currentBalanceValue + amount;
+      
+      // ✅ v517.89: Vérifier que newBalance n'est pas NaN avant de sauvegarder
+      if (isNaN(newBalance)) {
+        console.error('❌ v517.89 - Nouveau solde invalide (NaN)');
+        console.error('   currentBalanceValue:', currentBalanceValue, 'amount:', amount);
+        return c.json({
+          success: false,
+          error: 'Erreur de calcul du solde'
+        }, 400);
+      }
+      
       await kv.set(balanceKey, newBalance);
       
       console.log(`✅ Solde augmenté: ${currentBalanceValue} + ${amount} = ${newBalance} CDF`);
@@ -308,7 +373,7 @@ driverRoutes.post('/:driverId/balance', async (c) => {
       await kv.set(historyKey, {
         operation: 'recharge',
         amount: amount,
-        previous_balance: currentBalance,
+        previous_balance: currentBalanceValue, // ✅ FIX: Utiliser la valeur numérique, pas currentBalance qui peut être null
         new_balance: newBalance,
         timestamp: new Date().toISOString()
       });
@@ -321,8 +386,41 @@ driverRoutes.post('/:driverId/balance', async (c) => {
     } else if (operation === 'subtract' && amount) {
       // Déduire du solde existant
       const currentBalance = await kv.get(balanceKey) || 0;
-      const currentBalanceValue = typeof currentBalance === 'number' ? currentBalance : parseFloat(String(currentBalance));
+      
+      // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
+      let currentBalanceValue = 0;
+      
+      if (typeof currentBalance === 'number') {
+        currentBalanceValue = currentBalance;
+      } else if (currentBalance && typeof currentBalance === 'object' && 'balance' in currentBalance) {
+        // Extraire la propriété .balance de l'objet
+        currentBalanceValue = currentBalance.balance;
+        console.log(`🔧 v517.89 - Structure objet détectée (subtract), extraction de .balance: ${currentBalanceValue}`);
+      } else {
+        currentBalanceValue = parseFloat(String(currentBalance));
+      }
+      
+      if (isNaN(currentBalanceValue)) {
+        console.error('❌ v517.89 - Solde actuel invalide (NaN) après extraction, impossible de déduire');
+        console.error('   Données KV:', currentBalance, 'Type:', typeof currentBalance);
+        return c.json({
+          success: false,
+          error: 'Solde invalide'
+        }, 400);
+      }
+      
       const newBalance = Math.max(0, currentBalanceValue - amount);
+      
+      // ✅ v517.89: Vérifier que newBalance n'est pas NaN avant de sauvegarder
+      if (isNaN(newBalance)) {
+        console.error('❌ v517.89 - Nouveau solde invalide (NaN)');
+        console.error('   currentBalanceValue:', currentBalanceValue, 'amount:', amount);
+        return c.json({
+          success: false,
+          error: 'Erreur de calcul du solde'
+        }, 400);
+      }
+      
       await kv.set(balanceKey, newBalance);
       
       console.log(`✅ Solde déduit: ${currentBalanceValue} - ${amount} = ${newBalance} CDF`);
@@ -332,7 +430,7 @@ driverRoutes.post('/:driverId/balance', async (c) => {
       await kv.set(historyKey, {
         operation: 'deduction',
         amount: amount,
-        previous_balance: currentBalance,
+        previous_balance: currentBalanceValue, // ✅ FIX: Utiliser la valeur numérique, pas currentBalance qui peut être null
         new_balance: newBalance,
         timestamp: new Date().toISOString()
       });
@@ -342,14 +440,25 @@ driverRoutes.post('/:driverId/balance', async (c) => {
         balance: newBalance
       });
       
-    } else if (balance !== undefined) {
+    } else if (balance !== undefined && balance !== null) {
+      // ✅ FIX: Vérifier que balance n'est pas null avant de le définir
       // Définir directement le solde
-      await kv.set(balanceKey, balance);
-      console.log(`✅ Solde défini: ${balance} CDF`);
+      const balanceValue = typeof balance === 'number' ? balance : parseFloat(String(balance));
+      
+      if (isNaN(balanceValue)) {
+        console.error('❌ Balance invalide (NaN):', balance);
+        return c.json({
+          success: false,
+          error: 'Valeur de solde invalide'
+        }, 400);
+      }
+      
+      await kv.set(balanceKey, balanceValue);
+      console.log(`✅ Solde défini: ${balanceValue} CDF`);
       
       return c.json({
         success: true,
-        balance: balance
+        balance: balanceValue
       });
     } else {
       return c.json({
@@ -438,6 +547,227 @@ driverRoutes.get('/profile/:driverId', async (c) => {
       success: false,
       error: 'Erreur serveur: ' + String(error)
     }, 500);
+  }
+});
+
+// ============================================
+// RÉCUPÉRER LES INFOS D'UN CONDUCTEUR SPÉCIFIQUE
+// ============================================
+driverRoutes.get('/:driverId', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log('🔍 Récupération info conducteur:', driverId);
+
+    if (!driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'driverId requis' 
+      }, 400);
+    }
+
+    // Récupérer les données du conducteur depuis le KV store
+    const driverKey = `driver:${driverId}`;
+    const driverData = await kv.get(driverKey);
+
+    if (!driverData) {
+      console.error('❌ Conducteur introuvable:', driverId);
+      return c.json({ 
+        success: false, 
+        error: 'Conducteur introuvable',
+        driver: null
+      }, 404);
+    }
+
+    console.log('✅ Conducteur trouvé:', driverData.name);
+
+    return c.json({
+      success: true,
+      driver: driverData
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération conducteur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+      driver: null
+    }, 500);
+  }
+});
+
+// ============================================
+// 📊 RÉCUPÉRER LES STATISTIQUES D'UN CONDUCTEUR
+// ============================================
+driverRoutes.get('/:driverId/stats', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
+
+    // Récupérer les stats depuis le KV store
+    const statsKey = `driver:${driverId}:stats`;
+    const stats = await kv.get(statsKey) || {
+      totalRides: 0,
+      totalEarnings: 0,
+      totalCommissions: 0,
+      averageRating: 0,
+      ratings: []
+    };
+
+    console.log(`✅ Stats récupérées:`, {
+      totalRides: stats.totalRides,
+      averageRating: stats.averageRating,
+      totalRatings: stats.ratings?.length || 0
+    });
+
+    return c.json({
+      success: true,
+      stats: {
+        totalRides: stats.totalRides || 0,
+        totalEarnings: stats.totalEarnings || 0,
+        totalCommissions: stats.totalCommissions || 0,
+        averageRating: stats.averageRating || 0,
+        ratingsCount: stats.ratings?.length || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur get-stats:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error),
+      stats: {
+        totalRides: 0,
+        totalEarnings: 0,
+        totalCommissions: 0,
+        averageRating: 0,
+        ratingsCount: 0
+      }
+    }, 500);
+  }
+});
+
+// ============================================
+// 🚗 v517.97: SAUVEGARDER LA POSITION GPS DRIVER EN TEMPS RÉEL
+// ============================================
+driverRoutes.post('/:driverId/location', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    const body = await c.req.json();
+    const { lat, lng, rideId, timestamp } = body;
+
+    if (!lat || !lng) {
+      return c.json({ 
+        success: false, 
+        error: 'Coordonnées GPS manquantes' 
+      }, 400);
+    }
+
+    console.log(`📍 v517.97 - Position driver ${driverId}:`, { lat, lng, rideId });
+
+    // Sauvegarder position dans KV store avec expiration courte (30s)
+    const locationKey = `driver_location_${driverId}`;
+    await kv.set(locationKey, {
+      lat,
+      lng,
+      rideId: rideId || null,
+      timestamp: timestamp || Date.now(),
+      updatedAt: new Date().toISOString()
+    });
+
+    console.log(`✅ Position driver ${driverId} sauvegardée`);
+
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde position driver:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🚗 v517.97: RÉCUPÉRER LA POSITION GPS DRIVER EN TEMPS RÉEL
+// ============================================
+driverRoutes.get('/:driverId/location', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+
+    console.log(`🔍 v517.97 - Récupération position driver ${driverId}`);
+
+    // Récupérer position depuis KV store
+    const locationKey = `driver_location_${driverId}`;
+    const locationData = await kv.get(locationKey);
+
+    if (!locationData) {
+      console.log(`⚠️ Aucune position trouvée pour driver ${driverId}`);
+      return c.json({ 
+        success: false, 
+        error: 'Position non disponible' 
+      }, 404);
+    }
+
+    console.log(`✅ Position driver ${driverId} récupérée:`, locationData);
+
+    return c.json({ 
+      success: true, 
+      location: {
+        lat: locationData.lat,
+        lng: locationData.lng,
+        timestamp: locationData.timestamp,
+        updatedAt: locationData.updatedAt
+      }
+    });
+  } catch (error) {
+    console.error('❌ Erreur récupération position driver:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🎯 v517.97: VÉRIFIER SI UNE COURSE EST PRISE PAR UN AUTRE
+// ============================================
+driverRoutes.get('/:driverId/rides/:rideId/status', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    const rideId = c.req.param('rideId');
+
+    console.log(`🔍 v517.97 - Vérification status course ${rideId} pour driver ${driverId}`);
+
+    // Vérifier si marqué comme "pris par un autre"
+    const statusKey = `driver_${driverId}_ride_${rideId}_status`;
+    const status = await kv.get(statusKey);
+
+    if (status && status.status === 'taken_by_other') {
+      console.log(`⚠️ Course ${rideId} prise par ${status.takenBy}`);
+      return c.json({
+        status: 'taken_by_other',
+        takenBy: status.takenBy,
+        takenAt: status.takenAt
+      });
+    }
+
+    // Sinon, vérifier le status de la course elle-même
+    const rideKey = `ride_request_${rideId}`;
+    const ride = await kv.get(rideKey);
+    
+    if (!ride) {
+      console.log(`❌ Course ${rideId} introuvable`);
+      return c.json({ status: 'not_found' }, 404);
+    }
+
+    console.log(`✅ Status course ${rideId}:`, ride.status);
+
+    return c.json({
+      status: ride.status,
+      driverId: ride.driverId || null
+    });
+  } catch (error) {
+    console.error('❌ Erreur vérification status course:', error);
+    return c.json({ status: 'error' }, 500);
   }
 });
 

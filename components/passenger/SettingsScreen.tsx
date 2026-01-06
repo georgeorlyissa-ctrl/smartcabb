@@ -1,6 +1,18 @@
-import { useTranslation } from '../../hooks/useTranslation';
 import { useState, useEffect } from 'react';
+import { motion } from '../../framer-motion'; // ✅ FIX: Import manquant
+import { useAppState } from '../../hooks/useAppState';
+import { useTranslation } from '../../hooks/useTranslation';
 import { toast } from 'sonner';
+import { Button } from '../ui/button'; // ✅ FIX: Import manquant
+import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
+import { Switch } from '../ui/switch'; // ✅ FIX: Import manquant
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'; // ✅ FIX: Import manquant
 import { 
   ArrowLeft, 
   Globe, 

@@ -1,51 +1,38 @@
-import { Button } from './ui/button';
+import { useNavigate } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
 import { SmartCabbLogo } from './SmartCabbLogo';
+import { Button } from './ui/button';
 import { 
-  Car, 
-  Shield, 
-  Users,
-  MapPin,
-  Zap,
-  ArrowLeft
+  ArrowLeft,
+  Shield,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { flushSync } from 'react-dom';
 
 export function LandingScreen() {
-  console.log('🏠 LandingScreen - Composant monté - VERSION CYAN - BUILD:', Date.now());
+  console.log('🏠 LandingScreen - Composant monté - VERSION SIMPLE - BUILD:', Date.now());
   
-  const { setCurrentScreen, setCurrentView, state } = useAppState();
   const navigate = useNavigate();
+  const { setCurrentScreen, setCurrentView } = useAppState();
 
-  const handleGetStarted = (role: 'passenger' | 'driver') => {
-    console.log('🎯 handleGetStarted IMMÉDIAT - role:', role);
-    
-    // Mise à jour SYNCHRONE du state React ET localStorage avec flushSync
-    const newScreen = role === 'passenger' ? 'welcome' : 'driver-welcome';
-    
-    // flushSync force React à appliquer immédiatement les updates sans batching
-    flushSync(() => {
-      setCurrentView(role);
-      setCurrentScreen(newScreen);
-    });
-    
-    // Navigation pour conducteur seulement
-    if (role === 'driver') {
-      navigate('/driver');
-    }
-    
-    console.log('✅ Transition effectuée vers:', role);
+  const handleRegister = () => {
+    console.log('📝 Navigation vers inscription passager');
+    setCurrentScreen('register');
+  };
+
+  const handleLogin = () => {
+    console.log('🔐 Navigation vers connexion passager');
+    setCurrentScreen('login');
   };
 
   const handleAdminAccess = () => {
-    console.log('👨‍💼 handleAdminAccess appelé - Navigation vers /admin');
-    navigate('/admin');
+    console.log('👨‍💼 handleAdminAccess appelé - Navigation vers /app/admin');
+    navigate('/app/admin');
   };
 
   const handleBackToSite = () => {
     console.log('⬅️ Retour au site vitrine');
-    navigate('/site');
+    navigate('/');
   };
 
   return (
@@ -90,7 +77,7 @@ export function LandingScreen() {
       {/* Content centré */}
       <div className="relative z-10 w-full max-w-lg px-6">
         {/* Logo et titre au centre */}
-        <div className="text-center mb-8 animate-in fade-in zoom-in duration-700">
+        <div className="text-center mb-12 animate-in fade-in zoom-in duration-700">
           <div className="mx-auto mb-6 relative inline-block">
             <div className="animate-spin-slow">
               <SmartCabbLogo className="w-28 h-28 mx-auto" />
@@ -102,54 +89,36 @@ export function LandingScreen() {
               SmartCabb
             </span>
           </h1>
-          <p className="text-lg text-gray-300">
-            Votre transport intelligent & fiabilisé
+          <p className="text-2xl text-white">
+            Bienvenue !
           </p>
         </div>
 
-        {/* Features Cards - 3 cartes compactes */}
-        <div className="space-y-3 mb-8 animate-in fade-in slide-in-from-bottom duration-700" style={{ animationDelay: '200ms' }}>
-          {[
-            { icon: MapPin, label: 'Géolocalisation en temps réel', color: 'cyan' },
-            { icon: Shield, label: 'Conducteurs 5 étoiles', color: 'yellow' },
-            { icon: Zap, label: 'Paiements sécurisés', color: 'cyan' }
-          ].map((feature, index) => (
-            <div
-              key={index}
-              className="flex items-center gap-4 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all cursor-pointer hover:translate-x-2 animate-in fade-in slide-in-from-left duration-500"
-              style={{ animationDelay: `${300 + index * 100}ms` }}
-            >
-              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color === 'cyan' ? 'from-cyan-500/20 to-cyan-600/20' : 'from-yellow-500/20 to-yellow-600/20'} flex items-center justify-center flex-shrink-0`}>
-                <feature.icon className={`w-6 h-6 ${feature.color === 'cyan' ? 'text-cyan-400' : 'text-yellow-400'}`} />
-              </div>
-              <span className="text-white font-medium">{feature.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Boutons d'action - CÔTE À CÔTE: Passager et Conducteur */}
-        <div className="flex items-center justify-center gap-4 animate-in fade-in slide-in-from-bottom duration-700" style={{ animationDelay: '600ms' }}>
+        {/* Deux boutons côte à côte : S'inscrire et Se connecter */}
+        <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-bottom duration-700" style={{ animationDelay: '200ms' }}>
+          {/* Bouton S'inscrire */}
           <Button
             type="button"
-            onClick={() => handleGetStarted('passenger')}
-            className="flex-1 h-16 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl text-lg font-semibold shadow-2xl shadow-cyan-500/50 group transition-all hover:scale-105"
+            onClick={handleRegister}
+            className="h-14 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl font-semibold shadow-xl shadow-cyan-500/30 transition-all hover:scale-105"
           >
-            <Car className="w-5 h-5 mr-2" />
-            Passager
+            <UserPlus className="w-5 h-5 mr-2" />
+            S'inscrire
           </Button>
 
+          {/* Bouton Se connecter */}
           <Button
             type="button"
-            onClick={() => handleGetStarted('driver')}
-            className="flex-1 h-16 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white/20 rounded-2xl text-lg font-semibold group transition-all hover:scale-105"
+            onClick={handleLogin}
+            className="h-14 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white rounded-xl font-semibold transition-all hover:scale-105"
           >
-            <Users className="w-5 h-5 mr-2" />
-            Conducteur
+            <LogIn className="w-5 h-5 mr-2" />
+            Se connecter
           </Button>
         </div>
 
         {/* Help text en bas */}
-        <div className="text-center mt-6 flex items-center justify-center gap-2 animate-in fade-in duration-1000" style={{ animationDelay: '800ms' }}>
+        <div className="text-center mt-8 flex items-center justify-center gap-6 animate-in fade-in duration-1000" style={{ animationDelay: '400ms' }}>
           <button 
             type="button"
             onClick={() => navigate('/contact')}
@@ -157,7 +126,6 @@ export function LandingScreen() {
           >
             Besoin d'aide ?
           </button>
-          <span className="text-gray-600">•</span>
           <button 
             type="button"
             onClick={() => navigate('/about')}

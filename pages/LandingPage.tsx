@@ -1,6 +1,10 @@
-import { Link } from 'react-router-dom';
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { motion } from 'motion/react';
+import { Button } from '../components/ui/button';
+import { motion } from '../framer-motion';
+import { Link } from '../lib/simple-router';
+
+const SocialFooter = lazy(() => import('../components/SocialFooter').then(m => ({ default: m.SocialFooter })));
+const ChatWidget = lazy(() => import('../components/ChatWidget').then(m => ({ default: m.ChatWidget })));
 
 // Images hero pour le carrousel - Téléphones avec carte GPS/navigation/transport
 const heroImages = [
@@ -9,10 +13,6 @@ const heroImages = [
   'https://images.unsplash.com/photo-1634743556192-d19f0c69ff3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjYXIlMjByaWRlJTIwYXBwfGVufDF8fHx8MTc2NDMzNDkzM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
   'https://images.unsplash.com/photo-1762944079807-eb4aab5a2cf6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzbWFydHBob25lJTIwdHJhbnNwb3J0YXRpb24lMjBjaXR5fGVufDF8fHx8MTc2NDMzNDkzM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
 ];
-
-// Lazy load des composants non critiques pour améliorer le temps de chargement initial
-const SocialFooter = lazy(() => import('../components/SocialFooter').then(module => ({ default: module.SocialFooter })));
-const ChatWidget = lazy(() => import('../components/ChatWidget').then(module => ({ default: module.ChatWidget })));
 
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState('home');
@@ -234,13 +234,13 @@ export function LandingPage() {
               <Link to="/contact" className="font-medium text-base text-gray-700 hover:text-cyan-500 transition-colors">
                 Contact
               </Link>
-              <Link to="/about" className="font-medium text-base text-gray-700 hover:text-cyan-500 transition-colors">
+              <Link to="/about" className="font-medium text-gray-700 hover:text-cyan-500 whitespace-nowrap">
                 {language === 'fr' ? 'À Propos' : 'About'}
               </Link>
               
               <Link 
-                to="/app"
-                className="border-2 border-cyan-500 text-cyan-500 px-8 py-2.5 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all shadow-md hover:shadow-lg"
+                to="/app/passenger"
+                className="w-full border-2 border-cyan-500 text-cyan-500 px-6 py-2 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all text-center"
               >
                 {language === 'fr' ? 'Connexion' : 'Login'}
               </Link>
@@ -312,67 +312,67 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section id="home" className="pt-20 mt-16 relative overflow-hidden" style={{
+      <section id="home" className="pt-12 mt-16 relative overflow-hidden" style={{
         backgroundImage: 'url(https://images.unsplash.com/photo-1758620323739-5d2cd8cdc22c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkcml2ZXIlMjBzdGVlcmluZyUyMHdoZWVsJTIwcGFzc2VuZ2VycyUyMGNhciUyMGludGVyaW9yfGVufDF8fHx8MTc2MjA5MTAyNnww&ixlib=rb-4.1.0&q=80&w=1080)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        minHeight: '600px'
+        minHeight: '480px'
       }}>
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/70 to-cyan-600/65"></div>
         
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="grid md:grid-cols-2 gap-8 items-center">
             {/* Left Content */}
             <div className="animate-in fade-in slide-in-from-left duration-700">
-              <h1 className="text-6xl md:text-7xl lg:text-8xl font-extrabold mb-6 leading-tight text-white">
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold mb-4 leading-tight text-white">
                 {language === 'fr' ? (
-                  <>Votre projet,<br />votre <span className="text-yellow-300">choix</span></>
+                  <>Votre trajet, votre <span className="text-yellow-300">choix</span></>
                 ) : (
-                  <>Your project,<br />your <span className="text-yellow-300">choice</span></>
+                  <>Your ride, your <span className="text-yellow-300">choice</span></>
                 )}
               </h1>
-              <p className="text-xl text-white/95 mb-8 leading-relaxed">
+              <p className="text-lg text-white/95 mb-6 leading-relaxed">
                 {language === 'fr' 
-                  ? 'Circuler en toute sécurité, réservez en quelques secondes. Liberté de mouvement, 24/7'
-                  : 'Travel safely, book in seconds. Freedom of movement, 24/7'
+                  ? 'La meilleure façon de se déplacer en Rép Dem Congo. Rapide, sûr et abordable.'
+                  : 'The best way to move around in the DRC. Fast, safe and affordable.'
                 }
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-4 mb-12">
+              <div className="flex flex-col sm:flex-row gap-3 mb-8">
                 <a 
                   href="#cta-section"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-full transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-full transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-1"
                 >
                   {language === 'fr' ? 'Télécharger App' : 'Download App'}
                 </a>
                 <Link 
-                  to="/app"
-                  className="pulse-button inline-flex items-center justify-center px-8 py-4 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-full transition-all shadow-lg hover:shadow-xl"
+                  to="/app/passenger"
+                  className="pulse-button inline-flex items-center justify-center px-6 py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-semibold rounded-full transition-all shadow-lg hover:shadow-xl"
                 >
                   {language === 'fr' ? 'Commander une course maintenant' : 'Book a ride now'}
                 </Link>
                 <Link 
                   to="/drivers"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white/20 hover:bg-white hover:text-cyan-500 text-white font-semibold rounded-full border-2 border-white transition-all backdrop-blur-md"
+                  className="inline-flex items-center justify-center px-6 py-3 bg-white/20 hover:bg-white hover:text-cyan-500 text-white font-semibold rounded-full border-2 border-white transition-all backdrop-blur-md"
                 >
                   {language === 'fr' ? 'Devenir Chauffeur' : 'Become Driver'}
                 </Link>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
-                  <div className="text-4xl font-extrabold text-yellow-300 stat-number" data-target="100" data-suffix="+">0</div>
-                  <div className="text-sm text-white/90 mt-1">{language === 'fr' ? 'Chauffeurs' : 'Drivers'}</div>
+                  <div className="text-3xl font-extrabold text-yellow-300 stat-number" data-target="100" data-suffix="+">0</div>
+                  <div className="text-xs text-white/90 mt-1">{language === 'fr' ? 'Chauffeurs' : 'Drivers'}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-extrabold text-yellow-300 stat-number" data-target="500" data-suffix="+">0</div>
-                  <div className="text-sm text-white/90 mt-1">{language === 'fr' ? 'Clients satisfaits' : 'Satisfied Customers'}</div>
+                  <div className="text-3xl font-extrabold text-yellow-300 stat-number" data-target="500" data-suffix="+">0</div>
+                  <div className="text-xs text-white/90 mt-1">{language === 'fr' ? 'Clients satisfaits' : 'Satisfied Customers'}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-4xl font-extrabold text-yellow-300 stat-number" data-target="24" data-suffix="/7">0</div>
-                  <div className="text-sm text-white/90 mt-1">{language === 'fr' ? 'Service disponible' : 'Service Available'}</div>
+                  <div className="text-3xl font-extrabold text-yellow-300 stat-number" data-target="24" data-suffix="/7">0</div>
+                  <div className="text-xs text-white/90 mt-1">{language === 'fr' ? 'Service disponible' : 'Service Available'}</div>
                 </div>
               </div>
             </div>
@@ -611,41 +611,31 @@ export function LandingPage() {
       <section id="why" className="py-20 px-4 bg-white">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom duration-700">
-            <h2 className="text-4xl font-bold mb-4">{language === 'fr' ? 'Pourquoi choisir SmartCabb ?' : 'Why choose SmartCabb?'}</h2>
+            <h2 className="text-4xl font-bold mb-4">{language === 'fr' ? 'Pourquoi choisir SMART CABB ?' : 'Why choose SMART CABB?'}</h2>
             <p className="text-xl text-gray-600">{language === 'fr' ? 'Un service de qualité avec des avantages inégalés' : 'Quality service with unmatched benefits'}</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             {[
               {
-                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>,
-                title: language === 'fr' ? 'Réservation instantanée' : 'Instant booking',
-                description: language === 'fr' ? 'Réservez une course en quelques secondes. Notre système trouve et contacte le meilleur chauffeur le plus proche de votre position.' : 'Book a ride in seconds. Our system finds and contacts the best driver closest to you.'
-              },
-              {
-                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.83 3.06 11H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>,
-                title: language === 'fr' ? 'Suivi GPS en temps réel' : 'Real-time GPS tracking',
-                description: language === 'fr' ? 'Suivez votre conducteur en temps réel et soyez informé sur chaque étape de votre course.' : 'Track your driver in real-time and stay informed at every stage of your ride.'
-              },
-              {
-                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>,
-                title: language === 'fr' ? 'Paiement flexible' : 'Flexible payment',
-                description: language === 'fr' ? 'Payez en espèces ou via Mobile Money (Airtel, Orange, M-Pesa). Sécurité et pratique.' : 'Pay cash or via Mobile Money (Airtel, Orange, M-Pesa). Secure and convenient.'
-              },
-              {
-                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>,
-                title: language === 'fr' ? 'Conducteurs vérifiés' : 'Verified drivers',
-                description: language === 'fr' ? 'Tous nos conducteurs sont soigneusement sélectionnés et vérifiés pour votre sécurité.' : 'All our drivers are carefully selected and verified for your safety.'
-              },
-              {
-                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>,
-                title: language === 'fr' ? 'Sécurité maximale' : 'Maximum security',
-                description: language === 'fr' ? 'Bouton SOS intégré, partage de course avec vos proches, assurance incluse sur chaque trajet.' : 'Integrated SOS button, ride sharing with loved ones, insurance included on every trip.'
+                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-5-5 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>,
+                title: language === 'fr' ? 'Sécurité d\'abord' : 'Safety first',
+                description: language === 'fr' ? 'Tous nos chauffeurs sont rigoureusement vérifiés. Votre trajet est suivi en temps réel.' : 'All our drivers are rigorously verified. Your trip is tracked in real time.'
               },
               {
                 icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M20 6h-2.18c.11-.31.18-.65.18-1 0-1.66-1.34-3-3-3-1.05 0-1.96.54-2.5 1.35l-.5.67-.5-.68C10.96 2.54 10.05 2 9 2 7.34 2 6 3.34 6 5c0 .35.07.69.18 1H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-5-2c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM9 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm11 15H4v-2h16v2zm0-5H4V8h5.08L7 10.83 8.62 12 11 8.76l1-1.36 1 1.36L15.38 12 17 10.83 14.92 8H20v6z"/></svg>,
-                title: language === 'fr' ? 'Tarifs transparents' : 'Transparent pricing',
-                description: language === 'fr' ? 'Pas de surprise ! Le prix est calculé à l\'avance et reste fixe, même en cas d\'embouteillage.' : 'No surprises! Price is calculated upfront and stays fixed, even in traffic.'
+                title: language === 'fr' ? 'Prix transparents' : 'Transparent prices',
+                description: language === 'fr' ? 'Fini les négociations de prix ! Le tarif est affiché avant que vous ne confirmiez votre course.' : 'No more price negotiations! The fare is displayed before you confirm your ride.'
+              },
+              {
+                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>,
+                title: language === 'fr' ? 'Disponibilité 24/7' : '24/7 Availability',
+                description: language === 'fr' ? 'Nos chauffeurs sont disponibles à tout moment, de jour comme de nuit.' : 'Our drivers are available at any time, day or night.'
+              },
+              {
+                icon: <svg width="40" height="40" viewBox="0 0 24 24" fill="white"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>,
+                title: language === 'fr' ? 'Confort et fiabilité' : 'Comfort and reliability',
+                description: language === 'fr' ? 'Des véhicules bien entretenus pour une expérience de voyage agréable.' : 'Well-maintained vehicles for a pleasant travel experience.'
               }
             ].map((item, idx) => (
               <div

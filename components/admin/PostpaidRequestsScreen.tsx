@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
+import { CreditCard, CheckCircle, XCircle, Clock, AlertCircle, DollarSign, Search, User } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -11,13 +12,6 @@ import { useAppState } from '../../hooks/useAppState';
 import { supabase } from '../../lib/supabase';
 import { 
   ArrowLeft, 
-  DollarSign, 
-  Clock, 
-  CheckCircle, 
-  XCircle,
-  AlertCircle,
-  Calendar,
-  User,
   Car,
   TrendingUp,
   FileText,

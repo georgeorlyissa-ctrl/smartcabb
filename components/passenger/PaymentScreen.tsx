@@ -1,458 +1,1317 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from 'react';
+import { useAppState } from '../../hooks/useAppState';
+import { CreditCard, Smartphone, Banknote, CheckCircle, Loader2, Wallet, AlertCircle, X, Phone, Split } from 'lucide-react';
+import { PaymentProofUploader } from '../PaymentProofUploader';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
-import { useTranslation } from '../../hooks/useTranslation';
-import { usePayment } from '../../hooks/usePayment';
-import { supabase } from '../../lib/supabase';
-import { PaymentSuccessDialog } from '../PaymentSuccessDialog';
-import { 
-  ArrowLeft, 
-  CreditCard, 
-  Smartphone, 
-  Banknote,
-  Check,
-  Shield,
-  Clock,
-  CheckCircle,
-  Loader2
-} from 'lucide-react';
-import { toast } from '../../lib/toast';
-import { notifyPaymentReceived } from '../../lib/sms-service';
+import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
+import { motion, AnimatePresence } from '../../framer-motion';
+import { toast } from 'sonner';
+import { paymentService } from '../../lib/payment-service';
+import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+
+// Configuration des réseaux Mobile Money RDC
+const MOBILE_MONEY_NETWORKS = [
+  {
+    id: 'orange_money',
+    name: 'Orange Money',
+    code: '*144#',
+    shortcode: '144',
+    color: 'bg-orange-500',
+    LogoComponent: OrangeMoneyLogo
+  },
+  {
+    id: 'mpesa',
+    name: 'M-Pesa (Vodacom)',
+    code: '*150#',
+    shortcode: '150',
+    color: 'bg-red-500',
+    LogoComponent: VodacomMpesaLogo
+  },
+  {
+    id: 'airtel_money',
+    name: 'Airtel Money',
+    code: '*501#',
+    shortcode: '501',
+    color: 'bg-red-600',
+    LogoComponent: AirtelMoneyLogo
+  },
+  {
+    id: 'afrimoney',
+    name: 'Afrimoney (Africell)',
+    code: '*555#',
+    shortcode: '555',
+    color: 'bg-blue-600',
+    LogoComponent: AfrimoneyLogo
+  }
+];
 
 export function PaymentScreen() {
-  const { t } = useTranslation();
-  const { setCurrentScreen, state, updateRide, currentUser, drivers } = useAppState();
-  const { initiatePayment, loading: paymentLoading } = usePayment();
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const [waitingDriverConfirmation, setWaitingDriverConfirmation] = useState(false);
-
-  const paymentMethod = state.currentRide?.paymentMethod;
+  const { state, setCurrentScreen } = useAppState();
+  const [selectedMethod, setSelectedMethod] = useState<typeof PAYMENT_METHODS[number]['id'] | ''>('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [selectedNetwork, setSelectedNetwork] = useState<typeof MOBILE_MONEY_NETWORKS[0] | null>(null);
+  const [fullName, setFullName] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cashCollected, setCashCollected] = useState(false);
   
-  const getPaymentMethodDetails = () => {
-    switch (paymentMethod) {
-      case 'mobile_money':
-        return {
-          title: 'Mobile Money',
-          subtitle: 'Airtel Money, M-Pesa, Orange Money',
-          icon: Smartphone,
-          color: 'bg-green-500',
-          description: 'Paiement sécurisé via votre portefeuille mobile'
-        };
-      case 'card':
-        return {
-          title: 'Carte bancaire',
-          subtitle: 'Visa, Mastercard',
-          icon: CreditCard,
-          color: 'bg-blue-500',
-          description: 'Paiement par carte bancaire'
-        };
-      case 'cash':
-        return {
-          title: 'Espèces',
-          subtitle: 'Paiement en liquide',
-          icon: Banknote,
-          color: 'bg-orange-500',
-          description: 'Paiement en espèces au chauffeur'
-        };
-      default:
-        return {
-          title: 'Mobile Money',
-          subtitle: 'Airtel Money, M-Pesa, Orange Money',
-          icon: Smartphone,
-          color: 'bg-green-500',
-          description: 'Paiement sécurisé via votre portefeuille mobile'
-        };
+  // États pour paiement mixte
+  const [cashAmount, setCashAmount] = useState<string>('');
+  const [mixedPhoneNumber, setMixedPhoneNumber] = useState('');
+  const [mixedNetwork, setMixedNetwork] = useState<typeof MOBILE_MONEY_NETWORKS[0] | null>(null);
+  
+  // ✅ États pour les modaux
+  const [showNetworkSelection, setShowNetworkSelection] = useState(false);
+  const [showMobileMoneyModal, setShowMobileMoneyModal] = useState(false);
+  const [showMixedPaymentModal, setShowMixedPaymentModal] = useState(false);
+  
+  const currentRide = state.currentRide;
+  const currentUser = state.currentUser;
+
+  // 🆕 RECHARGER LA COURSE DEPUIS LE BACKEND AU MONTAGE
+  useEffect(() => {
+    const refreshRideFromBackend = async () => {
+      if (!currentRide?.id) return;
+      
+      console.log('🔄 Rechargement des détails de la course depuis le backend...');
+      
+      try {
+        const response = await fetch(
+          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/details/${currentRide.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.ride) {
+            console.log('✅ Détails de course rechargés depuis le backend:', {
+              duration: data.ride.duration,
+              finalPrice: data.ride.finalPrice,
+              distance: data.ride.distance
+            });
+            // Mettre à jour le state avec les vraies données du backend
+            if (state.setCurrentRide) {
+              state.setCurrentRide({
+                ...currentRide,
+                duration: data.ride.duration, // ✅ Durée en SECONDES depuis le backend
+                finalPrice: data.ride.finalPrice || data.ride.estimatedPrice,
+                distance: data.ride.distance
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur rechargement course:', error);
+      }
+    };
+    
+    refreshRideFromBackend();
+  }, [currentRide?.id]);
+
+  // ✅ Calculer la distance et durée depuis les données de la course
+  const distance = currentRide?.distanceKm || currentRide?.distance || 0;
+  
+  // ✅ v517.97: CORRECTION - Utiliser billingElapsedTime en priorité (temps facturable)
+  // billingElapsedTime = temps facturé après les 10 minutes gratuites
+  // duration = durée totale de la course
+  let durationInSeconds = currentRide?.billingElapsedTime ?? currentRide?.duration ?? 0;
+  
+  // Si duration est 0, essayer de calculer depuis startTime si disponible
+  if (durationInSeconds === 0 && currentRide?.startTime) {
+    const startTime = new Date(currentRide.startTime);
+    const endTime = currentRide?.completedAt ? new Date(currentRide.completedAt) : new Date();
+    durationInSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+    console.log('⏱️ v517.97 - Durée calculée localement:', {
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      duration: durationInSeconds
+    });
+  }
+  
+  const durationInMinutes = Math.round(durationInSeconds / 60); // Convertir en minutes pour l'affichage
+  
+  // ✅ FONCTION POUR FORMATER LA DURÉE (cohérente avec le driver)
+  const formatDuration = (seconds: number): string => {
+    if (seconds < 60) {
+      return `${seconds}s`;
+    }
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (secs > 0) {
+      return `${minutes}min ${secs}s`;
+    }
+    return `${minutes}min`;
+  };
+  
+  console.log('⏱️ v517.97 - PaymentScreen - Durée:', {
+    billingElapsedTime: currentRide?.billingElapsedTime,
+    duration: currentRide?.duration,
+    durationInSeconds,
+    durationInMinutes,
+    formatted: formatDuration(durationInSeconds),
+    source: currentRide?.billingElapsedTime !== undefined ? 'billingElapsedTime' : (currentRide?.duration ? 'duration' : 'calculated')
+  });
+    
+  const ridePrice = currentRide?.estimatedPrice || 0;
+  // ✅ FIX v517.93: Utiliser ?? au lieu de || pour éviter que 0 soit considéré comme falsy
+  const userBalance = currentUser?.walletBalance ?? currentUser?.balance ?? 0;
+  
+  // Calculer le montant Mobile Money pour paiement mixte
+  const cashAmountNum = parseFloat(cashAmount) || 0;
+  const mobileMoneyAmount = ridePrice - cashAmountNum;
+  
+  console.log('💳 PaymentScreen - Données:', {
+    distance,
+    duration: durationInMinutes,
+    billingElapsedTime: durationInSeconds,
+    ridePrice,
+    userBalance,
+    hasSufficientBalance: userBalance >= ridePrice
+  });
+
+  if (!currentRide) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Card className="p-6">
+          <p>Aucune course à payer</p>
+        </Card>
+      </div>
+    );
+  }
+
+  // ✅ FONCTION POUR COMPLÉTER LA COURSE (appelée après paiement réussi)
+  const completeRide = async (paymentMethodUsed: string, transactionId?: string, cashPart?: number, mobilePart?: number) => {
+    try {
+      console.log('🏁 Finalisation de la course:', { 
+        rideId: currentRide.id, 
+        method: paymentMethodUsed,
+        cashPart,
+        mobilePart
+      });
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rideId: currentRide.id,
+            driverId: currentRide.driverId,
+            passengerId: currentUser?.id,
+            totalCost: ridePrice,
+            paymentMethod: paymentMethodUsed,
+            paymentTransactionId: transactionId,
+            cashAmount: cashPart,
+            mobileMoneyAmount: mobilePart,
+            driverEarnings: Math.round(ridePrice * 0.85), // 85% pour le conducteur
+            duration: durationInSeconds || 0,
+            distance: distance || 0
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Erreur backend finalisation:', errorData);
+        throw new Error(errorData.error || 'Erreur lors de la finalisation');
+      }
+
+      const data = await response.json();
+      console.log('✅ Course finalisée:', data);
+
+      // ✅ RECHARGER LE SOLDE DEPUIS LE BACKEND APRÈS PAIEMENT
+      if (paymentMethodUsed === 'wallet' && currentUser?.id) {
+        console.log('🔄 Rechargement du solde depuis le backend...');
+        
+        try {
+          const balanceResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${currentUser.id}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            const newBalance = balanceData.balance || 0;
+            
+            console.log(`✅ Solde rechargé depuis le backend: ${newBalance.toLocaleString()} CDF`);
+            
+            // Mettre à jour le state avec le nouveau solde
+            if (state.updateUser) {
+              state.updateUser({ 
+                ...currentUser, 
+                walletBalance: newBalance,
+                balance: newBalance // Mettre à jour les deux pour compatibilité
+              });
+            }
+          } else {
+            console.error('❌ Erreur rechargement solde:', balanceResponse.status);
+          }
+        } catch (error) {
+          console.error('❌ Erreur rechargement solde:', error);
+        }
+      }
+
+      // Mettre à jour l'état local de la course
+      if (state.updateRide) {
+        state.updateRide(currentRide.id, {
+          paymentStatus: 'paid',
+          paymentMethod: paymentMethodUsed,
+          status: 'completed'
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur completeRide:', error);
+      throw error;
     }
   };
 
-  const methodDetails = getPaymentMethodDetails();
-  const Icon = methodDetails.icon;
-
-  const handlePayment = async () => {
-    if (!state.currentRide || !currentUser) {
-      toast.error('Informations de course manquantes');
+  // ✅ GESTION PAIEMENT MIXTE (ESPÈCES + MOBILE MONEY)
+  const handleMixedPayment = async () => {
+    // Validation
+    if (!cashAmount || cashAmountNum <= 0) {
+      toast.error('Veuillez entrer un montant en espèces valide');
       return;
     }
 
+    if (cashAmountNum >= ridePrice) {
+      toast.error('Le montant en espèces doit être inférieur au total. Utilisez le paiement en espèces uniquement.');
+      return;
+    }
+
+    if (!mixedNetwork) {
+      toast.error('Veuillez sélectionner un réseau Mobile Money');
+      return;
+    }
+
+    if (!mixedPhoneNumber || mixedPhoneNumber.length < 9) {
+      toast.error('Veuillez entrer un numéro de téléphone valide (minimum 9 chiffres)');
+      return;
+    }
+
+    setIsProcessing(true);
+
     try {
-      // Trouver le conducteur
-      const driver = drivers.find(d => d.id === state.currentRide?.driverId);
-      
-      // Préparer les données de paiement
-      const paymentData = {
-        amount: totalAmount,
-        currency: 'CDF' as const,
-        rideId: state.currentRide.id,
-        passengerId: currentUser.id,
-        driverId: driver?.id || '',
-        method: paymentMethod || 'cash',
-        customerEmail: currentUser.email,
-        customerPhone: currentUser.phone || '+243000000000',
-        customerName: currentUser.name,
+      console.log('💰 Paiement Mixte:', {
+        total: ridePrice,
+        espèces: cashAmountNum,
+        mobileMoney: mobileMoneyAmount,
+        network: mixedNetwork.name
+      });
+
+      // 1. Initier le paiement Mobile Money pour la différence
+      const paymentData: PaymentInitData = {
+        amount: mobileMoneyAmount,
+        currency: 'CDF',
+        method: 'mobile_money',
+        customerEmail: currentUser?.email || 'passager@smartcabb.com',
+        customerName: currentUser?.name || currentUser?.full_name || 'Passager',
+        customerPhone: mixedPhoneNumber,
+        reference: `RIDE_MIXED_${currentRide.id}_${Date.now()}`,
+        description: `Paiement mixte course SmartCabb #${currentRide.id} (${mobileMoneyAmount.toLocaleString()} CDF via ${mixedNetwork.name})`,
+        rideId: currentRide.id,
+        passengerId: currentUser?.id,
+        driverId: currentRide.driverId,
+        metadata: {
+          type: 'ride_payment_mixed',
+          cashAmount: cashAmountNum,
+          mobileMoneyAmount: mobileMoneyAmount,
+          network: mixedNetwork.id,
+          networkName: mixedNetwork.name
+        }
       };
 
-      console.log('💳 Démarrage paiement:', paymentData);
+      console.log('💳 Initialisation paiement Flutterwave Mobile Money (Mixte):', paymentData);
 
-      // ========== FLUX ESPÈCES ==========
-      if (paymentMethod === 'cash') {
-        console.log('💵 Paiement en espèces - Attente validation chauffeur');
+      const result = await paymentService.initPayment(paymentData);
+
+      console.log('🔍 Résultat initPayment:', result);
+
+      if (result.success && result.paymentUrl) {
+        console.log('✅ Redirection vers Flutterwave:', result.paymentUrl);
         
-        // Mettre à jour le statut de la course
-        updateRide(state.currentRide.id, {
-          status: 'completed',
-          actualPrice: totalAmount,
-          paymentStatus: 'pending_driver_confirmation'
-        });
+        // Fermer le modal de paiement mixte
+        setShowMixedPaymentModal(false);
         
-        // Activer l'écran d'attente
-        setWaitingDriverConfirmation(true);
-        toast.info('En attente de confirmation du chauffeur');
+        // 2. Ouvrir Flutterwave dans une popup
+        const width = 500;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
         
-        // ✅ Écouter la confirmation du backend (polling toutes les 2 secondes)
-        const checkPaymentConfirmation = setInterval(async () => {
+        const paymentWindow = window.open(
+          result.paymentUrl, 
+          'FlutterwavePayment',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+        
+        if (!paymentWindow) {
+          toast.error('Veuillez autoriser les popups pour ce site');
+          setIsProcessing(false);
+          return;
+        }
+        
+        // 3. Polling pour vérifier le statut du paiement
+        const checkPaymentStatus = async () => {
+          if (!result.transactionId) return false;
+          
           try {
-            const response = await fetch(`https://${supabase.supabaseUrl.replace('https://', '')}/functions/v1/make-server-2eb02e52/rides/${state.currentRide!.id}`, {
-              headers: { 'Authorization': `Bearer ${supabase.supabaseKey}` }
-            });
-            const data = await response.json();
+            const verification = await paymentService.verifyPayment(result.transactionId);
             
-            if (data.ride?.paymentStatus === 'paid') {
-              clearInterval(checkPaymentConfirmation);
-              console.log('✅ Chauffeur a confirmé le paiement');
-              updateRide(state.currentRide!.id, { paymentStatus: 'paid' });
-              setWaitingDriverConfirmation(false);
-              setPaymentCompleted(true);
-              setShowSuccessDialog(true);
-              toast.success('Paiement reçu par le chauffeur !');
+            console.log('🔍 Vérification paiement mixte:', verification);
+            
+            if (verification.isValid && (verification.status === 'successful' || verification.status === 'completed')) {
+              // 4. Paiement réussi → Finaliser la course
+              console.log('✅ Paiement Mixte validé, finalisation de la course...');
+              
+              await completeRide('mixed', result.transactionId, cashAmountNum, mobileMoneyAmount);
+              
+              toast.success(`Paiement mixte effectué ! ${cashAmountNum.toLocaleString()} CDF en espèces + ${mobileMoneyAmount.toLocaleString()} CDF Mobile Money`);
+              setIsProcessing(false);
+              
+              // Fermer la popup si elle est encore ouverte
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+              
+              // Rediriger vers l'écran d'évaluation
+              setTimeout(() => {
+                setCurrentScreen('rating');
+              }, 1500);
+              
+              return true;
+            } else if (verification.status === 'failed') {
+              toast.error('Le paiement Mobile Money a échoué. Veuillez réessayer.');
+              setIsProcessing(false);
+              
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+              return true;
             }
+            
+            return false;
           } catch (error) {
-            console.error('Erreur vérification paiement:', error);
+            console.error('❌ Erreur vérification:', error);
+            return false;
+          }
+        };
+        
+        // Vérifier toutes les 2 secondes
+        const maxAttempts = 60; // 2 minutes
+        let attempts = 0;
+        
+        const intervalId = setInterval(async () => {
+          attempts++;
+          
+          // Vérifier si la popup est fermée
+          if (paymentWindow.closed) {
+            console.log('🪟 Popup fermée, vérification finale...');
+            clearInterval(intervalId);
+            
+            const finalCheck = await checkPaymentStatus();
+            
+            if (!finalCheck) {
+              // Continuer à vérifier pendant 30 secondes supplémentaires
+              let extraAttempts = 0;
+              const extraInterval = setInterval(async () => {
+                extraAttempts++;
+                
+                if (extraAttempts >= 15) {
+                  clearInterval(extraInterval);
+                  toast.error('Délai de vérification dépassé. Vérifiez l\'historique des paiements.');
+                  setIsProcessing(false);
+                  return;
+                }
+                
+                const status = await checkPaymentStatus();
+                if (status) {
+                  clearInterval(extraInterval);
+                }
+              }, 2000);
+            }
+            
+            return;
+          }
+          
+          // Vérifier le statut du paiement
+          const isDone = await checkPaymentStatus();
+          if (isDone) {
+            clearInterval(intervalId);
+          }
+          
+          // Timeout après 2 minutes
+          if (attempts >= maxAttempts) {
+            clearInterval(intervalId);
+            toast.error('Délai de paiement dépassé. Veuillez réessayer.');
+            setIsProcessing(false);
+            
+            if (paymentWindow && !paymentWindow.closed) {
+              paymentWindow.close();
+            }
           }
         }, 2000);
         
-        // Timeout après 5 minutes
-        setTimeout(() => {
-          clearInterval(checkPaymentConfirmation);
-          if (waitingDriverConfirmation) {
-            setWaitingDriverConfirmation(false);
-            toast.error('Délai d\'attente dépassé. Contactez le chauffeur.');
-          }
-        }, 300000);
-        
-        return;
-      }
-
-      // ========== FLUX MOBILE MONEY / CARTE ==========
-      const result = await initiatePayment(paymentData);
-
-      if (result.success) {
-        // Si c'est Flutterwave et qu'il y a une URL de redirection
-        if (result.redirectUrl) {
-          console.log('🔗 Redirection vers Flutterwave:', result.redirectUrl);
-          
-          // ✅ REDIRECTION DIRECTE vers Flutterwave
-          window.location.href = result.redirectUrl;
-          
-          // Note: Le retour sera géré par le callback URL configuré dans Flutterwave
-          // Pour l'instant on ne fait rien ici car l'utilisateur quitte la page
-          
-        } else {
-          // Paiement immédiat (cas improbable pour mobile money)
-          setPaymentCompleted(true);
-          setShowSuccessDialog(true);
-          
-          updateRide(state.currentRide.id, {
-            status: 'completed',
-            actualPrice: totalAmount,
-            paymentStatus: 'paid'
-          });
-          
-          // 📱 SMS: Notifier le conducteur du paiement reçu
-          if (driver) {
-            notifyPaymentReceived(
-              driver.phone || '+243999999999',
-              totalAmount,
-              methodDetails.title
-            ).catch(err => console.error('❌ Erreur envoi SMS paiement:', err));
-          }
-          
-          toast.success('Paiement effectué avec succès !');
-        }
       } else {
-        toast.error(result.message || 'Erreur lors du paiement');
+        throw new Error(result.error || result.message || 'Impossible d\'initialiser le paiement');
       }
-    } catch (error: any) {
-      console.error('❌ Erreur paiement:', error);
-      toast.error(error.message || 'Erreur lors du paiement');
+      
+    } catch (error) {
+      console.error('❌ Erreur paiement mixte:', error);
+      toast.error(error instanceof Error ? error.message : 'Impossible de traiter le paiement mixte');
+      setIsProcessing(false);
     }
   };
 
-  const baseAmount = state.currentRide?.actualPrice || state.currentRide?.estimatedPrice || 0;
-  const totalAmount = baseAmount;
+  // ✅ GESTION MOBILE MONEY AVEC SIMULATION FLUTTERWAVE
+  const handleMobileMoneyPayment = async () => {
+    if (!selectedNetwork) {
+      toast.error('Veuillez sélectionner un réseau Mobile Money');
+      return;
+    }
 
-  // Ne plus afficher l'écran de confirmation, utiliser le dialogue
+    if (!phoneNumber || phoneNumber.length < 9) {
+      toast.error('Veuillez entrer un numéro de téléphone valide (minimum 9 chiffres)');
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // 1. Initier le paiement Flutterwave
+      const paymentData: PaymentInitData = {
+        amount: ridePrice,
+        currency: 'CDF',
+        method: 'mobile_money',
+        customerEmail: currentUser?.email || 'passager@smartcabb.com',
+        customerName: currentUser?.name || currentUser?.full_name || 'Passager',
+        customerPhone: phoneNumber,
+        reference: `RIDE_${currentRide.id}_${Date.now()}`,
+        description: `Paiement course SmartCabb #${currentRide.id} via ${selectedNetwork.name}`,
+        rideId: currentRide.id,
+        passengerId: currentUser?.id,
+        driverId: currentRide.driverId,
+        metadata: {
+          type: 'ride_payment',
+          network: selectedNetwork.id,
+          networkName: selectedNetwork.name
+        }
+      };
+
+      console.log('💳 Initialisation paiement Flutterwave Mobile Money:', paymentData);
+
+      const result = await paymentService.initPayment(paymentData);
+
+      console.log('🔍 Résultat initPayment:', result);
+
+      if (result.success && result.paymentUrl) {
+        console.log('✅ Redirection vers Flutterwave:', result.paymentUrl);
+        
+        // Fermer le modal de numéro de téléphone
+        setShowMobileMoneyModal(false);
+        
+        // 2. Ouvrir Flutterwave dans une popup
+        const width = 500;
+        const height = 700;
+        const left = (window.screen.width - width) / 2;
+        const top = (window.screen.height - height) / 2;
+        
+        const paymentWindow = window.open(
+          result.paymentUrl, 
+          'FlutterwavePayment',
+          `width=${width},height=${height},left=${left},top=${top},scrollbars=yes,resizable=yes`
+        );
+        
+        if (!paymentWindow) {
+          toast.error('Veuillez autoriser les popups pour ce site');
+          setIsProcessing(false);
+          return;
+        }
+        
+        // 3. Polling pour vérifier le statut du paiement
+        const checkPaymentStatus = async () => {
+          if (!result.transactionId) return false;
+          
+          try {
+            const verification = await paymentService.verifyPayment(result.transactionId);
+            
+            console.log('🔍 Vérification paiement:', verification);
+            
+            if (verification.isValid && (verification.status === 'successful' || verification.status === 'completed')) {
+              // 4. Paiement réussi → Finaliser la course
+              console.log('✅ Paiement Mobile Money validé, finalisation de la course...');
+              
+              await completeRide('mobile_money', result.transactionId);
+              
+              toast.success('Paiement effectué avec succès !');
+              setIsProcessing(false);
+              
+              // Fermer la popup si elle est encore ouverte
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+              
+              // Rediriger vers l'écran d'évaluation
+              setTimeout(() => {
+                setCurrentScreen('rating');
+              }, 1500);
+              
+              return true;
+            } else if (verification.status === 'failed') {
+              toast.error('Le paiement a échoué. Veuillez réessayer.');
+              setIsProcessing(false);
+              
+              if (paymentWindow && !paymentWindow.closed) {
+                paymentWindow.close();
+              }
+              return true;
+            }
+            
+            return false;
+          } catch (error) {
+            console.error('❌ Erreur vérification:', error);
+            return false;
+          }
+        };
+        
+        // Vérifier toutes les 2 secondes
+        const maxAttempts = 60; // 2 minutes
+        let attempts = 0;
+        
+        const intervalId = setInterval(async () => {
+          attempts++;
+          
+          // Vérifier si la popup est fermée
+          if (paymentWindow.closed) {
+            console.log('🪟 Popup fermée, vérification finale...');
+            clearInterval(intervalId);
+            
+            const finalCheck = await checkPaymentStatus();
+            
+            if (!finalCheck) {
+              // Continuer à vérifier pendant 30 secondes supplémentaires
+              let extraAttempts = 0;
+              const extraInterval = setInterval(async () => {
+                extraAttempts++;
+                
+                if (extraAttempts >= 15) {
+                  clearInterval(extraInterval);
+                  toast.error('Délai de vérification dépassé. Vérifiez l\'historique des paiements.');
+                  setIsProcessing(false);
+                  return;
+                }
+                
+                const status = await checkPaymentStatus();
+                if (status) {
+                  clearInterval(extraInterval);
+                }
+              }, 2000);
+            }
+            
+            return;
+          }
+          
+          // Vérifier le statut du paiement
+          const isDone = await checkPaymentStatus();
+          if (isDone) {
+            clearInterval(intervalId);
+          }
+          
+          // Timeout après 2 minutes
+          if (attempts >= maxAttempts) {
+            clearInterval(intervalId);
+            toast.error('Délai de paiement dépassé. Veuillez réessayer.');
+            setIsProcessing(false);
+            
+            if (paymentWindow && !paymentWindow.closed) {
+              paymentWindow.close();
+            }
+          }
+        }, 2000);
+        
+      } else {
+        throw new Error(result.error || result.message || 'Impossible d\'initialiser le paiement');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur paiement Mobile Money:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Impossible de traiter le paiement';
+      toast.error(`Erreur paiement : ${errorMessage}`);
+      setIsProcessing(false);
+    }
+  };
+
+  // ✅ GESTION DES AUTRES MÉTHODES DE PAIEMENT
+  const handlePayment = async () => {
+    // Si Mobile Money, ouvrir d'abord la sélection du réseau
+    if (selectedMethod === 'mobile_money') {
+      setShowNetworkSelection(true);
+      return;
+    }
+
+    // Si Paiement Mixte, ouvrir le modal spécial
+    if (selectedMethod === 'mixed') {
+      setShowMixedPaymentModal(true);
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      console.log('💳 Traitement du paiement:', { method: selectedMethod, rideId: currentRide.id });
+      
+      // ✅ VALIDATION : Vérifier le solde si paiement par wallet
+      if (selectedMethod === 'wallet') {
+        if (userBalance < ridePrice) {
+          toast.error(`Solde insuffisant ! Solde: ${userBalance.toLocaleString()} CDF, Requis: ${ridePrice.toLocaleString()} CDF`);
+          setIsProcessing(false);
+          return;
+        }
+        
+        console.log(`💰 Paiement par wallet - Solde actuel: ${userBalance.toLocaleString()} CDF, Prix: ${ridePrice.toLocaleString()} CDF`);
+        // ✅ NE PAS déduire localement, le backend le fera et on rechargera après
+      }
+      
+      // Pour cash et wallet, finaliser directement
+      await completeRide(selectedMethod);
+
+      toast.success('Paiement effectué avec succès !');
+      
+      // Rediriger vers l'écran d'évaluation
+      setTimeout(() => {
+        setCurrentScreen('rating');
+      }, 1500);
+      
+    } catch (error) {
+      console.error('❌ Erreur paiement:', error);
+      toast.error(error instanceof Error ? error.message : 'Impossible de traiter le paiement');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const paymentMethods = [
+    {
+      id: 'wallet',
+      name: 'Portefeuille',
+      icon: Wallet,
+      description: 'Payer avec votre solde SmartCabb',
+      color: 'bg-purple-100 text-purple-600'
+    },
+    {
+      id: 'cash',
+      name: 'Espèces',
+      icon: Banknote,
+      description: 'Payer en cash au conducteur',
+      color: 'bg-green-100 text-green-600'
+    },
+    {
+      id: 'mobile_money',
+      name: 'Mobile Money',
+      icon: Smartphone,
+      description: 'Orange Money, Airtel Money, M-Pesa',
+      color: 'bg-orange-100 text-orange-600'
+    },
+    {
+      id: 'mixed',
+      name: 'Paiement Mixte',
+      icon: Split,
+      description: 'Espèces + Mobile Money',
+      color: 'bg-blue-100 text-blue-600'
+    },
+    {
+      id: 'card',
+      name: 'Carte bancaire',
+      icon: CreditCard,
+      description: 'Visa, Mastercard',
+      color: 'bg-gray-100 text-gray-600'
+    }
+  ];
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -50 }}
-      className="min-h-screen bg-gray-50"
-    >
-      {/* Header */}
-      <div className="bg-white shadow-sm">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center space-x-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setCurrentScreen('map')}
-              className="p-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-xl">Paiement</h1>
-              <p className="text-sm text-gray-600">Finaliser le paiement de votre course</p>
-            </div>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header - Compact */}
+      <div className="bg-white border-b p-3 sm:p-4">
+        <div className="text-center">
+          <h1 className="text-xl sm:text-2xl font-bold">Paiement</h1>
+          <p className="text-gray-600 text-xs sm:text-sm">Choisissez votre mode de paiement</p>
         </div>
       </div>
 
-      <div className="p-4">
-        {/* ========== ÉCRAN D'ATTENTE VALIDATION CHAUFFEUR (ESPÈCES) ========== */}
-        <AnimatePresence>
-          {waitingDriverConfirmation && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6"
-            >
-              <motion.div
-                animate={{
-                  scale: [1, 1.1, 1],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-                className="mb-6"
-              >
-                <div className="w-24 h-24 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center">
-                  <Banknote className="w-12 h-12 text-white" />
-                </div>
-              </motion.div>
-
-              {/* Animation de cercles */}
-              <div className="relative mb-8">
-                <motion.div
-                  className="absolute inset-0 w-32 h-32 -left-16 -top-16 rounded-full border-4 border-orange-300"
-                  animate={{
-                    scale: [1, 1.5, 2],
-                    opacity: [0.6, 0.3, 0]
-                  }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeOut"
-                  }}
-                />
-              </div>
-
-              <div className="text-center space-y-4 max-w-md">
-                <h2 className="text-2xl font-bold text-orange-800">
-                  Paiement en cours de validation
-                </h2>
-                <p className="text-orange-700">
-                  En attente de confirmation du chauffeur...
-                </p>
-                <p className="text-sm text-orange-600">
-                  Le chauffeur confirmera la réception du paiement en espèces depuis son application.
-                </p>
-
-                {/* Montant */}
-                <div className="bg-orange-50 rounded-2xl p-6 border-2 border-orange-200 mt-6">
-                  <p className="text-sm text-orange-600 mb-2">Montant payé</p>
-                  <p className="text-4xl font-bold text-orange-800">
-                    {totalAmount.toLocaleString()} <span className="text-2xl">CDF</span>
-                  </p>
-                </div>
-
-                {/* Loader */}
-                <div className="flex items-center justify-center space-x-2 mt-6">
-                  <motion.div
-                    className="w-3 h-3 bg-orange-500 rounded-full"
-                    animate={{ y: [-10, 0, -10] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0 }}
-                  />
-                  <motion.div
-                    className="w-3 h-3 bg-orange-500 rounded-full"
-                    animate={{ y: [-10, 0, -10] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
-                  />
-                  <motion.div
-                    className="w-3 h-3 bg-orange-500 rounded-full"
-                    animate={{ y: [-10, 0, -10] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
-                  />
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Résumé de la course */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="p-4 mb-6">
-            <h2 className="font-semibold mb-4">Résumé de la course</h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Montant de base</span>
-                <span className="font-semibold">
-                  {baseAmount.toLocaleString()} CDF
-                </span>
-              </div>
-              <div className="border-t pt-2 flex justify-between">
-                <span className="font-semibold">Montant total</span>
-                <span className="text-2xl font-bold text-green-600">
-                  {totalAmount.toLocaleString()} CDF
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Durée de la course</span>
-                <span className="font-semibold">
-                  {state.currentRide?.estimatedDuration || 15} min
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Distance</span>
-                <span className="font-semibold">
-                  {state.currentRide?.distanceKm?.toFixed(1) || '5.2'} km
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Type de véhicule</span>
-                <span className="font-semibold capitalize">
-                  {(state.currentRide?.vehicleType || 'smart_standard').replace('_', ' ')}
-                </span>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Méthode de paiement sélectionnée */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="p-4 mb-6">
-            <h3 className="font-semibold mb-4">Méthode de paiement</h3>
-            <div className="flex items-center space-x-4">
-              <div className={`w-12 h-12 ${methodDetails.color} rounded-full flex items-center justify-center`}>
-                <Icon className="w-6 h-6 text-white" />
-              </div>
-              <div className="flex-1">
-                <h4 className="font-semibold">{methodDetails.title}</h4>
-                <p className="text-sm text-gray-600">{methodDetails.subtitle}</p>
-                <p className="text-sm text-gray-700 mt-1">{methodDetails.description}</p>
-              </div>
-              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                <Check className="w-4 h-4 text-white" />
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Instructions spécifiques selon le mode de paiement */}
-        {paymentMethod === 'cash' && (
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-3 sm:p-4 space-y-4 max-w-2xl mx-auto">
+          {/* Résumé de la course - Compact */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
           >
-            <Card className="p-4 mb-6 bg-orange-50 border-orange-200">
-              <div className="flex items-start space-x-3">
-                <Banknote className="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-semibold text-orange-800 mb-1">Paiement en espèces</h3>
-                  <p className="text-sm text-orange-700">
-                    Assurez-vous d'avoir payé le montant exact au chauffeur avant de confirmer le paiement.
-                  </p>
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-sm sm:text-base">Résumé de la course</h2>
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Distance</span>
+                  <span className="font-medium">{distance.toFixed(1)} km</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Durée</span>
+                  <span className="font-medium">{formatDuration(durationInSeconds)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Catégorie</span>
+                  <span className="font-medium">{currentRide.vehicleCategory || 'Standard'}</span>
+                </div>
+                
+                {currentRide.promoDiscount && currentRide.promoDiscount > 0 && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Prix initial</span>
+                      <span className="font-medium">{(currentRide.estimatedPrice || 0).toLocaleString()} CDF</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Réduction promo</span>
+                      <span>-{currentRide.promoDiscount}%</span>
+                    </div>
+                  </>
+                )}
+                
+                <div className="pt-2 border-t flex justify-between items-center">
+                  <span className="text-base sm:text-lg font-semibold">Total à payer</span>
+                  <span className="text-2xl sm:text-3xl font-bold text-green-600">
+                    {ridePrice.toLocaleString()} CDF
+                  </span>
                 </div>
               </div>
             </Card>
           </motion.div>
-        )}
 
-        {/* Informations de sécurité */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <Card className="p-4 mb-6 bg-blue-50 border-blue-200">
-            <div className="flex items-start space-x-3">
-              <Shield className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-blue-800 mb-1">Transaction sécurisée</h3>
-                <p className="text-sm text-blue-700">
-                  Votre paiement est protégé et crypté. SmartCabb garantit la sécurité de vos transactions.
-                </p>
-              </div>
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Bouton de paiement */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Button 
-            onClick={handlePayment}
-            disabled={paymentLoading || paymentCompleted}
-            className="w-full py-3"
-            size="lg"
+          {/* Méthodes de paiement - Compact */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            {paymentLoading ? (
-              <div className="flex items-center justify-center">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Traitement en cours...
-              </div>
-            ) : paymentCompleted ? (
-              <div className="flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Paiement effectué
-              </div>
+            <h3 className="font-semibold mb-2 text-sm sm:text-base">Choisissez un mode de paiement</h3>
+            
+            <div className="space-y-2">
+              {paymentMethods.map((method) => (
+                <motion.div
+                  key={method.id}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setSelectedMethod(method.id as any)}
+                >
+                  <Card 
+                    className={`p-3 cursor-pointer transition-all ${
+                      selectedMethod === method.id 
+                        ? 'border-2 border-green-500 bg-green-50' 
+                        : 'border hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 sm:w-12 sm:h-12 ${method.color} rounded-full flex items-center justify-center flex-shrink-0`}>
+                        <method.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-sm sm:text-base">{method.name}</h4>
+                        <p className="text-xs sm:text-sm text-gray-600 truncate">{method.description}</p>
+                      </div>
+                      {selectedMethod === method.id && (
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      )}
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Informations supplémentaires - Compact */}
+          {selectedMethod === 'mobile_money' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+            >
+              <Card className="p-3 bg-blue-50 border-blue-200">
+                <p className="text-xs sm:text-sm text-blue-800">
+                  <strong>Mobile Money :</strong> Sélectionnez votre réseau (Orange Money, M-Pesa, Airtel Money, Afrimoney), puis suivez les instructions de paiement.
+                </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {selectedMethod === 'mixed' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+            >
+              <Card className="p-3 bg-blue-50 border-blue-200">
+                <p className="text-xs sm:text-sm text-blue-800">
+                  <strong>Paiement Mixte :</strong> Payez une partie en espèces et le reste via Mobile Money. 
+                  Idéal si vous n'avez pas le montant total en liquide.
+                </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {selectedMethod === 'cash' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+            >
+              <Card className="p-3 bg-green-50 border-green-200">
+                <p className="text-xs sm:text-sm text-green-800">
+                  <strong>Paiement en espèces :</strong> Veuillez remettre le montant exact au conducteur.
+                </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {selectedMethod === 'wallet' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+            >
+              <Card className={`p-3 ${userBalance >= ridePrice ? 'bg-purple-50 border-purple-200' : 'bg-red-50 border-red-200'}`}>
+                <p className={`text-xs sm:text-sm ${userBalance >= ridePrice ? 'text-purple-800' : 'text-red-800'}`}>
+                  <strong>Solde actuel :</strong> {userBalance.toLocaleString()} CDF<br/>
+                  {userBalance >= ridePrice ? (
+                    <>✅ Solde suffisant pour cette course</>
+                  ) : (
+                    <>❌ Solde insuffisant ! Il vous manque {(ridePrice - userBalance).toLocaleString()} CDF</>
+                  )}
+                </p>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* Bouton de paiement - Compact */}
+          <Button
+            onClick={handlePayment}
+            disabled={isProcessing || (selectedMethod === 'wallet' && userBalance < ridePrice)}
+            className="w-full bg-green-600 hover:bg-green-700 h-12 sm:h-14"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
+                <span className="text-sm sm:text-base">Traitement...</span>
+              </>
             ) : (
-              paymentMethod === 'cash' 
-                ? 'Confirmer le paiement en espèces'
-                : `Payer ${totalAmount.toLocaleString()} CDF`
+              <>
+                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                <span className="text-sm sm:text-base">Confirmer le paiement</span>
+              </>
             )}
           </Button>
-        </motion.div>
+
+          {/* Note de sécurité - Compact */}
+          <Card className="p-3 bg-gray-50">
+            <p className="text-xs text-gray-600 text-center">
+              🔒 Paiement sécurisé • Vos données sont protégées
+            </p>
+          </Card>
+        </div>
       </div>
 
-      {/* Payment Success Dialog */}
-      {state.currentRide && (
-        <PaymentSuccessDialog
-          isOpen={showSuccessDialog}
-          onClose={() => setShowSuccessDialog(false)}
-          ride={state.currentRide}
-          onRateDriver={() => setCurrentScreen('rating')}
-        />
-      )}
-    </motion.div>
+      {/* 🆕 MODAL SÉLECTION DU RÉSEAU MOBILE MONEY */}
+      <AnimatePresence>
+        {showNetworkSelection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => !isProcessing && setShowNetworkSelection(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold">Sélectionnez votre réseau</h3>
+                  <p className="text-sm text-gray-600">{ridePrice.toLocaleString()} CDF</p>
+                </div>
+                <button
+                  onClick={() => setShowNetworkSelection(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Réseaux */}
+              <div className="space-y-3 mb-4">
+                {MOBILE_MONEY_NETWORKS.map((network) => (
+                  <motion.div
+                    key={network.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedNetwork(network)}
+                  >
+                    <Card 
+                      className={`p-4 cursor-pointer transition-all ${
+                        selectedNetwork?.id === network.id 
+                          ? 'border-2 border-green-500 bg-green-50' 
+                          : 'border hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-12 h-12 overflow-hidden rounded-lg">
+                            <network.LogoComponent />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold">{network.name}</h4>
+                            <p className="text-sm text-gray-600">Code: {network.code}</p>
+                          </div>
+                        </div>
+                        {selectedNetwork?.id === network.id && (
+                          <CheckCircle className="w-6 h-6 text-green-600" />
+                        )}
+                      </div>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* Bouton */}
+              <Button
+                onClick={() => {
+                  if (selectedNetwork) {
+                    setShowNetworkSelection(false);
+                    setShowMobileMoneyModal(true);
+                  }
+                }}
+                disabled={!selectedNetwork}
+                className="w-full bg-orange-600 hover:bg-orange-700 h-12"
+              >
+                <CheckCircle className="w-5 h-5 mr-2" />
+                Continuer
+              </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 MODAL MOBILE MONEY - Demander le numéro de téléphone */}
+      <AnimatePresence>
+        {showMobileMoneyModal && selectedNetwork && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => !isProcessing && setShowMobileMoneyModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className={`w-12 h-12 ${selectedNetwork.color} rounded-full flex items-center justify-center text-2xl`}>
+                    <selectedNetwork.LogoComponent />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">{selectedNetwork.name}</h3>
+                    <p className="text-sm text-gray-600">{ridePrice.toLocaleString()} CDF</p>
+                  </div>
+                </div>
+                {!isProcessing && (
+                  <button
+                    onClick={() => setShowMobileMoneyModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                )}
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Numéro de téléphone
+                  </label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="+243 999 999 999"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      disabled={isProcessing}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Numéro {selectedNetwork.name}
+                  </p>
+                </div>
+
+                {/* Info */}
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <p className="text-xs text-blue-800">
+                    💡 <strong>Comment ça marche ?</strong><br/>
+                    1. Composez {selectedNetwork.code} sur votre téléphone<br/>
+                    2. Une fenêtre de paiement s'ouvrira<br/>
+                    3. Suivez les instructions pour finaliser
+                  </p>
+                </Card>
+
+                {/* Bouton */}
+                <Button
+                  onClick={handleMobileMoneyPayment}
+                  disabled={isProcessing || !phoneNumber || phoneNumber.length < 9}
+                  className="w-full bg-orange-600 hover:bg-orange-700 h-12"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Ouverture du paiement...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      Continuer vers le paiement
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 🆕 MODAL PAIEMENT MIXTE - Espèces + Mobile Money */}
+      <AnimatePresence>
+        {showMixedPaymentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+            onClick={() => !isProcessing && setShowMixedPaymentModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Split className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">Paiement Mixte</h3>
+                    <p className="text-sm text-gray-600">Total : {ridePrice.toLocaleString()} CDF</p>
+                  </div>
+                </div>
+                {!isProcessing && (
+                  <button
+                    onClick={() => setShowMixedPaymentModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-500" />
+                  </button>
+                )}
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                {/* Montant en espèces */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    💵 Montant en espèces (CDF)
+                  </label>
+                  <div className="relative">
+                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="number"
+                      value={cashAmount}
+                      onChange={(e) => setCashAmount(e.target.value)}
+                      placeholder="Exemple : 10000"
+                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      disabled={isProcessing}
+                      min="1"
+                      max={ridePrice - 1}
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Montant que vous donnerez au conducteur
+                  </p>
+                </div>
+
+                {/* Calcul automatique */}
+                {cashAmountNum > 0 && cashAmountNum < ridePrice && (
+                  <Card className="p-4 bg-gradient-to-r from-green-50 to-orange-50 border-2 border-dashed border-blue-300">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">💵 Espèces :</span>
+                        <span className="font-semibold text-green-700">{cashAmountNum.toLocaleString()} CDF</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">📱 Mobile Money :</span>
+                        <span className="font-semibold text-orange-700">{mobileMoneyAmount.toLocaleString()} CDF</span>
+                      </div>
+                      <div className="pt-2 border-t border-blue-200 flex justify-between items-center">
+                        <span className="font-semibold text-gray-800">Total :</span>
+                        <span className="text-lg font-bold text-blue-600">{ridePrice.toLocaleString()} CDF</span>
+                      </div>
+                    </div>
+                  </Card>
+                )}
+
+                {/* Validation */}
+                {cashAmountNum >= ridePrice && (
+                  <Card className="p-3 bg-red-50 border-red-200">
+                    <p className="text-xs text-red-800">
+                      ⚠️ Le montant en espèces doit être inférieur au total. 
+                      Utilisez le mode "Espèces" pour payer tout en cash.
+                    </p>
+                  </Card>
+                )}
+
+                {/* Sélection du réseau Mobile Money */}
+                {cashAmountNum > 0 && cashAmountNum < ridePrice && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        📱 Réseau Mobile Money
+                      </label>
+                      <div className="space-y-2">
+                        {MOBILE_MONEY_NETWORKS.map((network) => (
+                          <motion.div
+                            key={network.id}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setMixedNetwork(network)}
+                          >
+                            <Card 
+                              className={`p-3 cursor-pointer transition-all ${
+                                mixedNetwork?.id === network.id 
+                                  ? 'border-2 border-green-500 bg-green-50' 
+                                  : 'border hover:border-gray-300'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <div className={`w-8 h-8 ${network.color} rounded-full flex items-center justify-center text-lg`}>
+                                    <network.LogoComponent />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{network.name}</p>
+                                    <p className="text-xs text-gray-500">{network.code}</p>
+                                  </div>
+                                </div>
+                                {mixedNetwork?.id === network.id && (
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                )}
+                              </div>
+                            </Card>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Numéro de téléphone */}
+                    {mixedNetwork && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          📱 Numéro {mixedNetwork.name}
+                        </label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <input
+                            type="tel"
+                            value={mixedPhoneNumber}
+                            onChange={(e) => setMixedPhoneNumber(e.target.value)}
+                            placeholder="+243 999 999 999"
+                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            disabled={isProcessing}
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Pour payer {mobileMoneyAmount.toLocaleString()} CDF
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Info */}
+                <Card className="p-3 bg-blue-50 border-blue-200">
+                  <p className="text-xs text-blue-800">
+                    💡 <strong>Comment ça marche ?</strong><br/>
+                    1. Donnez les espèces au conducteur<br/>
+                    2. Sélectionnez votre réseau Mobile Money<br/>
+                    3. Payez le reste via Mobile Money<br/>
+                    4. La course sera finalisée une fois les deux paiements confirmés
+                  </p>
+                </Card>
+
+                {/* Bouton */}
+                <Button
+                  onClick={handleMixedPayment}
+                  disabled={
+                    isProcessing || 
+                    !cashAmount || 
+                    cashAmountNum <= 0 || 
+                    cashAmountNum >= ridePrice ||
+                    !mixedNetwork ||
+                    !mixedPhoneNumber ||
+                    mixedPhoneNumber.length < 9
+                  }
+                  className="w-full bg-blue-600 hover:bg-blue-700 h-12"
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5 mr-2" />
+                      Confirmer le paiement mixte
+                    </>
+                  )}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

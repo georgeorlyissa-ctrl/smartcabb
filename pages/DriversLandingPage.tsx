@@ -1,16 +1,52 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../lib/simple-router';
 import { useState, useEffect } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
-import { TestimonialsCarousel } from '../components/TestimonialsCarousel';
+import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 
 export function DriversLandingPage() {
   const [language, setLanguage] = useState('fr');
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const [currentVehicleIndex, setCurrentVehicleIndex] = useState(0);
+
+  const vehicles = [
+    {
+      src: '/vehicules/economique/Economique_1.png',
+      fallbackSrc: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
+      alt: 'SmartCabb Go - Économique',
+      badge: 'SmartCabb Go'
+    },
+    {
+      src: '/vehicules/confort/Confort_1.png',
+      fallbackSrc: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
+      alt: 'SmartCabb Confort',
+      badge: 'SmartCabb Confort'
+    },
+    {
+      src: '/vehicules/premium/Premium_1.png',
+      fallbackSrc: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
+      alt: 'SmartCabb Premium',
+      badge: 'SmartCabb Premium'
+    },
+    {
+      src: '/vehicules/famille/Familiale_1.png',
+      fallbackSrc: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
+      alt: 'SmartCabb Familia',
+      badge: 'SmartCabb Familia'
+    }
+  ];
 
   // Récupérer la langue depuis localStorage au chargement
   useEffect(() => {
     const savedLang = localStorage.getItem('smartcabb_lang') || 'fr';
     setLanguage(savedLang);
+  }, []);
+
+  // Carousel automatique des véhicules
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentVehicleIndex((prevIndex) => (prevIndex + 1) % vehicles.length);
+    }, 4000); // Change toutes les 4 secondes
+    return () => clearInterval(interval);
   }, []);
 
   // Sauvegarder la langue dans localStorage quand elle change
@@ -76,8 +112,8 @@ export function DriversLandingPage() {
         }
       `}</style>
 
-      {/* Navigation - MÊME DESIGN QUE LANDING PAGE */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50">
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full bg-white shadow-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -93,26 +129,26 @@ export function DriversLandingPage() {
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-8">
               <Link to="/" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                {language === 'fr' ? 'Accueil' : 'Home'}
+                Accueil
               </Link>
               <Link to="/services" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
                 Services
               </Link>
               <Link to="/drivers" className="font-medium text-cyan-500 transition-colors">
-                {language === 'fr' ? 'Chauffeurs' : 'Drivers'}
+                Chauffeurs
               </Link>
               <Link to="/contact" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
                 Contact
               </Link>
               <Link to="/about" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                {language === 'fr' ? 'À Propos' : 'About'}
+                À Propos
               </Link>
               
               <Link 
-                to="/driver"
+                to="/app/driver"
                 className="border-2 border-cyan-500 text-cyan-500 px-6 py-2 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all"
               >
-                {language === 'fr' ? 'Se connecter' : 'Login'}
+                Se connecter
               </Link>
 
               {/* Language Dropdown */}
@@ -152,325 +188,265 @@ export function DriversLandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section - Design conforme */}
-      <section 
-        className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #00BFA5 0%, #00A890 100%)'
-        }}
-      >
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center text-white">
-            <h1 className="text-5xl md:text-6xl font-extrabold mb-6">
-              {t('Rejoignez la famille SMARTCABB', 'Join the SMARTCABB family')}
-            </h1>
-            <p className="text-2xl md:text-3xl font-bold text-yellow-300 mb-4">
-              💰 {t('Gagnez jusqu\'à 1500$ par mois', 'Earn up to $1500 per month')}
-            </p>
-            <p className="text-lg md:text-xl mb-8 opacity-90 max-w-3xl mx-auto">
-              {t('Conduisez quand vous voulez avec des gains transparents et fiables', 'Drive when you want with transparent and reliable earnings')}
-            </p>
-            <Link 
-              to="/driver"
-              className="inline-block bg-white text-cyan-500 px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all"
-            >
-              {t('S\'inscrire maintenant', 'Sign up now')}
-            </Link>
-          </div>
-        </div>
-
-        {/* Decorative Elements */}
-        <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/10 rounded-full translate-x-1/2 translate-y-1/2"></div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t('Pourquoi conduire avec nous ?', 'Why drive with us?')}
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              {t('Découvrez les avantages d\'être chauffeur SmartCabb à Kinshasa', 'Discover the benefits of being a SmartCabb driver in Kinshasa')}
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Benefit 1 */}
-            <div className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border-2 border-transparent hover:border-cyan-500">
-              <div className="text-6xl mb-4">💰</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Excellent revenu', 'Excellent income')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Gagnez jusqu\'à 1500$ par mois avec une rémunération transparente et des bonus réguliers.',
-                  'Earn up to $1500 per month with transparent compensation and regular bonuses.'
-                )}
-              </p>
-            </div>
-
-            {/* Benefit 2 */}
-            <div className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border-2 border-transparent hover:border-cyan-500">
-              <div className="text-6xl mb-4">📱</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Flexibilité totale', 'Total flexibility')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Gérez votre emploi du temps librement. Travaillez à temps plein ou partiel selon vos besoins.',
-                  'Manage your schedule freely. Work full-time or part-time according to your needs.'
-                )}
-              </p>
-            </div>
-
-            {/* Benefit 3 */}
-            <div className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border-2 border-transparent hover:border-cyan-500">
-              <div className="text-6xl mb-4">🛡️</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Support 24/7', '24/7 Support')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Assistance technique et support client disponibles 24h/24 pour vous accompagner.',
-                  'Technical assistance and customer support available 24/7 to help you.'
-                )}
-              </p>
-            </div>
-
-            {/* Benefit 4 */}
-            <div className="bg-white p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300 border-2 border-transparent hover:border-cyan-500">
-              <div className="text-6xl mb-4">⭐</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Bonus et récompenses', 'Bonuses and rewards')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Profitez de bonus hebdomadaires et mensuels basés sur vos performances et évaluations.',
-                  'Enjoy weekly and monthly bonuses based on your performance and ratings.'
-                )}
-              </p>
-            </div>
-          </div>
+      {/* Hero Section - Turquoise avec design de la capture */}
+      <section className="relative pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-br from-cyan-500 via-teal-500 to-cyan-600">
+        <div className="max-w-7xl mx-auto text-center relative z-10">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
+            Rejoignez la famille SMARTCABB
+          </h1>
+          <p className="text-2xl md:text-3xl font-bold text-yellow-300 mb-3">
+            💰 Gagnez jusqu'à 1500$ par mois
+          </p>
+          <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
+            Conduisez quand vous voulez, avec des gains transparents et fiables
+          </p>
+          <Link
+            to="/app/driver"
+            className="inline-block bg-white text-cyan-600 px-8 py-3 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-lg"
+          >
+            S&apos;inscrire maintenant
+          </Link>
         </div>
       </section>
 
-      {/* Requirements Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      {/* Section Flotte - Design de la capture */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t('Nos conditions', 'Our requirements')}
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              {t('Ce dont vous avez besoin pour commencer', 'What you need to get started')}
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Requirement 1 */}
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <div className="text-6xl mb-4">📋</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Permis de conduire valide', 'Valid driver\'s license')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Permis de conduire valide en République Démocratique du Congo depuis au moins 2 ans.',
-                  'Valid driver\'s license in the Democratic Republic of Congo for at least 2 years.'
-                )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Texte à gauche */}
+            <div>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
+                  SC
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">
+                    SMART<span className="text-cyan-500">CABB</span>
+                  </div>
+                  <div className="text-sm text-gray-500">Conduisez avec nous</div>
+                </div>
+              </div>
+              
+              <h2 className="text-3xl font-bold text-blue-900 mb-4">
+                Une flotte moderne et diversifiée
+              </h2>
+              <p className="text-gray-600 leading-relaxed mb-6">
+                Rejoignez notre réseau de chauffeurs professionnels et conduisez des véhicules confortables et bien entretenus sur toute la Rép Dem Congo.
               </p>
+
+              <div className="flex flex-wrap gap-6">
+                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
+                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
+                  </svg>
+                  <span>4 Catégories</span>
+                </div>
+                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
+                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
+                  </svg>
+                  <span>Véhicules Récents</span>
+                </div>
+                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
+                  </svg>
+                  <span>Entretien Inclus</span>
+                </div>
+              </div>
             </div>
 
-            {/* Requirement 2 */}
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <div className="text-6xl mb-4">🚗</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Véhicule OU Tout Bleu', 'Vehicle OR Tout Bleu')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Véhicule propre et en bon état OU carte bleue (nous pouvons vous fournir un véhicule).',
-                  'Clean vehicle in good condition OR blue card (we can provide you with a vehicle).'
-                )}
-              </p>
-            </div>
+            {/* Carousel de véhicules à droite */}
+            <div className="relative">
+              <div className="bg-white rounded-2xl shadow-xl p-6 relative">
+                {/* Badge Premium */}
+                <div className="absolute top-4 right-4 z-10">
+                  <span className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-full font-bold text-sm shadow-lg">
+                    {vehicles[currentVehicleIndex].badge}
+                  </span>
+                </div>
 
-            {/* Requirement 3 */}
-            <div className="bg-gray-50 p-8 rounded-2xl shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
-              <div className="text-6xl mb-4">✅</div>
-              <h3 className="text-xl font-bold mb-3">
-                {t('Pièce d\'identité', 'ID document')}
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                {t(
-                  'Carte d\'électeur, passeport ou autre document officiel d\'identification valide requis.',
-                  'Voter card, passport or other valid official identification document required.'
-                )}
-              </p>
+                {/* Images avec transition */}
+                <div className="relative h-80 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden">
+                  {vehicles.map((vehicle, index) => (
+                    <ImageWithFallback
+                      key={index}
+                      src={vehicle.src}
+                      fallbackSrc={vehicle.fallbackSrc}
+                      alt={vehicle.alt}
+                      className="absolute inset-0 w-full h-full object-contain p-4 transition-all duration-1000 ease-in-out"
+                      style={{
+                        opacity: currentVehicleIndex === index ? 1 : 0,
+                        transform: currentVehicleIndex === index ? 'scale(1)' : 'scale(0.9)',
+                      }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Indicateurs de carousel */}
+                <div className="flex justify-center gap-2 mt-6">
+                  {vehicles.map((_, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setCurrentVehicleIndex(index)}
+                      className={`h-2 rounded-full transition-all duration-300 ${
+                        currentVehicleIndex === index
+                          ? 'bg-cyan-500 w-8'
+                          : 'bg-gray-300 w-2 hover:bg-gray-400'
+                      }`}
+                      aria-label={`Véhicule ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50">
+      {/* Section Pourquoi - Design de la capture */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-              {t('Témoignages de chauffeurs', 'Driver testimonials')}
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-3">
+              Pourquoi conduire avec nous ?
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              {t('Ce que nos chauffeurs disent de leur expérience avec SmartCabb', 'What our drivers say about their experience with SmartCabb')}
+            <p className="text-gray-600 text-lg">
+              Découvrez les avantages d&apos;être chauffeur SmartCabb en Rép Dem Congo
             </p>
           </div>
-          
-          <TestimonialsCarousel 
-            testimonials={language === 'fr' ? [
-              {
-                id: 1,
-                name: 'Jean-Pierre Mukendi',
-                role: 'Chauffeur SmartCabb depuis 2 ans',
-                location: 'Gombe, Kinshasa',
-                rating: 5,
-                text: 'Avant SmartCabb, je conduisais un taxi ordinaire et gagnais à peine 200$ par mois. Aujourd\'hui, je fais facilement 650$ mensuellement ! L\'application est simple, les clients sont respectueux, et je gère mon temps comme je veux.',
-                avatar: 'JP',
-                highlight: 'Mon revenu a triplé depuis que j\'ai rejoint SmartCabb'
-              },
-              {
-                id: 2,
-                name: 'Josué Nzuzi',
-                role: 'Chauffeur à temps partiel',
-                location: 'Lemba, Kinshasa',
-                rating: 5,
-                text: 'J\'ai un emploi le matin, et je conduis pour SmartCabb l\'après-midi. En 4-5 heures de travail, je gagne entre 25$ et 40$ par jour. C\'est parfait pour compléter mon salaire et subvenir aux besoins de ma famille.',
-                avatar: 'JN',
-                highlight: '350$ de revenus supplémentaires chaque mois en travaillant à temps partiel'
-              },
-              {
-                id: 3,
-                name: 'Patrice Mbala',
-                role: 'Chauffeur SmartCabb depuis 6 mois',
-                location: 'Ngaliema, Kinshasa',
-                rating: 5,
-                text: 'Je n\'avais pas de véhicule au départ, juste mon "tout bleu". SmartCabb m\'a fourni une voiture et maintenant je travaille avec dignité. Les paiements sont toujours à temps et le support est disponible 24h/24.',
-                avatar: 'PM',
-                highlight: 'Ils m\'ont fourni un véhicule pour démarrer - opportunité incroyable !'
-              },
-              {
-                id: 4,
-                name: 'Emmanuel Kalala',
-                role: 'Chauffeur SmartCabb depuis 1 an',
-                location: 'Masina, Kinshasa',
-                rating: 5,
-                text: 'Ce qui me plaît le plus, c\'est la transparence. Je vois exactement combien je gagne sur chaque course. Les bonus hebdomadaires motivent vraiment. La semaine dernière, j\'ai reçu 50$ de bonus en plus de mes courses !',
-                avatar: 'EK',
-                highlight: 'Bonus de 200$ le mois dernier grâce à mes excellentes notes'
-              },
-              {
-                id: 5,
-                name: 'Daniel Tshikala',
-                role: 'Chauffeur SmartCabb depuis 3 ans',
-                location: 'Kintambo, Kinshasa',
-                rating: 5,
-                text: 'SmartCabb a changé ma vie. J\'ai pu inscrire mes enfants dans une bonne école et même acheter un terrain. Le respect des chauffeurs et la sécurité sont garantis. Je recommande à tous mes amis !',
-                avatar: 'DT',
-                highlight: 'J\'ai économisé assez pour acheter mon propre terrain en 2 ans'
-              },
-              {
-                id: 6,
-                name: 'François Kasongo',
-                role: 'Chauffeur depuis 8 mois',
-                location: 'Limete, Kinshasa',
-                rating: 5,
-                text: 'L\'assurance et le support technique sont exceptionnels. Quand j\'ai eu un problème avec ma voiture, SmartCabb m\'a aidé avec les réparations. C\'est rare de voir une entreprise qui prend soin de ses chauffeurs.',
-                avatar: 'FK',
-                highlight: 'Support technique et assistance médicale inclus - un vrai plus !'
-              }
-            ] : [
-              {
-                id: 1,
-                name: 'Jean-Pierre Mukendi',
-                role: 'SmartCabb Driver for 2 years',
-                location: 'Gombe, Kinshasa',
-                rating: 5,
-                text: 'Before SmartCabb, I drove a regular taxi and barely earned $200 a month. Today, I easily make $650 monthly! The app is simple, customers are respectful, and I manage my time as I want.',
-                avatar: 'JP',
-                highlight: 'My income tripled since joining SmartCabb'
-              },
-              {
-                id: 2,
-                name: 'Josué Nzuzi',
-                role: 'Part-time driver',
-                location: 'Lemba, Kinshasa',
-                rating: 5,
-                text: 'I have a job in the morning, and I drive for SmartCabb in the afternoon. In 4-5 hours of work, I earn between $25 and $40 per day. It\'s perfect to supplement my salary and support my family.',
-                avatar: 'JN',
-                highlight: '$350 extra income each month working part-time'
-              },
-              {
-                id: 3,
-                name: 'Patrice Mbala',
-                role: 'SmartCabb Driver for 6 months',
-                location: 'Ngaliema, Kinshasa',
-                rating: 5,
-                text: 'I didn\'t have a vehicle at first, just my "tout bleu". SmartCabb provided me with a car and now I work with dignity. Payments are always on time and support is available 24/7.',
-                avatar: 'PM',
-                highlight: 'They provided me with a vehicle to start - incredible opportunity!'
-              },
-              {
-                id: 4,
-                name: 'Emmanuel Kalala',
-                role: 'SmartCabb Driver for 1 year',
-                location: 'Masina, Kinshasa',
-                rating: 5,
-                text: 'What I like most is the transparency. I see exactly how much I earn on each trip. The weekly bonuses really motivate. Last week, I received $50 bonus on top of my trips!',
-                avatar: 'EK',
-                highlight: '$200 bonus last month thanks to my excellent ratings'
-              },
-              {
-                id: 5,
-                name: 'Daniel Tshikala',
-                role: 'SmartCabb Driver for 3 years',
-                location: 'Kintambo, Kinshasa',
-                rating: 5,
-                text: 'SmartCabb changed my life. I was able to enroll my children in a good school and even buy land. Driver respect and safety are guaranteed. I recommend to all my friends!',
-                avatar: 'DT',
-                highlight: 'I saved enough to buy my own land in 2 years'
-              },
-              {
-                id: 6,
-                name: 'François Kasongo',
-                role: 'Driver for 8 months',
-                location: 'Limete, Kinshasa',
-                rating: 5,
-                text: 'Insurance and technical support are exceptional. When I had a problem with my car, SmartCabb helped me with repairs. It\'s rare to see a company that takes care of its drivers.',
-                avatar: 'FK',
-                highlight: 'Technical support and medical assistance included - a real plus!'
-              }
-            ]}
-            autoPlayInterval={6000}
-            theme="blue"
-          />
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Carte 1 - Excellent revenu */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4 text-3xl">
+                💰
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Excellent revenu
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Gagnez jusqu&apos;à 400$ par mois avec une commission comprise de 15 % sur chaque course et des bonus réguliers, une rémunération juste de 15.% pour maximiser vos gains.
+              </p>
+            </div>
+
+            {/* Carte 2 - Flexibilité totale */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 text-3xl">
+                📱
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Flexibilité totale
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Gérez votre emploi du temps librement. Travaillez à temps plein ou partiel selon vos besoins.
+              </p>
+            </div>
+
+            {/* Carte 3 - Support 24/7 */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center mb-4 text-3xl">
+                💡
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Support 24/7
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Assistance technique et support client disponibles 24h/24 pour vous accompagner.
+              </p>
+            </div>
+
+            {/* Carte 4 - Bonus et récompenses */}
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
+              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center mb-4 text-3xl">
+                ⭐
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Bonus et récompenses
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Profitez de bonus hebdomadaires et mensuels basés sur vos évaluations.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Section Conditions - Design de la capture */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-3">
+              Nos conditions
+            </h2>
+            <p className="text-gray-600 text-lg">
+              Ce dont vous avez besoin pour commencer
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {/* Condition 1 - Permis */}
+            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
+                📋
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Permis de conduire valide
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Permis de conduire valide en République Démocratique du Congo depuis au moins 2 ans.
+              </p>
+            </div>
+
+            {/* Condition 2 - Véhicule */}
+            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
+                🚗
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Véhicule OU Taxi Bleu
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Véhicule propre et en bon état OU carte taxi bleu si vous n&apos;avez pas fourni un véhicule.
+              </p>
+            </div>
+
+            {/* Condition 3 - Identité */}
+            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
+                ✅
+              </div>
+              <h3 className="text-xl font-bold text-blue-900 mb-3">
+                Pièce d&apos;identité
+              </h3>
+              <p className="text-gray-600 text-sm leading-relaxed">
+                Carte d&apos;identité, passeport ou autre document officiel d&apos;identification valide requis.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl md:text-5xl font-extrabold mb-6">
-            {t('Prêt à commencer ?', 'Ready to start?')}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-cyan-500 via-teal-500 to-cyan-600">
+        <div className="max-w-4xl mx-auto text-center text-white">
+          <h2 className="text-4xl font-bold mb-4">
+            Prêt à commencer ?
           </h2>
-          <p className="text-xl mb-8 opacity-90">
-            {t('Inscrivez-vous dès maintenant et commencez à gagner avec SmartCabb', 'Sign up now and start earning with SmartCabb')}
+          <p className="text-xl mb-8 text-white/90">
+            Rejoignez SmartCabb aujourd&apos;hui et commencez à gagner dès demain
           </p>
-          <Link 
-            to="/driver"
-            className="inline-block bg-white text-cyan-500 px-10 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all"
+          <Link
+            to="/app/driver"
+            className="inline-block bg-white text-cyan-600 px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-xl hover:scale-105"
           >
-            {t('S\'inscrire comme Chauffeur', 'Sign up as Driver')}
+            S&apos;inscrire maintenant
           </Link>
+          <p className="mt-6 text-white/80 text-sm">
+            Inscription gratuite • Aucun engagement • Commencez à conduire en 48h
+          </p>
         </div>
       </section>
 
@@ -489,31 +465,27 @@ export function DriversLandingPage() {
                 </span>
               </div>
               <p className="text-gray-400 text-sm leading-relaxed">
-                {t(
-                  'Votre solution de transport moderne et sécurisée en République Démocratique du Congo.',
-                  'Your modern and secure transport solution in the Democratic Republic of Congo.'
-                )}
+                Votre solution de transport moderne et sécurisée en République Démocratique du Congo.
               </p>
             </div>
 
             {/* Services */}
             <div>
-              <h3 className="font-bold mb-4 text-cyan-500">{t('Services', 'Services')}</h3>
+              <h3 className="font-bold mb-4 text-cyan-500">Services</h3>
               <div className="space-y-2">
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Smart Flex</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Smart Confort</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Smart Plus</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Smart Familial</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Smart VIP</Link>
+                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Standard</Link>
+                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Confort</Link>
+                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Plus</Link>
+                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Business</Link>
               </div>
             </div>
 
             {/* Company */}
             <div>
-              <h3 className="font-bold mb-4 text-cyan-500">{t('Entreprise', 'Company')}</h3>
+              <h3 className="font-bold mb-4 text-cyan-500">Entreprise</h3>
               <div className="space-y-2">
-                <Link to="/about" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t('À propos', 'About')}</Link>
-                <Link to="/drivers" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t('Devenir chauffeur', 'Become a driver')}</Link>
+                <Link to="/about" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">À propos</Link>
+                <Link to="/drivers" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Devenir chauffeur</Link>
                 <Link to="/contact" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Contact</Link>
               </div>
             </div>
@@ -522,10 +494,9 @@ export function DriversLandingPage() {
             <div>
               <h3 className="font-bold mb-4 text-cyan-500">Support</h3>
               <div className="space-y-2">
-                <Link to="/contact" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t("Centre d'aide", 'Help Center')}</Link>
-                <Link to="/terms" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t('CGU', 'Terms')}</Link>
-                <Link to="/privacy" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t('Confidentialité', 'Privacy')}</Link>
-                <Link to="/legal" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">{t('Mentions légales', 'Legal Notice')}</Link>
+                <Link to="/contact" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Centre d&apos;aide</Link>
+                <Link to="/terms" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">CGU</Link>
+                <Link to="/privacy" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Confidentialité</Link>
               </div>
             </div>
           </div>
@@ -533,7 +504,7 @@ export function DriversLandingPage() {
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              {t('© 2025 SmartCabb. Tous droits réservés.', '© 2025 SmartCabb. All rights reserved.')}
+              © 2025 SmartCabb. Tous droits réservés.
             </p>
           </div>
         </div>

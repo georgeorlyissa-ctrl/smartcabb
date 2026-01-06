@@ -1,18 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Switch } from './ui/switch';
-import { Badge } from './ui/badge';
-import { Label } from './ui/label';
-import { 
-  Timer, 
-  Clock, 
-  AlertTriangle,
-  CheckCircle,
-  Info
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { motion } from '../framer-motion';
+import { Clock, DollarSign, Info } from 'lucide-react';
 
 interface FreeWaitingToggleProps {
   enabled: boolean;

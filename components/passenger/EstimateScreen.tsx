@@ -1,26 +1,23 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { useAppState } from '../../hooks/useAppState';
+import React, { useState, useEffect } from 'react';
+import { calculateDistance, calculateRoute } from '../../lib/map-service';
+import { calculateEstimatedDuration, getCurrentTrafficConditions, calculateDurationRange, formatDuration } from '../../lib/duration-calculator';
+import { isDayTime, VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF } from '../../lib/pricing';
 import { useTranslation } from '../../hooks/useTranslation';
-import { ArrowLeft, MapPin, Clock, DollarSign, Car, Users, CreditCard, Info, Sun, Moon } from 'lucide-react';
+import { useAppState } from '../../hooks/useAppState';
+import { PromoCode } from '../../types';
+import { motion } from '../../framer-motion';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
+import { Button } from '../ui/button';
+import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
+import { RouteMapPreview } from '../RouteMapPreview';
 import { PassengerCountSelector } from '../PassengerCountSelector';
 import { PromoCodeInput } from '../PromoCodeInput';
 import { BookForSomeoneElse } from './BookForSomeoneElse';
-import { PromoCode } from '../../types';
-import { VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
-import { 
-  calculateEstimatedDuration, 
-  calculateDetailedDuration, 
-  calculateDurationRange,
-  formatDuration,
-  getCurrentTrafficConditions
-} from '../../lib/duration-calculator';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function EstimateScreen() {
   const { t } = useTranslation();
-  const { setCurrentScreen, createRide, state, calculateDistance } = useAppState();
+  const { setCurrentScreen, createRide, state } = useAppState();
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleCategory>('smart_standard');
   const [passengerCount, setPassengerCount] = useState(1);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
@@ -33,16 +30,18 @@ export function EstimateScreen() {
   
   // Utiliser les vraies données de l'état global (pickup et destination saisies par l'utilisateur)
   const pickup = state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Boulevard du 30 Juin, Gombe, Kinshasa' };
-  const destination = state.destination || { lat: -4.4051, lng: 15.2662, address: 'Avenue Libération, Ngaliema, Kinshasa' }; // CHANGÉ: Distance réaliste 10km
-  const distanceKm = calculateDistance ? calculateDistance(pickup, destination) : 10.5; // CHANGÉ: 10.5 km par défaut (distance réaliste Kinshasa)
+  const destination = state.destination || { lat: -4.4050, lng: 15.2980, address: 'Université de Kinshasa (UNIKIN)' }; // ✅ CORRIGÉ: Coordonnées exactes de UNIKIN
+  const distanceKm = calculateDistance ? calculateDistance(pickup, destination) : 10.0; // Distance réaliste Kinshasa
   
   // Récupérer les instructions de prise en charge (point de repère)
   const pickupInstructions = state.pickupInstructions || '';
   
-  console.log('📍 EstimateScreen - Pickup:', pickup.address);
+  console.log('📍 EstimateScreen - Pickup:', pickup.address, `(${pickup.lat}, ${pickup.lng})`);
   console.log('📍 EstimateScreen - Point de repère:', pickupInstructions || 'Aucun');
-  console.log('🎯 EstimateScreen - Destination:', destination.address);
+  console.log('🎯 EstimateScreen - Destination:', destination.address, `(${destination.lat}, ${destination.lng})`);
   console.log('📏 Distance calculée:', (distanceKm || 0).toFixed(2), 'km');
+  console.log('🔢 Détails calcul - Pickup Lat:', pickup.lat, 'Lng:', pickup.lng);
+  console.log('🔢 Détails calcul - Destination Lat:', destination.lat, 'Lng:', destination.lng);
 
   const vehicles = [
     {
@@ -163,6 +162,12 @@ export function EstimateScreen() {
   
   // Update price and duration when vehicle or distance changes
   useEffect(() => {
+    // ✅ PROTECTION : Vérifier que pickup et destination existent
+    if (!pickup || !destination) {
+      console.warn('⚠️ Pickup ou destination manquant, calcul de prix impossible');
+      return;
+    }
+    
     // Calculer la durée estimée avec le nouveau système avancé
     const newDuration = calculateEstimatedDuration(pickup, destination);
     setEstimatedDuration(newDuration);
@@ -172,21 +177,16 @@ export function EstimateScreen() {
     setBasePrice(newPrice);
     
     // Obtenir les détails du calcul pour le log
-    const breakdown = calculateDetailedDuration(pickup, destination);
     const traffic = getCurrentTrafficConditions();
     const range = calculateDurationRange(pickup, destination);
     
     console.log('💰 Calcul avancé du prix estimé:', {
-      distance: `${(breakdown?.distance || 0).toFixed(1)} km`,
+      distance: `${(distanceKm || 0).toFixed(1)} km`,
       duréeEstimée: `${newDuration} min`,
       fourchette: `${range.min}-${range.max} min`,
       trafic: traffic.timeOfDay,
-      vitesseBase: `${breakdown.baseSpeed} km/h`,
-      vitesseAjustée: `${breakdown.adjustedSpeed} km/h`,
-      congestion: `×${breakdown.zoneCongestion}`,
       catégorie: selectedVehicle,
-      prixEstimé: `${newPrice.toLocaleString()} CDF`,
-      confiance: breakdown.confidence
+      prixEstimé: `${newPrice.toLocaleString()} CDF`
     });
   }, [selectedVehicle, pickup, destination]);
   
@@ -231,6 +231,7 @@ export function EstimateScreen() {
     try {
       // Create the ride with all details
       console.log('📝 Creating ride with data:', rideData);
+      console.log('🌐 Envoi vers:', `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/create`);
       
       // ENVOYER LA DEMANDE AU BACKEND pour matching temps réel
       const response = await fetch(
@@ -257,13 +258,35 @@ export function EstimateScreen() {
         }
       );
 
+      console.log('📡 Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur serveur:', response.status, errorText);
+        toast.error(`Erreur ${response.status}`, {
+          description: 'Impossible de créer la course. Vérifiez votre connexion.',
+          duration: 5000
+        });
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
+      console.log('✅ Réponse backend:', result);
       
-      if (!result.success) {
+      if (!result.success || !result.rideId) {
+        console.error('❌ Backend a retourné success=false ou pas de rideId:', result);
+        toast.error('Erreur création course', {
+          description: result.error || 'Le backend n\'a pas retourné d\'ID de course',
+          duration: 5000
+        });
         throw new Error(result.error || 'Erreur lors de la création de la course');
       }
 
-      console.log('✅ Demande de course envoyée au backend:', result.rideId);
+      console.log('✅ Demande de course envoyée au backend avec ID:', result.rideId);
+      
+      // ❌ SUPPRIMÉ: Plus besoin d'attendre côté frontend car le backend garantit la persistance
+      // Le backend attend déjà 200ms + fait une vérification avant de retourner le rideId
+      // await new Promise(resolve => setTimeout(resolve, 500));
       
       // Créer aussi localement pour compatibilité avec l'UI existante, avec l'ID du backend
       createRide({
@@ -282,7 +305,7 @@ export function EstimateScreen() {
         promoDiscount: rideData.promoDiscount
       } as any);
 
-      console.log('✅ Course créée, navigation vers RideScreen pour recherche de chauffeur');
+      console.log('✅ Course créée localement, navigation vers RideScreen pour recherche de chauffeur');
       
       // Navigate to ride screen to search for driver
       setTimeout(() => {
@@ -290,9 +313,9 @@ export function EstimateScreen() {
       }, 100);
     } catch (error) {
       console.error('❌ Erreur lors de la création de la course:', error);
-      // Show error toast if available
-      if (typeof window !== 'undefined' && (window as any).toast) {
-        (window as any).toast.error('Erreur lors de la réservation. Veuillez réessayer.');
+      // Show error toast
+      if (!toast) {
+        alert('Erreur lors de la réservation. Veuillez réessayer.');
       }
     }
   };
@@ -329,6 +352,17 @@ export function EstimateScreen() {
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto pb-6">{/* AJOUTÉ: pb-6 pour padding en bas */}
+        {/* 🗺️ CARTE INTERACTIVE DE L'ITINÉRAIRE AVEC TRAFIC */}
+        <div className="p-6 bg-white/60 backdrop-blur-sm">
+          <RouteMapPreview
+            pickup={pickup}
+            destination={destination}
+            distanceKm={distanceKm}
+            estimatedDuration={estimatedDuration}
+            className="mb-6"
+          />
+        </div>
+
         {/* Route Info */}
         <div className="p-6 bg-white/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-border space-y-4">
@@ -374,6 +408,10 @@ export function EstimateScreen() {
                 <span className="font-medium text-primary">{formatDuration(estimatedDuration)}</span>
                 <div className="text-xs text-muted-foreground mt-0.5">
                   {(() => {
+                    // ✅ PROTECTION : Vérifier que pickup et destination existent
+                    if (!pickup || !destination) {
+                      return '(calcul en cours...)';
+                    }
                     const range = calculateDurationRange(pickup, destination);
                     return `(${range.min}-${range.max} min)`;
                   })()}

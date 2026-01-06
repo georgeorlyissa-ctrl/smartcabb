@@ -1,13 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useAppState } from '../../hooks/useAppState';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { AddressSearchInput } from '../AddressSearchInput';
-import { FavoriteLocations } from './FavoriteLocations';
-import { InteractiveMapView } from '../InteractiveMapView';
-import { MapPin, Menu, User, Navigation, Loader2, Settings, History, Star, CreditCard, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/precise-gps';
 
 export function MapScreen() {
   const { state, setCurrentScreen, setCurrentUser, setCurrentView, setPickup, setDestination: setGlobalDestination, setPickupInstructions, drivers } = useAppState();
@@ -20,16 +14,19 @@ export function MapScreen() {
     console.log('🎯 MapScreen - destination a changé:', destination);
   }, [destination]);
 
+  // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+  const [gpsTracker] = useState(() => new PreciseGPSTracker());
+  
   // États pour la géolocalisation
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; address: string; accuracy?: number }>({
     lat: -4.3276,
     lng: 15.3136,
-    address: 'Chargement de votre position...',
+    address: '📍 Détection de votre position GPS...',
     accuracy: 1000
   });
-  const [loadingLocation, setLoadingLocation] = useState(true); // ✅ CHANGÉ: Démarrer en mode chargement
+  const [loadingLocation, setLoadingLocation] = useState(true);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [watchId, setWatchId] = useState<number | null>(null);
+  const [positionLocked, setPositionLocked] = useState(false); // ✅ NOUVEAU : Position verrouillée ?
   
   // États pour l'UI
   const [isPanelExpanded, setIsPanelExpanded] = useState(false);
@@ -40,457 +37,124 @@ export function MapScreen() {
 
   // Charger la dernière position connue du cache immédiatement
   useEffect(() => {
+    // ✅ v517.96: NE PLUS charger le cache au démarrage - toujours demander la vraie position GPS
+    // Le cache sera utilisé UNIQUEMENT si le GPS échoue dans le callback onError
+    console.log('🚀 v517.96: Démarrage sans cache - Position GPS réelle demandée');
+    
+    // Supprimer l'ancien cache pour forcer une nouvelle détection
     const cachedLocation = localStorage.getItem('smartcabb_last_location');
     if (cachedLocation) {
       try {
         const parsed = JSON.parse(cachedLocation);
-        setCurrentLocation(parsed);
-        console.log('📍 Position en cache chargée:', parsed);
+        const cacheAge = Date.now() - (parsed.timestamp || 0);
+        const isOldCache = cacheAge > 5 * 60 * 1000; // Plus de 5 minutes
+        
+        if (isOldCache) {
+          console.log('🗑️ Cache trop ancien (>5min) - Suppression pour forcer GPS frais');
+          localStorage.removeItem('smartcabb_last_location');
+        }
       } catch (e) {
-        console.error('Erreur lecture cache position:', e);
+        console.error('Erreur lecture cache:', e);
+        localStorage.removeItem('smartcabb_last_location');
       }
     }
   }, []);
-
-  // Détecter le navigateur pour optimiser les options GPS
-  const detectBrowser = () => {
-    const ua = navigator.userAgent;
-    if (ua.includes('Firefox')) return { name: 'Firefox', version: ua.match(/Firefox\/(\d+)/)?.[1] || 'unknown' };
-    if (ua.includes('Chrome')) return { name: 'Chrome', version: ua.match(/Chrome\/(\d+)/)?.[1] || 'unknown' };
-    if (ua.includes('Safari') && !ua.includes('Chrome')) return { name: 'Safari', version: ua.match(/Version\/(\d+)/)?.[1] || 'unknown' };
-    if (ua.includes('Edge')) return { name: 'Edge', version: ua.match(/Edg\/(\d+)/)?.[1] || 'unknown' };
-    return { name: 'Unknown', version: 'unknown' };
-  };
-
-  // Obtenir les options de géolocalisation optimisées
-  const getGeolocationOptions = (): PositionOptions => {
-    return {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 5000
-    };
-  };
-
-  // Vérifier si on peut utiliser watchPosition
-  const canUseWatchPosition = (): boolean => {
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    return !isMobile; // Désactiver watchPosition sur mobile pour économiser la batterie
-  };
 
   // Obtenir et suivre la position réelle de l'utilisateur au chargement
   useEffect(() => {
-    // Détecter si on est sur mobile
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log('🚀 Démarrage du système GPS ultra-précis...');
     
-    // Sur mobile, ne faire qu'une seule requête GPS au lieu de watchPosition
-    // Cela économise la batterie et améliore la stabilité
-    if (isMobile) {
-      console.log('📱 Mobile détecté - Mode GPS économique activé');
-      getUserLocation();
-    } else {
-      // Sur desktop, on peut utiliser watchPosition
-      getUserLocation();
-    }
-    
-    // Cleanup: arrêter le suivi lors du démontage
-    return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-        console.log('🛑 Arrêt du suivi GPS');
-      }
-    };
-  }, []);
-
-  const getUserLocation = async () => {
-    setLoadingLocation(true);
-    setLocationError(null);
-
-    // ✅ SUPPRIMÉ: Mode test et détection d'iframe - TOUJOURS essayer le GPS réel
-    // La géolocalisation fonctionne même en iframe si l'utilisateur donne la permission
-    
-    // Vérifier si la géolocalisation est disponible
-    if (!navigator.geolocation) {
-      console.warn('⚠️ Géolocalisation non disponible dans ce navigateur');
-      setLoadingLocation(false);
-      const defaultLocation = {
-        lat: -4.3276,
-        lng: 15.3136,
-        address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
-        accuracy: 50
-      };
-      setCurrentLocation(defaultLocation);
-      localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
-      toast.info('📍 Position par défaut utilisée', { duration: 3000 });
-      return;
-    }
-
-    // 🔐 Vérifier les permissions de géolocalisation avec l'API Permissions
-    try {
-      const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
-      console.log('🔐 Statut permission géolocalisation:', permissionStatus.state);
-      
-      if (permissionStatus.state === 'denied') {
-        console.info('📍 Permission géolocalisation refusée - Utilisation position Kinshasa');
+    // 🎯 NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+    gpsTracker.start({
+      // Callback: Position mise à jour
+      onPositionUpdate: async (position) => {
+        console.log('📍 Position mise à jour:', {
+          coords: `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`,
+          accuracy: `±${Math.round(position.accuracy)}m`
+        });
+        
+        // Convertir les coordonnées en adresse
+        const address = await reverseGeocode(position.lat, position.lng);
+        
+        const newLocation = {
+          lat: position.lat,
+          lng: position.lng,
+          address: address,
+          accuracy: position.accuracy
+        };
+        
+        setCurrentLocation(newLocation);
+        
+        // Mettre à jour le pickup global si pas encore défini
+        if (setPickup) {
+          setPickup({
+            lat: position.lat,
+            lng: position.lng,
+            address: address
+          });
+        }
+        
+        // ✅ v517.96: Sauvegarder avec timestamp pour détecter cache ancien
+        const locationWithTimestamp = {
+          ...newLocation,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('smartcabb_last_location', JSON.stringify(locationWithTimestamp));
+        
+        // ✅ Première position obtenue : fermer le toast de chargement
         setLoadingLocation(false);
+        toast.dismiss('gps-search');
+      },
+      
+      // Callback: Précision cible atteinte
+      onAccuracyReached: (position) => {
+        console.log('🎯 Précision optimale atteinte !', {
+          coords: `${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}`,
+          accuracy: `±${Math.round(position.accuracy)}m`
+        });
+        
+        setPositionLocked(true);
+        
+        // 🆕 v517.92: RETIRER le toast - Uber n'en a pas non plus !
+        // toast.success('📍 Position GPS précise verrouillée !', {
+        //   duration: 3000
+        // });
+      },
+      
+      // Callback: Erreur GPS
+      onError: (error) => {
+        console.error('❌ Erreur GPS:', error);
+        setLoadingLocation(false);
+        
+        // Position par défaut Kinshasa
         const defaultLocation = {
           lat: -4.3276,
           lng: 15.3136,
           address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
-          accuracy: 100
-        };
-        setCurrentLocation(defaultLocation);
-        localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
-        toast.info('📍 GPS désactivé - Position Kinshasa utilisée', { duration: 3000 });
-        return;
-      }
-    } catch (permError) {
-      // L'API Permissions n'est pas disponible ou la géolocalisation est bloquée par Permissions Policy
-      console.info('📍 API Permissions non disponible - Utilisation position Kinshasa par défaut');
-      // Continue quand même avec getCurrentPosition qui va gérer l'erreur
-    }
-
-    // 🎯 ESSAYER LA GÉOLOCALISATION RÉELLE (hors iframe uniquement)
-    console.log('🌍 Tentative de géolocalisation GPS réelle...');
-    toast.loading('🛰️ Recherche de votre position GPS...', { id: 'gps-search', duration: 10000 });
-
-    // Arrêter l'ancien suivi s'il existe
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-    }
-
-    // Timeout pour le premier résultat (20 secondes pour donner le temps au GPS)
-    const timeoutId = setTimeout(() => {
-      toast.dismiss('gps-search');
-      setLoadingLocation(false);
-      if (!currentLocation) {
-        console.warn('⏱️ Timeout global - Aucune position obtenue après 20 secondes');
-        const defaultLocation = {
-          lat: -4.3276,
-          lng: 15.3136,
-          address: 'Boulevard du 30 Juin, Gombe, Kinshasa (timeout GPS)',
           accuracy: 1000
         };
         setCurrentLocation(defaultLocation);
         localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
-        toast.warning('⏱️ GPS trop lent - Position par défaut utilisée', { duration: 4000 });
-      }
-    }, 20000); // Timeout de 20 secondes pour le premier résultat
-
-    // Handler de position pour getCurrentPosition et watchPosition
-    const handlePosition = async (position: GeolocationPosition) => {
-      clearTimeout(timeoutId);
-      const { latitude, longitude, accuracy, altitude, heading, speed } = position.coords;
-      console.log(`✅ Position GPS RÉELLE obtenue: ${latitude}, ${longitude} (précision: ±${Math.round(accuracy)}m)`);
-      console.log(`📊 Détails GPS: altitude=${altitude}m, cap=${heading}°, vitesse=${speed}m/s`);
+        
+        toast.dismiss('gps-search');
+      },
       
-      // Fermer le toast de chargement
-      toast.dismiss('gps-search');
+      // 🆕 v517.91: DÉSACTIVER verrouillage auto pour garder position GPS en temps réel
+      lockOnAccuracy: false,
       
-      // Convertir les coordonnées en adresse (geocoding inverse)
-      try {
-        const address = await reverseGeocode(latitude, longitude);
-        const newLocation = {
-          lat: latitude,
-          lng: longitude,
-          address: address,
-          accuracy: accuracy
-        };
-        
-        setCurrentLocation(newLocation);
-        
-        // ✅ NOUVEAU : Enregistrer automatiquement comme position de départ
-        if (setPickup) {
-          setPickup({
-            lat: latitude,
-            lng: longitude,
-            address: address
-          });
-          console.log('🎯 Position GPS enregistrée comme point de départ:', address);
-        }
-        
-        // Sauvegarder dans le cache
-        localStorage.setItem('smartcabb_last_location', JSON.stringify(newLocation));
-        
-        if (accuracy < 20) {
-          toast.success(`🎯 Position très précise ! (±${Math.round(accuracy)}m)`, { duration: 4000 });
-        } else if (accuracy < 50) {
-          toast.success(`📍 Position précise détectée (±${Math.round(accuracy)}m)`, { duration: 3000 });
-        } else if (accuracy < 100) {
-          toast.success(`📍 Position détectée (±${Math.round(accuracy)}m)`, { duration: 3000 });
-        } else {
-          toast.success(`📍 Position approximative (±${Math.round(accuracy)}m)`, { duration: 3000 });
-        }
-      } catch (error) {
-        console.error('Erreur geocoding:', error);
-        const newLocation = {
-          lat: latitude,
-          lng: longitude,
-          address: `Position GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`,
-          accuracy: accuracy
-        };
-        setCurrentLocation(newLocation);
-        
-        // ✅ NOUVEAU : Enregistrer aussi si le geocoding échoue
-        if (setPickup) {
-          setPickup({
-            lat: latitude,
-            lng: longitude,
-            address: newLocation.address
-          });
-          console.log('🎯 Coordonnées GPS enregistrées comme point de départ');
-        }
-        
-        localStorage.setItem('smartcabb_last_location', JSON.stringify(newLocation));
-        toast.success(`📍 GPS actif (±${Math.round(accuracy)}m)`, { duration: 3000 });
-      }
-      setLoadingLocation(false);
-      setLocationError(null);
+      // 🆕 v517.92: MODE INSTANTANÉ (comme Uber/Yango)
+      instantMode: true
+    });
+    
+    // 🆕 v517.92: RETIRER le toast agaçant - Uber n'en a pas !
+    // toast.loading('🛰️ Recherche de votre position GPS...', { id: 'gps-search', duration: 10000 });
+    
+    // Cleanup: arrêter le tracking lors du démontage
+    return () => {
+      gpsTracker.stop();
+      console.log('🛑 Arrêt du suivi GPS');
     };
-
-    // Handler d'erreur pour getCurrentPosition et watchPosition
-    const handleError = (error: GeolocationPositionError | any) => {
-      clearTimeout(timeoutId);
-      toast.dismiss('gps-search');
-      
-      let errorMessage = 'Position Kinshasa utilisée';
-      
-      // Vérifier si c'est une erreur de Permissions Policy
-      if (error?.message && (
-        error.message.includes('permissions policy') ||
-        error.message.includes('Permissions policy') ||
-        error.message.includes('disabled in this document')
-      )) {
-        // Comportement NORMAL dans certains environnements - Ne pas afficher comme erreur
-        console.info('📍 Géolocalisation non disponible (environnement sécurisé) - Position Kinshasa utilisée');
-        toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-      } else if (error && typeof error.code === 'number') {
-        switch (error.code) {
-          case 1: // PERMISSION_DENIED
-            console.info('📍 Permission GPS refusée - Position Kinshasa utilisée');
-            toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-            break;
-          case 2: // POSITION_UNAVAILABLE
-            console.info('📍 Position GPS indisponible - Position Kinshasa utilisée');
-            toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-            break;
-          case 3: // TIMEOUT
-            console.info('📍 GPS trop lent - Position Kinshasa utilisée');
-            toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-            break;
-          default:
-            console.info('📍 GPS non disponible - Position Kinshasa utilisée');
-            toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-        }
-      } else {
-        console.info('📍 GPS non disponible - Position Kinshasa utilisée');
-        toast.info('📍 Position Kinshasa utilisée', { duration: 3000 });
-      }
-      
-      setLoadingLocation(false);
-      
-      // Position automatique par défaut : Kinshasa centre
-      const defaultLocation = {
-        lat: -4.3276,
-        lng: 15.3136,
-        address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
-        accuracy: 1000
-      };
-      setCurrentLocation(defaultLocation);
-      localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
-    };
-
-    // Options de géolocalisation optimisées selon le navigateur
-    const geoOptions = getGeolocationOptions();
-    const browser = detectBrowser();
-    const shouldUseWatch = canUseWatchPosition();
-
-    console.log('🛰️ Lancement de la détection GPS optimisée pour', browser.name, browser.version);
-    console.log('📍 Options GPS:', geoOptions);
-    console.log('👁️ WatchPosition:', shouldUseWatch ? 'Activé' : 'Désactivé (économie batterie)');
-
-    // Wrapper try-catch pour capturer les erreurs synchrones (Permissions Policy)
-    try {
-      // D'abord obtenir une position initiale avec haute précision
-      navigator.geolocation.getCurrentPosition(
-        handlePosition,
-        handleError,
-        geoOptions
-      );
-
-      // Démarrer le suivi continu UNIQUEMENT si le navigateur le supporte efficacement
-      if (shouldUseWatch) {
-        const newWatchId = navigator.geolocation.watchPosition(
-          (position) => {
-            console.log('🔄 Mise à jour GPS en temps réel');
-            handlePosition(position);
-          },
-          (error) => {
-            console.warn('⚠️ Erreur watchPosition:', error);
-            // Ne pas afficher d'erreur pour watchPosition, seulement logger
-          },
-          geoOptions
-        );
-        
-        setWatchId(newWatchId);
-        console.log('🎯 Suivi GPS en temps réel activé (watchId:', newWatchId, ')');
-      } else {
-        console.log('💡 Mode GPS économique - watchPosition désactivé');
-      }
-      
-      console.log('🌍 Le système va maintenant chercher votre position GPS réelle...');
-    } catch (syncError: any) {
-      // Erreur synchrone (Permissions Policy, etc.)
-      console.warn('⚠️ Erreur synchrone lors de l\'accès GPS:', syncError);
-      clearTimeout(timeoutId);
-      toast.dismiss('gps-search');
-      
-      if (syncError?.message && syncError.message.includes('permissions policy')) {
-        toast.info('📍 GPS bloqué - Position Kinshasa utilisée', { duration: 4000 });
-      } else {
-        toast.info('📍 GPS non disponible - Position Kinshasa utilisée', { duration: 4000 });
-      }
-      
-      setLoadingLocation(false);
-      const defaultLocation = {
-        lat: -4.3276,
-        lng: 15.3136,
-        address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
-        accuracy: 1000
-      };
-      setCurrentLocation(defaultLocation);
-      localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
-    }
-  };
-
-  // Fonction de geocoding inverse (convertir coordonnées en adresse)
-  const reverseGeocode = async (lat: number, lng: number): Promise<string> => {
-    try {
-      // Utiliser l'API Google Places si disponible
-      const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-      
-      if (apiKey) {
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000);
-          
-          const response = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}&language=fr`,
-            { signal: controller.signal }
-          );
-          clearTimeout(timeoutId);
-          
-          const data = await response.json();
-          
-          if (data.results && data.results[0]) {
-            return data.results[0].formatted_address;
-          }
-        } catch (googleError) {
-          console.warn('Google Geocoding échoué, utilisation du fallback:', googleError);
-        }
-      }
-      
-      // Fallback : Nominatim (OpenStreetMap)
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=fr&zoom=18&addressdetails=1`,
-          { 
-            signal: controller.signal,
-            headers: {
-              'User-Agent': 'SmartCabb'
-            }
-          }
-        );
-        clearTimeout(timeoutId);
-        
-        const data = await response.json();
-        
-        // ✅ AMÉLIORATION : Construire une adresse précise à partir des composants
-        if (data.address) {
-          const parts = [];
-          
-          // Ajouter le numéro de rue si disponible
-          if (data.address.house_number) {
-            parts.push(data.address.house_number);
-          }
-          
-          // Ajouter le nom de la rue
-          if (data.address.road) {
-            parts.push(data.address.road);
-          } else if (data.address.street) {
-            parts.push(data.address.street);
-          }
-          
-          // Ajouter le quartier
-          if (data.address.neighbourhood) {
-            parts.push(data.address.neighbourhood);
-          } else if (data.address.suburb) {
-            parts.push(data.address.suburb);
-          }
-          
-          // Ajouter la commune
-          if (data.address.city_district || data.address.district) {
-            parts.push(data.address.city_district || data.address.district);
-          }
-          
-          // Ajouter la ville
-          if (data.address.city) {
-            parts.push(data.address.city);
-          }
-          
-          // Si on a des parties, les assembler
-          if (parts.length > 0) {
-            return parts.join(', ');
-          }
-        }
-        
-        // Si display_name est disponible, l'utiliser
-        if (data.display_name) {
-          return data.display_name;
-        }
-      } catch (nominatimError) {
-        console.warn('Nominatim échoué:', nominatimError);
-      }
-      
-      // Si tout échoue, trouver le quartier/commune le plus proche de Kinshasa ET inclure les coordonnées précises
-      const kinshasaLocations = [
-        { name: 'Gombe', lat: -4.3276, lng: 15.3136 },
-        { name: 'Kalamu', lat: -4.3372, lng: 15.3168 },
-        { name: 'Ngaliema', lat: -4.3350, lng: 15.2720 },
-        { name: 'Lemba', lat: -4.3890, lng: 15.2950 },
-        { name: 'Kintambo', lat: -4.3250, lng: 15.2900 },
-        { name: 'Masina', lat: -4.3850, lng: 15.3750 },
-        { name: 'Ngaba', lat: -4.3620, lng: 15.2920 },
-        { name: 'Matete', lat: -4.3720, lng: 15.2820 },
-        { name: 'Bandalungwa', lat: -4.3420, lng: 15.2950 },
-        { name: 'Limete', lat: -4.3650, lng: 15.3250 },
-        { name: 'Barumbu', lat: -4.3165, lng: 15.3250 },
-      ];
-      
-      // Trouver le quartier le plus proche
-      let closestLocation = kinshasaLocations[0];
-      let minDistance = Infinity;
-      
-      for (const location of kinshasaLocations) {
-        const distance = Math.sqrt(
-          Math.pow(lat - location.lat, 2) + Math.pow(lng - location.lng, 2)
-        );
-        if (distance < minDistance) {
-          minDistance = distance;
-          closestLocation = location;
-        }
-      }
-      
-      // ✅ AMÉLIORATION : Retourner une adresse précise avec les coordonnées
-      return `${lat.toFixed(5)}°S ${Math.abs(lng).toFixed(5)}°E, ${closestLocation.name}, Kinshasa`;
-    } catch (error) {
-      console.error('Erreur complète reverseGeocode:', error);
-      // ✅ En dernier recours, retourner les coordonnées GPS brutes avec Kinshasa
-      return `${lat.toFixed(5)}°S ${Math.abs(lng).toFixed(5)}°E, Kinshasa, RDC`;
-    }
-  };
+  }, []);
 
   const handleConfirmDestination = () => {
     if (!destination.trim()) return;
@@ -586,13 +250,14 @@ export function MapScreen() {
         
         {/* ✅ CARTE INTERACTIVE RÉACTIVÉE - Chargement rapide optimisé */}
         <InteractiveMapView
-          center={{ lat: -4.3276, lng: 15.3136, address: 'Kinshasa, RDC' }}
-          drivers={onlineDrivers} // 🚗 CONDUCTEURS EN LIGNE AFFICHÉS
+          center={currentLocation}
+          drivers={onlineDrivers}
           zoom={13}
           className="w-full h-full"
           showUserLocation={true}
           enableGeolocation={true}
           onLocationUpdate={(location) => {
+            setCurrentLocation(location);
             console.log('📍 Position mise à jour:', location);
           }}
         />
@@ -608,14 +273,99 @@ export function MapScreen() {
           </div>
         </div>
 
+        {/* 📍 AFFICHAGE DE LA POSITION ACTUELLE */}
+        <div className="absolute top-3 left-3 right-3 z-20 pointer-events-none">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-3 border border-gray-200">
+            <div className="flex items-start gap-3">
+              <div className="bg-green-500 p-2 rounded-full flex-shrink-0">
+                <MapPin className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-gray-500 mb-0.5">Votre position actuelle</p>
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {loadingLocation ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Localisation en cours...
+                    </span>
+                  ) : (
+                    currentLocation.address
+                  )}
+                </p>
+                {currentLocation.accuracy && currentLocation.accuracy < 100 && !loadingLocation && (
+                  <p className="text-xs text-green-600 mt-0.5">
+                    ✓ Précision: ±{Math.round(currentLocation.accuracy)}m
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Bouton GPS - Repositionné en bas à droite de la carte */}
         <Button
           variant="outline"
           size="icon"
           className="absolute bottom-3 right-3 w-11 h-11 bg-white shadow-lg rounded-full border-2 z-20"
           onClick={() => {
-            toast.info('Actualisation...');
-            getUserLocation();
+            // ✅ Déverrouiller et relancer le GPS
+            toast.info('🔄 Réinitialisation GPS...', { duration: 2000 });
+            setLoadingLocation(true);
+            setPositionLocked(false);
+            gpsTracker.unlock(); // Déverrouiller la position
+            
+            // Supprimer le cache
+            localStorage.removeItem('smartcabb_last_location');
+            
+            // Redémarrer le tracking
+            gpsTracker.stop();
+            setTimeout(() => {
+              // Relancer après un court délai
+              gpsTracker.start({
+                onPositionUpdate: async (position) => {
+                  const address = await reverseGeocode(position.lat, position.lng);
+                  const newLocation = {
+                    lat: position.lat,
+                    lng: position.lng,
+                    address: address,
+                    accuracy: position.accuracy
+                  };
+                  setCurrentLocation(newLocation);
+                  if (setPickup) {
+                    setPickup({
+                      lat: position.lat,
+                      lng: position.lng,
+                      address: address
+                    });
+                  }
+                  localStorage.setItem('smartcabb_last_location', JSON.stringify(newLocation));
+                },
+                onAccuracyReached: (position) => {
+                  setPositionLocked(true);
+                  setLoadingLocation(false);
+                  toast.dismiss('gps-search');
+                  toast.success('📍 Position précise verrouillée !', {
+                    description: `±${Math.round(position.accuracy)}m`,
+                    duration: 3000
+                  });
+                },
+                onError: (error) => {
+                  setLoadingLocation(false);
+                  const defaultLocation = {
+                    lat: -4.3276,
+                    lng: 15.3136,
+                    address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
+                    accuracy: 1000
+                  };
+                  setCurrentLocation(defaultLocation);
+                  localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
+                  toast.dismiss('gps-search');
+                },
+                // 🆕 v517.91: DÉSACTIVER verrouillage auto
+                lockOnAccuracy: false
+              });
+              toast.loading('🛰️ Recherche de votre position GPS...', { id: 'gps-search', duration: 10000 });
+            }, 100);
           }}
           disabled={loadingLocation}
         >
@@ -656,6 +406,7 @@ export function MapScreen() {
               <div className="flex-1 min-w-0">
                 <AddressSearchInput
                   placeholder="Où allez-vous ?"
+                  currentLocation={currentLocation} // 🆕 Passer la position actuelle pour filtrage contextuel
                   onAddressSelect={(address) => {
                     console.log('🎯 onAddressSelect MapScreen appelé - Adresse:', address.name);
                     
@@ -699,47 +450,62 @@ export function MapScreen() {
               </div>
             </div>
 
-            {/* Lieux favoris - AFFICHÉS EN HAUT TOUJOURS */}
-            {!isPanelExpanded && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setShowFavorites(!showFavorites)}
-                    className="flex items-center gap-2 text-sm text-gray-700 hover:text-blue-600 transition-colors"
-                  >
-                    <Star className="w-4 h-4" />
-                    <span>Lieux favoris</span>
-                  </button>
+            {/* 🆕 RACCOURCIS VERS FAVORIS - TOUJOURS VISIBLES */}
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowFavorites(!showFavorites)}
+                className={`w-full flex items-center justify-between gap-2 px-4 py-3 rounded-xl transition-all ${
+                  showFavorites 
+                    ? 'bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-400' 
+                    : 'bg-white border-2 border-gray-200 hover:border-yellow-400 hover:bg-yellow-50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    showFavorites ? 'bg-yellow-400' : 'bg-yellow-100'
+                  }`}>
+                    <Star className={`w-5 h-5 ${showFavorites ? 'text-white' : 'text-yellow-600'}`} />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-semibold text-gray-800">Lieux favoris</p>
+                    <p className="text-xs text-gray-500">Accès rapide à vos adresses</p>
+                  </div>
                 </div>
-                
-                {showFavorites && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <FavoriteLocations
-                      currentLocation={currentLocation}
-                      onSelectLocation={(location) => {
-                        setDestination(location.address);
-                        // Enregistrer aussi les coordonnées de la destination
-                        if (setGlobalDestination) {
-                          setGlobalDestination({
-                            lat: location.lat,
-                            lng: location.lng,
-                            address: location.address
-                          });
-                        }
-                        setShowFavorites(false);
-                        toast.success('Destination sélectionnée');
-                      }}
-                      className="py-2"
-                    />
-                  </motion.div>
-                )}
-              </div>
-            )}
+                <motion.div
+                  animate={{ rotate: showFavorites ? 180 : 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Star className={`w-5 h-5 ${showFavorites ? 'text-yellow-600 fill-yellow-600' : 'text-gray-400'}`} />
+                </motion.div>
+              </button>
+              
+              {showFavorites && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <FavoriteLocations
+                    currentLocation={currentLocation}
+                    onSelectLocation={(location) => {
+                      setDestination(location.address);
+                      // Enregistrer aussi les coordonnées de la destination
+                      if (setGlobalDestination) {
+                        setGlobalDestination({
+                          lat: location.lat,
+                          lng: location.lng,
+                          address: location.address
+                        });
+                      }
+                      setShowFavorites(false);
+                      toast.success('✅ Destination sélectionnée depuis vos favoris !');
+                    }}
+                    className="py-2"
+                  />
+                </motion.div>
+              )}
+            </div>
 
             {/* Bouton Commander */}
             <Button
@@ -832,7 +598,7 @@ export function MapScreen() {
                   variant="outline"
                   onClick={() => setCurrentScreen('ride-history')}
                 >
-                  <History className="w-4 h-4 text-gray-600" />
+                  <HistoryIcon className="w-4 h-4 text-gray-600" />
                   <span className="text-xs text-gray-600">Historique</span>
                 </Button>
                 <Button
@@ -906,7 +672,7 @@ export function MapScreen() {
                 className="w-full flex items-center gap-4 p-4 rounded-xl bg-white hover:bg-green-50 transition-all duration-200 shadow-sm hover:shadow-md group"
               >
                 <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center group-hover:bg-green-500 transition-colors">
-                  <History className="w-5 h-5 text-green-600 group-hover:text-white transition-colors" />
+                  <HistoryIcon className="w-5 h-5 text-green-600 group-hover:text-white transition-colors" />
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-semibold text-gray-900">Mes trajets</p>

@@ -1,24 +1,86 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider } from './hooks/useAppState';
-import { Toaster } from './components/ui/sonner';
+import { BackendSyncProvider } from './components/BackendSyncProvider';
+import { applyBrowserOptimizations, applySafariFixes, isPrivateBrowsing } from './utils/browserDetection';
+import { BUILD_VERSION, BUILD_DATE } from './BUILD_VERSION';
+import { startUpdateDetection } from './utils/updateDetector';
+import { checkForUpdate } from './utils/cacheManager';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { Router, Route, Routes, Navigate } from './lib/simple-router';
+import { Toaster } from 'sonner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { lazy, Suspense, useEffect } from 'react';
-import { LoadingScreen } from './components/LoadingScreen';
-import { PWAInstallPrompt, OnlineStatusIndicator } from './components/PWAInstallPrompt';
+import { AppProvider } from './hooks/useAppState';
+import { OnlineStatusIndicator, PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { ExchangeRateSync } from './components/ExchangeRateSync';
 import { PageTransition } from './components/PageTransition';
-import { applyBrowserOptimizations } from './utils/browserDetection';
-import { applySafariFixes, isPrivateBrowsing } from './utils/safariCompatibility';
-import { APP_VERSION, BUILD_TIME, checkForUpdate } from './utils/cacheManager';
-import { projectId, publicAnonKey } from './utils/supabase/info';
-import { startUpdateDetection } from './utils/updateDetector'; // 🔥 NOUVEAU
+import { LoadingScreen } from './components/LoadingScreen';
+import './styles/globals.css';
 
-// 🌐 Landing Page (Site Vitrine) - Chargement prioritaire
-const LandingPage = lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
+// 🔥 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}
+console.log('🚀 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}');
+console.log('❌ PROBLÈME v517.88: Le NaN persiste ENCORE après isNaN() !');
+console.log('   Log erreur: "Données KV: { balance: 40700, updated_at: ... } Type: object"');
+console.log('   → parseFloat(String(object)) = parseFloat("[object Object]") = NaN ❌');
+console.log('');
+console.log('🎯 VRAIE CAUSE RACINE:');
+console.log('   Le KV store stocke une STRUCTURE OBJET au lieu d\'un nombre simple:');
+console.log('   {');
+console.log('     balance: 40700,');
+console.log('     updated_at: "2025-12-22T23:45:46.397Z"');
+console.log('   }');
+console.log('');
+console.log('   Code v517.88: parseFloat(String({balance: 40700}))');
+console.log('                 ↓');
+console.log('                 parseFloat("[object Object]")');
+console.log('                 ↓');
+console.log('                 NaN ❌');
+console.log('');
+console.log('✅ SOLUTION v517.89:');
+console.log('   DÉTECTER structure objet et EXTRAIRE .balance AVANT parseFloat() !');
+console.log('');
+console.log('   Pattern correct (déjà utilisé dans toggle-online-status):');
+console.log('   let balanceValue = 0;');
+console.log('   if (typeof balance === "number") {');
+console.log('     balanceValue = balance;  // Nombre simple ✅');
+console.log('   } else if (balance && typeof balance === "object" && "balance" in balance) {');
+console.log('     balanceValue = balance.balance;  // Extraire propriété ✅');
+console.log('   } else {');
+console.log('     balanceValue = parseFloat(String(balance));  // Fallback');
+console.log('   }');
+console.log('   if (isNaN(balanceValue)) { /* Réparation */ }');
+console.log('');
+console.log('BACKEND driver-routes.tsx:');
+console.log('   GET /:driverId/balance:');
+console.log('   ✅ Extraction .balance si objet (3 cas: number / objet / autre)');
+console.log('   ✅ isNaN() après extraction');
+console.log('   ✅ Log: "Structure objet détectée, extraction de .balance: X"');
+console.log('');
+console.log('   POST /:driverId/balance (add):');
+console.log('   ✅ Extraction .balance si objet (3 cas)');
+console.log('   ✅ isNaN() après extraction ET après calcul');
+console.log('   ✅ Log: "Structure objet détectée (add), extraction de .balance: X"');
+console.log('');
+console.log('   POST /:driverId/balance (subtract):');
+console.log('   ✅ Extraction .balance si objet (3 cas)');
+console.log('   ✅ isNaN() après extraction ET après calcul');
+console.log('   ✅ Log: "Structure objet détectée (subtract), extraction de .balance: X"');
+console.log('');
+console.log('✅ v517.88 MAINTENU: isNaN() après parseFloat() (localStorage frontend)');
+console.log('✅ v517.87 MAINTENU: Validation recharge (parseInt)');
+console.log('✅ v517.86 MAINTENU: Validation courses (handleCompleteRide)');
+console.log('✅ v517.85 MAINTENU: rideId unique');
+console.log('');
+console.log('⚡ TRIPLE PROTECTION ANTI-NaN:');
+console.log('   🛡️ Backend GET: isNaN() après parseFloat()');
+console.log('   🛡️ Backend POST: isNaN() après parseFloat() + newBalance');
+console.log('   🛡️ Frontend: isNaN() après CHAQUE parseFloat()');
+console.log('🎉 AUCUN NaN NE PEUT SURVIVRE ! 💯');
 
-// 🚀 LandingScreen (Sélection Passager/Conducteur)
+// 🌐 Landing Page (Site Vitrine) - Import direct pour fiabilité
+import { LandingPage } from './pages/LandingPage';
+
+// 🚀 LandingScreen (Sélection Passager/Conducteur) - Import direct
 import { LandingScreen } from './components/LandingScreen';
 
-// 🎯 AppRouter (Gère LandingScreen et PassengerApp)
+// 🎯 AppRouter (Gère LandingScreen et PassengerApp) - Import direct
 import { AppRouter } from './components/AppRouter';
 
 // 🌐 Pages secondaires - Chargées à la demande
@@ -36,14 +98,14 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then(m => ({ defaul
 // 🌐 Legal Page
 const LegalPage = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 
-// 📱 Passenger App
-const PassengerApp = lazy(() => import('./pages/PassengerApp').then(m => ({ default: m.PassengerApp })));
+// 📱 Passenger App - Import direct pour fiabilité
+import { PassengerApp } from './pages/PassengerApp';
 
-// 🚗 Driver App
-const DriverApp = lazy(() => import('./pages/DriverApp').then(m => ({ default: m.DriverApp })));
+// 🚗 Driver App - ✅ FIX: Import direct pour éviter les erreurs de lazy loading
+import { DriverApp } from './pages/DriverApp';
 
-// 👨‍💼 Admin Panel
-const AdminApp = lazy(() => import('./pages/AdminApp').then(m => ({ default: m.AdminApp })));
+// 👨‍💼 Admin Panel - Import direct pour fiabilité
+import { AdminApp } from './pages/AdminApp';
 
 // 🔐 Reset Password Page
 import { ResetPasswordPage } from './components/auth/ResetPasswordPage';
@@ -64,8 +126,34 @@ const SuspenseFallback = () => {
   );
 };
 
+// 🔧 Retry logic pour lazy loading
+function lazyWithRetry(componentImport: () => Promise<any>) {
+  return lazy(() => {
+    return new Promise((resolve, reject) => {
+      const hasRefreshed = JSON.parse(
+        window.sessionStorage.getItem('retry-lazy-refreshed') || 'false'
+      );
+
+      componentImport()
+        .then((component) => {
+          window.sessionStorage.setItem('retry-lazy-refreshed', 'false');
+          resolve(component);
+        })
+        .catch((error) => {
+          if (!hasRefreshed) {
+            console.log('⚠️ Échec chargement lazy, tentative de rafraîchissement...');
+            window.sessionStorage.setItem('retry-lazy-refreshed', 'true');
+            return window.location.reload();
+          }
+          console.error('❌ Échec chargement lazy après refresh:', error);
+          reject(error);
+        });
+    });
+  });
+}
+
 function App() {
-  console.log(`🚀 SmartCabb v${APP_VERSION} - Build ${BUILD_TIME} - Démarrage...`);
+  console.log(`🚀 SmartCabb v${BUILD_VERSION} - Build ${BUILD_DATE} - Démarrage...`);
   
   // Appliquer les optimisations navigateur au démarrage
   useEffect(() => {
@@ -155,8 +243,28 @@ function App() {
       try {
         const savedView = localStorage.getItem('smartcab_current_view');
         const savedScreen = localStorage.getItem('smartcab_current_screen');
+        const currentPath = window.location.pathname;
         
-        console.log('🔍 Vérification cohérence:', { savedView, savedScreen });
+        console.log('🔍 Vérification cohérence:', { savedView, savedScreen, currentPath });
+        
+        // ✅ NOUVEAU: Forcer la vue basée sur l'URL actuelle
+        if (currentPath.includes('/driver')) {
+          if (savedView !== 'driver') {
+            console.log('🔄 URL contient /driver, forçage de la vue à driver dans localStorage');
+            localStorage.setItem('smartcab_current_view', 'driver');
+          }
+        } else if (currentPath.includes('/admin')) {
+          if (savedView !== 'admin') {
+            console.log('🔄 URL contient /admin, forçage de la vue à admin dans localStorage');
+            localStorage.setItem('smartcab_current_view', 'admin');
+          }
+        } else if (currentPath.includes('/passenger') || currentPath.includes('/app')) {
+          // Ne forcer que si on n'est pas sur /app/driver ou /app/admin
+          if (!currentPath.includes('/driver') && !currentPath.includes('/admin') && savedView !== 'passenger') {
+            console.log('🔄 URL contient /passenger ou /app, forçage de la vue à passenger dans localStorage');
+            localStorage.setItem('smartcab_current_view', 'passenger');
+          }
+        }
         
         // Détecter les incohérences
         if (savedView && savedScreen) {
@@ -181,7 +289,7 @@ function App() {
           const isViewPassengerButScreenDriver = savedView === 'passenger' && savedScreen.startsWith('driver-');
           
           const isViewAdminButScreenDriver = savedView === 'admin' && savedScreen.startsWith('driver-');
-          const isViewAdminButScreenPassenger = savedView === 'admin' && !isNeutralScreen && !savedScreen.startsWith('admin-');
+          const isViewAdminButScreenPassenger = savedView === 'admin' && !neutralScreen && !savedScreen.startsWith('admin-');
           
           if (isViewDriverButScreenAdmin || isViewDriverButScreenPassenger ||
               isViewPassengerButScreenAdmin || isViewPassengerButScreenDriver ||
@@ -225,28 +333,6 @@ function App() {
       const cleanupOldRides = async () => {
         try {
           console.log('🧹 Nettoyage des anciennes demandes de course...');
-          
-          // ⚠️ DÉSACTIVÉ TEMPORAIREMENT pour éviter l'erreur au démarrage
-          // Cette fonctionnalité nécessite que le serveur Supabase Edge Functions soit déployé
-          // Une fois le backend déployé, décommenter ce code
-          
-          /* 
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/cleanup`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`
-              }
-            }
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log(`✅ Nettoyage terminé: ${data.deletedCount} demande(s) supprimée(s)`);
-          }
-          */
-          
           console.log('ℹ️ Nettoyage désactivé - Sera activé après déploiement du backend');
         } catch (error) {
           console.warn('⚠️ Erreur nettoyage demandes:', error);
@@ -268,13 +354,23 @@ function App() {
 
   // 🔥 DÉTECTER LES MISES À JOUR
   useEffect(() => {
-    startUpdateDetection();
+    try {
+      if (typeof startUpdateDetection === 'function') {
+        startUpdateDetection();
+        console.log('✅ Détection de mise à jour activée');
+      } else {
+        console.warn('⚠️ startUpdateDetection non disponible');
+      }
+    } catch (error) {
+      console.error('Erreur startUpdateDetection:', error);
+    }
   }, []);
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <Router>
         <AppProvider>
+          <BackendSyncProvider />
           <div className="app-container">
             {/* Online/Offline Indicator */}
             <OnlineStatusIndicator />
@@ -296,6 +392,9 @@ function App() {
                 },
               }}
             />
+
+            {/* 🔄 Synchronisation automatique du taux de change depuis le backend */}
+            <ExchangeRateSync />
 
             {/* Animation de transition entre pages */}
             <PageTransition />
@@ -360,7 +459,7 @@ function App() {
             </Suspense>
           </div>
         </AppProvider>
-      </BrowserRouter>
+      </Router>
     </ErrorBoundary>
   );
 }

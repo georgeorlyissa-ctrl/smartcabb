@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Car, Lock, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { signIn } from '../../lib/auth-service';
@@ -91,6 +90,7 @@ export function DriverLoginScreen() {
         email: driverData.email || '',
         status: driverData.status || 'pending',
         is_available: driverData.is_available || false,
+        photo: driverData.photo, // ✅ AJOUT : Photo de profil
         // ✅ CORRECTION : Structurer les données du véhicule correctement
         vehicleInfo: driverData.vehicle ? {
           make: driverData.vehicle.make || '',

@@ -116,7 +116,7 @@ export const TermsOfService = memo(function TermsOfService() {
               <div className="bg-blue-50 rounded-lg p-4 text-sm text-gray-700 space-y-2">
                 <p>
                   Les tarifs sont basés sur la distance parcourue, le temps de trajet et la demande. 
-                  Une estimation du coût sera affichée dans l'application avant de confirmer la réservation.
+                  Une estimation du coût sera affichée dans l'application avant de confirmer la commande.
                 </p>
                 <p className="font-medium text-blue-900">
                   ℹ️ Le tarif final peut être ajusté en cas de modification de l'itinéraire ou de temps 

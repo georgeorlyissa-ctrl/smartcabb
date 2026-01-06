@@ -21,21 +21,21 @@ interface TrafficConditions {
 
 /**
  * Vitesses moyennes à Kinshasa selon les conditions (km/h)
- * 🔥 SIMPLIFIÉES POUR CORRESPONDRE AUX VALEURS FIGMA
+ * 🔥 AJUSTÉES POUR DURÉES PLUS RÉALISTES
  */
 const SPEED_PROFILES = {
   // Heures de pointe (7h-9h et 17h-19h) : trafic dense
-  morning_rush: 15,      // Réduit de 12 à 15
-  evening_rush: 15,      // Réduit de 10 à 15
+  morning_rush: 25,      // ✅ Augmenté de 15 à 25 km/h
+  evening_rush: 25,      // ✅ Augmenté de 15 à 25 km/h
   
   // Milieu de journée (9h-17h) : trafic modéré
-  midday: 20,            // Réduit de 18 à 20
+  midday: 35,            // ✅ Augmenté de 20 à 35 km/h
   
   // Nuit (19h-7h) : trafic fluide
-  night: 25,             // Inchangé
+  night: 45,             // ✅ Augmenté de 25 à 45 km/h
   
   // Weekend : trafic léger
-  weekend: 22            // Inchangé
+  weekend: 40            // ✅ Augmenté de 22 à 40 km/h
 };
 
 /**

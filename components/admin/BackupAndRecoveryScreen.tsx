@@ -1,33 +1,6 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
-import { useAppState } from '../../hooks/useAppState';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import {
-  ArrowLeft,
-  Database,
-  Download,
-  Upload,
-  Shield,
-  Calendar,
-  Clock,
-  HardDrive,
-  FileJson,
-  Users,
-  Car,
-  MapPin,
-  AlertTriangle,
-  CheckCircle,
-  RefreshCw,
-  Trash2,
-  Archive,
-  FileText
-} from 'lucide-react';
+import { useState } from 'react';
+import { motion } from '../../framer-motion';
+import { Database, HardDrive, Download, Upload, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface BackupItem {
@@ -307,7 +280,7 @@ export function BackupAndRecoveryScreen() {
           </Card>
           <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4">
             <div className="text-center">
-              <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-300" />
+              <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-300" />
               <p className="text-2xl font-bold">
                 {backups.filter(b => b.status === 'completed').length}
               </p>
@@ -424,7 +397,7 @@ export function BackupAndRecoveryScreen() {
                       <p className="text-xs text-gray-500">{table.id}</p>
                     </div>
                     {isSelected && (
-                      <CheckCircle className="w-5 h-5 text-blue-600" />
+                      <CheckCircle2 className="w-5 h-5 text-blue-600" />
                     )}
                   </div>
                 </button>

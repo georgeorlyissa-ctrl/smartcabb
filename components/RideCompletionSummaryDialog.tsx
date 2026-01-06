@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../framer-motion';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';
@@ -57,6 +57,18 @@ export function RideCompletionSummaryDialog({
   // Taux de change depuis les paramètres admin ou valeur par défaut
   const exchangeRate = state.adminSettings?.exchangeRate || 2500;
 
+  // ✅ UTILISER LES VRAIES ADRESSES DEPUIS currentRide
+  const startLocation = state.currentRide?.pickup?.address || rideData.startLocation || 'Point de départ';
+  const endLocation = state.currentRide?.destination?.address || rideData.endLocation || 'Destination';
+  
+  // ✅ UTILISER LES VRAIS NOMS DEPUIS state
+  const driverName = state.currentDriver?.name || rideData.driverName || 'Conducteur';
+  const passengerName = state.currentUser?.name || rideData.passengerName || 'Passager';
+
+  // ✅ CORRECTION : Utiliser billingElapsedTime au lieu de duration pour la durée exacte de facturation
+  const actualDuration = rideData.billingElapsedTime || rideData.duration;
+  const actualDistance = state.currentRide?.distance || rideData.distance || 0;
+
   const formatDuration = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -76,11 +88,11 @@ export function RideCompletionSummaryDialog({
     return (amountCDF / exchangeRate).toFixed(2);
   };
 
-  const formatPrice = (amountCDF: number) => {
+  const formatAmount = (amountCDF: number) => {
     if (showInDollars) {
       return `$${convertToUSD(amountCDF)} USD`;
     }
-    return `${amountCDF.toLocaleString()} CDF`;
+    return `${(amountCDF || 0).toLocaleString()} CDF`;
   };
 
   const handleRating = (rating: number) => {
@@ -129,8 +141,8 @@ export function RideCompletionSummaryDialog({
               </h2>
               <p className="text-sm text-gray-600">
                 {userType === 'passenger' 
-                  ? `Conducteur: ${rideData.driverName || 'Pierre Kabamba'}`
-                  : `Passager: ${rideData.passengerName || 'Grace-Divine Kambamba'}`
+                  ? `Conducteur: ${driverName}`
+                  : `Passager: ${passengerName}`
                 }
               </p>
             </div>
@@ -151,7 +163,7 @@ export function RideCompletionSummaryDialog({
                 <div className="w-3 h-3 bg-green-500 rounded-full mt-2" />
                 <div>
                   <p className="text-sm text-gray-600">Départ</p>
-                  <p className="font-medium">{rideData.startLocation}</p>
+                  <p className="font-medium">{startLocation}</p>
                 </div>
               </div>
               
@@ -159,7 +171,7 @@ export function RideCompletionSummaryDialog({
                 <div className="w-3 h-3 bg-red-500 rounded-full mt-2" />
                 <div>
                   <p className="text-sm text-gray-600">Arrivée</p>
-                  <p className="font-medium">{rideData.endLocation}</p>
+                  <p className="font-medium">{endLocation}</p>
                 </div>
               </div>
             </div>
@@ -170,13 +182,13 @@ export function RideCompletionSummaryDialog({
             <div className="bg-blue-50 rounded-lg p-4 text-center">
               <Clock className="w-6 h-6 text-blue-600 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Durée totale</p>
-              <p className="font-semibold">{formatDuration(rideData.duration)}</p>
+              <p className="font-semibold">{formatDuration(actualDuration)}</p>
             </div>
             
             <div className="bg-green-50 rounded-lg p-4 text-center">
               <MapPin className="w-6 h-6 text-green-600 mx-auto mb-2" />
               <p className="text-sm text-gray-600">Distance</p>
-              <p className="font-semibold">{(rideData?.distance || 0).toFixed(1)} km</p>
+              <p className="font-semibold">{actualDistance.toFixed(1)} km</p>
             </div>
           </div>
 
@@ -199,29 +211,47 @@ export function RideCompletionSummaryDialog({
             </div>
             
             <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Frais de prise en charge</span>
-                <span>{formatPrice(rideData.baseCost)}</span>
-              </div>
-              
-              {/* Afficher le temps de facturation si attente gratuite désactivée OU temps > 10min */}
-              {(rideData.freeWaitingDisabled || rideData.waitingTime > 600) && (
+              {/* ✅ CORRECTION : Afficher directement le total si baseCost et waitingCost sont à 0 */}
+              {(rideData.baseCost > 0 || rideData.waitingCost > 0) ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Frais de prise en charge</span>
+                    <span>{formatAmount(rideData.baseCost)}</span>
+                  </div>
+                  
+                  {/* Afficher le temps de facturation si attente gratuite désactivée OU temps > 10min */}
+                  {(rideData.freeWaitingDisabled || rideData.waitingTime > 600) && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">
+                        {rideData.freeWaitingDisabled ? (
+                          // Si attente désactivée, afficher le chrono de facturation
+                          <>
+                            Facturation ({Math.floor((rideData.billingElapsedTime || 0) / 60)}min {(rideData.billingElapsedTime || 0) % 60}s)
+                            <Badge variant="destructive" className="ml-2 text-xs">
+                              Attente gratuite désactivée
+                            </Badge>
+                          </>
+                        ) : (
+                          // Sinon afficher le temps d'attente dépassant les 10min
+                          `Temps d'attente (${Math.floor((rideData.waitingTime - 600) / 60)}min)`
+                        )}
+                      </span>
+                      <span>{formatAmount(rideData.waitingCost)}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                // ✅ SI baseCost et waitingCost sont à 0, afficher directement les infos de facturation
                 <div className="flex justify-between">
                   <span className="text-gray-600">
-                    {rideData.freeWaitingDisabled ? (
-                      // Si attente désactivée, afficher le chrono de facturation
-                      <>
-                        Facturation ({Math.floor((rideData.billingElapsedTime || 0) / 60)}min {(rideData.billingElapsedTime || 0) % 60}s)
-                        <Badge variant="destructive" className="ml-2 text-xs">
-                          Attente gratuite désactivée
-                        </Badge>
-                      </>
-                    ) : (
-                      // Sinon afficher le temps d'attente dépassant les 10min
-                      `Temps d'attente (${Math.floor((rideData.waitingTime - 600) / 60)}min)`
+                    Facturation ({Math.floor((rideData.billingElapsedTime || 0) / 3600)}h {Math.floor(((rideData.billingElapsedTime || 0) % 3600) / 60)}min)
+                    {rideData.freeWaitingDisabled && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        Attente gratuite désactivée
+                      </Badge>
                     )}
                   </span>
-                  <span>{formatPrice(rideData.waitingCost)}</span>
+                  <span>{formatAmount(rideData.totalCost)}</span>
                 </div>
               )}
               
@@ -232,7 +262,7 @@ export function RideCompletionSummaryDialog({
               {selectedTip > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Pourboire</span>
-                  <span>{formatPrice(selectedTip)}</span>
+                  <span>{formatAmount(selectedTip)}</span>
                 </div>
               )}
               
@@ -240,12 +270,12 @@ export function RideCompletionSummaryDialog({
               
               <div className="flex justify-between font-semibold text-base">
                 <span>Total</span>
-                <span className="text-green-600">{formatPrice(totalWithTip)}</span>
+                <span className="text-green-600">{formatAmount(totalWithTip)}</span>
               </div>
               
               {showInDollars && (
                 <div className="text-xs text-gray-500 text-right">
-                  ≈ {totalWithTip.toLocaleString()} CDF (1 USD = {exchangeRate} CDF)
+                  ≈ {(totalWithTip || 0).toLocaleString()} CDF (1 USD = {exchangeRate} CDF)
                 </div>
               )}
             </div>

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from '../lib/simple-router';
 import { useState } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { ChatWidget } from '../components/ChatWidget';
@@ -320,28 +320,34 @@ export function ContactPage() {
 
               <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex items-start gap-4">
-                  <div className="text-4xl">📞</div>
+                  <div className="text-4xl">📧</div>
                   <div>
                     <h3 className="text-xl font-bold mb-2">
                       {language === 'fr' ? 'Support technique' : 'Technical Support'}
                     </h3>
-                    <p className="text-gray-600 mb-2">support@smartcabb.com</p>
-                    <p className="text-gray-600">+243 990 666 661</p>
+                    <p className="text-gray-600">support@smartcabb.com</p>
                   </div>
                 </div>
               </div>
 
               <div className="bg-white p-6 rounded-2xl shadow-lg">
                 <div className="flex items-start gap-4">
-                  <div className="text-4xl">📍</div>
+                  <div className="text-4xl">📧</div>
                   <div>
                     <h3 className="text-xl font-bold mb-2">
-                      {language === 'fr' ? 'Adresse' : 'Address'}
+                      {language === 'fr' ? 'Informations générales' : 'General Information'}
                     </h3>
-                    <p className="text-gray-600">5D, Avenue du Tchad</p>
-                    <p className="text-gray-600">C/ Gombe, Kinshasa - RDC</p>
+                    <p className="text-gray-600">info@smartcabb.com</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-2xl shadow-lg">
+                <h3 className="text-xl font-semibold mb-2 text-cyan-500">
+                  {language === 'fr' ? 'Notre bureau' : 'Our office'}
+                </h3>
+                <p className="text-gray-600">5D, Avenue du Tchad</p>
+                <p className="text-gray-600">C/ Gombe, Rép Dem Congo</p>
               </div>
 
               <div className="bg-white p-6 rounded-2xl shadow-lg">
@@ -408,7 +414,7 @@ export function ContactPage() {
               {language === 'fr' ? 'Notre localisation' : 'Our location'}
             </h2>
             <p className="text-xl text-gray-600">
-              {language === 'fr' ? 'Retrouvez-nous à Kinshasa' : 'Find us in Kinshasa'}
+              {language === 'fr' ? 'Retrouvez-nous en Rép Dem Congo' : 'Find us in the DRC'}
             </p>
           </div>
 
@@ -416,7 +422,7 @@ export function ContactPage() {
             <div className="text-center">
               <div className="text-6xl mb-4">🗺️</div>
               <p className="text-xl text-gray-600">
-                {language === 'fr' ? 'Carte interactive - Kinshasa, RDC' : 'Interactive map - Kinshasa, DRC'}
+                {language === 'fr' ? 'Carte interactive - Rép Dem Congo' : 'Interactive map - DRC'}
               </p>
               <p className="text-sm text-gray-500 mt-2">
                 {language === 'fr' ? '5D, Avenue du Tchad, Commune de Gombe' : '5D, Avenue du Tchad, Gombe District'}
@@ -466,10 +472,10 @@ export function ContactPage() {
 
             <div>
               <h3 className="font-bold mb-4">Contact</h3>
-              <p className="text-gray-400 text-sm">
-                 +243 990 666 661<br />
-                ✉️ contact@smartcabb.com
-              </p>
+              <div className="text-gray-400 text-sm space-y-2">
+                <p>📧 support@smartcabb.com</p>
+                <p>📧 info@smartcabb.com</p>
+              </div>
             </div>
           </div>
 

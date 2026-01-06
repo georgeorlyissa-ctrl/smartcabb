@@ -1,22 +1,3 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
-import { useAppState } from '../../hooks/useAppState';
-import { useSupabaseData } from '../../hooks/useSupabaseData';
-import { LiveStatsPanel } from '../LiveStatsPanel';
-import { StatsCharts } from './StatsCharts';
-import { ContactMessagesScreen } from './ContactMessagesScreen';
-import { DataCleanupPanel } from './DataCleanupPanel';
-import { AutoCleanupBanner } from './AutoCleanupBanner';
-import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { supabase } from '../../lib/supabase';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { logError, isNetworkError } from '../../lib/error-utils';
 import { 
   Users, 
@@ -67,7 +48,7 @@ export function AdminDashboard() {
     }
     
     console.log('✅ Authentification confirmée');
-  }, [state.isAdmin, state.currentUser]);
+  }, []); // ✅ Tableau de dépendances vide = exécution uniquement au montage
 
   const { 
     drivers, // EnrichedDriver[]
@@ -356,26 +337,30 @@ export function AdminDashboard() {
 
   const statCards = [
     {
+      id: 'stat-active-rides',
       title: 'Courses actives',
       value: activeRides.toString(),
       icon: TrendingUp,
       color: 'bg-blue-500'
     },
     {
+      id: 'stat-online-drivers',
       title: 'Chauffeurs en ligne',
       value: `${onlineDrivers}/${drivers.length}`,
       icon: Car,
       color: 'bg-green-500'
     },
     {
+      id: 'stat-total-revenue',
       title: 'Revenus totaux',
       value: `${totalRevenue.toLocaleString()} CDF`,
       icon: DollarSign,
       color: 'bg-purple-500'
     },
     {
+      id: 'stat-average-rating',
       title: 'Note moyenne',
-      value: averageRating.toFixed(1),
+      value: (averageRating || 0).toFixed(1),
       icon: Star,
       color: 'bg-yellow-500'
     }
@@ -383,6 +368,7 @@ export function AdminDashboard() {
 
   const quickActions = [
     {
+      id: 'action-pending-drivers',
       title: 'Candidatures en attente',
       description: `${pendingDrivers.length} conducteur(s) à approuver`,
       icon: AlertCircle,
@@ -392,6 +378,7 @@ export function AdminDashboard() {
       urgent: pendingDrivers.length > 0
     },
     {
+      id: 'action-drivers',
       title: 'Gestion des chauffeurs',
       description: 'Voir et gérer tous les chauffeurs',
       icon: Car,
@@ -399,6 +386,7 @@ export function AdminDashboard() {
       count: drivers.length
     },
     {
+      id: 'action-clients',
       title: 'Gestion des clients',
       description: 'Base de données clients',
       icon: Users,
@@ -406,6 +394,17 @@ export function AdminDashboard() {
       count: passengers.length
     },
     {
+      id: 'action-users-management',
+      title: 'Tous les utilisateurs (avec mots de passe)',
+      description: 'Voir tous les comptes avec identifiants',
+      icon: Database,
+      action: () => setCurrentScreen('admin-users-management'),
+      count: null,
+      highlight: true,
+      color: 'from-purple-500 to-indigo-500'
+    },
+    {
+      id: 'action-contact-messages',
       title: 'Messages de contact',
       description: 'Messages du site web',
       icon: MessageSquare,
@@ -415,6 +414,7 @@ export function AdminDashboard() {
       color: 'from-pink-500 to-rose-500'
     },
     {
+      id: 'action-chat-messages',
       title: 'Messages du Chat Client',
       description: 'Répondre aux visiteurs en temps réel',
       icon: MessageCircle,
@@ -424,6 +424,7 @@ export function AdminDashboard() {
       color: 'from-cyan-500 to-blue-500'
     },
     {
+      id: 'action-budget',
       title: 'Budget & Coûts',
       description: 'Domaine, API et analyse des coûts',
       icon: Receipt,
@@ -433,6 +434,7 @@ export function AdminDashboard() {
       color: 'from-green-500 to-teal-500'
     },
     {
+      id: 'action-add-admin',
       title: 'Ajouter un autre admin',
       description: 'Créer un nouveau compte administrateur',
       icon: UserPlus,
@@ -441,6 +443,7 @@ export function AdminDashboard() {
       highlight: false
     },
     {
+      id: 'action-postpaid',
       title: 'Demandes de Post-Paiement',
       description: 'Approuver les paiements différés',
       icon: DollarSign,
@@ -449,6 +452,7 @@ export function AdminDashboard() {
       color: 'from-orange-500 to-amber-500'
     },
     {
+      id: 'action-refunds',
       title: 'Gestion des remboursements',
       description: 'Traiter les demandes de remboursement',
       icon: Wallet,
@@ -457,6 +461,7 @@ export function AdminDashboard() {
       color: 'from-red-500 to-pink-500'
     },
     {
+      id: 'action-pending-recharges',
       title: 'Recharges espèces en attente',
       description: 'Valider les paiements en espèces',
       icon: Receipt,
@@ -465,6 +470,7 @@ export function AdminDashboard() {
       color: 'from-orange-500 to-yellow-500'
     },
     {
+      id: 'action-analytics',
       title: 'Dashboard analytique',
       description: 'Graphiques et statistiques avancées',
       icon: TrendingUp,
@@ -473,6 +479,7 @@ export function AdminDashboard() {
       color: 'from-blue-500 to-cyan-500'
     },
     {
+      id: 'action-financial-reports',
       title: 'Rapports financiers',
       description: 'Générer et consulter les rapports',
       icon: DollarSign,
@@ -481,6 +488,7 @@ export function AdminDashboard() {
       color: 'from-green-500 to-emerald-500'
     },
     {
+      id: 'action-audit-logs',
       title: 'Logs d\'audit',
       description: 'Traçabilité des actions admin',
       icon: Shield,
@@ -489,6 +497,7 @@ export function AdminDashboard() {
       color: 'from-purple-500 to-violet-500'
     },
     {
+      id: 'action-notifications',
       title: 'Centre de notifications',
       description: 'Alertes et notifications importantes',
       icon: Bell,
@@ -499,6 +508,7 @@ export function AdminDashboard() {
       color: 'from-yellow-500 to-orange-500'
     },
     {
+      id: 'action-settings',
       title: 'Paramètres du système',
       description: 'Configuration et tarifs',
       icon: Settings,
@@ -506,6 +516,7 @@ export function AdminDashboard() {
       count: null
     },
     {
+      id: 'action-global-settings',
       title: 'Paramètres Globaux',
       description: 'Taux, tarification, paiements',
       icon: Settings,
@@ -515,6 +526,7 @@ export function AdminDashboard() {
       color: 'from-indigo-500 to-blue-500'
     },
     {
+      id: 'action-email-config',
       title: '📧 Configuration Email',
       description: 'Gérer l\'envoi et réception d\'emails',
       icon: Mail,
@@ -524,6 +536,7 @@ export function AdminDashboard() {
       color: 'from-green-500 to-emerald-500'
     },
     {
+      id: 'action-email-history',
       title: '📨 Historique Emails',
       description: 'Voir les emails envoyés',
       icon: Mail,
@@ -532,24 +545,26 @@ export function AdminDashboard() {
       color: 'from-green-400 to-cyan-400'
     },
     {
+      id: 'action-debug-kv',
       title: '🔍 Diagnostic KV Store',
       description: 'Voir le contenu de la base de données (console F12)',
       icon: Search,
       action: handleDebugKV,
       count: null,
       highlight: true,
-      color: 'from-blue-500 to-cyan-500'
+      color: 'from-gray-500 to-slate-500'
     },
     {
-      title: '🗑️ Supprimer tous les comptes',
-      description: 'Supprimer passagers & conducteurs (garder admins)',
-      icon: Trash2,
-      action: () => setShowDeleteAccountsModal(true),
-      count: (drivers.length + passengers.length),
-      highlight: true,
-      color: 'from-red-500 to-rose-500'
+      id: 'action-sms-settings',
+      title: 'Paramètres SMS',
+      description: 'Configuration Africa\'s Talking SMS',
+      icon: MessageSquare,
+      action: () => setCurrentScreen('sms-settings'),
+      count: null,
+      color: 'from-blue-500 to-indigo-500'
     },
     {
+      id: 'action-backup',
       title: 'Backup & Recovery',
       description: 'Sauvegarde et récupération des données',
       icon: Database,
@@ -559,6 +574,7 @@ export function AdminDashboard() {
       color: 'from-cyan-500 to-teal-500'
     },
     {
+      id: 'action-maintenance',
       title: '🔧 Outils de maintenance',
       description: 'Nettoyer auth users & autres tâches',
       icon: Wrench,
@@ -568,6 +584,7 @@ export function AdminDashboard() {
       color: 'from-gray-500 to-gray-700'
     },
     {
+      id: 'action-data-cleanup',
       title: '🧹 Nettoyage des données',
       description: 'Préparer pour tests avec vraies données',
       icon: Database,
@@ -763,6 +780,17 @@ export function AdminDashboard() {
               <StatsCharts />
             </motion.div>
 
+            {/* Balance SMS */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="mb-8"
+            >
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Balance SMS Africa's Talking</h2>
+              <SMSBalanceCard />
+            </motion.div>
+
             {/* Stats Grid */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -773,7 +801,7 @@ export function AdminDashboard() {
                 const Icon = stat.icon;
                 return (
                   <motion.div
-                    key={stat.title}
+                    key={stat.id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -807,7 +835,7 @@ export function AdminDashboard() {
                   const Icon = action.icon;
                   return (
                     <motion.div
-                      key={`${action.title}-${index}`}
+                      key={action.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 + index * 0.1 }}

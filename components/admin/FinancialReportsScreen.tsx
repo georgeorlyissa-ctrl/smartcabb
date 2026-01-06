@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Calendar as CalendarIcon, Filter, TrendingUp, DollarSign, Percent, Users, ArrowLeft } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { useAppState } from '../../hooks/useAppState';
+import { motion } from '../../framer-motion';
+import { FileText, Download, DollarSign, TrendingUp, Calendar, Filter, Search } from 'lucide-react';
+
+// Fonction de formatage de date simple
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 interface FinancialReport {
   id: string;
@@ -152,7 +160,7 @@ export function FinancialReportsScreen({ onBack }: FinancialReportsScreenProps) 
 
   const exportReport = (report: FinancialReport) => {
     const csv = `Rapport Financier SmartCabb
-Période: ${format(new Date(report.period_start), 'dd/MM/yyyy', { locale: fr })} - ${format(new Date(report.period_end), 'dd/MM/yyyy', { locale: fr })}
+Période: ${formatDate(report.period_start)} - ${formatDate(report.period_end)}
 
 Revenus totaux,${report.total_revenue} CDF
 Nombre de courses,${report.total_rides}
@@ -161,7 +169,7 @@ Gains conducteurs,${report.driver_earnings} CDF
 Remboursements,${report.refunds_amount} CDF
 Revenu net,${report.net_revenue} CDF
 
-Généré le: ${format(new Date(report.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
+Généré le: ${formatDate(report.created_at)}
 Statut: ${report.status}
 `;
 
@@ -312,7 +320,7 @@ Statut: ${report.status}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <h3 className="font-medium">
-                        {format(new Date(report.period_start), 'dd MMM yyyy', { locale: fr })} - {format(new Date(report.period_end), 'dd MMM yyyy', { locale: fr })}
+                        {formatDate(report.period_start)} - {formatDate(report.period_end)}
                       </h3>
                       <Badge variant={report.status === 'finalized' ? 'default' : 'secondary'}>
                         {report.status === 'finalized' ? 'Finalisé' : 'En attente'}
@@ -404,7 +412,7 @@ Statut: ${report.status}
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
                         <CalendarIcon className="w-4 h-4 mr-2" />
-                        {startDate ? format(startDate, 'dd/MM/yyyy', { locale: fr }) : 'Sélectionner'}
+                        {startDate ? formatDate(startDate.toISOString()) : 'Sélectionner'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent>
@@ -412,7 +420,7 @@ Statut: ${report.status}
                         mode="single"
                         selected={startDate}
                         onSelect={setStartDate}
-                        locale={fr}
+                        locale="fr"
                       />
                     </PopoverContent>
                   </Popover>
@@ -424,7 +432,7 @@ Statut: ${report.status}
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="w-full justify-start">
                         <CalendarIcon className="w-4 h-4 mr-2" />
-                        {endDate ? format(endDate, 'dd/MM/yyyy', { locale: fr }) : 'Sélectionner'}
+                        {endDate ? formatDate(endDate.toISOString()) : 'Sélectionner'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent>
@@ -432,7 +440,7 @@ Statut: ${report.status}
                         mode="single"
                         selected={endDate}
                         onSelect={setEndDate}
-                        locale={fr}
+                        locale="fr"
                       />
                     </PopoverContent>
                   </Popover>

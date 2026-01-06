@@ -6,11 +6,14 @@
 import { 
   calculatePrice, 
   getTimeOfDay, 
-  getCategoryInfo,
+  getCategoryInfo
+} from '../lib/pricing-config';
+
+import {
   USD_TO_CDF,
   type VehicleCategory,
   type ServiceType 
-} from '../lib/pricing-config';
+} from '../lib/pricing-data';
 
 /**
  * Interface pour les paramètres de calcul de prix

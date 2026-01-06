@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Button } from './ui/button';
+import { useState, useEffect } from 'react';
+import { motion } from '../framer-motion';
 import { X, Copy, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface DebugPaymentModalProps {
   show: boolean;

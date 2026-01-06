@@ -25,6 +25,15 @@ export async function ensureChatTableExists(): Promise<boolean> {
       .limit(1);
 
     if (testResult.error) {
+      // Vérifier si c'est une erreur de service indisponible
+      const errorMsg = testResult.error.message || '';
+      if (errorMsg.includes('<!DOCTYPE html>') || 
+          errorMsg.includes('Cloudflare') ||
+          errorMsg.includes('Temporarily unavailable')) {
+        console.warn('⚠️ Service Supabase temporairement indisponible, utilisation du KV');
+        return true; // Continuer avec le KV
+      }
+
       // La table n'existe probablement pas, la créer via KV
       console.log('⚠️ Table chat_messages non trouvée, tentative de création...');
       
@@ -38,7 +47,13 @@ export async function ensureChatTableExists(): Promise<boolean> {
     return true;
 
   } catch (error) {
-    console.error('❌ Erreur lors de la vérification de la table chat:', error);
-    return false;
+    // Simplifier l'affichage des erreurs HTML
+    if (error instanceof Error && error.message.includes('<!DOCTYPE html>')) {
+      console.warn('⚠️ Service Supabase temporairement indisponible, utilisation du KV');
+    } else {
+      console.error('❌ Erreur lors de la vérification de la table chat:', 
+        error instanceof Error ? error.message.substring(0, 200) : 'Erreur inconnue');
+    }
+    return true; // Continuer quand même avec le KV
   }
 }

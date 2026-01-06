@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
@@ -158,9 +157,33 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
       console.log('📥 Response status:', response.status);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erreur HTTP:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
+        console.error('❌ Erreur HTTP:', response.status, errorData);
+        
+        // Gérer spécifiquement l'erreur 404 (compte non trouvé)
+        if (response.status === 404) {
+          const errorMessage = errorData.error || 'Aucun compte trouvé avec ce numéro de téléphone';
+          toast.error(errorMessage, {
+            duration: 6000,
+            description: 'Vous devez d\'abord créer un compte pour pouvoir le réinitialiser.'
+          });
+          
+          // Proposer de créer un compte après un délai
+          setTimeout(() => {
+            if (confirm('Aucun compte trouvé avec ce numéro. Voulez-vous créer un compte ?')) {
+              // Nettoyer localStorage
+              localStorage.removeItem('reset_phone');
+              localStorage.removeItem('reset_otp_code');
+              localStorage.removeItem('reset_otp_timestamp');
+              onBack(); // Retour au login qui a un lien vers l'inscription
+            }
+          }, 2000);
+          
+          setLoading(false);
+          return;
+        }
+        
+        throw new Error(errorData.error || `Erreur ${response.status}`);
       }
 
       const result = await response.json();
@@ -192,7 +215,10 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         }
       } else {
         console.error('❌ Échec:', result.error);
-        toast.error(result.error || 'Erreur lors de la réinitialisation');
+        const errorMsg = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.message || 'Erreur lors de la réinitialisation';
+        toast.error(errorMsg);
       }
 
     } catch (error: any) {

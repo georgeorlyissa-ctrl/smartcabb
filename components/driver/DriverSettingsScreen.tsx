@@ -1,24 +1,22 @@
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
-import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
 import { 
   ArrowLeft, 
   Bell, 
-  MapPin, 
-  Car, 
-  DollarSign,
-  Shield,
-  Moon,
+  Globe, 
+  Shield, 
+  Moon, 
   Volume2,
   Smartphone,
-  Navigation,
-  Settings,
+  Lock,
+  Eye,
   HelpCircle,
+  FileText,
   LogOut
-} from 'lucide-react';
+} from '../../lucide-react';
 import { useState } from 'react';
 
 export function DriverSettingsScreen() {
@@ -120,7 +118,7 @@ export function DriverSettingsScreen() {
     },
     {
       title: 'Préférences',
-      icon: Settings,
+      icon: Lock,
       items: [
         {
           key: 'darkMode',
@@ -144,7 +142,7 @@ export function DriverSettingsScreen() {
     {
       title: 'Zone de travail',
       description: 'Définir votre zone de service préférée',
-      icon: MapPin,
+      icon: Globe,
       action: () => {
         // Navigate to zone settings
       }
@@ -205,8 +203,16 @@ export function DriverSettingsScreen() {
         >
           <Card className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <Car className="w-8 h-8 text-blue-600" />
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center overflow-hidden">
+                {state.currentDriver?.photo ? (
+                  <img 
+                    src={state.currentDriver.photo} 
+                    alt={state.currentDriver.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-8 h-8 text-blue-600" />
+                )}
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">{state.currentDriver?.name}</h2>

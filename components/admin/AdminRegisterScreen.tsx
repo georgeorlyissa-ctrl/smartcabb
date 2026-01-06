@@ -1,15 +1,7 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Checkbox } from '../ui/checkbox';
-import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Mail, Lock, User, Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Mail, Lock, AlertCircle } from 'lucide-react';
 import { toast } from '../../lib/toast';
-import { supabase } from '../../lib/supabase';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { useNavigate } from 'react-router-dom';
 
 export function AdminRegisterScreen() {
   const { setCurrentScreen, setCurrentView, setIsAdmin } = useAppState();

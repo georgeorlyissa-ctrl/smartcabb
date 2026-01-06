@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from 'sonner';
@@ -187,14 +187,60 @@ export function WalletScreen() {
     }
   };
 
-  // 🔄 Rafraîchir automatiquement le solde toutes les 30 secondes
+  // 🆕 Fonction pour rafraîchir les transactions depuis le backend
+  const refreshTransactions = async () => {
+    if (!state.currentUser) return;
+    
+    try {
+      console.log('🔄 Rafraîchissement des transactions depuis le backend...');
+      
+      const projectId = 'your_project_id'; // Remplacez par votre ID de projet Supabase
+      const publicAnonKey = 'your_public_anon_key'; // Remplacez par votre clé publique anonyme Supabase
+      
+      const response = await fetch(
+        `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        const backendTransactions = data.transactions || [];
+        
+        console.log(`✅ ${backendTransactions.length} transactions récupérées depuis le backend`);
+        
+        // Mettre à jour les transactions de l'utilisateur
+        const updatedUser = {
+          ...state.currentUser,
+          walletTransactions: backendTransactions
+        };
+        
+        updateUser(updatedUser);
+        
+        // 🆕 Sauvegarder dans la liste globale pour l'admin
+        saveUserToGlobalList(updatedUser);
+      } else {
+        console.warn('⚠️ Erreur récupération transactions:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Erreur rafraîchissement transactions:', error);
+    }
+  };
+
+  // 🔄 Rafraîchir automatiquement le solde ET les transactions toutes les 30 secondes
   useEffect(() => {
     // Premier rafraîchissement au montage
     refreshBalance();
+    refreshTransactions();
     
     // Puis toutes les 30 secondes
     const interval = setInterval(() => {
       refreshBalance();
+      refreshTransactions();
     }, 30000);
     
     return () => clearInterval(interval);

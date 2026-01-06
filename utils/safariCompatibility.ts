@@ -25,6 +25,11 @@ export function isIOS(): boolean {
  * Applique les correctifs Safari au démarrage
  */
 export function applySafariFixes(): void {
+  // ✅ SSR FIX: Vérifier que nous sommes côté client
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return;
+  }
+  
   const browser = detectBrowser();
   
   if (!browser.isSafari && !browser.isIOS) {
@@ -71,10 +76,12 @@ export function applySafariFixes(): void {
   
   // 3. Fix LocalStorage - Vérifier la disponibilité
   try {
-    const testKey = '__safari_storage_test__';
-    localStorage.setItem(testKey, 'test');
-    localStorage.removeItem(testKey);
-    console.log('✅ LocalStorage disponible sur Safari');
+    if (typeof localStorage !== 'undefined') {
+      const testKey = '__safari_storage_test__';
+      localStorage.setItem(testKey, 'test');
+      localStorage.removeItem(testKey);
+      console.log('✅ LocalStorage disponible sur Safari');
+    }
   } catch (e) {
     console.error('❌ LocalStorage bloqué sur Safari (mode privé?)');
     alert('SmartCabb nécessite l\'accès au stockage local. Veuillez désactiver le mode navigation privée.');
@@ -126,6 +133,22 @@ class SafariSafeStorage {
   private isLocalStorage: boolean;
   
   constructor() {
+    // ✅ SSR FIX: Ne pas instancier si on est côté serveur
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      this.storage = new Map();
+      this.isLocalStorage = false;
+      console.warn('⚠️ SafariSafeStorage: window/localStorage non disponible (SSR)');
+      return;
+    }
+
+    // ✅ PRODUCTION FIX: Attendre que l'environnement soit prêt
+    if (!(window as any).__SMARTCABB_CLIENT_READY__) {
+      console.warn('⚠️ SafariSafeStorage: Environnement client pas encore prêt, utilisation Map');
+      this.storage = new Map();
+      this.isLocalStorage = false;
+      return;
+    }
+
     try {
       // Tenter d'utiliser localStorage
       const test = '__storage_test__';
@@ -133,7 +156,7 @@ class SafariSafeStorage {
       localStorage.removeItem(test);
       this.storage = localStorage;
       this.isLocalStorage = true;
-      console.log('✅ Utilisation de localStorage');
+      console.log('✅ SafariSafeStorage: Utilisation de localStorage');
     } catch (e) {
       try {
         // Fallback vers sessionStorage
@@ -142,12 +165,12 @@ class SafariSafeStorage {
         sessionStorage.removeItem(test);
         this.storage = sessionStorage;
         this.isLocalStorage = false;
-        console.warn('⚠️ Fallback vers sessionStorage (données temporaires)');
+        console.warn('⚠️ SafariSafeStorage: Fallback vers sessionStorage (données temporaires)');
       } catch (e2) {
         // Fallback vers Map en mémoire
         this.storage = new Map();
         this.isLocalStorage = false;
-        console.error('❌ Fallback vers stockage mémoire (données perdues au refresh)');
+        console.error('❌ SafariSafeStorage: Fallback vers stockage mémoire (données perdues au refresh)');
       }
     }
   }
@@ -188,8 +211,37 @@ class SafariSafeStorage {
   }
 }
 
-// Export instance singleton
-export const safariStorage = new SafariSafeStorage();
+// ✅ FIX PRODUCTION: Utiliser un getter lazy au lieu d'instancier immédiatement
+let safariStorageInstance: SafariSafeStorage | null = null;
+
+export const safariStorage = {
+  get instance(): SafariSafeStorage {
+    if (!safariStorageInstance) {
+      safariStorageInstance = new SafariSafeStorage();
+    }
+    return safariStorageInstance;
+  },
+  
+  getItem(key: string): string | null {
+    return this.instance.getItem(key);
+  },
+  
+  setItem(key: string, value: string): void {
+    this.instance.setItem(key, value);
+  },
+  
+  removeItem(key: string): void {
+    this.instance.removeItem(key);
+  },
+  
+  clear(): void {
+    this.instance.clear();
+  },
+  
+  get usingLocalStorage(): boolean {
+    return this.instance.usingLocalStorage;
+  }
+};
 
 /**
  * Vérifie si les Service Workers sont supportés

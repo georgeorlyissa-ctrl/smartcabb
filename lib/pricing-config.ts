@@ -1,17 +1,30 @@
 /**
- * 💰 MODULE PRINCIPAL DE PRICING SMARTCABB
- * 
- * Ce fichier centralise tous les exports liés au pricing pour maintenir
- * la rétrocompatibilité avec les imports existants dans l'application.
+ * 💰 CONFIGURATION DES TARIFS SMARTCABB
+ * Grille tarifaire officielle pour toutes les catégories de véhicules
  * 
  * Mise à jour : Décembre 2024
+ * Source : Grille tarifaire SmartCabb RDC
  */
 
+import { 
+  PRICING_CONFIG,
+  USD_TO_CDF,
+  type VehicleCategory,
+  type ServiceType,
+  type TimeOfDay
+} from './pricing-data';
+
+// ✅ Ré-exports des types UNIQUEMENT (pas les constantes)
+export type { VehicleCategory, ServiceType, TimeOfDay };
+
+// ❌ NE PAS réexporter PRICING_CONFIG ni USD_TO_CDF pour éviter la circularité
+// Ces exports sont gérés par pricing.ts et pricing-data.ts
+
 /**
- * 🔥 Récupère le taux de conversion depuis les paramètres système
- * Si non disponible, utilise la valeur par défaut
+ * 🔥 Fonction pour obtenir le taux de change dynamiquement
+ * Utilise le taux configuré dans le panel admin
  */
-export function getExchangeRate(): number {
+function getExchangeRate(): number {
   try {
     const settingsStr = localStorage.getItem('smartcab_system_settings');
     if (settingsStr) {
@@ -23,171 +36,113 @@ export function getExchangeRate(): number {
   } catch (error) {
     console.warn('⚠️ Erreur lecture taux de conversion, utilisation valeur par défaut:', error);
   }
-  return 2800; // 1 USD = 2800 CDF (valeur par défaut)
+  // ⚠️ FALLBACK : Utiliser 2000 CDF comme valeur par défaut (à synchroniser avec le backend)
+  return 2000;
 }
 
 /**
- * 🔥 Récupère le pourcentage de gain postpaid depuis les paramètres système
- * Si non disponible, utilise la valeur par défaut
+ * Calculer le prix d'une course selon la catégorie et le type de service
  */
-export function getPostpaidInterestRate(): number {
-  try {
-    const settingsStr = localStorage.getItem('smartcab_system_settings');
-    if (settingsStr) {
-      const settings = JSON.parse(settingsStr);
-      if (settings.postpaidInterestRate && typeof settings.postpaidInterestRate === 'number') {
-        return settings.postpaidInterestRate;
-      }
-    }
-  } catch (error) {
-    console.warn('⚠️ Erreur lecture taux postpaid, utilisation valeur par défaut:', error);
-  }
-  return 15; // 15% par défaut
-}
-
-/**
- * 🔥 Récupère le pourcentage de commission SmartCabb depuis les paramètres système
- * Alias de getPostpaidInterestRate pour la clarté du code
- */
-export function getCommissionRate(): number {
-  return getPostpaidInterestRate();
-}
-
-/**
- * Convertit USD en CDF
- */
-export function convertUSDtoCDF(amountUSD: number, exchangeRate?: number): number {
-  if (amountUSD === undefined || amountUSD === null || isNaN(amountUSD)) {
-    return 0;
-  }
-  const rate = exchangeRate || getExchangeRate();
-  return Math.round(amountUSD * rate);
-}
-
-/**
- * Convertit CDF en USD
- */
-export function convertCDFtoUSD(amountCDF: number, exchangeRate?: number): number {
-  if (amountCDF === undefined || amountCDF === null || isNaN(amountCDF)) {
-    return 0;
-  }
-  const rate = exchangeRate || getExchangeRate();
-  return Number((amountCDF / rate).toFixed(2));
-}
-
-/**
- * ✅ Calcule la commission SmartCabb sur un montant
- */
-export function calculateCommission(totalAmount: number, commissionRate?: number): number {
-  if (totalAmount === undefined || totalAmount === null || isNaN(totalAmount)) {
-    return 0;
-  }
-  const rate = commissionRate !== undefined ? commissionRate : getCommissionRate();
-  return Math.round(totalAmount * (rate / 100));
-}
-
-/**
- * ✅ Calcule le gain conducteur après commission
- */
-export function calculateDriverEarnings(totalAmount: number, commissionRate?: number): number {
-  const commission = calculateCommission(totalAmount, commissionRate);
-  return totalAmount - commission;
-}
-
-/**
- * ✅ Ré-exports des fonctions de formatage depuis /utils/formatters.tsx
- * Pour maintenir la compatibilité avec les imports existants
- */
-export { formatCDF, formatUSD, formatNumber } from '../utils/formatters';
-
-/**
- * ✅ Ré-exports de pricing-config.ts
- */
-export {
-  VehicleCategory,
-  ServiceType,
-  TimeOfDay,
-  PRICING_CONFIG,
-  calculatePrice,
-  getTimeOfDay,
-  getCategoryInfo,
-  getAllCategories,
-  formatPriceCDF
-} from './pricing-config';
-
-/**
- * ✅ Alias pour la rétrocompatibilité
- * Certains fichiers importent VEHICLE_PRICING au lieu de PRICING_CONFIG
- */
-export { PRICING_CONFIG as VEHICLE_PRICING } from './pricing-config';
-
-/**
- * ✅ Constantes globales
- */
-export const CONSTANTS = {
-  get EXCHANGE_RATE() {
-    return getExchangeRate(); // Utilise le taux dynamique au lieu d'une valeur fixe
-  },
-  get COMMISSION_RATE() {
-    return getCommissionRate(); // Utilise le taux dynamique
-  },
-  WALLET_DISCOUNT_THRESHOLD: 20, // Seuil de 20$ USD pour réduction wallet
-  WALLET_DISCOUNT_PERCENT: 5 // Réduction de 5%
-};
-
-/**
- * ✅ Fonction helper pour déterminer si c'est le jour (compatibilité)
- */
-export function isDayTime(): boolean {
-  const hour = new Date().getHours();
-  // Jour: 06h00 à 20h59
-  return hour >= 6 && hour < 21;
-}
-
-/**
- * ✅ Calcule le prix horaire en USD (compatibilité)
- */
-export function calculateHourlyPrice(
+export function calculatePrice(
   category: VehicleCategory,
-  hours: number = 1,
-  isNight: boolean = false
+  serviceType: ServiceType = 'course_heure',
+  options?: {
+    timeOfDay?: TimeOfDay;
+    isAirportReturn?: boolean;
+    zoneLointaine?: boolean;
+  }
 ): number {
   const config = PRICING_CONFIG[category];
-  if (!config) return 0;
   
-  const timeOfDay = isNight ? 'nuit' : 'jour';
-  const hourlyRate = config.pricing.course_heure[timeOfDay].usd;
-  
-  return hourlyRate * hours;
+  if (!config) {
+    console.error('Catégorie inconnue:', category);
+    return 0;
+  }
+
+  let priceUSD = 0;
+
+  switch (serviceType) {
+    case 'course_heure':
+      const timeOfDay = options?.timeOfDay || getTimeOfDay();
+      priceUSD = config.pricing.course_heure[timeOfDay].usd;
+      
+      // Doublement si zone lointaine
+      if (options?.zoneLointaine && config.rules.zone_lointaine) {
+        priceUSD *= 2;
+      }
+      break;
+
+    case 'location_jour':
+      priceUSD = config.pricing.location_jour.usd;
+      break;
+
+    case 'trajet_aeroport':
+      priceUSD = options?.isAirportReturn 
+        ? config.pricing.trajet_aeroport.aller_retour.usd
+        : config.pricing.trajet_aeroport.aller.usd;
+      break;
+  }
+
+  // Conversion en CDF
+  return Math.round(priceUSD * getExchangeRate());
 }
 
 /**
- * ✅ Calcule le prix en CDF (compatibilité)
+ * Obtenir le moment de la journée (jour/nuit)
  */
-export function calculatePriceCDF(priceUSD: number, exchangeRate?: number): number {
-  const rate = exchangeRate || getExchangeRate();
-  return Math.round(priceUSD * rate);
+export function getTimeOfDay(): TimeOfDay {
+  const hour = new Date().getHours();
+  
+  // Nuit: 21h00 à 05h59
+  if (hour >= 21 || hour < 6) {
+    return 'nuit';
+  }
+  
+  // Jour: 06h00 à 20h59
+  return 'jour';
 }
 
 /**
- * Grille tarifaire officielle SmartCabb (types pour TypeScript)
+ * Obtenir les informations tarifaires pour une catégorie
  */
-export interface VehiclePricing {
-  id: string;
-  name: string;
-  displayName: string;
-  capacity: number;
-  vehicles: string[];
-  features: string[];
-  hourlyRateDay: number;
-  hourlyRateNight: number;
-  dailyRate: number;
-  airportOneWay: number;
-  airportRoundTrip: number;
-  dayHours: string;
-  nightHours: string;
-  notes: string[];
+export function getCategoryInfo(category: VehicleCategory) {
+  return PRICING_CONFIG[category];
 }
 
-// Importations depuis pricing-config.ts
-import { PRICING_CONFIG, VehicleCategory } from './pricing-config';
+/**
+ * Obtenir toutes les catégories disponibles
+ */
+export function getAllCategories(): VehicleCategory[] {
+  return Object.keys(PRICING_CONFIG) as VehicleCategory[];
+}
+
+/**
+ * Formater le prix en CDF (Franc Congolais)
+ */
+export function formatPriceCDF(priceUSD: number): string {
+  // ✅ Protection contre null/undefined/NaN
+  if (priceUSD == null || isNaN(priceUSD)) {
+    return '0 CDF';
+  }
+  
+  const priceCDF = priceUSD * getExchangeRate();
+  return `${Math.round(priceCDF).toLocaleString('fr-FR')} CDF`;
+}
+
+/**
+ * Obtenir le tarif affiché pour l'utilisateur
+ */
+export function getDisplayPrice(
+  category: VehicleCategory,
+  serviceType: ServiceType = 'course_heure'
+): string {
+  const timeOfDay = getTimeOfDay();
+  const priceCDF = calculatePrice(category, serviceType, { timeOfDay });
+  
+  // ✅ Protection contre null/undefined/NaN
+  if (priceCDF == null || isNaN(priceCDF)) {
+    return '0 CDF';
+  }
+  
+  return `${priceCDF.toLocaleString('fr-FR')} CDF`;
+}

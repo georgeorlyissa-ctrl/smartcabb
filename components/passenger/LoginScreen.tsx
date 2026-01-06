@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { signIn } from '../../lib/auth-service';
 import { profileService } from '../../lib/supabase-services';
 import { Eye, EyeOff, Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
@@ -9,10 +8,12 @@ import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { EmailPhoneInput } from '../EmailPhoneInput';
+import { useState } from 'react';
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');
+  
+  const navigate = useNavigate();
   
   let hookData;
   try {
@@ -30,7 +31,7 @@ export function LoginScreen() {
     );
   }
 
-  const { setCurrentScreen, setCurrentUser } = hookData;
+  const { setCurrentScreen, setCurrentUser, setCurrentView } = hookData;
   
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -93,8 +94,13 @@ export function LoginScreen() {
           return;
         }
         
-        setErrorMsg(result.error || 'Erreur de connexion');
-        toast.error(result.error || 'Erreur de connexion');
+        // ✅ FIX: Convertir l'erreur en string si c'est un objet
+        const errorMessage = typeof result.error === 'string' 
+          ? result.error 
+          : result.error?.message || JSON.stringify(result.error) || 'Erreur de connexion';
+        
+        setErrorMsg(errorMessage);
+        toast.error(errorMessage);
         setLoading(false);
         return;
       }
@@ -131,14 +137,44 @@ export function LoginScreen() {
         return;
       }
 
+      // 💰 CHARGER LE SOLDE DU PORTEFEUILLE DEPUIS LE BACKEND
+      let walletBalance = 0;
+      try {
+        console.log('💳 Chargement du solde du portefeuille...');
+        const balanceResponse = await fetch(
+          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (balanceResponse.ok) {
+          const balanceData = await balanceResponse.json();
+          walletBalance = balanceData.balance || 0;
+          console.log('✅ Solde chargé:', walletBalance, 'CDF');
+        } else {
+          console.warn('⚠️ Impossible de charger le solde, utilisation de 0 par défaut');
+        }
+      } catch (balanceError) {
+        console.error('❌ Erreur chargement solde:', balanceError);
+        // Continue avec solde 0
+      }
+
       // Créer l'objet utilisateur avec les vraies données Supabase
       const user: any = {
         id: profile.id,
         name: profile.full_name || 'Utilisateur',
         email: profile.email,
         phone: profile.phone || '',
-        walletBalance: profile.wallet_balance || 0,
-        walletTransactions: [] // Seront chargées depuis la base si nécessaire
+        // ✅ FIX: Utiliser le solde chargé depuis le backend
+        walletBalance: walletBalance,
+        walletTransactions: [], // Seront chargées depuis la base si nécessaire
+        // ✅ FIX: Ajouter les dates depuis le profil
+        created_at: profile.created_at,
+        registeredAt: profile.created_at
       };
 
       // 💾 CHARGER LES DONNÉES DE LOCALSTORAGE (override Supabase si disponible)
@@ -319,7 +355,12 @@ export function LoginScreen() {
             <div className="text-center">
               <button 
                 type="button"
-                onClick={() => setCurrentScreen('welcome')}
+                onClick={() => {
+                  console.log('⬅️ Retour vers la page d\'accueil');
+                  setCurrentView(null);
+                  setCurrentScreen('landing');
+                  navigate('/');
+                }}
                 className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
                 disabled={loading}
               >

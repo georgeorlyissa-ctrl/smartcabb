@@ -1,9 +1,6 @@
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
+import { motion } from '../../framer-motion';
 import { useAppState } from '../../hooks/useAppState';
 import { CurrencySelector } from '../CurrencySelector';
-import { MixedPaymentSelector } from '../MixedPaymentSelector';
 import { 
   ArrowLeft, 
   Smartphone, 
@@ -13,19 +10,25 @@ import {
   Clock,
   CreditCard,
   Calculator,
-  Building2
+  Building2,
+  Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PaymentMethodScreen() {
   const { setCurrentScreen, updateRide, state, createRide } = useAppState();
-  const [selectedMethod, setSelectedMethod] = useState<'flutterwave' | 'cash' | 'mixed' | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<'flutterwave' | 'cash' | 'mixed' | 'wallet' | null>(null);
   const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'CDF'>('CDF');
   const [cashAmount, setCashAmount] = useState(0);
   const [mobileMoneyAmount, setMobileMoneyAmount] = useState(0);
   
   // Exchange rate - could come from admin settings
   const exchangeRate = state.systemSettings?.exchangeRate || 2850;
+  
+  // ✅ NOUVEAU : Récupérer le solde du passager
+  const userBalance = state.currentUser?.balance || 0;
+  const ridePrice = state.currentRide?.estimatedPrice || 12500;
+  const hasSufficientBalance = userBalance >= ridePrice;
 
   console.log('💳 PaymentMethodScreen rendered with state:', {
     hasCurrentRide: !!state.currentRide,
@@ -80,6 +83,17 @@ export function PaymentMethodScreen() {
       borderColor: 'border-purple-200',
       bgColor: 'bg-purple-50',
       features: ['Flexible', 'Répartition personnalisée', 'Sécurisé']
+    },
+    {
+      id: 'wallet' as const,
+      title: 'Portefeuille',
+      subtitle: 'Solde du passager',
+      description: 'Payer avec votre solde de portefeuille',
+      icon: Wallet,
+      color: 'bg-green-500',
+      borderColor: 'border-green-200',
+      bgColor: 'bg-green-50',
+      features: ['Rapide', 'Sécurisé', 'Solde disponible']
     }
   ];
 
@@ -108,7 +122,7 @@ export function PaymentMethodScreen() {
       // Mettre à jour la course existante avec la méthode de paiement
       if (updateRide) {
         updateRide(state.currentRide.id, {
-          paymentMethod: selectedMethod,
+          paymentMethod: selectedMethod === 'flutterwave' ? 'mobile_money' : selectedMethod,
           paymentDetails: paymentDetails,
           estimatedPrice: selectedCurrency === 'USD' ? priceInSelectedCurrency * exchangeRate : priceInSelectedCurrency
         });
@@ -121,16 +135,27 @@ export function PaymentMethodScreen() {
       // Si aucune course n'existe, en créer une nouvelle
       const passengerId = state.currentUser?.id || 'user1';
       
+      // ✅ CORRECTION : Utiliser les vraies adresses saisies par l'utilisateur
+      const pickupLocation = state.pickup;
+      const destinationLocation = state.destination;
+      
+      // Validation des adresses
+      if (!pickupLocation || !destinationLocation) {
+        console.error('❌ Adresses manquantes:', { pickup: pickupLocation, destination: destinationLocation });
+        toast.error('Erreur: Adresses de départ/arrivée manquantes');
+        return;
+      }
+      
       if (createRide) {
         createRide({
           passengerId,
-          pickup: state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Boulevard du 30 Juin, Gombe, Kinshasa' },
-          destination: state.destination || { lat: -4.3300, lng: 15.3100, address: 'Destination non spécifiée' },
+          pickup: pickupLocation,
+          destination: destinationLocation,
           status: 'pending',
           estimatedPrice: selectedCurrency === 'USD' ? priceInSelectedCurrency * exchangeRate : priceInSelectedCurrency,
           estimatedDuration: 15,
           vehicleType: 'smart_standard',
-          paymentMethod: selectedMethod,
+          paymentMethod: selectedMethod === 'flutterwave' ? 'mobile_money' : selectedMethod,
           paymentDetails: paymentDetails,
           driverId: null
         });
@@ -145,6 +170,15 @@ export function PaymentMethodScreen() {
 
     // Rediriger vers le suivi de course
     setCurrentScreen('ride-tracking');
+  };
+
+  // ✅ NOUVEAU : Gérer le clic direct sur un mode de paiement
+  const handlePaymentMethodClick = (methodId: 'flutterwave' | 'cash' | 'mixed' | 'wallet') => {
+    // Sélectionner le mode
+    setSelectedMethod(methodId);
+    
+    // Afficher un feedback visuel
+    toast.info(`Mode sélectionné : ${paymentMethods.find(m => m.id === methodId)?.title}`);
   };
 
   return (
@@ -216,6 +250,9 @@ export function PaymentMethodScreen() {
             const Icon = method.icon;
             const isSelected = selectedMethod === method.id;
             
+            // ✅ NOUVEAU : Désactiver wallet si solde insuffisant
+            const isWalletDisabled = method.id === 'wallet' && !hasSufficientBalance;
+            
             return (
               <motion.div
                 key={method.id}
@@ -225,37 +262,59 @@ export function PaymentMethodScreen() {
               >
                 <Card 
                   className={`p-4 cursor-pointer transition-all ${
-                    isSelected 
-                      ? `${method.borderColor} border-2 ${method.bgColor}` 
-                      : 'border border-gray-200 hover:border-gray-300'
+                    isWalletDisabled
+                      ? 'opacity-50 cursor-not-allowed bg-gray-100'
+                      : isSelected 
+                        ? `${method.borderColor} border-2 ${method.bgColor}` 
+                        : 'border border-gray-200 hover:border-gray-300'
                   }`}
-                  onClick={() => setSelectedMethod(method.id)}
+                  onClick={() => !isWalletDisabled && handlePaymentMethodClick(method.id)}
                 >
                   <div className="flex items-start space-x-4">
-                    <div className={`w-12 h-12 ${method.color} rounded-full flex items-center justify-center`}>
+                    <div className={`w-12 h-12 ${isWalletDisabled ? 'bg-gray-400' : method.color} rounded-full flex items-center justify-center`}>
                       <Icon className="w-6 h-6 text-white" />
                     </div>
                     
                     <div className="flex-1">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <h3 className="font-semibold">{method.title}</h3>
+                          <h3 className={`font-semibold ${isWalletDisabled ? 'text-gray-500' : ''}`}>
+                            {method.title}
+                          </h3>
                           <p className="text-sm text-gray-600">{method.subtitle}</p>
+                          
+                          {/* ✅ AFFICHER LE SOLDE POUR WALLET */}
+                          {method.id === 'wallet' && (
+                            <div className="mt-1">
+                              <p className={`text-sm font-semibold ${hasSufficientBalance ? 'text-green-600' : 'text-red-600'}`}>
+                                Solde: {userBalance.toLocaleString()} CDF
+                              </p>
+                              {!hasSufficientBalance && (
+                                <p className="text-xs text-red-500 mt-1">
+                                  ⚠️ Solde insuffisant (manque {(ridePrice - userBalance).toLocaleString()} CDF)
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {isSelected && (
+                        {isSelected && !isWalletDisabled && (
                           <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
                             <Check className="w-4 h-4 text-white" />
                           </div>
                         )}
                       </div>
                       
-                      <p className="text-sm text-gray-700 mb-3">{method.description}</p>
+                      <p className={`text-sm mb-3 ${isWalletDisabled ? 'text-gray-500' : 'text-gray-700'}`}>
+                        {method.description}
+                      </p>
                       
                       <div className="flex flex-wrap gap-2">
                         {method.features.map((feature, featureIndex) => (
                           <span 
                             key={featureIndex}
-                            className="text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-700"
+                            className={`text-xs px-2 py-1 rounded-full ${
+                              isWalletDisabled ? 'bg-gray-200 text-gray-500' : 'bg-gray-100 text-gray-700'
+                            }`}
                           >
                             {feature}
                           </span>

@@ -1,5 +1,4 @@
-import { motion } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link } from '../lib/simple-router';
 import { useState } from 'react';
 
 export function LegalPage() {
@@ -131,25 +130,15 @@ export function LegalPage() {
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
         <div className="max-w-7xl mx-auto text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-5xl md:text-6xl font-extrabold mb-6"
-          >
+          <h1 className="text-5xl md:text-6xl font-extrabold mb-6">
             {language === 'fr' ? 'Mentions légales' : 'Legal Notice'}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-xl text-white/90"
-          >
+          </h1>
+          <p className="text-xl text-white/90">
             {language === 'fr' 
               ? 'Dernière mise à jour : 8 novembre 2025'
               : 'Last updated: November 8, 2025'
             }
-          </motion.p>
+          </p>
         </div>
       </section>
 
@@ -163,7 +152,7 @@ export function LegalPage() {
                 <p>
                   <strong>Nom de l'entreprise :</strong> SmartCabb<br />
                   <strong>Forme juridique :</strong> SARL (Société à Responsabilité Limitée)<br />
-                  <strong>Siège social :</strong> Kinshasa, République Démocratique du Congo<br />
+                  <strong>Siège social :</strong> Rép Dem Congo<br />
                   <strong>Téléphone :</strong> +243 990 666 661<br />
                   <strong>Email :</strong> contact@smartcabb.com
                 </p>
@@ -217,10 +206,9 @@ export function LegalPage() {
                   et décline toute responsabilité quant à leur contenu.
                 </p>
 
-                <h2>9. Droit applicable</h2>
+                <h2>9. Applicable Law</h2>
                 <p>
-                  Les présentes mentions légales sont régies par le droit congolais. Tout litige relatif à l'utilisation 
-                  de nos services sera soumis à la compétence exclusive des tribunaux de Kinshasa.
+                  These legal notices are governed by Congolese law. Any dispute relating to the use \n                  of our services will be subject to the exclusive jurisdiction of the courts of the DRC.
                 </p>
 
                 <h2>10. Contact</h2>
@@ -236,7 +224,7 @@ export function LegalPage() {
                 <p>
                   <strong>Company name:</strong> SmartCabb<br />
                   <strong>Legal form:</strong> Limited Liability Company<br />
-                  <strong>Head office:</strong> Kinshasa, Democratic Republic of Congo<br />
+                  <strong>Head office:</strong> DRC<br />
                   <strong>Phone:</strong> +243 990 666 661<br />
                   <strong>Email:</strong> contact@smartcabb.com
                 </p>
@@ -293,7 +281,7 @@ export function LegalPage() {
                 <h2>9. Applicable Law</h2>
                 <p>
                   These legal notices are governed by Congolese law. Any dispute relating to the use 
-                  of our services will be subject to the exclusive jurisdiction of the courts of Kinshasa.
+                  of our services will be subject to the exclusive jurisdiction of the courts of the DRC.
                 </p>
 
                 <h2>10. Contact</h2>

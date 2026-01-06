@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from './ui/button';
-import { EmailPhoneInput } from './EmailPhoneInput';
-import { ArrowLeft, Mail, CheckCircle, Phone } from 'lucide-react';
+import { motion } from '../framer-motion';
+import { ArrowLeft, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAppState } from '../hooks/useAppState';
@@ -20,7 +18,10 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
   const { setCurrentScreen } = useAppState();
 
   const handleResetPassword = async () => {
-    if (!identifier || identifier.trim() === '') {
+    // Convertir en string et vérifier
+    const identifierStr = String(identifier || '').trim();
+    
+    if (!identifierStr) {
       toast.error('Veuillez entrer votre email ou numéro de téléphone');
       return;
     }
@@ -29,14 +30,14 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
     try {
       // Déterminer si c'est un email ou un numéro de téléphone
-      const isPhone = /^(\+243|0)?[0-9]{9}$/.test(identifier.trim());
+      const isPhone = /^(\+243|0)?[0-9]{9}$/.test(identifierStr);
 
       if (isPhone) {
         // Réinitialisation par SMS
-        console.log('📱 Réinitialisation par SMS pour:', identifier);
+        console.log('📱 Réinitialisation par SMS pour:', identifierStr);
 
         // Normaliser le numéro
-        let normalizedPhone = identifier.trim();
+        let normalizedPhone = identifierStr;
         if (normalizedPhone.startsWith('0')) {
           normalizedPhone = '+243' + normalizedPhone.substring(1);
         } else if (!normalizedPhone.startsWith('+')) {
@@ -45,6 +46,46 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
         console.log('📱 Numéro normalisé:', normalizedPhone);
 
+        // ✅ ÉTAPE 1 : Vérifier que le compte existe AVANT d'envoyer le SMS
+        console.log('🔍 Vérification de l\'existence du compte...');
+        const checkResponse = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/check-phone-exists`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            },
+            body: JSON.stringify({ phoneNumber: normalizedPhone })
+          }
+        );
+
+        const checkResult = await checkResponse.json();
+        console.log('🔍 Résultat vérification:', checkResult);
+
+        if (!checkResult.exists) {
+          // Le compte n'existe pas
+          toast.error('Aucun compte trouvé avec ce numéro', {
+            duration: 5000,
+            description: 'Vous devez d\'abord créer un compte.'
+          });
+          
+          // Proposer de créer un compte
+          setTimeout(() => {
+            if (confirm('Aucun compte trouvé avec ce numéro. Voulez-vous créer un compte ?')) {
+              // Rediriger vers l'inscription
+              const registrationScreen = userType === 'driver' ? 'driver-registration' : 'registration';
+              setCurrentScreen(registrationScreen);
+            }
+          }, 1500);
+          
+          setLoading(false);
+          return;
+        }
+
+        // ✅ ÉTAPE 2 : Le compte existe, générer et envoyer le code OTP
+        console.log('✅ Compte existant trouvé, envoi du code OTP...');
+        
         // Générer un code OTP à 6 chiffres
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         const message = `SmartCabb : Votre code de reinitialisation est ${otpCode}. Utilisez ce code pour reinitialiser votre mot de passe. Ne partagez jamais ce code avec qui que ce soit.`;
@@ -88,12 +129,15 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
           setCurrentScreen(otpScreen);
         } else {
           console.error('❌ Erreur envoi SMS:', smsResult);
-          toast.error(smsResult.error || 'Erreur lors de l\'envoi du SMS');
+          const errorMsg = typeof smsResult.error === 'string' 
+            ? smsResult.error 
+            : smsResult.error?.message || 'Erreur lors de l\'envoi du SMS';
+          toast.error(errorMsg);
         }
 
       } else {
         // Réinitialisation par email
-        console.log('📧 Réinitialisation par email pour:', identifier);
+        console.log('📧 Réinitialisation par email pour:', identifierStr);
 
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/forgot-password`,
@@ -103,7 +147,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${publicAnonKey}`
             },
-            body: JSON.stringify({ email: identifier })
+            body: JSON.stringify({ email: identifierStr })
           }
         );
 
@@ -180,7 +224,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
             transition={{ type: 'spring', delay: 0.2 }}
             className={`w-20 h-20 ${theme.icon} rounded-full flex items-center justify-center mb-6`}
           >
-            <CheckCircle className="w-10 h-10 text-white" />
+            <CheckCircle2 className="w-10 h-10 text-white" />
           </motion.div>
 
           <motion.div
@@ -263,7 +307,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
         >
           <EmailPhoneInput
             value={identifier}
-            onChange={setIdentifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             label="Email ou Téléphone"
             placeholder="email@exemple.com ou 812345678"
             required

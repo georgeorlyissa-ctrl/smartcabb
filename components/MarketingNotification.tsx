@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { X, ExternalLink } from 'lucide-react';
+import { motion, AnimatePresence } from '../framer-motion';
+import { X, Bell, Gift, TrendingUp, Zap } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
 import { MarketingCampaign } from '../types';
 

@@ -1,0 +1,18 @@
+🔧 Fix: Correction build Vercel - suppression scripts postinstall/prebuild
+
+PROBLÈME RÉSOLU:
+- Erreur "Cannot find module '/vercel/path0/postinstall.js'" sur Vercel
+- Build échouait lors de npm install avec les scripts postinstall et prebuild
+
+CHANGEMENTS:
+✅ Supprimé script postinstall (vérification lucide-react)
+✅ Supprimé script prebuild (nettoyage cache)
+✅ Version lucide-react@0.263.1 reste verrouillée dans dependencies
+✅ Vercel.json configuré avec --legacy-peer-deps
+
+RÉSULTAT:
+✅ Build Vercel devrait maintenant passer sans erreur
+✅ Scripts optionnels supprimés, fonctionnalités essentielles préservées
+✅ Application prête pour déploiement sur Vercel
+
+Version: 517.9.1 → 517.10.0

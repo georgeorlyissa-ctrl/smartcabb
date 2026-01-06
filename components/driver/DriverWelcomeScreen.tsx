@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { motion } from "motion/react";
-import { Button } from "../ui/button";
-import { useAppState } from "../../hooks/useAppState";
-import { Car, DollarSign, Star, MapPin, ArrowLeft, Sparkles, TrendingUp, Shield } from "lucide-react";
-import { SmartCabbLogo } from "../SmartCabbLogo";
-import { WelcomeBackScreen } from "../WelcomeBackScreen";
+import { useState, useEffect } from 'react';
+import { motion } from '../../framer-motion';
 import { getSession } from "../../lib/auth-service";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "../../lib/simple-router";
+import { useAppState } from '../../hooks/useAppState';
+import { WelcomeBackScreen } from '../WelcomeBackScreen';
+import { SmartCabbLogo } from '../SmartCabbLogo';
+import { Button } from '../ui/button';
+import { ArrowLeft, Car } from 'lucide-react';
 
 export function DriverWelcomeScreen() {
   console.log("🚗 DriverWelcomeScreen - Composant monté");
@@ -81,12 +81,6 @@ export function DriverWelcomeScreen() {
     setCurrentScreen(screen);
   };
 
-  const handleBackClick = () => {
-    console.log('⬅️ Bouton retour cliqué - Redirection vers landing page');
-    // ✅ SOLUTION DÉFINITIVE: Forcer un hard reload vers la landing page
-    window.location.href = '/';
-  };
-
   if (isCheckingSession) {
     return null;
   }
@@ -146,7 +140,7 @@ export function DriverWelcomeScreen() {
           </Button>
         </motion.div>
 
-        {/* Header */}
+        {/* Header et Boutons - Centré */}
         <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
           <motion.div
             initial={{ scale: 0.8, y: 20 }}
@@ -179,82 +173,29 @@ export function DriverWelcomeScreen() {
             </p>
           </motion.div>
 
-          {/* Features Premium */}
+          {/* Boutons uniquement */}
           <motion.div
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="w-full max-w-sm space-y-4 mb-12"
+            className="w-full max-w-2xl px-2"
           >
-            {[
-              { icon: DollarSign, label: 'Revenus flexibles et attractifs', color: 'yellow' },
-              { icon: TrendingUp, label: 'Horaires de travail libres', color: 'cyan' },
-              { icon: Shield, label: 'Paiements sécurisés garantis', color: 'yellow' }
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-                whileHover={{ x: 10 }}
-                className="flex items-center gap-4 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/15 transition-all cursor-pointer"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                onClick={() => handleNavigation("driver-registration")}
+                className="w-full h-16 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl text-lg font-semibold shadow-2xl shadow-cyan-500/50"
               >
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${feature.color === 'cyan' ? 'from-cyan-500/20 to-cyan-600/20' : 'from-yellow-500/20 to-yellow-600/20'} flex items-center justify-center`}>
-                  <feature.icon className={`w-6 h-6 ${feature.color === 'cyan' ? 'text-cyan-400' : 'text-yellow-400'}`} />
-                </div>
-                <span className="text-white font-medium">{feature.label}</span>
-              </motion.div>
-            ))}
+                Devenir conducteur
+              </Button>
+              <Button
+                onClick={() => handleNavigation("driver-login")}
+                className="w-full h-16 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white/20 rounded-2xl text-lg font-semibold"
+              >
+                Se connecter
+              </Button>
+            </div>
           </motion.div>
         </div>
-
-        {/* Actions Premium */}
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          className="px-6 pb-8 space-y-4"
-        >
-          <Button
-            onClick={() => handleNavigation("driver-registration")}
-            className="w-full h-16 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl text-lg font-semibold shadow-2xl shadow-cyan-500/50"
-          >
-            Devenir conducteur
-          </Button>
-          <Button
-            onClick={() => handleNavigation("driver-login")}
-            className="w-full h-16 bg-white/10 backdrop-blur-sm border-2 border-white/30 text-white hover:bg-white/20 rounded-2xl text-lg font-semibold"
-          >
-            Se connecter
-          </Button>
-        </motion.div>
-
-        {/* Bottom Links Premium */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="px-6 pb-6 flex justify-center gap-8 text-sm"
-        >
-          <button
-            onClick={() => {
-              console.log("👤 Navigation vers Espace Passager");
-              navigate("/app");
-            }}
-            className="text-gray-400 hover:text-cyan-400 transition-colors font-medium"
-          >
-            Espace Passager
-          </button>
-          <button
-            onClick={() => {
-              console.log("👨‍💼 Navigation vers Administration");
-              navigate("/admin");
-            }}
-            className="text-gray-400 hover:text-cyan-400 transition-colors font-medium"
-          >
-            Administration
-          </button>
-        </motion.div>
       </div>
     </div>
   );

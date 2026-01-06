@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { Tag, Check, X } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
 import { useTranslation } from '../hooks/useTranslation';
@@ -107,7 +106,7 @@ export function PromoCodeInput({ rideAmount, onPromoApplied }: PromoCodeInputPro
           <div className="flex justify-between text-sm">
             <span>Réduction:</span>
             <span className="font-medium text-green-600">
-              -{calculateDiscount(appliedPromo).toLocaleString()} {t('cdf')}
+              -{(calculateDiscount(appliedPromo) || 0).toLocaleString()} {t('cdf')}
             </span>
           </div>
         </div>

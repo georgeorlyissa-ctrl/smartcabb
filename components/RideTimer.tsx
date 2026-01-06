@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Play, Pause } from 'lucide-react';
 import { Card } from './ui/card';
 
+// ✅ v517.76 - Protection toLocaleString ajoutée
 interface RideTimerProps {
   isActive: boolean;
   startTime?: Date;
@@ -93,7 +94,7 @@ export function RideTimer({
           <div className="text-right">
             <div className="text-sm font-medium text-gray-600">Coût actuel</div>
             <div className="text-lg font-bold text-green-600">
-              {calculateCost().toLocaleString()} CDF
+              {(calculateCost() || 0).toLocaleString()} CDF
             </div>
             <div className="text-xs text-gray-500">
               {hourlyRate}$ CDF/heure

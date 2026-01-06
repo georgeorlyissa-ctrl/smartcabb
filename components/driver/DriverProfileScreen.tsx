@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Edit3, Save, X, User, Mail, Phone, Car, MapPin, Star, DollarSign, TrendingUp, Shield } from 'lucide-react';
+import { ArrowLeft, Edit3, Save, X, User, Mail, Phone, Car, MapPin, Star, DollarSign, TrendingUp, Shield, Camera, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, type VehicleCategory } from '../../lib/pricing';
 import { notifyVehicleUpdated, notifyProfileUpdated } from '../../lib/sms-service';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 // Helper functions
@@ -19,14 +19,18 @@ const convertUSDtoCDF = (usdAmount: number) => {
   return Math.round(usdAmount * exchangeRate);
 };
 
-const formatCDF = (amount: number) => {
-  return `${amount.toLocaleString()} CDF`;
+// ✅ v517.77 - Protection contre null/undefined
+const formatCDF = (amount: number | null | undefined) => {
+  const safeAmount = Number(amount) || 0;
+  return `${safeAmount.toLocaleString('fr-FR')} CDF`;
 };
 
 export function DriverProfileScreen() {
   const { state, setCurrentScreen, updateDriver } = useAppState();
   const [isEditing, setIsEditing] = useState(false);
   const [postpaidPending, setPostpaidPending] = useState(0);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     name: state.currentDriver?.name || '',
     email: state.currentDriver?.email || '',
@@ -125,7 +129,7 @@ export function DriverProfileScreen() {
     try {
       // ✅ SAUVEGARDER DANS LE BACKEND (KV STORE)
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/driver/update-profile/${state.currentDriver.id}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-profile/${state.currentDriver.id}`,
         {
           method: 'POST',
           headers: {
@@ -199,6 +203,95 @@ export function DriverProfileScreen() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!state.currentDriver) return;
+
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validation taille (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La photo ne doit pas dépasser 5 MB');
+      return;
+    }
+
+    // Validation type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Veuillez sélectionner une image');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      // Convertir l'image en base64 pour l'envoyer au backend
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      
+      reader.onload = async () => {
+        try {
+          const base64Image = reader.result as string;
+          
+          console.log('📤 Upload de photo pour le conducteur:', state.currentDriver!.id);
+
+          // ✅ SAUVEGARDER L'IMAGE EN BASE64 DANS LE BACKEND
+          const response = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-profile/${state.currentDriver!.id}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                photo: base64Image // ✅ Photo en base64
+              })
+            }
+          );
+
+          console.log('📥 Statut réponse:', response.status, response.statusText);
+
+          // Lire le texte brut de la réponse
+          const responseText = await response.text();
+          console.log('📄 Réponse brute:', responseText.substring(0, 200));
+
+          if (!response.ok) {
+            throw new Error(`Erreur HTTP ${response.status}: ${responseText}`);
+          }
+
+          // Parser le JSON
+          const data = JSON.parse(responseText);
+          console.log('✅ Réponse JSON:', data);
+          
+          if (data.success) {
+            // Mettre à jour le state local
+            updateDriver(state.currentDriver!.id, { photo: base64Image });
+            
+            toast.success('✅ Photo de profil mise à jour !');
+            console.log('✅ Photo de profil sauvegardée dans le backend');
+          } else {
+            throw new Error(data.error || 'Erreur inconnue');
+          }
+        } catch (error) {
+          console.error('❌ Erreur upload photo:', error);
+          toast.error('Erreur lors de l\'upload de la photo');
+        } finally {
+          setUploadingPhoto(false);
+        }
+      };
+
+      reader.onerror = () => {
+        console.error('❌ Erreur lecture fichier');
+        toast.error('Erreur lors de la lecture du fichier');
+        setUploadingPhoto(false);
+      };
+    } catch (error) {
+      console.error('❌ Erreur upload photo:', error);
+      toast.error('Erreur lors de l\'upload de la photo');
+      setUploadingPhoto(false);
+    }
+  };
+
   if (!state.currentDriver) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -240,7 +333,7 @@ export function DriverProfileScreen() {
         {/* Photo et stats */}
         <Card className="p-6 mb-6">
           <div className="flex items-center space-x-4 mb-4 min-w-0">
-            <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-200 flex-shrink-0">
               {state.currentDriver.photo ? (
                 <img 
                   src={state.currentDriver.photo} 
@@ -252,6 +345,28 @@ export function DriverProfileScreen() {
                   <User className="w-8 h-8 text-gray-400" />
                 </div>
               )}
+              
+              {/* ✅ Bouton pour changer la photo */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                {uploadingPhoto ? (
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+              </button>
+              
+              {/* Input file caché */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
             </div>
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-semibold truncate">{state.currentDriver.name}</h2>
@@ -264,7 +379,7 @@ export function DriverProfileScreen() {
                   {state.currentDriver.totalRides} courses
                 </div>
                 <div className="text-sm text-gray-600 flex-shrink-0">
-                  {state.currentDriver.earnings.toLocaleString()} CDF
+                  {formatCDF(state.currentDriver.earnings)}
                 </div>
               </div>
             </div>
@@ -272,7 +387,9 @@ export function DriverProfileScreen() {
           
           <div className="flex items-center space-x-2 text-sm text-gray-600 min-w-0">
             <MapPin className="w-4 h-4 flex-shrink-0" />
-            <span className="truncate">{state.currentDriver.currentLocation.address}</span>
+            <span className="truncate">
+              {state.currentDriver.currentLocation?.address || 'Position non disponible'}
+            </span>
           </div>
         </Card>
 
@@ -454,7 +571,7 @@ export function DriverProfileScreen() {
                 <div>
                   <p className="text-sm text-gray-600">Montants post-payés à recevoir</p>
                   <h2 className="text-3xl text-orange-600 mt-1">
-                    {postpaidPending.toLocaleString()} CDF
+                    {formatCDF(postpaidPending)}
                   </h2>
                 </div>
                 <TrendingUp className="w-12 h-12 text-orange-300" />

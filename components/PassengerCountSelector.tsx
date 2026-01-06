@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
+import React from 'react';
 import { Users, Plus, Minus } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 
@@ -36,7 +35,7 @@ export function PassengerCountSelector({
       </div>
       
       <div className="flex items-center gap-3">
-        <Button
+        <button
           variant="outline"
           size="sm"
           onClick={handleDecrease}
@@ -44,11 +43,11 @@ export function PassengerCountSelector({
           className="w-8 h-8 p-0"
         >
           <Minus className="w-4 h-4" />
-        </Button>
+        </button>
         
         <span className="w-8 text-center font-medium">{value}</span>
         
-        <Button
+        <button
           variant="outline"
           size="sm"
           onClick={handleIncrease}
@@ -56,7 +55,7 @@ export function PassengerCountSelector({
           className="w-8 h-8 p-0"
         >
           <Plus className="w-4 h-4" />
-        </Button>
+        </button>
       </div>
     </div>
   );

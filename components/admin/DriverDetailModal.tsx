@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity, User, Save, Shield, Ban, Trash2, AlertCircle, DollarSign } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
+import { Input } from '../ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { toast } from 'sonner';
@@ -640,7 +642,7 @@ export function DriverDetailModal({
                   <Label>Note moyenne</Label>
                   <div className="flex items-center space-x-2 mt-2">
                     <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                    <span className="font-semibold">{driver.rating.toFixed(1)}/5</span>
+                    <span className="font-semibold">{(driver.rating || 0).toFixed(1)}/5</span>
                   </div>
                 </div>
               </div>
@@ -980,7 +982,7 @@ export function DriverDetailModal({
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Note moyenne</p>
-                    <p className="text-2xl font-bold">{avgRating.toFixed(1)}/5</p>
+                    <p className="text-2xl font-bold">{(avgRating || 0).toFixed(1)}/5</p>
                   </div>
                 </div>
               </Card>

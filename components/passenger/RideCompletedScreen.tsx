@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState } from 'react';
+import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
@@ -19,7 +19,8 @@ export function RideCompletedScreen() {
   const { state, setCurrentScreen, drivers } = useAppState();
   const [showAnimation, setShowAnimation] = useState(true);
 
-  const assignedDriver = drivers.find(d => d.id === state.currentRide?.driverId);
+  // ✅ FIX: Ajouter une vérification de sécurité pour éviter l'erreur "Cannot read properties of undefined"
+  const assignedDriver = drivers?.find(d => d.id === state.currentRide?.driverId) || null;
   const currentRide = state.currentRide;
 
   useEffect(() => {

@@ -1,6 +1,5 @@
-import { motion } from 'motion/react';
-import { useAppState } from '../hooks/useAppState';
-import { MapPin, Clock, DollarSign, User } from 'lucide-react';
+import { motion } from '../framer-motion';
+import { MapPin, DollarSign, Clock, Navigation } from 'lucide-react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

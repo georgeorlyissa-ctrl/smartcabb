@@ -1,8 +1,10 @@
+"use client";
+
+// 🔥 v311.5 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
 import { useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../framer-motion';
+import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '../ui/chart';
-import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { TrendingUp, Calendar, DollarSign } from 'lucide-react';
 
@@ -47,7 +49,7 @@ export function StatsCharts() {
       const revenue = categoryRides.reduce((sum, r) => sum + (r.total_amount || 0), 0);
       
       return {
-        category: category.replace('Smart ', ''),
+        category: category.replace('SmartCabb ', ''),
         courses: categoryRides.length,
         revenus: revenue / 1000 // En milliers de CDF
       };
@@ -67,24 +69,11 @@ export function StatsCharts() {
     }));
   }, [drivers]);
 
-  const chartConfig = {
-    courses: {
-      label: 'Courses',
-      color: 'hsl(var(--chart-1))'
-    },
-    completees: {
-      label: 'Complétées',
-      color: 'hsl(var(--chart-2))'
-    },
-    revenus: {
-      label: 'Revenus (k CDF)',
-      color: 'hsl(var(--chart-3))'
-    },
-    note: {
-      label: 'Note',
-      color: 'hsl(var(--chart-4))'
-    }
-  };
+  const maxCourses = Math.max(...last7DaysData.map(d => d.courses), 1);
+  const maxCompletees = Math.max(...last7DaysData.map(d => d.completees), 1);
+  const maxRevenus = Math.max(...last7DaysData.map(d => d.revenus), 1);
+  const maxCategoryCourses = Math.max(...categoryData.map(d => d.courses), 1);
+  const maxDriverCourses = Math.max(...topDriversData.map(d => d.courses), 1);
 
   return (
     <div className="space-y-6">
@@ -106,38 +95,47 @@ export function StatsCharts() {
               </p>
             </div>
           </div>
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={last7DaysData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-                  <XAxis 
-                    dataKey="date" 
-                    className="text-xs"
-                    tick={{ fill: '#6b7280' }}
-                  />
-                  <YAxis className="text-xs" tick={{ fill: '#6b7280' }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="courses" 
-                    stroke="#3b82f6" 
-                    strokeWidth={3}
-                    dot={{ fill: '#3b82f6', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="completees" 
-                    stroke="#10b981" 
-                    strokeWidth={3}
-                    dot={{ fill: '#10b981', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+          <div className="space-y-4">
+            {last7DaysData.map((day, index) => (
+              <div key={index} className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium w-20">{day.date}</span>
+                  <div className="flex gap-4 text-xs">
+                    <span className="text-blue-600">Total: {day.courses}</span>
+                    <span className="text-green-600">Complétées: {day.completees}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                      <div 
+                        className="bg-blue-500 h-full transition-all duration-500"
+                        style={{ width: `${(day.courses / maxCourses) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                      <div 
+                        className="bg-green-500 h-full transition-all duration-500"
+                        style={{ width: `${(day.completees / maxCompletees) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-blue-500 rounded"></div>
+              <span className="text-xs text-gray-600">Courses totales</span>
             </div>
-          </ChartContainer>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 bg-green-500 rounded"></div>
+              <span className="text-xs text-gray-600">Courses complétées</span>
+            </div>
+          </div>
         </Card>
 
         {/* Graphique des revenus par jour */}
@@ -153,38 +151,23 @@ export function StatsCharts() {
               </p>
             </div>
           </div>
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={last7DaysData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-                  <XAxis 
-                    dataKey="date" 
-                    className="text-xs"
-                    tick={{ fill: '#6b7280' }}
-                  />
-                  <YAxis className="text-xs" tick={{ fill: '#6b7280' }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="courses" 
-                    stroke="#3b82f6" 
-                    strokeWidth={3}
-                    dot={{ fill: '#3b82f6', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="completees" 
-                    stroke="#10b981" 
-                    strokeWidth={3}
-                    dot={{ fill: '#10b981', r: 4 }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartContainer>
+          <div className="space-y-3">
+            {last7DaysData.map((day, index) => (
+              <div key={index} className="flex items-center gap-3">
+                <div className="w-20 text-sm text-gray-600 font-medium">{day.date}</div>
+                <div className="flex-1">
+                  <div className="bg-gray-200 rounded-full h-8 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-green-400 to-green-600 h-full flex items-center justify-end px-3 text-white text-sm font-semibold transition-all duration-500"
+                      style={{ width: `${(day.revenus / maxRevenus) * 100}%` }}
+                    >
+                      {day.revenus > 0 && `${(day.revenus || 0).toFixed(1)}k CDF`}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* Graphique par catégorie */}
@@ -200,27 +183,24 @@ export function StatsCharts() {
               </p>
             </div>
           </div>
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={categoryData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-                  <XAxis 
-                    dataKey="category" 
-                    className="text-xs"
-                    tick={{ fill: '#6b7280' }}
-                  />
-                  <YAxis className="text-xs" tick={{ fill: '#6b7280' }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar 
-                    dataKey="courses" 
-                    fill="#8b5cf6" 
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartContainer>
+          <div className="space-y-3">
+            {categoryData.map((cat, index) => (
+              <div key={index}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">{cat.category}</span>
+                  <span className="text-sm text-gray-600">{cat.courses} courses</span>
+                </div>
+                <div className="bg-gray-200 rounded-full h-8 overflow-hidden">
+                  <div 
+                    className="bg-purple-500 h-full flex items-center justify-end px-3 text-white text-xs font-semibold transition-all duration-500"
+                    style={{ width: `${(cat.courses / maxCategoryCourses) * 100}%` }}
+                  >
+                    {cat.revenus > 0 && `${(cat.revenus || 0).toFixed(1)}k CDF`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
 
         {/* Top conducteurs */}
@@ -236,29 +216,36 @@ export function StatsCharts() {
               </p>
             </div>
           </div>
-          <ChartContainer config={chartConfig} className="h-[300px] w-full">
-            <div className="w-full h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topDriversData} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
-                  <XAxis type="number" className="text-xs" tick={{ fill: '#6b7280' }} />
-                  <YAxis 
-                    type="category" 
-                    dataKey="nom" 
-                    className="text-xs"
-                    tick={{ fill: '#6b7280' }}
-                    width={80}
-                  />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar 
-                    dataKey="courses" 
-                    fill="#f97316" 
-                    radius={[0, 8, 8, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartContainer>
+          <div className="space-y-3">
+            {topDriversData.map((driver, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="flex items-center gap-3"
+              >
+                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                  {index + 1}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium">{driver.nom}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">{driver.courses} courses</span>
+                      <span className="text-xs text-yellow-600">⭐ {(driver.note || 0).toFixed(1)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-gray-200 rounded-full h-6 overflow-hidden">
+                    <div 
+                      className="bg-gradient-to-r from-orange-400 to-orange-600 h-full transition-all duration-500"
+                      style={{ width: `${(driver.courses / maxDriverCourses) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </Card>
       </motion.div>
     </div>

@@ -1,6 +1,5 @@
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
 import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { CheckCircle, Star } from 'lucide-react';
 
 interface RideCompletionDialogProps {
@@ -38,10 +37,7 @@ export function RideCompletionDialog({
           Résumé de votre course et évaluation
         </DialogDescription>
         
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
+        <Card
           className="text-center space-y-6 py-6"
         >
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
@@ -68,7 +64,7 @@ export function RideCompletionDialog({
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Coût total</span>
               <span className="font-bold text-lg text-green-600">
-                {totalCost.toLocaleString()} CDF
+                {(totalCost || 0).toLocaleString()} CDF
               </span>
             </div>
           </div>
@@ -112,7 +108,7 @@ export function RideCompletionDialog({
               Nouvelle course
             </Button>
           </div>
-        </motion.div>
+        </Card>
       </DialogContent>
     </Dialog>
   );

@@ -1,10 +1,11 @@
 import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Shield, FileText, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { memo } from 'react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { X, FileText, Shield } from 'lucide-react';
 
 interface UnifiedPolicyModalProps {
   isOpen: boolean;

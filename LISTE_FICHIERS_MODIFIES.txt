@@ -1,0 +1,84 @@
+========================================
+SMARTCABB v517.15 - FICHIERS MODIFIÉS
+========================================
+
+Date : 18 décembre 2024
+Version : v517.15
+Fix : Erreurs build lucide-react "Failed to fetch"
+
+========================================
+FICHIERS À COPIER (4 fichiers)
+========================================
+
+1. /package.json
+   - Version lucide-react : ^0.400.0
+   - Suppression resolutions/overrides
+   - Version : 517.15.0
+
+2. /vite.config.ts
+   - Configuration simplifiée
+   - Suppression dedupe/commonjsOptions
+   - 48 lignes
+
+3. /BUILD_VERSION.ts
+   - Version : v517.15
+   - Cache bust : lucide-version-fix-517-15
+
+4. /public/sw.js
+   - Cache version : smartcabb-v517-15-lucide-version-fix
+   - Service Worker v517.15
+
+========================================
+CORRECTION PRÉCÉDENTE INCLUSE
+========================================
+
+5. /components/driver/DriverWelcomeScreen.tsx
+   - (Déjà corrigé en v517.14)
+   - Fix imports useAppState
+   - Tous les imports React/lucide-react
+
+========================================
+FICHIERS DE DOCUMENTATION CRÉÉS
+========================================
+
+📄 /✅_FIX_LUCIDE_BUILD_v517.15.md
+   - Documentation détaillée du fix lucide-react
+
+📄 /FICHIERS_MODIFIES_v517.15.md
+   - Liste des changements avec avant/après
+
+📄 /🎯_GUIDE_CORRECTION_v517.15.md
+   - Guide étape par étape pour appliquer les corrections
+
+📄 /✅_FIX_USEAPPSTATE_DRIVER_v517.14.md
+   - Documentation du fix précédent (v517.14)
+
+📄 /LISTE_FICHIERS_MODIFIES.txt
+   - Ce fichier (liste rapide)
+
+========================================
+RÉSUMÉ DES CORRECTIONS
+========================================
+
+v517.14 → Fix "useAppState is not defined"
+          - DriverWelcomeScreen.tsx (imports manquants)
+
+v517.15 → Fix erreurs build "Failed to fetch"
+          - package.json (lucide-react ^0.400.0)
+          - vite.config.ts (configuration simplifiée)
+          - BUILD_VERSION.ts (v517.15)
+          - sw.js (cache v517.15)
+
+========================================
+VÉRIFICATION POST-INSTALLATION
+========================================
+
+✅ Build réussit sans erreurs
+✅ Application se charge correctement
+✅ Console sans erreurs "Failed to fetch"
+✅ Icônes lucide-react affichées
+✅ Navigation entre écrans fonctionne
+
+========================================
+FIN DU RAPPORT
+========================================

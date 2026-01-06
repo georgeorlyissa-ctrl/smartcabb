@@ -43,7 +43,7 @@ export function GooglePlacesSearch({
     try {
       // Utilisation de l'API Google Places Autocomplete
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(searchQuery)}&components=country:cd&language=fr&key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY || 'YOUR_API_KEY'}`
+        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(searchQuery)}&components=country:cd&language=fr&key=${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_PLACES_API_KEY) || 'YOUR_API_KEY'}`
       );
       
       const data = await response.json();
@@ -71,7 +71,7 @@ export function GooglePlacesSearch({
   const getPlaceDetails = async (placeId: string, description: string) => {
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY || 'YOUR_API_KEY'}`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_GOOGLE_PLACES_API_KEY) || 'YOUR_API_KEY'}`
       );
       
       const data = await response.json();

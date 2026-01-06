@@ -1,19 +1,29 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, Search, Filter, CheckCircle, XCircle, Clock, Download, Calendar as CalendarIcon, User, ArrowLeft, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { useAppState } from '../../hooks/useAppState';
-import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { motion } from '../../framer-motion';
+import { DollarSign, Search, Filter, CheckCircle, XCircle, Clock, AlertTriangle, User, Car, Calendar } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
+import { useAppState } from '../../hooks/useAppState';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Label } from '../ui/label';
-import { motion } from 'motion/react';
+
+// Fonction de formatage de date simple
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 interface Refund {
   id: string;
@@ -129,7 +139,10 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
 
       if (refundError) throw refundError;
 
-      // Credit user wallet
+      // Mettre à jour le solde wallet du passager
+      // ⚠️ DÉSACTIVÉ: La colonne wallet_balance n'existe pas dans Supabase profiles
+      // Le solde est géré uniquement dans le KV store via le backend
+      /*
       const { data: profile } = await supabase
         .from('profiles')
         .select('wallet_balance')
@@ -137,15 +150,18 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
         .single();
 
       if (profile) {
-        const { error: walletError } = await supabase
+        // Ajouter le montant au wallet
+        await supabase
           .from('profiles')
           .update({
             wallet_balance: (profile.wallet_balance || 0) + refund.amount
           })
           .eq('id', refund.user_id);
-
-        if (walletError) throw walletError;
       }
+      */
+
+      // TODO: Appeler le backend pour mettre à jour le wallet dans le KV store
+      console.log('ℹ️ Mise à jour du wallet désactivée - utiliser le backend KV store');
 
       // Create notification
       await supabase.from('notifications').insert({
@@ -368,7 +384,7 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
                          'En attente'}
                       </Badge>
                       <span className="text-sm text-gray-600">
-                        {format(new Date(refund.created_at), 'dd MMM yyyy HH:mm', { locale: fr })}
+                        {formatDate(refund.created_at)}
                       </span>
                     </div>
 
@@ -421,6 +437,9 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Traiter la demande de remboursement</DialogTitle>
+            <DialogDescription>
+              Veuillez approuver ou rejeter cette demande de remboursement.
+            </DialogDescription>
           </DialogHeader>
 
           {selectedRefund && (

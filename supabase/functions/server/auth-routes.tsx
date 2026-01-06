@@ -59,13 +59,28 @@ authRoutes.post('/auth/login', async (c) => {
         phone: authData.user.user_metadata?.phone || null,
         role: authData.user.user_metadata?.role || 'admin', // Par défaut admin pour les comptes existants
         balance: 0,
+        password: password, // Stocker le mot de passe
         created_at: authData.user.created_at || new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
       
       // Sauvegarder le nouveau profil
       await kv.set(`profile:${authData.user.id}`, profile);
+      
+      // Stocker aussi avec le préfixe du rôle
+      const rolePrefix = profile.role === 'driver' ? 'driver:' : profile.role === 'passenger' ? 'passenger:' : 'admin:';
+      await kv.set(`${rolePrefix}${authData.user.id}`, profile);
+      
       console.log('✅ Profil créé automatiquement pour:', authData.user.id);
+    } else {
+      // Mettre à jour le mot de passe dans le profil existant
+      profile.password = password;
+      profile.updated_at = new Date().toISOString();
+      await kv.set(`profile:${authData.user.id}`, profile);
+      
+      // Mettre à jour aussi dans le préfixe du rôle
+      const rolePrefix = profile.role === 'driver' ? 'driver:' : profile.role === 'passenger' ? 'passenger:' : 'admin:';
+      await kv.set(`${rolePrefix}${authData.user.id}`, profile);
     }
 
     console.log('✅ Connexion réussie:', authData.user.id, '- Role:', profile.role);
@@ -155,11 +170,16 @@ authRoutes.post('/auth/signup', async (c) => {
       phone: null,
       role: role || 'admin',
       balance: 0,
+      password: password, // ⚠️ Stocker le mot de passe en clair pour le panel admin (dev/test seulement)
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     await kv.set(`profile:${authData.user.id}`, profile);
+    
+    // Stocker aussi avec le préfixe du rôle pour faciliter la récupération
+    const rolePrefix = role === 'driver' ? 'driver:' : role === 'passenger' ? 'passenger:' : 'admin:';
+    await kv.set(`${rolePrefix}${authData.user.id}`, profile);
 
     console.log('✅ Compte créé avec succès:', authData.user.id);
 
@@ -384,7 +404,7 @@ authRoutes.post('/test-sms-send', async (c) => {
           username: username,
           to: phoneNumber,
           message: smsMessage
-        })
+        }).toString()
       });
 
       const smsResult = await smsResponse.json();
@@ -577,8 +597,9 @@ authRoutes.post('/send-reset-otp', async (c) => {
         body: new URLSearchParams({
           username: username,
           to: phoneNumber,
-          message: smsMessage
-        })
+          message: smsMessage,
+          from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
+        }).toString()
       });
 
       const smsResult = await smsResponse.json();
@@ -795,6 +816,127 @@ authRoutes.post('/reset-password-by-phone', async (c) => {
     return c.json({ 
       success: false, 
       error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// VÉRIFIER SI UN NUMÉRO DE TÉLÉPHONE EXISTE
+// ============================================
+authRoutes.post('/auth/check-phone-exists', async (c) => {
+  try {
+    const { phoneNumber } = await c.req.json();
+    
+    if (!phoneNumber) {
+      return c.json({ 
+        success: false, 
+        error: 'Numéro de téléphone requis' 
+      }, 400);
+    }
+
+    console.log('🔍 Vérification existence du numéro:', phoneNumber);
+
+    // Normaliser le numéro de téléphone
+    const normalizePhone = (phone: string): string[] => {
+      const clean = phone.replace(/[\s\-()]/g, '');
+      const formats: string[] = [clean];
+      
+      if (clean.startsWith('+243')) {
+        const digits = clean.substring(4);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      } else if (clean.startsWith('243')) {
+        const digits = clean.substring(3);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      } else if (clean.startsWith('0')) {
+        const digits = clean.substring(1);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      }
+      
+      return [...new Set(formats)];
+    };
+
+    const phoneFormats = normalizePhone(phoneNumber);
+    console.log('🔍 Formats à rechercher:', phoneFormats);
+
+    // Chercher dans le KV store (passenger:, driver:, profile:)
+    let found = false;
+    let accountType = null;
+
+    // Chercher dans passenger:
+    const passengers = await kv.getByPrefix('passenger:');
+    if (passengers && passengers.length > 0) {
+      const match = passengers.find((p: any) => {
+        const profilePhone = p.phone || p.phone_number || '';
+        const profileFormats = normalizePhone(profilePhone);
+        return phoneFormats.some(format => profileFormats.includes(format));
+      });
+      if (match) {
+        found = true;
+        accountType = 'passenger';
+        console.log('✅ Compte passager trouvé');
+      }
+    }
+
+    // Chercher dans driver: si pas encore trouvé
+    if (!found) {
+      const drivers = await kv.getByPrefix('driver:');
+      if (drivers && drivers.length > 0) {
+        const match = drivers.find((d: any) => {
+          const profilePhone = d.phone || d.phone_number || '';
+          const profileFormats = normalizePhone(profilePhone);
+          return phoneFormats.some(format => profileFormats.includes(format));
+        });
+        if (match) {
+          found = true;
+          accountType = 'driver';
+          console.log('✅ Compte conducteur trouvé');
+        }
+      }
+    }
+
+    // Chercher dans profile: si pas encore trouvé
+    if (!found) {
+      const profiles = await kv.getByPrefix('profile:');
+      if (profiles && profiles.length > 0) {
+        const match = profiles.find((p: any) => {
+          const profilePhone = p.phone || p.phone_number || '';
+          const profileFormats = normalizePhone(profilePhone);
+          return phoneFormats.some(format => profileFormats.includes(format));
+        });
+        if (match) {
+          found = true;
+          accountType = 'admin';
+          console.log('✅ Compte admin trouvé');
+        }
+      }
+    }
+
+    if (found) {
+      console.log('✅ Compte existant:', accountType);
+      return c.json({
+        success: true,
+        exists: true,
+        accountType: accountType
+      });
+    } else {
+      console.log('❌ Aucun compte trouvé');
+      return c.json({
+        success: true,
+        exists: false
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur check-phone-exists:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error)
     }, 500);
   }
 });

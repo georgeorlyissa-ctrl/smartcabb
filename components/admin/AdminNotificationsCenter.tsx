@@ -1,12 +1,28 @@
 import { useState, useEffect } from 'react';
-import { Switch } from '../ui/switch';
+import { motion, AnimatePresence } from '../../framer-motion';
+import { Bell, AlertTriangle, CheckCircle, Info, X, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { logError, isTableNotFoundError, isNetworkError } from '../../lib/error-utils';
 import { useAppState } from '../../hooks/useAppState';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
 
+// Fonction de formatage de date simple
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Admin Notifications Center - Centre de gestion des notifications administrateur
 interface AdminNotification {
   id: string;
   title: string;
@@ -53,7 +69,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
     loadNotifications();
     loadSettings();
 
-    // Subscribe to new notifications
     const channel = supabase
       .channel('admin-notifications')
       .on('postgres_changes', {
@@ -64,14 +79,11 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         const newNotif = payload.new as AdminNotification;
         setNotifications(prev => [newNotif, ...prev]);
 
-        // Show toast for urgent notifications
         if (newNotif.priority === 'urgent') {
           toast.error(newNotif.title, {
             description: newNotif.message,
             duration: 10000
           });
-
-          // Play sound
           playNotificationSound();
         }
       })
@@ -92,7 +104,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         .limit(100);
 
       if (error) {
-        // Si la table n'existe pas, afficher un message informatif
         if (error.code === 'PGRST204' || error.code === 'PGRST205' || error.message?.includes('does not exist')) {
           console.log('ℹ️ Table admin_notifications non trouvée - fonctionnalité désactivée');
           setNotifications([]);
@@ -103,12 +114,10 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
       }
       setNotifications(data || []);
     } catch (error: any) {
-      // Utiliser l'utilitaire pour logger intelligemment
       if (!isNetworkError(error) && !isTableNotFoundError(error)) {
         logError('Erreur chargement notifications', error);
         toast.error('Erreur de chargement des notifications');
       }
-      
       setNotifications([]);
     } finally {
       setLoading(false);
@@ -130,14 +139,11 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         .single();
 
       if (error) {
-        // Si la table n'existe pas, utiliser les paramètres par défaut
         if (error.code === 'PGRST205' || error.message?.includes('does not exist')) {
           console.log('ℹ️ Table admin_notification_settings non trouvée - utilisation des paramètres par défaut');
           return;
         }
-        // PGRST116 = no rows found, ce n'est pas une erreur
         if (error.code !== 'PGRST116') {
-          // Vérifier si c'est une erreur réseau
           const isNetworkError = error.message?.includes('Failed to fetch') || 
                                 error.message?.includes('Network request failed');
           if (!isNetworkError) {
@@ -171,7 +177,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         });
 
       if (error) {
-        // Si la table n'existe pas, afficher un message informatif
         if (error.code === 'PGRST205' || error.message?.includes('does not exist')) {
           toast.error('Table admin_notification_settings non trouvée. Veuillez exécuter le script SQL de création.');
           return;
@@ -249,7 +254,7 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
       const { error } = await supabase
         .from('admin_notifications')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (error) throw error;
 
@@ -282,8 +287,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
   const getIcon = (type: string) => {
     switch (type) {
       case 'success': return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'warning': return <AlertTriangle className="w-5 h-5 text-orange-600" />;
-      case 'error': return <XCircle className="w-5 h-5 text-red-600" />;
       default: return <Info className="w-5 h-5 text-blue-600" />;
     }
   };
@@ -305,7 +308,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
 
   return (
     <div className="space-y-6 p-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button 
@@ -355,7 +357,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         </div>
       </div>
 
-      {/* Settings Panel */}
       <AnimatePresence>
         {showSettings && (
           <motion.div
@@ -388,7 +389,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         )}
       </AnimatePresence>
 
-      {/* Filters */}
       <div className="flex items-center gap-2">
         <Button
           variant={filter === 'all' ? 'default' : 'outline'}
@@ -414,7 +414,6 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
         </Button>
       </div>
 
-      {/* Notifications List */}
       <div className="space-y-3">
         {loading ? (
           <div className="flex justify-center py-12">
@@ -454,7 +453,7 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium">{notification.title}</h3>
                           {getPriorityBadge(notification.priority)}
-                          {!notification.read && (
+                          {!notification.is_read && (
                             <Badge variant="outline" className="text-blue-600">
                               Nouveau
                             </Badge>
@@ -467,7 +466,7 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
 
                         <div className="flex items-center gap-4 text-xs text-gray-500">
                           <span>
-                            {format(new Date(notification.created_at), 'dd/MM/yyyy HH:mm', { locale: fr })}
+                            {formatDate(notification.created_at)}
                           </span>
                           {notification.data && (
                             <details className="cursor-pointer">

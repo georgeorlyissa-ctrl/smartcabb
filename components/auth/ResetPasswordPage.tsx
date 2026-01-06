@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Input } from '../ui/input';
+import { Card } from '../ui/card';
+import { AlertCircle, Eye, EyeOff, Lock, Check, X } from 'lucide-react';
+import { useNavigate } from '../../lib/simple-router';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 

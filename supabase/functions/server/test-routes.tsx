@@ -65,8 +65,9 @@ testRoutes.post('/send', async (c) => {
         body: new URLSearchParams({
           username: username,
           to: phoneNumber,
-          message: message
-        }).toString()
+          message: message,
+          from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
+        })
       });
 
       const smsResult = await smsResponse.json();

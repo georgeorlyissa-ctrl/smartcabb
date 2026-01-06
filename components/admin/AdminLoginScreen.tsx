@@ -1,13 +1,6 @@
-import { useState } from 'react';
-import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { useAppState } from '../../hooks/useAppState';
-import { Shield, Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react';
-import { toast } from '../../lib/toast';
-import { useNavigate } from 'react-router-dom';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { supabase } from '../../lib/supabase';
+import { ArrowLeft, Shield, Eye, EyeOff } from 'lucide-react';
 
 export function AdminLoginScreen() {
   const { setCurrentScreen, setCurrentView, setIsAdmin, setCurrentUser } = useAppState();

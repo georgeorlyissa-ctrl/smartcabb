@@ -64,6 +64,42 @@ app.post('/update', async (c) => {
 });
 
 // ============================================
+// RÉCUPÉRER LES PARAMÈTRES SYSTÈME (Route directe)
+// ============================================
+app.get('/', async (c) => {
+  try {
+    console.log('🔍 Récupération paramètres système (route directe)');
+
+    const systemSettings = await kv.get('system_settings');
+
+    if (!systemSettings) {
+      // Retourner les valeurs par défaut
+      const defaultSettings = {
+        exchangeRate: 2000,
+        postpaidInterestRate: 15,
+        emailNotifications: true,
+        smsNotifications: false,
+        pushNotifications: true
+      };
+
+      console.log('ℹ️ Aucun paramètre trouvé, utilisation valeurs par défaut');
+
+      return c.json(defaultSettings);
+    }
+
+    console.log('✅ Paramètres système trouvés:', systemSettings);
+
+    return c.json(systemSettings);
+
+  } catch (error) {
+    console.error('❌ Erreur récupération paramètres:', error);
+    return c.json({ 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // RÉCUPÉRER LES PARAMÈTRES SYSTÈME
 // ============================================
 app.get('/get', async (c) => {
@@ -75,7 +111,7 @@ app.get('/get', async (c) => {
     if (!systemSettings) {
       // Retourner les valeurs par défaut
       const defaultSettings = {
-        exchangeRate: 2800,
+        exchangeRate: 2000, // 🔄 Mis à jour : valeur par défaut synchronisée
         postpaidInterestRate: 15,
         emailNotifications: true,
         smsNotifications: false,

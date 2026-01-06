@@ -1,0 +1,83 @@
+/**
+ * Configuration des API pour SmartCabb
+ * 
+ * Cette configuration permet de basculer facilement entre :
+ * - Développement local (Figma Make)
+ * - Production (smartcabb.com / Vercel)
+ */
+
+// ✅ Détecter l'environnement automatiquement
+const isProduction = typeof window !== 'undefined' && (
+  window.location.hostname === 'smartcabb.com' ||
+  window.location.hostname === 'www.smartcabb.com' ||
+  window.location.hostname.includes('vercel.app')
+);
+
+// ✅ Configuration des URLs de base
+export const API_CONFIG = {
+  // URL de base pour les appels API Supabase Functions
+  baseUrl: isProduction 
+    ? 'https://smartcabb.supabase.co' // Production
+    : `https://${typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID || 'placeholder'}.supabase.co`, // Dev
+  
+  // Préfixe de route pour le serveur Make
+  serverPrefix: '/functions/v1/make-server-2eb02e52',
+  
+  // Environnement actuel
+  environment: isProduction ? 'production' : 'development'
+} as const;
+
+/**
+ * Construit l'URL complète pour une route API
+ * 
+ * @param route - Route relative (ex: '/drivers/online-drivers')
+ * @returns URL complète pour l'appel API
+ * 
+ * @example
+ * ```ts
+ * const url = getApiUrl('/drivers/online-drivers');
+ * // Dev: https://xyz.supabase.co/functions/v1/make-server-2eb02e52/drivers/online-drivers
+ * // Prod: https://smartcabb.supabase.co/functions/v1/make-server-2eb02e52/drivers/online-drivers
+ * ```
+ */
+export function getApiUrl(route: string): string {
+  // Nettoyer la route (enlever le slash initial si présent)
+  const cleanRoute = route.startsWith('/') ? route : `/${route}`;
+  
+  return `${API_CONFIG.baseUrl}${API_CONFIG.serverPrefix}${cleanRoute}`;
+}
+
+/**
+ * Headers par défaut pour les requêtes API
+ * 
+ * @param accessToken - Token d'accès optionnel pour l'authentification
+ * @returns Headers à inclure dans les requêtes fetch
+ */
+export function getApiHeaders(accessToken?: string): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  // Ajouter le token d'autorisation si fourni
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+  
+  return headers;
+}
+
+/**
+ * Log la configuration actuelle (debug uniquement)
+ */
+export function logApiConfig() {
+  console.log('🔧 Configuration API SmartCabb:');
+  console.log(`   Environnement: ${API_CONFIG.environment}`);
+  console.log(`   URL de base: ${API_CONFIG.baseUrl}`);
+  console.log(`   Préfixe serveur: ${API_CONFIG.serverPrefix}`);
+  console.log(`   Exemple d'URL: ${getApiUrl('/drivers/online-drivers')}`);
+}
+
+// ✅ Log au démarrage en développement
+if (!isProduction) {
+  logApiConfig();
+}
