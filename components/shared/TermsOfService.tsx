@@ -301,7 +301,7 @@ export const TermsOfService = memo(function TermsOfService() {
               ces Conditions Générales d'Utilisation dans leur intégralité.
             </p>
             <p className="text-xs text-gray-500 text-center">
-              © 2025 SmartCabb SARL - Tous droits réservés<br/>
+              © 2026 SmartCabb SARL - Tous droits réservés<br/>
               Entreprise enregistrée en République Démocratique du Congo
             </p>
           </div>
