@@ -1013,7 +1013,7 @@ export function ServicesPage() {
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              {t('© 2025 SmartCabb. Tous droits réservés.', '© 2025 SmartCabb. All rights reserved.')}
+              {t('© 2026 SmartCabb. Tous droits réservés.', '© 2026 SmartCabb. All rights reserved.')}
             </p>
           </div>
         </div>
