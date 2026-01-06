@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [
     react({
-      exclude: /supabase\\/functions\\/server/,
+      exclude: /supabase\/functions\/server/,
     })
   ],
   
