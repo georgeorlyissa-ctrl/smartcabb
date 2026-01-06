@@ -12,7 +12,7 @@ const SERVER_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2e
  * Récupérer la clé publique Flutterwave
  */
 function getPublicKey(): string {
-  const envKey = typeof import.meta !== 'undefined' && import.meta.env?.VITE_FLUTTERWAVE_PUBLIC_KEY;
+  const envKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
   if (envKey) {
     console.log('🔑 Flutterwave: Utilisation clé depuis .env.local');
     return envKey;

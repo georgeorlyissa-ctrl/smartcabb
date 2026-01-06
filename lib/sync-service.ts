@@ -20,25 +20,18 @@ export async function syncUserProfile(userId: string, updates: Partial<User>): P
     if (updates.name !== undefined) supabaseData.full_name = updates.name;
     if (updates.email !== undefined) supabaseData.email = updates.email;
     if (updates.phone !== undefined) supabaseData.phone = updates.phone;
-    // ✅ v517.97: Ne pas envoyer address à Supabase (colonne inexistante)
-    // L'adresse sera uniquement stockée dans localStorage
+    if (updates.address !== undefined) supabaseData.address = updates.address;
     
     console.log('📦 [SYNC] Données à envoyer à Supabase:', supabaseData);
     
-    // ✅ v517.97: Envoyer seulement si on a des données à mettre à jour
-    let updatedProfile = null;
-    if (Object.keys(supabaseData).length > 0) {
-      updatedProfile = await profileService.updateProfile(userId, supabaseData);
-      
-      if (!updatedProfile) {
-        console.error('❌ [SYNC] Échec mise à jour Supabase');
-        // ⚠️ Ne pas retourner false immédiatement, continuer avec localStorage
-      } else {
-        console.log('✅ [SYNC] Supabase mis à jour:', updatedProfile);
-      }
-    } else {
-      console.log('ℹ️ [SYNC] Aucune donnée Supabase à mettre à jour (seule adresse modifiée)');
+    const updatedProfile = await profileService.updateProfile(userId, supabaseData);
+    
+    if (!updatedProfile) {
+      console.error('❌ [SYNC] Échec mise à jour Supabase');
+      return false;
     }
+
+    console.log('✅ [SYNC] Supabase mis à jour:', updatedProfile);
 
     // 2️⃣ Récupérer le profil complet depuis Supabase
     const { data: fullProfile, error } = await supabase
@@ -58,14 +51,13 @@ export async function syncUserProfile(userId: string, updates: Partial<User>): P
       const existingData = localStorage.getItem(userKey);
       const existingUser = existingData ? JSON.parse(existingData) : {};
 
-      // ✅ v517.97: L'adresse vient de updates, pas de fullProfile (colonne inexistante dans Supabase)
       const updatedUserData = {
         ...existingUser,
         id: fullProfile.id,
-        name: fullProfile.full_name !== null && fullProfile.full_name !== undefined ? fullProfile.full_name : (updates.name !== undefined ? updates.name : existingUser.name),
-        email: fullProfile.email !== null && fullProfile.email !== undefined ? fullProfile.email : (updates.email !== undefined ? updates.email : existingUser.email),
-        phone: fullProfile.phone !== null && fullProfile.phone !== undefined ? fullProfile.phone : (updates.phone !== undefined ? updates.phone : existingUser.phone),
-        address: updates.address !== undefined ? updates.address : existingUser.address, // ✅ Priorité à updates car Supabase n'a pas cette colonne
+        name: fullProfile.full_name !== null && fullProfile.full_name !== undefined ? fullProfile.full_name : existingUser.name,
+        email: fullProfile.email !== null && fullProfile.email !== undefined ? fullProfile.email : existingUser.email,
+        phone: fullProfile.phone !== null && fullProfile.phone !== undefined ? fullProfile.phone : existingUser.phone,
+        address: fullProfile.address !== null && fullProfile.address !== undefined ? fullProfile.address : existingUser.address,
         walletBalance: existingUser.walletBalance || 0,
         walletTransactions: existingUser.walletTransactions || [],
       };
@@ -87,10 +79,10 @@ export async function syncUserProfile(userId: string, updates: Partial<User>): P
         // Utilisateur existe, mettre à jour
         allUsers[userIndex] = {
           ...allUsers[userIndex],
-          name: fullProfile.full_name !== null && fullProfile.full_name !== undefined ? fullProfile.full_name : (updates.name !== undefined ? updates.name : allUsers[userIndex].name),
-          email: fullProfile.email !== null && fullProfile.email !== undefined ? fullProfile.email : (updates.email !== undefined ? updates.email : allUsers[userIndex].email),
-          phone: fullProfile.phone !== null && fullProfile.phone !== undefined ? fullProfile.phone : (updates.phone !== undefined ? updates.phone : allUsers[userIndex].phone),
-          address: updates.address !== undefined ? updates.address : allUsers[userIndex].address, // ✅ v517.97: Priorité à updates
+          name: fullProfile.full_name !== null && fullProfile.full_name !== undefined ? fullProfile.full_name : allUsers[userIndex].name,
+          email: fullProfile.email !== null && fullProfile.email !== undefined ? fullProfile.email : allUsers[userIndex].email,
+          phone: fullProfile.phone !== null && fullProfile.phone !== undefined ? fullProfile.phone : allUsers[userIndex].phone,
+          address: fullProfile.address !== null && fullProfile.address !== undefined ? fullProfile.address : allUsers[userIndex].address,
         };
         
         localStorage.setItem('smartcab_all_users', JSON.stringify(allUsers));
@@ -99,10 +91,10 @@ export async function syncUserProfile(userId: string, updates: Partial<User>): P
         // Utilisateur n'existe pas, l'ajouter
         const newUser: User = {
           id: fullProfile.id,
-          name: fullProfile.full_name || updates.name || '',
-          email: fullProfile.email || updates.email || '',
-          phone: fullProfile.phone || updates.phone || '',
-          address: updates.address || '', // ✅ v517.97: Utiliser updates.address
+          name: fullProfile.full_name || '',
+          email: fullProfile.email || '',
+          phone: fullProfile.phone || '',
+          address: fullProfile.address || '',
           walletBalance: 0,
           walletTransactions: [],
         };

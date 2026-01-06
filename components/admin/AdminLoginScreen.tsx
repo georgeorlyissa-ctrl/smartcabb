@@ -1,6 +1,13 @@
+import { useState } from 'react';
+import { toast } from '../../lib/toast';
+import { useNavigate } from '../../lib/simple-router';
+import { useAppState } from '../../hooks/useAppState';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { supabase } from '../../lib/supabase';
+import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { ArrowLeft, Shield, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Shield, Eye, EyeOff } from '../../lib/icons';
 
 export function AdminLoginScreen() {
   const { setCurrentScreen, setCurrentView, setIsAdmin, setCurrentUser } = useAppState();

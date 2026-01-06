@@ -1,6 +1,8 @@
 /**
- * Lucide React compatibility shim for esm.sh
- * Redirige tous les imports vers lucide-react
+ * 🎯 ALIAS LUCIDE-REACT
+ * 
+ * Redirige tous les imports vers lib/icons.ts
+ * Pour que les composants existants fonctionnent sans modification
  */
 
-export * from 'lucide-react';
+export * from './lib/icons';

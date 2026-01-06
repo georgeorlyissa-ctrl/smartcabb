@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Users, Search, Phone, Mail, MapPin, Clock, DollarSign, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -8,6 +7,26 @@ import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { PassengerDetailModal } from './PassengerDetailModal';
+import { 
+  ArrowLeft, 
+  Search, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin,
+  Calendar,
+  Car,
+  Star,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  Download,
+  Filter,
+  Eye,
+  RefreshCw,
+  Wallet
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Profile } from '../../lib/supabase';
 import { formatCDF } from '../../lib/pricing';
 import { User as UserType } from '../../types';
@@ -53,7 +72,7 @@ export function ClientsListScreen({ onBack }: ClientsListScreenProps) {
   const getPaymentMethodIcon = (method?: string) => {
     switch (method) {
       case 'mobile_money':
-        return <Phone className="w-4 h-4 text-green-600" />;
+        return <Smartphone className="w-4 h-4 text-green-600" />;
       case 'card':
         return <CreditCard className="w-4 h-4 text-blue-600" />;
       case 'cash':

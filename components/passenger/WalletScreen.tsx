@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from 'sonner';
@@ -194,14 +194,11 @@ export function WalletScreen() {
     try {
       console.log('🔄 Rafraîchissement des transactions depuis le backend...');
       
-      const projectId = 'your_project_id'; // Remplacez par votre ID de projet Supabase
-      const publicAnonKey = 'your_public_anon_key'; // Remplacez par votre clé publique anonyme Supabase
-      
       const response = await fetch(
-        `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
+        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
             'Content-Type': 'application/json'
           }
         }

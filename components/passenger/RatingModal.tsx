@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Star, X } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';

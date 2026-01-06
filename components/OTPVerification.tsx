@@ -1,6 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion } from '../framer-motion';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { ShieldCheck, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import { sendOTPCode } from '../lib/sms-service';
 
 interface OTPVerificationProps {
   phone: string;

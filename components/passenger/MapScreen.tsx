@@ -1,6 +1,13 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { useAppState } from '../../hooks/useAppState';
+import { FavoriteLocations } from './FavoriteLocations';
+import { InteractiveMapView } from '../InteractiveMapView';
+import { AddressSearchInput } from '../AddressSearchInput';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/precise-gps';
 
 export function MapScreen() {
@@ -21,7 +28,7 @@ export function MapScreen() {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; address: string; accuracy?: number }>({
     lat: -4.3276,
     lng: 15.3136,
-    address: '📍 Détection de votre position GPS...',
+    address: 'Chargement de votre position...',
     accuracy: 1000
   });
   const [loadingLocation, setLoadingLocation] = useState(true);
@@ -37,25 +44,32 @@ export function MapScreen() {
 
   // Charger la dernière position connue du cache immédiatement
   useEffect(() => {
-    // ✅ v517.96: NE PLUS charger le cache au démarrage - toujours demander la vraie position GPS
-    // Le cache sera utilisé UNIQUEMENT si le GPS échoue dans le callback onError
-    console.log('🚀 v517.96: Démarrage sans cache - Position GPS réelle demandée');
-    
-    // Supprimer l'ancien cache pour forcer une nouvelle détection
     const cachedLocation = localStorage.getItem('smartcabb_last_location');
     if (cachedLocation) {
       try {
         const parsed = JSON.parse(cachedLocation);
-        const cacheAge = Date.now() - (parsed.timestamp || 0);
-        const isOldCache = cacheAge > 5 * 60 * 1000; // Plus de 5 minutes
         
-        if (isOldCache) {
-          console.log('🗑️ Cache trop ancien (>5min) - Suppression pour forcer GPS frais');
+        // ✅ CORRECTION : Si le cache contient des coordonnées GPS brutes, le supprimer
+        if (parsed.address && (
+          parsed.address.includes('°S') || 
+          parsed.address.includes('°E') ||
+          parsed.address.match(/-?\d+\.\d+°/)
+        )) {
+          console.log('🗑️ Ancien format de cache détecté - Suppression...');
           localStorage.removeItem('smartcabb_last_location');
+          // Utiliser la position par défaut
+          setCurrentLocation({
+            lat: -4.3276,
+            lng: 15.3136,
+            address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
+            accuracy: 1000
+          });
+        } else {
+          setCurrentLocation(parsed);
+          console.log('📍 Position en cache chargée:', parsed);
         }
       } catch (e) {
-        console.error('Erreur lecture cache:', e);
-        localStorage.removeItem('smartcabb_last_location');
+        console.error('Erreur lecture cache position:', e);
       }
     }
   }, []);
@@ -94,12 +108,8 @@ export function MapScreen() {
           });
         }
         
-        // ✅ v517.96: Sauvegarder avec timestamp pour détecter cache ancien
-        const locationWithTimestamp = {
-          ...newLocation,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('smartcabb_last_location', JSON.stringify(locationWithTimestamp));
+        // Sauvegarder dans localStorage pour les prochains démarrages
+        localStorage.setItem('smartcabb_last_location', JSON.stringify(newLocation));
         
         // ✅ Première position obtenue : fermer le toast de chargement
         setLoadingLocation(false);

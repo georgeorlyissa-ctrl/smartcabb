@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { getSession } from "../../lib/auth-service";
 import { useNavigate } from "../../lib/simple-router";
 import { useAppState } from '../../hooks/useAppState';

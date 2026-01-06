@@ -1,22 +1,25 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
 import { 
   ArrowLeft, 
   Bell, 
-  Globe, 
-  Shield, 
-  Moon, 
+  MapPin, 
+  Car, 
+  DollarSign,
+  Shield,
+  Moon,
   Volume2,
   Smartphone,
-  Lock,
-  Eye,
+  Navigation,
+  Settings,
   HelpCircle,
-  FileText,
-  LogOut
-} from '../../lucide-react';
+  LogOut,
+  User
+} from 'lucide-react';
 import { useState } from 'react';
 
 export function DriverSettingsScreen() {
@@ -118,7 +121,7 @@ export function DriverSettingsScreen() {
     },
     {
       title: 'Préférences',
-      icon: Lock,
+      icon: Settings,
       items: [
         {
           key: 'darkMode',
@@ -142,7 +145,7 @@ export function DriverSettingsScreen() {
     {
       title: 'Zone de travail',
       description: 'Définir votre zone de service préférée',
-      icon: Globe,
+      icon: MapPin,
       action: () => {
         // Navigate to zone settings
       }

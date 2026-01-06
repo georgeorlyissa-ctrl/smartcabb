@@ -1,6 +1,6 @@
 /**
  * 🚀 SmartCabb - Application de transport à Kinshasa
- * BUILD v1.0.0 - Production Ready
+ * BUILD v517.74 - FIX BUILD VITE + MAIN.TSX
  */
 
 import React from 'react';
@@ -11,7 +11,7 @@ import { logStartupDiagnostics, setupErrorInterceptors } from './utils/diagnosti
 
 const { createRoot } = ReactDOM;
 
-console.log('🚀 SmartCabb v1.0.0 - Démarrage...');
+console.log('🚀 SmartCabb v517.74 - Démarrage...');
 
 // 🔍 DIAGNOSTICS AU DÉMARRAGE
 logStartupDiagnostics();

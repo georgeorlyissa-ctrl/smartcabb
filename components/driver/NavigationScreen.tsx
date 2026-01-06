@@ -1,7 +1,13 @@
+import { VEHICLE_PRICING, VehicleCategory } from '../../lib/pricing';
+import { notifyRideStarted } from '../../lib/sms-service';
+import { updateDriverBalance } from '../../hooks/useDriverBalance';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
+import { useState, useEffect } from 'react';
 import { toast } from '../../lib/toast';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lucide-react';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from 'lucide-react';
 import { TimerControl } from './TimerControl';
 import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
 
@@ -512,7 +518,7 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
             state.currentDriver.phone || '+243999999999', // Téléphone du conducteur
             state.currentUser?.name || 'Passager',
             state.currentDriver.name,
-            state.currentRide.destination?.address || 'Destination non spécifiée' // ✅ v517.96: Fix crash si destination undefined
+            state.currentRide.destination.address
           );
           console.log('✅ SMS démarrage de course envoyé au passager (attente gratuite désactivée)');
         } catch (error) {

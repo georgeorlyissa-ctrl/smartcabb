@@ -1,12 +1,14 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { 
   ArrowLeft, 
   DollarSign, 
   TrendingUp, 
   Calendar,
-  Download,
-  Filter,
-  Wallet,
   Clock,
   MapPin,
   Star,

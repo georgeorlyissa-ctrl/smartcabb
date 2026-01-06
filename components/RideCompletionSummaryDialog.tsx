@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from '../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';

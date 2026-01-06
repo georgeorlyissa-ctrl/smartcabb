@@ -1,5 +1,5 @@
-import { motion } from '../framer-motion';
-import { TrendingUp, TrendingDown, Users, Car, DollarSign, Clock } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Car, Users, DollarSign, TrendingUp, MapPin, Clock, RefreshCw } from 'lucide-react';
 import { Card } from './ui/card';
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -80,7 +80,7 @@ export function LiveStatsPanel() {
     {
       label: 'Courses actives',
       value: stats.activeRides,
-      icon: TrendingUp,
+      icon: MapPin,
       color: 'text-green-600',
       bgColor: 'bg-green-100',
       trend: stats.activeRides > 0 ? 'en cours' : null

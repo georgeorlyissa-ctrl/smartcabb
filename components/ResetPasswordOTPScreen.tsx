@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';

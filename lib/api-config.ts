@@ -18,7 +18,7 @@ export const API_CONFIG = {
   // URL de base pour les appels API Supabase Functions
   baseUrl: isProduction 
     ? 'https://smartcabb.supabase.co' // Production
-    : `https://${typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID || 'placeholder'}.supabase.co`, // Dev
+    : `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID || 'placeholder'}.supabase.co`, // Dev
   
   // Préfixe de route pour le serveur Make
   serverPrefix: '/functions/v1/make-server-2eb02e52',

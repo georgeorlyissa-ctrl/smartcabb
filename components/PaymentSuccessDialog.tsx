@@ -1,4 +1,5 @@
-import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/button';
 import { CheckCircle, Clock, Star } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';

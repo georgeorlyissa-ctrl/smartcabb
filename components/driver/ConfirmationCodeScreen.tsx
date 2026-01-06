@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { useTranslation } from '../../hooks/useTranslation';
 import { 

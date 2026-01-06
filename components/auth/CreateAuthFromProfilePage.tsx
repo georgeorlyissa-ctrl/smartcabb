@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
@@ -6,8 +7,6 @@ import { Lock, Mail, Phone, User, Check, AlertCircle, ArrowLeft } from 'lucide-r
 import { supabase } from '../../lib/supabase';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from 'sonner';
-import { useNavigate } from '../../lib/simple-router';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 /**
  * Page pour créer un compte auth.users à partir d'un profil existant
@@ -87,11 +86,20 @@ export function CreateAuthFromProfilePage() {
   if (success) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-600 via-teal-600 to-cyan-600 flex items-center justify-center p-4">
-        <div>
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
           <Card className="w-full max-w-md p-8 text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+              className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
+            >
               <Check className="w-10 h-10 text-green-600" />
-            </div>
+            </motion.div>
 
             <h1 className="text-2xl mb-4">Compte créé avec succès !</h1>
             <p className="text-gray-600 mb-6">
@@ -101,14 +109,19 @@ export function CreateAuthFromProfilePage() {
               Redirection vers la page de connexion...
             </p>
           </Card>
-        </div>
+        </motion.div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-teal-600 to-cyan-600 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
         <Card className="p-8">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-teal-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -225,9 +238,12 @@ export function CreateAuthFromProfilePage() {
             >
               {loading ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <div className="animate-spin">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
                     <User className="w-4 h-4" />
-                  </div>
+                  </motion.div>
                   <span>Création...</span>
                 </div>
               ) : (
@@ -248,7 +264,7 @@ export function CreateAuthFromProfilePage() {
             </Button>
           </div>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

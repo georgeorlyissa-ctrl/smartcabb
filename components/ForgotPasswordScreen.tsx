@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { motion } from '../framer-motion';
-import { ArrowLeft, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Button } from './ui/button';
+import { EmailPhoneInput } from './EmailPhoneInput';
+import { ArrowLeft, Mail, CheckCircle, Phone } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAppState } from '../hooks/useAppState';
@@ -224,7 +226,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
             transition={{ type: 'spring', delay: 0.2 }}
             className={`w-20 h-20 ${theme.icon} rounded-full flex items-center justify-center mb-6`}
           >
-            <CheckCircle2 className="w-10 h-10 text-white" />
+            <CheckCircle className="w-10 h-10 text-white" />
           </motion.div>
 
           <motion.div

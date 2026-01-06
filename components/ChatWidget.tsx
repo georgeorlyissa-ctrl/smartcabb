@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, X, Send } from 'lucide-react';
+import { MessageCircle, X, Send } from '../lib/icons';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface Message {

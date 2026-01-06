@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from '../framer-motion';
-import { Search, MapPin, Navigation, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Search, MapPin, X } from '../lib/icons';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { motion, AnimatePresence } from 'motion/react';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 
 interface Address {

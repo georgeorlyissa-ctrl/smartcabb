@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Link } from '../lib/simple-router';
-import { motion } from '../framer-motion';
+import { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
 
 export function AboutPage() {

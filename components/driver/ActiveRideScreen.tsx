@@ -1,4 +1,18 @@
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  User, 
+  Phone, 
+  MapPin,
+  Navigation,
+  MessageCircle,
+  CheckCircle,
+  X
+} from 'lucide-react';
+import { useState } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
 
@@ -42,13 +56,6 @@ export function ActiveRideScreen() {
     
     try {
       console.log('🏁 Clôture de la course:', currentRide.id);
-      
-      // ✅ v517.94: Logger le passengerId pour debugging
-      console.log('👤 PassengerId utilisé:', {
-        fromState: state.currentUser?.id,
-        fromRide: currentRide.passengerId,
-        fromUserId: currentRide.userId
-      });
       
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${currentRide.id}/complete`,
@@ -137,6 +144,34 @@ export function ActiveRideScreen() {
                 <p className="text-gray-600 text-sm">{currentRide.passenger?.phone || 'N/A'}</p>
               </div>
             </div>
+
+            {/* Boutons d'action */}
+            <div className="grid grid-cols-3 gap-2">
+              <Button 
+                onClick={handleCallPassenger}
+                className="bg-green-500 hover:bg-green-600"
+                size="sm"
+              >
+                <Phone className="w-4 h-4 mr-1" />
+                Appeler
+              </Button>
+              <Button 
+                onClick={handleWhatsAppPassenger}
+                className="bg-green-500 hover:bg-green-600"
+                size="sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-1" />
+                WhatsApp
+              </Button>
+              <Button 
+                onClick={() => setCurrentScreen('passenger-chat')}
+                variant="outline"
+                size="sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-1" />
+                Message
+              </Button>
+            </div>
           </Card>
         </motion.div>
 
@@ -171,37 +206,6 @@ export function ActiveRideScreen() {
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Destination</p>
                 <p className="font-medium">{currentRide.destination?.address || 'Destination non spécifiée'}</p>
-              </div>
-            </div>
-
-            {/* ✅ v517.94: Boutons d'action déplacés sous la destination */}
-            <div className="pt-4 border-t">
-              <p className="text-sm text-gray-600 mb-3">Contacter le passager</p>
-              <div className="grid grid-cols-3 gap-2">
-                <Button 
-                  onClick={handleCallPassenger}
-                  className="bg-green-500 hover:bg-green-600"
-                  size="sm"
-                >
-                  <Phone className="w-4 h-4 mr-1" />
-                  Appeler
-                </Button>
-                <Button 
-                  onClick={handleWhatsAppPassenger}
-                  className="bg-green-500 hover:bg-green-600"
-                  size="sm"
-                >
-                  <MessageCircle className="w-4 h-4 mr-1" />
-                  WhatsApp
-                </Button>
-                <Button 
-                  onClick={() => setCurrentScreen('passenger-chat')}
-                  variant="outline"
-                  size="sm"
-                >
-                  <MessageCircle className="w-4 h-4 mr-1" />
-                  Message
-                </Button>
               </div>
             </div>
 

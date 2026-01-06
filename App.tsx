@@ -1,18 +1,17 @@
-import { BackendSyncProvider } from './components/BackendSyncProvider';
-import { applyBrowserOptimizations, applySafariFixes, isPrivateBrowsing } from './utils/browserDetection';
-import { BUILD_VERSION, BUILD_DATE } from './BUILD_VERSION';
-import { startUpdateDetection } from './utils/updateDetector';
-import { checkForUpdate } from './utils/cacheManager';
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Router, Route, Routes, Navigate } from './lib/simple-router';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Router, Routes, Route, Navigate } from './lib/simple-router';
 import { Toaster } from 'sonner';
+import { LoadingScreen } from './components/LoadingScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AppProvider } from './hooks/useAppState';
-import { OnlineStatusIndicator, PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PWAInstallPrompt, OnlineStatusIndicator } from './components/PWAInstallPrompt';
 import { ExchangeRateSync } from './components/ExchangeRateSync';
 import { PageTransition } from './components/PageTransition';
-import { LoadingScreen } from './components/LoadingScreen';
-import './styles/globals.css';
+import { AppProvider } from './hooks/useAppState';
+import { BackendSyncProvider } from './components/BackendSyncProvider';
+import { applyBrowserOptimizations, applySafariFixes, isPrivateBrowsing } from './utils/browserDetection';
+import { BUILD_VERSION, BUILD_TIMESTAMP } from './BUILD_VERSION';
+import { startUpdateDetection } from './utils/updateDetector';
+import { checkForUpdate } from './utils/cacheManager';
 
 // 🔥 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}
 console.log('🚀 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}');
@@ -153,7 +152,7 @@ function lazyWithRetry(componentImport: () => Promise<any>) {
 }
 
 function App() {
-  console.log(`🚀 SmartCabb v${BUILD_VERSION} - Build ${BUILD_DATE} - Démarrage...`);
+  console.log(`🚀 SmartCabb v${BUILD_VERSION} - Build ${BUILD_TIMESTAMP} - Démarrage...`);
   
   // Appliquer les optimisations navigateur au démarrage
   useEffect(() => {

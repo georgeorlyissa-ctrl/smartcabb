@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, type VehicleCategory } from '../../lib/pricing';
 import { notifyVehicleUpdated, notifyProfileUpdated } from '../../lib/sms-service';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 // Helper functions

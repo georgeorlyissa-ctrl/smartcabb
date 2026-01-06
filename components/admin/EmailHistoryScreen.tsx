@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Mail, Search, Filter, Send, Calendar, User, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Button } from '../ui/button';
+import { Mail, Search, Filter, Download, RefreshCw, ArrowLeft, CheckCircle2, XCircle, Clock, Send } from 'lucide-react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { motion } from 'motion/react';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';

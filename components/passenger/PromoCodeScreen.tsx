@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { useAppState } from '../../hooks/useAppState';
+import { ArrowLeft, Tag, Check, X, Gift, Percent } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
@@ -15,6 +18,7 @@ interface PromoCode {
 }
 
 export function PromoCodeScreen() {
+  const { setCurrentScreen, state } = useAppState();
   const [promoCode, setPromoCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [validatedCode, setValidatedCode] = useState<PromoCode | null>(null);

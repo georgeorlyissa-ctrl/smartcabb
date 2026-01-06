@@ -1,4 +1,6 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { 
   ArrowLeft, 

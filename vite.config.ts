@@ -1,37 +1,57 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Configuration pour FIGMA MAKE (utilise esm.sh CDN)
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      exclude: /supabase\\/functions\\/server/,
+    })
+  ],
   
-  // DÉSACTIVER LE CACHE COMPLÈTEMENT
-  cacheDir: false,
+  resolve: {
+    alias: {
+      // Alias pour Motion (Framer Motion) - Version stable
+      'motion/react': 'framer-motion',
+      
+      // PAS d'alias pour sonner - laisser la résolution naturelle
+      // PAS d'alias pour @radix-ui - laisser la résolution naturelle
+    },
+  },
   
   build: {
     outDir: 'dist',
     sourcemap: false,
-    // Désactiver la minification pour debug
-    minify: false,
+    minify: 'esbuild',
+    target: 'es2015',
     rollupOptions: {
       output: {
         manualChunks: undefined,
-        // Pas de hash dans les noms de fichiers
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]'
-      }
-    }
+      },
+    },
   },
   
-  // Forcer la réoptimisation sans cache
+  esbuild: {
+    loader: 'tsx',
+    include: /\.(tsx?|jsx?)$/,
+  },
+  
   optimizeDeps: {
-    force: true
+    include: [
+      'react',
+      'react-dom',
+      'lucide-react',
+      'sonner',
+      'leaflet',
+      'react-leaflet',
+      'date-fns',
+      'framer-motion',
+    ],
   },
   
-  // Désactiver le versioning des imports
   server: {
-    hmr: {
-      overlay: false
+    fs: {
+      strict: false
     }
   }
 });

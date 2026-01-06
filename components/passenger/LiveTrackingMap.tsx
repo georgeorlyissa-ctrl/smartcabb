@@ -1,5 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from '../../framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
+import { MapPin, Navigation, Car, AlertCircle, Phone, MessageCircle } from 'lucide-react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from 'sonner';
 

@@ -1,8 +1,24 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Settings, DollarSign, Clock, MapPin, Percent, Globe, Bell } from 'lucide-react';
+import { useState } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
 import { useSettings } from '../../hooks/useSettings';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  Settings, 
+  Percent, 
+  DollarSign, 
+  Clock,
+  Bell,
+  RefreshCw,
+  Save,
+  RotateCcw,
+  MessageSquare
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 export function GlobalSettingsScreen() {

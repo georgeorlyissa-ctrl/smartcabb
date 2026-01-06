@@ -1,18 +1,19 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { ArrowLeft } from '../../lib/icons';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Calendar } from '../ui/calendar';
+import { toast } from 'sonner';
+import { useAppState } from '../../hooks/useAppState';
+import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import { FileText } from 'lucide-react';
-
-// Helper pour formater les dates sans date-fns
-const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
 
 interface AuditLog {
   id: string;
@@ -161,9 +162,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      const now = new Date();
-      const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-      link.download = `audit-logs-${timestamp}.csv`;
+      link.download = `audit-logs-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
       link.click();
 
       toast.success('Logs exportés');
@@ -181,23 +180,19 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
 
   const convertToCSV = (logs: AuditLog[]) => {
     const headers = ['Date', 'Utilisateur', 'Rôle', 'Action', 'Type', 'Détails', 'IP'];
-    const rows = logs.map(log => {
-      const date = new Date(log.created_at);
-      const formattedDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
-      return [
-        formattedDate,
-        log.user?.name || 'N/A',
-        log.user?.role || 'N/A',
-        ACTION_LABELS[log.action]?.label || log.action,
-        log.entity_type,
-        JSON.stringify(log.details),
-        log.ip_address || 'N/A'
-      ];
-    });
+    const rows = logs.map(log => [
+      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      log.user?.name || 'N/A',
+      log.user?.role || 'N/A',
+      ACTION_LABELS[log.action]?.label || log.action,
+      log.entity_type,
+      JSON.stringify(log.details),
+      log.ip_address || 'N/A'
+    ]);
 
     return [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `\"${cell}\"`).join(','))
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
   };
 
@@ -300,6 +295,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                   mode="single"
                   selected={startDate}
                   onSelect={setStartDate}
+                  locale={fr}
                 />
               </PopoverContent>
             </Popover>
@@ -355,7 +351,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-sm text-gray-600">
-                        {formatDate(log.created_at)}
+                        {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}
                       </span>
                       {getActionBadge(log.action)}
                       <Badge variant="outline">{log.entity_type}</Badge>

@@ -1,5 +1,17 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { InteractiveMapView } from '../InteractiveMapView';
+import { 
+  Navigation,
+  MapPin,
+  Clock,
+  Phone,
+  MessageCircle
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface Location {
   lat: number;

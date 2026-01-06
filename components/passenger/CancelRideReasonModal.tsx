@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -76,15 +75,32 @@ export function CancelRideReasonModal({
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">Annuler la course</DialogTitle>
-          <DialogDescription className="text-gray-600 mb-6">
-            Pourquoi souhaitez-vous annuler cette course ?
-          </DialogDescription>
-        </DialogHeader>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Annuler la course</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="w-8 h-8"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
 
         {/* Warning if penalty applies */}
         {hasPenalty && (
@@ -104,6 +120,11 @@ export function CancelRideReasonModal({
             </div>
           </motion.div>
         )}
+
+        {/* Subtitle */}
+        <p className="text-gray-600 mb-6">
+          Pourquoi souhaitez-vous annuler cette course ?
+        </p>
 
         {/* Predefined reasons */}
         <div className="space-y-2 mb-6">
@@ -176,7 +197,7 @@ export function CancelRideReasonModal({
             Confirmer l'annulation
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </motion.div>
+    </motion.div>
   );
 }

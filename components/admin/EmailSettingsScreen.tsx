@@ -1,24 +1,37 @@
 /**
- * EmailSettingsScreen - Gestion des paramètres email de SmartCabb
- * 
- * Permet de configurer SendGrid et gérer les templates d'emails
- * 
- * Fonctionnalités :
- * - Configuration de la clé API SendGrid
- * - Gestion des templates d'emails
- * - Envoi d'emails de test
+ * ============================================================================
+ * SMARTCABB - ÉCRAN DE CONFIGURATION EMAIL
+ * ============================================================================
+ * VERSION PRODUCTION - COMPATIBLE VERCEL
+ * Import sonner SANS version pour compatibilité build production
+ * ============================================================================
  */
 
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { motion } from '../../framer-motion';
-import { Mail, Key, Save, Send, CheckCircle, XCircle, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
 
+// ✅ IMPORT CORRECT POUR PRODUCTION
+import { toast } from 'sonner';
+
+import { 
+  Mail, 
+  Send, 
+  Settings, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2,
+  Key,
+  Server,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowLeft
+} from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
   Select,

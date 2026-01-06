@@ -1,5 +1,21 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
+import { useTranslation } from '../../hooks/useTranslation';
+import { 
+  ArrowLeft, 
+  Phone, 
+  MessageCircle, 
+  Star,
+  Car,
+  User,
+  MapPin,
+  Clock,
+  Shield,
+  Award,
+  Navigation
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
 
@@ -24,6 +40,7 @@ interface DriverFoundScreenProps {
 }
 
 export function DriverFoundScreen({ driverData: initialDriverData, confirmationCode, estimatedArrival }: DriverFoundScreenProps) {
+  const { t } = useTranslation();
   const { setCurrentScreen, state, updateRide } = useAppState();
   const [arrivalTime, setArrivalTime] = useState(estimatedArrival);
   const [driverData, setDriverData] = useState(initialDriverData);

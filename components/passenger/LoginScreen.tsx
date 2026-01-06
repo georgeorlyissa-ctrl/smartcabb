@@ -1,6 +1,8 @@
+import { EmailPhoneInput } from '../EmailPhoneInput';
+import { useNavigate } from '../../lib/simple-router';
 import { signIn } from '../../lib/auth-service';
 import { profileService } from '../../lib/supabase-services';
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowLeft, AlertCircle } from '../../lib/icons';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { syncUserProfile } from '../../lib/sync-service';
@@ -142,10 +144,10 @@ export function LoginScreen() {
       try {
         console.log('💳 Chargement du solde du portefeuille...');
         const balanceResponse = await fetch(
-          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
+          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               'Content-Type': 'application/json'
             }
           }

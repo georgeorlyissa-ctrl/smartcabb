@@ -1,75 +1,27 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
 import { usePayment } from '../../hooks/usePayment';
-import { supabase } from '../../lib/supabase';
-import { sendSMS } from '../../lib/sms-service';
-import {
-  Wallet,
+import { 
+  ArrowLeft, 
+  Wallet, 
+  CreditCard, 
   Calendar,
   CheckCircle,
   AlertCircle,
-  Gift,
-  Clock,
-  TrendingUp,
   Loader2,
-  CreditCard,
   Smartphone,
-  ArrowLeft,
+  TrendingUp,
+  Clock,
+  Gift,
   DollarSign,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
-
-// Types
-interface WalletPackage {
-  id: string;
-  name: string;
-  description: string;
-  amount: number;
-  days: number;
-  popular?: boolean;
-  discount?: number;
-}
-
-// Forfaits de recharge disponibles
-const WALLET_PACKAGES: WalletPackage[] = [
-  {
-    id: 'basic',
-    name: 'Forfait Basique',
-    description: 'Idéal pour démarrer',
-    amount: 5000,
-    days: 7,
-  },
-  {
-    id: 'standard',
-    name: 'Forfait Standard',
-    description: 'Le plus populaire',
-    amount: 15000,
-    days: 30,
-    popular: true,
-    discount: 10,
-  },
-  {
-    id: 'premium',
-    name: 'Forfait Premium',
-    description: 'Meilleur rapport qualité-prix',
-    amount: 40000,
-    days: 90,
-    discount: 20,
-  },
-  {
-    id: 'enterprise',
-    name: 'Forfait Professionnel',
-    description: 'Pour conducteurs actifs',
-    amount: 70000,
-    days: 180,
-    discount: 25,
-  },
-];
+import { toast } from 'sonner';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {

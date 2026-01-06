@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../framer-motion';
+import { motion } from 'motion/react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Wallet, CreditCard, DollarSign, AlertCircle } from 'lucide-react';
+import { Banknote, Smartphone, Calculator } from 'lucide-react';
 
 interface MixedPaymentSelectorProps {
   totalAmount: number;

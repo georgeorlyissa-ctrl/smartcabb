@@ -1,5 +1,20 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  MapPin, 
+  Clock, 
+  Star, 
+  CreditCard, 
+  Smartphone, 
+  Banknote,
+  Calendar,
+  Navigation, // Remplacé Route par Navigation (compatible lucide-react@0.263.1)
+  Loader2
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
 

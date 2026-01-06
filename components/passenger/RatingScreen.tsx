@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
-import { motion } from '../../framer-motion';
+import { 
+  Star,
+  Send,
+  Home,
+  ThumbsUp,
+  ThumbsDown,
+  Loader2
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Star, ThumbsUp, ThumbsDown, Send, Home, Loader2 } from 'lucide-react';
 
 export function RatingScreen() {
   const { state, setCurrentScreen } = useAppState();

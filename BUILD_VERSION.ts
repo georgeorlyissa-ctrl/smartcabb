@@ -1,17 +1,20 @@
 /**
- * Version actuelle du build SmartCabb
+ * BUILD VERSION v517.113 - FIX SONNER + RADIX UI DEPENDENCIES
  * 
  * CHANGEMENTS :
- * - Version dynamique basée sur la date et l'environnement
- * - Affichage de la version et de la date dans la console
- * - Cache destroyer actif pour forcer le refresh
+ * - package.json: Sonner fixé à exactement 2.0.3 (pas ^1.0.0)
+ * - vite.config.ts: Configuration Figma Make optimisée
+ * - Fix: Erreurs @radix-ui fetch resolved
+ * - Fix: Sonner@2.0.7 → 2.0.3
  */
 
-export const BUILD_VERSION = 'v517.107';
-export const BUILD_DATE = new Date().toISOString();
-export const BUILD_ENV = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.MODE : 'production';
+export const BUILD_VERSION = 'v517.113';
+export const BUILD_DATE = '2026-01-06';
+export const BUILD_TIMESTAMP = Date.now();
+export const FORCE_REBUILD = true;
+export const CACHE_BUST = 'fix-sonner-radix-deps-517-113';
 
-// Afficher la version dans la console
-console.log(`🚀 SmartCabb ${BUILD_VERSION} - ${BUILD_ENV}`);
-console.log(`📅 Build: ${BUILD_DATE}`);
-console.log(`🔥 Cache destroyer actif - Hard refresh si nécessaire`);
+console.log('🚀 BUILD v517.113 - FIX SONNER + RADIX UI DEPENDENCIES');
+console.log('📦 Sonner: 2.0.3 (version exacte)');
+console.log('🔧 Radix UI: Dépendances optimisées');
+console.log('✅ Build errors resolved');

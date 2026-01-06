@@ -1,23 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { calculateDistance, calculateRoute } from '../../lib/map-service';
-import { calculateEstimatedDuration, getCurrentTrafficConditions, calculateDurationRange, formatDuration } from '../../lib/duration-calculator';
-import { isDayTime, VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF } from '../../lib/pricing';
+import { useState, useEffect } from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAppState } from '../../hooks/useAppState';
-import { PromoCode } from '../../types';
-import { motion } from '../../framer-motion';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
-import { Button } from '../ui/button';
-import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
-import { RouteMapPreview } from '../RouteMapPreview';
 import { PassengerCountSelector } from '../PassengerCountSelector';
 import { PromoCodeInput } from '../PromoCodeInput';
 import { BookForSomeoneElse } from './BookForSomeoneElse';
+import { RouteMapPreview } from '../RouteMapPreview';
+import { PromoCode } from '../../types';
+import { VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
+import { 
+  calculateEstimatedDuration, 
+  calculateDetailedDuration, 
+  calculateDurationRange,
+  formatDuration,
+  getCurrentTrafficConditions
+} from '../../lib/duration-calculator';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
 
 export function EstimateScreen() {
   const { t } = useTranslation();
-  const { setCurrentScreen, createRide, state } = useAppState();
+  const { setCurrentScreen, createRide, state, calculateDistance } = useAppState();
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleCategory>('smart_standard');
   const [passengerCount, setPassengerCount] = useState(1);
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
@@ -177,16 +182,21 @@ export function EstimateScreen() {
     setBasePrice(newPrice);
     
     // Obtenir les détails du calcul pour le log
+    const breakdown = calculateDetailedDuration(pickup, destination);
     const traffic = getCurrentTrafficConditions();
     const range = calculateDurationRange(pickup, destination);
     
     console.log('💰 Calcul avancé du prix estimé:', {
-      distance: `${(distanceKm || 0).toFixed(1)} km`,
+      distance: `${(breakdown?.distance || 0).toFixed(1)} km`,
       duréeEstimée: `${newDuration} min`,
       fourchette: `${range.min}-${range.max} min`,
       trafic: traffic.timeOfDay,
+      vitesseBase: `${breakdown.baseSpeed} km/h`,
+      vitesseAjustée: `${breakdown.adjustedSpeed} km/h`,
+      congestion: `×${breakdown.zoneCongestion}`,
       catégorie: selectedVehicle,
-      prixEstimé: `${newPrice.toLocaleString()} CDF`
+      prixEstimé: `${newPrice.toLocaleString()} CDF`,
+      confiance: breakdown.confidence
     });
   }, [selectedVehicle, pickup, destination]);
   

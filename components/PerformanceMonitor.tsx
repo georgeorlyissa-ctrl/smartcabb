@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
 import { Activity, Wifi, Download, Package } from 'lucide-react';
 import { useOnlineStatus } from '../hooks/usePWA';
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Wallet, CreditCard, CheckCircle, XCircle, Clock, AlertCircle, DollarSign, Search, Filter } from 'lucide-react';
+import { motion } from 'motion/react';
 import { useAppState } from '../../hooks/useAppState';
 import { formatCDF } from '../../lib/pricing';
 import { toast } from 'sonner';
@@ -11,7 +10,7 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { ArrowLeft, User, Phone, RefreshCw, Calendar, History as HistoryIcon } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone, RefreshCw, Calendar, History as HistoryIcon } from 'lucide-react';
 
 interface Recharge {
   id: string;

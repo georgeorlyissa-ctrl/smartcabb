@@ -1,11 +1,9 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Wrench, Database, Users, Car, Mail, FileText, TrendingUp, Settings } from 'lucide-react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { RideMigrationTool } from './RideMigrationTool'; // ✅ v517.98: Import outil migration
 import { 
   ArrowLeft,
   Trash2, 
@@ -333,21 +331,11 @@ export function AdminToolsScreen() {
           </Card>
         </motion.div>
 
-        {/* ✅ v517.98: NOUVEL OUTIL - Migration des courses */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-6"
-        >
-          <RideMigrationTool />
-        </motion.div>
-
         {/* Info Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.2 }}
           className="mt-6"
         >
           <Card className="p-6">

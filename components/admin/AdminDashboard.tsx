@@ -1,3 +1,23 @@
+import { motion } from 'motion/react';
+import { useNavigate } from '../../lib/simple-router';
+import { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
+import { useAppState } from '../../hooks/useAppState';
+import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { LiveStatsPanel } from '../LiveStatsPanel';
+import { StatsCharts } from './StatsCharts';
+import { ContactMessagesScreen } from './ContactMessagesScreen';
+import { DataCleanupPanel } from './DataCleanupPanel';
+import { AutoCleanupBanner } from './AutoCleanupBanner';
+import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
+import { SMSBalanceCard } from './SMSBalanceCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { supabase } from '../../lib/supabase';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { logError, isNetworkError } from '../../lib/error-utils';
 import { 
   Users, 

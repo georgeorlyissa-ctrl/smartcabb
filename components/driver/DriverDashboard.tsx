@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { Card } from '../ui/card';
@@ -16,10 +16,37 @@ import { DriverBalanceManager } from './DriverBalanceManager';
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, isDayTime, VehicleCategory } from '../../lib/pricing';
 import { useDriverLocation, isNearPickupLocation, calculateDistance } from '../../lib/gps-utils';
-import { Power, Euro, Clock, Star, Navigation, User, Settings, TrendingUp, Car, Key, Percent, CreditCard, Lock, CheckCircle, AlertCircle, MapPin, Phone, MessageSquare } from 'lucide-react';
+import { 
+  Power, 
+  Euro, 
+  Clock, 
+  Star, 
+  Navigation,
+  User,
+  Settings,
+  TrendingUp,
+  Car,
+  Key,
+  Percent,
+  CreditCard,
+  Lock,
+  CheckCircle,
+  AlertCircle,
+  MapPin,
+  Phone,
+  MessageSquare
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { notifyRideConfirmed, notifyDriverEnroute, notifyDriverArrived, notifyRideStarted, notifyRideCompleted, notifyPaymentReceived, notifyRideCancelled } from '../../lib/sms-service';
+import { 
+  notifyRideConfirmed,
+  notifyDriverEnroute,
+  notifyDriverArrived,
+  notifyRideStarted,
+  notifyRideCompleted,
+  notifyPaymentReceived,
+  notifyRideCancelled
+} from '../../lib/sms-service';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {
@@ -953,16 +980,12 @@ export function DriverDashboard() {
         const startData = await startResponse.json();
         console.log('✅ Backend a confirmé le démarrage:', startData);
         
-        // ✅ v517.95: Mettre à jour AUSSI le state global avec startTime
-        const startTime = new Date();
-        setRideStartTime(startTime);
-        const startTimeISO = startData.ride?.startedAt || startTime.toISOString();
-        
+        // Mettre à jour le state local
+        setRideStartTime(new Date());
         setCurrentRide({ 
           ...state.currentRide, 
           status: 'in_progress',
-          startedAt: startTimeISO,
-          startTime: startTimeISO // ✅ CRITIQUE pour calcul uniforme de durée
+          startedAt: startData.ride?.startedAt || new Date().toISOString()
         });
         toast.success('Course démarrée !');
         setEnteredCode('');
@@ -1038,15 +1061,6 @@ export function DriverDashboard() {
         tauxChange: `${exchangeRate} CDF/USD`
       });
 
-      // 🔥 v517.95: LOGS DÉTAILLÉS pour debug passengerId
-      console.log('🔍 v517.95 - Sources de passengerId:', {
-        rideRequestPassengerId: rideRequest?.passengerId,
-        rideRequestUserId: rideRequest?.userId,
-        stateCurrentRidePassengerId: state.currentRide?.passengerId,
-        stateCurrentRideUserId: state.currentRide?.userId,
-        finalPassengerId: rideRequest?.passengerId || rideRequest?.userId || state.currentRide?.passengerId || state.currentRide?.userId || 'unknown'
-      });
-      
       // 🔥 v517.85: SAUVEGARDER LA COURSE DANS LE BACKEND (CRITIQUE!)
       // SANS CETTE ÉTAPE, LES STATS NE PEUVENT PAS SE METTRE À JOUR !
       try {
@@ -1065,11 +1079,9 @@ export function DriverDashboard() {
             body: JSON.stringify({
               rideId: uniqueRideId, // ✅ v517.85: ID unique pour chaque course
               driverId: driver.id,
-              // ✅ v517.95: CRITIQUE - Utiliser rideRequest en priorité car il vient du backend avec le bon passengerId
-              passengerId: rideRequest?.passengerId || rideRequest?.userId || state.currentRide?.passengerId || state.currentRide?.userId || 'unknown',
+              passengerId: rideRequest?.passengerId || state.currentRide.passengerId || 'unknown',
               finalPrice: totalRideCost,
               duration: durationInSeconds,
-              billingElapsedTime: billableSeconds, // ✅ v517.96: AJOUT - Temps de facturation réel (après 10 min gratuites)
               rating: 0, // Sera mis à jour par le passager plus tard
               feedback: '',
               paymentMethod: 'cash', // Mode post-payé = cash à la fin
@@ -1078,8 +1090,6 @@ export function DriverDashboard() {
               distance: rideRequest?.distance || state.currentRide.distance || 0,
               vehicleType: driver.vehicleInfo?.type || 'economic',
               completedAt: new Date().toISOString(),
-              // ✅ v517.94: Inclure startTime pour calcul uniforme de la durée
-              startTime: state.currentRide.startTime || rideRequest?.createdAt || state.currentRide.createdAt || new Date(Date.now() - durationInSeconds * 1000).toISOString(),
               createdAt: rideRequest?.createdAt || state.currentRide.createdAt || new Date().toISOString()
             })
           }
@@ -1128,23 +1138,10 @@ export function DriverDashboard() {
       // Forcer le re-render visuel du solde
       setBalanceRenderKey(prev => prev + 1);
       
-      // ✅ v517.96: Mettre à jour currentRide avec billingElapsedTime AVANT de null
-      // pour que le passager reçoive la durée correcte
-      setCurrentRide({ 
-        ...state.currentRide, 
-        status: 'completed',
-        billingElapsedTime: billableSeconds, // ✅ Temps facturable (après 10 min gratuites)
-        duration: durationInSeconds, // Durée totale
-        finalPrice: totalRideCost,
-        completedAt: new Date().toISOString()
-      });
-      
-      // Attendre un peu pour que le passager récupère les données
-      setTimeout(() => {
-        setCurrentRide(null);
-        setConfirmationCode('');
-        setRideStartTime(null);
-      }, 3000); // 3 secondes pour synchronisation
+      // Mettre à jour l'état
+      setCurrentRide(null);
+      setConfirmationCode('');
+      setRideStartTime(null);
       
       // Rafraîchir les données du tableau de bord
       setTimeout(() => {
@@ -1422,7 +1419,7 @@ export function DriverDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Destination</p>
-                <p className="font-medium">{state.currentRide.destination?.address || 'Destination non spécifiée'}</p>
+                <p className="font-medium">{state.currentRide.destination.address}</p>
               </div>
               
               {/* 🆕 v517.91: BOUTONS DE CONTACT PASSAGER */}

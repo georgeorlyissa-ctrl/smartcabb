@@ -6,12 +6,8 @@
 // Import sans version spécifique pour compatibilité Safari/iOS
 import { toast as sonnerToast } from 'sonner';
 
-export const toast = {
-  success: (message: string) => sonnerToast.success(message),
-  error: (message: string) => sonnerToast.error(message),
-  info: (message: string) => sonnerToast.info(message),
-  warning: (message: string) => sonnerToast.warning(message),
-};
+// Réexporter tous les types et fonctions de sonner
+export const toast = sonnerToast;
 
 // Types pour TypeScript
 export type { ExternalToast as ToastOptions } from 'sonner';

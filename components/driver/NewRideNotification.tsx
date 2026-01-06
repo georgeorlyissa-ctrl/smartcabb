@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from '../../lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../ui/card';

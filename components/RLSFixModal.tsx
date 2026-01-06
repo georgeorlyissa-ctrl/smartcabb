@@ -1,3 +1,16 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/button';
+import { Alert, AlertDescription } from './ui/alert';
+import { 
+  AlertCircle, 
+  Copy, 
+  ExternalLink, 
+  RefreshCw,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
 import { MANUAL_SQL_SCRIPT } from '../lib/disable-rls';
 import { toast } from 'sonner';
 

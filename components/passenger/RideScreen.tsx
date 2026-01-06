@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -20,7 +20,7 @@ import {
   Wallet,
   TrendingUp, // ✅ FIX #3: Icône pour itinéraire
   Award // ✅ FIX #4: Icône pour profil chauffeur
-} from '../../lucide-react';
+} from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { AlternativeVehicleDialog } from './AlternativeVehicleDialog';
 import { CancelRideReasonModal } from './CancelRideReasonModal';

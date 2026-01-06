@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from '../../lucide-react';
+import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from 'lucide-react';
 import { signUpDriver } from '../../lib/auth-service-driver-signup';
 import { sendSMS } from '../../lib/sms-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

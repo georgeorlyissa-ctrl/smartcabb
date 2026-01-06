@@ -3,13 +3,10 @@
  * Interface admin pour nettoyer les données de test avant les tests avec vraies données
  */
 
-import { useState, useEffect } from 'react';
-import { Card } from '../ui/card';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { motion, AnimatePresence } from '../../framer-motion';
+import { Card } from '../ui/card';
 import { 
   Trash2, 
   Database, 

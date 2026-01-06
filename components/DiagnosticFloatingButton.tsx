@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from '../framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { HelpCircle, X, Wrench, Search, Trash2, Home } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';

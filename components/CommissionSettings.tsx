@@ -1,8 +1,22 @@
+import { useState, useEffect } from 'react';
+import { Card } from './ui/card';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useAppState } from '../hooks/useAppState';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 import {
-  DollarSign,
   Percent,
-  Save,
-  Calculator,
+  DollarSign,
+  TrendingUp,
+  Clock,
+  Settings as SettingsIcon,
+  AlertCircle,
+  CheckCircle,
   Receipt,
   Info
 } from 'lucide-react';

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
-import { Phone, Lock, ArrowLeft, Check, AlertCircle, Eye, EyeOff, MessageSquare } from '../../lucide-react';
+import { Phone, Lock, ArrowLeft, Check, AlertCircle, Eye, EyeOff, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from '../../lib/simple-router';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

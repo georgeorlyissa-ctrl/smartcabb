@@ -1,10 +1,6 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Button } from '../components/ui/button';
-import { motion } from '../framer-motion';
 import { Link } from '../lib/simple-router';
-
-const SocialFooter = lazy(() => import('../components/SocialFooter').then(m => ({ default: m.SocialFooter })));
-const ChatWidget = lazy(() => import('../components/ChatWidget').then(m => ({ default: m.ChatWidget })));
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { motion } from 'motion/react';
 
 // Images hero pour le carrousel - Téléphones avec carte GPS/navigation/transport
 const heroImages = [
@@ -13,6 +9,10 @@ const heroImages = [
   'https://images.unsplash.com/photo-1634743556192-d19f0c69ff3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBjYXIlMjByaWRlJTIwYXBwfGVufDF8fHx8MTc2NDMzNDkzM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
   'https://images.unsplash.com/photo-1762944079807-eb4aab5a2cf6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzbWFydHBob25lJTIwdHJhbnNwb3J0YXRpb24lMjBjaXR5fGVufDF8fHx8MTc2NDMzNDkzM3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral'
 ];
+
+// Lazy load des composants non critiques pour améliorer le temps de chargement initial
+const SocialFooter = lazy(() => import('../components/SocialFooter').then(module => ({ default: module.SocialFooter })));
+const ChatWidget = lazy(() => import('../components/ChatWidget').then(module => ({ default: module.ChatWidget })));
 
 export function LandingPage() {
   const [activeSection, setActiveSection] = useState('home');

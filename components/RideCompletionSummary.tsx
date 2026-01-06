@@ -1,4 +1,5 @@
-import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/button';
 import { CheckCircle, Clock, MapPin, CreditCard } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
@@ -99,7 +100,7 @@ export function RideCompletionSummary({
               <div className="w-3 h-3 bg-blue-500 rounded-full mt-1"></div>
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Départ</p>
-                <p className="font-medium">{ride.pickup?.address || 'Point de départ non spécifié'}</p>
+                <p className="font-medium">{ride.pickup.address}</p>
               </div>
             </div>
             
@@ -107,7 +108,7 @@ export function RideCompletionSummary({
               <div className="w-3 h-3 bg-green-500 rounded-full mt-1"></div>
               <div className="flex-1">
                 <p className="text-sm text-gray-600">Arrivée</p>
-                <p className="font-medium">{ride.destination?.address || 'Destination non spécifiée'}</p>
+                <p className="font-medium">{ride.destination.address}</p>
               </div>
             </div>
           </div>

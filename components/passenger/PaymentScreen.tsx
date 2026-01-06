@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { useAppState } from '../../hooks/useAppState';
-import { CreditCard, Smartphone, Banknote, CheckCircle, Loader2, Wallet, AlertCircle, X, Phone, Split } from 'lucide-react';
-import { PaymentProofUploader } from '../PaymentProofUploader';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
-import { motion, AnimatePresence } from '../../framer-motion';
+import { useAppState } from '../../hooks/useAppState';
+import { 
+  CreditCard,
+  Smartphone,
+  Banknote,
+  CheckCircle,
+  Loader2,
+  Wallet,
+  AlertCircle,
+  X,
+  Phone,
+  Split
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
 
 // Configuration des réseaux Mobile Money RDC
 const MOBILE_MONEY_NETWORKS = [
@@ -81,10 +91,10 @@ export function PaymentScreen() {
       
       try {
         const response = await fetch(
-          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/details/${currentRide.id}`,
+          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/rides/details/${currentRide.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               'Content-Type': 'application/json'
             }
           }
@@ -120,17 +130,16 @@ export function PaymentScreen() {
   // ✅ Calculer la distance et durée depuis les données de la course
   const distance = currentRide?.distanceKm || currentRide?.distance || 0;
   
-  // ✅ v517.97: CORRECTION - Utiliser billingElapsedTime en priorité (temps facturable)
-  // billingElapsedTime = temps facturé après les 10 minutes gratuites
-  // duration = durée totale de la course
-  let durationInSeconds = currentRide?.billingElapsedTime ?? currentRide?.duration ?? 0;
+  // ✅ v517.91: CORRECTION - Utiliser duration depuis le backend OU calculer localement
+  // Si le backend n'a pas encore mis à jour duration, calculer depuis le temps de départ
+  let durationInSeconds = currentRide?.duration || 0;
   
   // Si duration est 0, essayer de calculer depuis startTime si disponible
   if (durationInSeconds === 0 && currentRide?.startTime) {
     const startTime = new Date(currentRide.startTime);
     const endTime = currentRide?.completedAt ? new Date(currentRide.completedAt) : new Date();
     durationInSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-    console.log('⏱️ v517.97 - Durée calculée localement:', {
+    console.log('⏱️ v517.91 - Durée calculée localement:', {
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       duration: durationInSeconds
@@ -152,18 +161,16 @@ export function PaymentScreen() {
     return `${minutes}min`;
   };
   
-  console.log('⏱️ v517.97 - PaymentScreen - Durée:', {
-    billingElapsedTime: currentRide?.billingElapsedTime,
-    duration: currentRide?.duration,
+  console.log('⏱️ PaymentScreen - Durée:', {
     durationInSeconds,
     durationInMinutes,
     formatted: formatDuration(durationInSeconds),
-    source: currentRide?.billingElapsedTime !== undefined ? 'billingElapsedTime' : (currentRide?.duration ? 'duration' : 'calculated')
+    source: currentRide?.duration ? 'backend' : 'local'
   });
     
   const ridePrice = currentRide?.estimatedPrice || 0;
-  // ✅ FIX v517.93: Utiliser ?? au lieu de || pour éviter que 0 soit considéré comme falsy
-  const userBalance = currentUser?.walletBalance ?? currentUser?.balance ?? 0;
+  // ✅ FIX: Utiliser walletBalance au lieu de balance
+  const userBalance = currentUser?.walletBalance || currentUser?.balance || 0;
   
   // Calculer le montant Mobile Money pour paiement mixte
   const cashAmountNum = parseFloat(cashAmount) || 0;

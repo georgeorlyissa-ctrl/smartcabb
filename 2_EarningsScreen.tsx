@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from './framer-motion';
-import { Button } from './components/ui/button';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

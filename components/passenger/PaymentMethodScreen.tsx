@@ -1,6 +1,10 @@
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
+import { useState } from 'react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { CurrencySelector } from '../CurrencySelector';
+import { MixedPaymentSelector } from '../MixedPaymentSelector';
 import { 
   ArrowLeft, 
   Smartphone, 

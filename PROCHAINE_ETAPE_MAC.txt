@@ -1,0 +1,199 @@
+═══════════════════════════════════════════════════════════════════════════════
+🍎 PROCHAINE ÉTAPE - MAC/LINUX
+═══════════════════════════════════════════════════════════════════════════════
+
+Vous utilisez Mac ou Linux.
+Voici exactement quoi faire MAINTENANT.
+
+═══════════════════════════════════════════════════════════════════════════════
+⚡ MÉTHODE ULTRA-RAPIDE (3 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Avez-vous Git installé ?
+
+    Pour vérifier, ouvrez le Terminal et tapez :
+    
+      git --version
+
+    Si vous voyez une version (ex: git version 2.39.0) → Git est installé ✅
+    Si vous voyez "command not found" → Git n'est PAS installé ❌
+
+
+  ✅ SI GIT EST INSTALLÉ :
+
+    Utilisez le script automatique !
+
+    1. Télécharger le ZIP depuis Figma Make
+       → Cliquer sur l'icône téléchargement
+       → Le fichier va dans ~/Downloads/
+
+    2. Ouvrir le Terminal
+
+    3. Aller dans le dossier de votre projet
+       cd /chemin/vers/votre/projet/smartcabb
+
+    4. Rendre le script exécutable
+       chmod +x INSTALLATION_PROPRE_v2224.sh
+
+    5. Exécuter le script
+       ./INSTALLATION_PROPRE_v2224.sh
+
+    6. Suivre les instructions à l'écran
+       → Le script vous demande le chemin du ZIP
+       → Il fait TOUT automatiquement
+       → Il vous demande si vous voulez push
+
+    7. Attendre Vercel (3-5 min)
+       → https://vercel.com/dashboard
+
+    8. Tester
+       → https://smartcabb.com
+
+    ✅ TERMINÉ !
+
+
+  ❌ SI GIT N'EST PAS INSTALLÉ :
+
+    Option 1 : Installer Git d'abord (recommandé)
+
+      Sur Mac :
+        brew install git
+
+      OU télécharger depuis :
+        https://git-scm.com/download/mac
+
+      Sur Linux (Ubuntu/Debian) :
+        sudo apt-get update
+        sudo apt-get install git
+
+      Sur Linux (Fedora) :
+        sudo dnf install git
+
+      Puis suivre les étapes ci-dessus (✅ SI GIT EST INSTALLÉ)
+
+
+    Option 2 : Méthode manuelle (plus long)
+
+      Lire : INSTALLATION_PROPRE_v2224_WINDOWS.md
+      Section "Option C : Via GitHub Web"
+      (Cette méthode fonctionne aussi sur Mac)
+
+═══════════════════════════════════════════════════════════════════════════════
+🚀 MÉTHODE ALTERNATIVE : COMMANDES MANUELLES (5 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Si vous préférez taper les commandes vous-même :
+
+  1. Télécharger le ZIP depuis Figma Make
+     → Sauvegarder dans ~/Downloads/smartcabb.zip
+
+  2. Ouvrir le Terminal
+
+  3. Créer un nouveau dossier propre
+     cd ~/Desktop
+     mkdir smartcabb-v2224-clean
+     cd smartcabb-v2224-clean
+
+  4. Extraire le ZIP
+     unzip ~/Downloads/smartcabb.zip
+
+  5. Copier le dossier .git de votre ancien projet
+     cp -r /chemin/vers/ancien/smartcabb/.git ./.git
+
+  6. Vérifier que Git fonctionne
+     git status
+
+  7. Commit
+     git add -A
+     git commit -m "🚀 Version 2224 - Installation propre"
+
+  8. Push (force push car c'est un remplacement complet)
+     git push -f origin main
+
+  9. Attendre Vercel (3-5 min)
+     → https://vercel.com/dashboard
+
+  10. Tester
+      → https://smartcabb.com
+
+  ✅ TERMINÉ !
+
+═══════════════════════════════════════════════════════════════════════════════
+📚 BESOIN DE PLUS DE DÉTAILS ?
+═══════════════════════════════════════════════════════════════════════════════
+
+  Tous les guides disponibles :
+
+  📖 GUIDES COMPLETS
+  ├── 📖_COMMENCER_ICI_v2224.md - Navigation
+  ├── 🚀_DEPLOYER_MAINTENANT_v2224.md - Guide express
+  └── GUIDE_DEPLOIEMENT_VERSION_2224.md - Guide détaillé
+
+  💻 SCRIPTS
+  ├── INSTALLATION_PROPRE_v2224.sh - Script automatique
+  └── verify-ready-to-deploy.sh - Vérification
+
+  ⚡ COMMANDES
+  └── ⚡_COMMANDES_RAPIDES_v2224.txt - Commandes Git CLI
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 RÉSUMÉ
+═══════════════════════════════════════════════════════════════════════════════
+
+  Méthode recommandée pour Mac/Linux :
+
+    ./INSTALLATION_PROPRE_v2224.sh
+
+  Temps total : 3-5 minutes
+  Difficulté : ⭐ Facile
+
+  Le script fait TOUT automatiquement !
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+  [ ] Git installé (vérifier avec : git --version)
+  [ ] ZIP téléchargé depuis Figma Make
+  [ ] Terminal ouvert
+  [ ] Script lancé : ./INSTALLATION_PROPRE_v2224.sh
+  [ ] Push vers GitHub effectué
+  [ ] Vercel build terminé
+  [ ] Application testée sur smartcabb.com
+
+═══════════════════════════════════════════════════════════════════════════════
+🐛 PROBLÈME ?
+═══════════════════════════════════════════════════════════════════════════════
+
+  Erreur "Permission denied" ?
+  → chmod +x INSTALLATION_PROPRE_v2224.sh
+
+  Erreur "git: command not found" ?
+  → Installer Git (voir ci-dessus)
+
+  Erreur "push rejected" ?
+  → Utiliser : git push -f origin main
+
+  Build Vercel échoue ?
+  → Vérifier les logs : https://vercel.com/dashboard
+
+  Autre problème ?
+  → Lire la section Dépannage dans :
+    GUIDE_DEPLOIEMENT_VERSION_2224.md
+
+═══════════════════════════════════════════════════════════════════════════════
+🎉 C'EST PARTI !
+═══════════════════════════════════════════════════════════════════════════════
+
+  Vous savez quoi faire :
+
+  1. Télécharger le ZIP
+  2. ./INSTALLATION_PROPRE_v2224.sh
+  3. Attendre
+  4. Tester sur smartcabb.com
+
+  Dans 10 minutes, votre app sera en production ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Version 2224 | Build v517.36 | 6 janvier 2026

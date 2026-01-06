@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Star, X } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Star, MapPin, Clock, DollarSign, Sun, Moon } from 'lucide-react';
+import { convertCDFtoUSD, getExchangeRate } from '../../lib/pricing';
+import { PRICING_CONFIG } from '../../lib/pricing-data';
+import { toast } from 'sonner';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface RatingDialogProps {
   ride: any;

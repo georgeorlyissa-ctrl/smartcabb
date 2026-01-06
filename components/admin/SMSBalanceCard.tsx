@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Card } from '../ui/card';
-import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { MessageSquare, RefreshCw, AlertTriangle, TrendingUp, Send, XCircle, CheckCircle } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

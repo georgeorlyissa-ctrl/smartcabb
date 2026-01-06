@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import {
+import { 
+  Wifi, 
+  WifiOff, 
+  MapPin, 
+  MapPinOff, 
+  Database, 
   AlertTriangle,
   CheckCircle,
-  Copy,
-  ExternalLink,
-  Wifi,
-  WifiOff,
-  Database,
-  Server,
+  XCircle,
   RefreshCw,
   Shield
 } from 'lucide-react';

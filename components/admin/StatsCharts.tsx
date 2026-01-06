@@ -2,7 +2,7 @@
 
 // 🔥 v311.5 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
 import { useMemo } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useSupabaseData } from '../../hooks/useSupabaseData';

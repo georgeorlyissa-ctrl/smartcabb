@@ -17,14 +17,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useAppState } from '../../hooks/useAppState';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Phone, Mail, MapPin, Clock, Plus, Trash2, Check, Users, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
+import { User, Phone, AlertCircle, Users } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAppState } from '../../hooks/useAppState';
 
 interface BookForSomeoneElseProps {
   showForm: boolean;
