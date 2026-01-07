@@ -472,6 +472,93 @@ export function DriverDashboard() {
     };
   }, [isOnline, driver?.id, rideRequest?.id, showRideRequest, state.currentRide]);
 
+  // 🔥 NOUVEAU: SURVEILLANCE DE L'ÉTAT DE LA COURSE AFFICHÉE
+  // Détecter si le passager annule ou si un autre conducteur accepte
+  useEffect(() => {
+    if (!showRideRequest || !rideRequest?.id || !driver?.id) {
+      return;
+    }
+
+    console.log('👁️ Surveillance de la course:', rideRequest.id);
+
+    const checkRideStatus = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${rideRequest.id}/status`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.ride) {
+            const rideStatus = data.ride.status;
+            const assignedDriverId = data.ride.assignedDriverId;
+            
+            // Cas 1: Le passager a annulé
+            if (rideStatus === 'cancelled') {
+              console.log('❌ Le passager a annulé sa course');
+              setShowRideRequest(false);
+              setRideRequest(null);
+              toast.error('😔 Le passager a annulé sa course', {
+                duration: 5000
+              });
+              return;
+            }
+            
+            // Cas 2: Un autre conducteur a accepté
+            if (rideStatus === 'accepted' && assignedDriverId && assignedDriverId !== driver.id) {
+              console.log('⚡ Course acceptée par un autre conducteur:', assignedDriverId);
+              setShowRideRequest(false);
+              setRideRequest(null);
+              toast.info('🚗 Course déjà récupérée par un autre conducteur', {
+                duration: 5000
+              });
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur surveillance statut course:', error);
+      }
+    };
+
+    // Vérifier toutes les 2 secondes
+    const interval = setInterval(checkRideStatus, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [showRideRequest, rideRequest?.id, driver?.id]);
+
+  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 15 SECONDES
+  // Si le conducteur ne répond pas, la demande est offerte au suivant
+  useEffect(() => {
+    if (!showRideRequest || !rideRequest?.id) {
+      return;
+    }
+
+    console.log('⏱️ Démarrage du timer de 15s pour la course:', rideRequest.id);
+
+    // Après 15 secondes, refuser automatiquement
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Timeout de 15s atteint, refus automatique');
+      setShowRideRequest(false);
+      setRideRequest(null);
+      toast.info('⏱️ Temps écoulé - Course offerte à un autre conducteur', {
+        duration: 4000
+      });
+    }, 15000); // 15 secondes
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [showRideRequest, rideRequest?.id]);
+
   // ==================== FONCTION DE RAFRAÎCHISSEMENT TEMPS RÉEL ====================
   const refreshDriverData = async () => {
     if (!driver?.id) return;
