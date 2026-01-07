@@ -1,3 +1,6 @@
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAppState } from '../../hooks/useAppState';
@@ -14,9 +17,6 @@ import {
   formatDuration,
   getCurrentTrafficConditions
 } from '../../lib/duration-calculator';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner@2.0.3';
-import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
 
