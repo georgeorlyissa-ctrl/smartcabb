@@ -26,6 +26,8 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { formatCDF, CONSTANTS } from '../../lib/pricing';
+import { syncUserProfile } from '../../lib/sync-service';
+import { sendSMS } from '../../lib/sms-service';
 
 export function ProfileScreen() {
   const { setCurrentScreen, state, passengers, setCurrentUser, setCurrentView } = useAppState();
@@ -43,6 +45,53 @@ export function ProfileScreen() {
     totalRides: 0,
     loading: true
   });
+  
+  // 💰 ÉTAT POUR LE SOLDE EN TEMPS RÉEL
+  const [walletBalance, setWalletBalance] = useState(state.currentUser?.walletBalance || 0);
+  const [loadingBalance, setLoadingBalance] = useState(true);
+  
+  // 💰 CHARGER LE SOLDE EN TEMPS RÉEL AU CHARGEMENT
+  useEffect(() => {
+    const fetchWalletBalance = async () => {
+      if (!state.currentUser?.id) return;
+      
+      try {
+        const response = await fetch(
+          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/balance`,
+          {
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('💰 Solde passager chargé:', data);
+          
+          if (data.success && data.balance !== undefined) {
+            setWalletBalance(data.balance);
+            // Mettre à jour aussi dans le state global
+            setCurrentUser({
+              ...state.currentUser,
+              walletBalance: data.balance
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement solde:', error);
+      } finally {
+        setLoadingBalance(false);
+      }
+    };
+    
+    fetchWalletBalance();
+    
+    // Rafraîchir toutes les 10 secondes
+    const interval = setInterval(fetchWalletBalance, 10000);
+    return () => clearInterval(interval);
+  }, [state.currentUser?.id]);
   
   // 🆕 CHARGER LES STATISTIQUES DEPUIS LE BACKEND
   useEffect(() => {
@@ -374,12 +423,12 @@ export function ProfileScreen() {
                   <div className="text-left">
                     <p className="text-sm text-muted-foreground mb-1">Mon Portefeuille</p>
                     <p className="text-2xl font-bold text-primary">
-                      {formatCDF(state.currentUser?.walletBalance || 0)}
+                      {formatCDF(walletBalance)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      ≈ {((state.currentUser?.walletBalance || 0) / CONSTANTS.EXCHANGE_RATE).toFixed(2)}$ USD
+                      ≈ {((walletBalance) / CONSTANTS.EXCHANGE_RATE).toFixed(2)}$ USD
                     </p>
-                    {(state.currentUser?.walletBalance || 0) >= CONSTANTS.EXCHANGE_RATE * 20 && (
+                    {(walletBalance) >= CONSTANTS.EXCHANGE_RATE * 20 && (
                       <p className="text-xs text-secondary font-medium mt-1 flex items-center gap-1">
                         🎁 Réduction de 5% active
                       </p>
