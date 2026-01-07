@@ -1,4 +1,3 @@
-import { supabase } from '../../lib/supabase';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
@@ -9,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { motion, AnimatePresence } from 'motion/react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface FavoriteLocation {
   id?: string;
@@ -49,7 +49,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
     icon: 'home'
   });
 
-  // Charger les favoris depuis Supabase
+  // 🆕 Charger les favoris depuis le backend KV store
   useEffect(() => {
     loadFavorites();
   }, [state.currentUser]);
@@ -58,19 +58,30 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
     if (!state.currentUser?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('favorite_locations')
-        .select('*')
-        .eq('user_id', state.currentUser.id)
-        .order('created_at', { ascending: false });
+      console.log('🔍 Chargement des favoris pour:', state.currentUser.id);
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (error) throw error;
-
-      if (data) {
-        setFavorites(data);
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Favoris chargés:', data);
+        
+        if (data.success && data.favorites) {
+          setFavorites(data.favorites);
+        }
+      } else {
+        console.error('❌ Erreur chargement favoris:', response.status);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des favoris:', error);
+      console.error('❌ Erreur lors du chargement des favoris:', error);
     }
   };
 
@@ -89,34 +100,48 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
 
     try {
       if (editingFavorite?.id) {
-        // Mise à jour
-        const { error } = await supabase
-          .from('favorite_locations')
-          .update({
-            name: newFavorite.name,
-            address: newFavorite.address,
-            lat: newFavorite.lat,
-            lng: newFavorite.lng,
-            icon: newFavorite.icon
-          })
-          .eq('id', editingFavorite.id);
+        // 🆕 Mise à jour via API
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites/${editingFavorite.id}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newFavorite.name,
+              address: newFavorite.address,
+              lat: newFavorite.lat,
+              lng: newFavorite.lng,
+              icon: newFavorite.icon
+            })
+          }
+        );
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Erreur mise à jour');
         toast.success('Favori mis à jour');
       } else {
-        // Création
-        const { error } = await supabase
-          .from('favorite_locations')
-          .insert({
-            user_id: state.currentUser.id,
-            name: newFavorite.name,
-            address: newFavorite.address,
-            lat: newFavorite.lat,
-            lng: newFavorite.lng,
-            icon: newFavorite.icon
-          });
+        // 🆕 Création via API
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newFavorite.name,
+              address: newFavorite.address,
+              lat: newFavorite.lat,
+              lng: newFavorite.lng,
+              icon: newFavorite.icon
+            })
+          }
+        );
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Erreur création');
         toast.success('Favori ajouté');
       }
 
@@ -134,12 +159,18 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
     if (!confirm('Supprimer ce lieu favori ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('favorite_locations')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser?.id}/favorites/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Erreur suppression');
 
       toast.success('Favori supprimé');
       await loadFavorites();
