@@ -144,8 +144,6 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
   }, [phase, freeWaitingDisabled, waitingTime]);
 
   // ✅ NOUVEAU : Auto-démarrage du chrono de facturation après 10 minutes d'attente
-   // ✅ NOUVEAU : Auto-démarrage du chrono de facturation après 10 minutes d'attente
-   // ✅ NOUVEAU : Auto-démarrage du chrono de facturation après 10 minutes d'attente
   useEffect(() => {
     if (phase === 'destination' && waitingTime >= 600 && !freeWaitingDisabled && !billingStartTime) {
       setFreeWaitingDisabled(true);
