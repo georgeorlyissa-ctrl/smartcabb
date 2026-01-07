@@ -648,7 +648,7 @@ export function MapScreen() {
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute top-0 left-0 bottom-0 w-80 bg-gradient-to-br from-white via-white to-gray-50 shadow-2xl z-50 flex flex-col"
+            className="absolute top-0 left-0 bottom-0 w-80 bg-gradient-to-br from-white via-white to-gray-50 shadow-2xl z-50 flex flex-col pt-16"
           >
             {/* Header avec profil utilisateur - Design moderne */}
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 pb-8 relative overflow-hidden">
