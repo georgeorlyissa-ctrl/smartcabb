@@ -154,11 +154,22 @@ export function LiveTrackingScreen() {
           if (data.ride?.status === 'completed') {
             console.log('✅ Course terminée par le conducteur ! Passage au paiement');
             
+            // ✅ CORRECTION : Récupérer AUSSI duration depuis le backend
+            console.log('📊 Données finales de la course:', {
+              duration: data.ride.duration,
+              billingElapsedTime: data.ride.billingElapsedTime,
+              finalPrice: data.ride.finalPrice,
+              distance: data.ride.distance
+            });
+            
             if (updateRide) {
               updateRide(currentRide.id, {
                 status: 'completed',
                 completedAt: data.ride.completedAt || new Date().toISOString(),
-                finalPrice: data.ride.finalPrice || currentRide.estimatedPrice
+                finalPrice: data.ride.finalPrice || currentRide.estimatedPrice,
+                // ✅ AJOUT : Récupérer la durée totale de la course
+                duration: data.ride.duration || data.ride.billingElapsedTime || 0,
+                distance: data.ride.distance || currentRide.distance
               });
             }
             
