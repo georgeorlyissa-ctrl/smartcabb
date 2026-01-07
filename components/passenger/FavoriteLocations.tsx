@@ -41,6 +41,11 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   const [editingFavorite, setEditingFavorite] = useState<FavoriteLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // 🆕 VERSION 2.0 - Log de version pour vérifier le chargement
+  useEffect(() => {
+    console.log('🚀 FavoriteLocations v2.0 chargé avec succès !');
+  }, []);
+
   const [newFavorite, setNewFavorite] = useState<FavoriteLocation>({
     name: '',
     address: '',
@@ -278,10 +283,12 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
         </div>
 
         {/* 🔍 DEBUG: Afficher l'état de chargement */}
-        <div className="text-xs text-gray-500 mb-2">
+        <div className="text-xs text-gray-500 mb-2 p-2 bg-gray-50 rounded">
           👤 Utilisateur: {state.currentUser?.id || 'Non connecté'}
           <br />
           📍 Favoris chargés: {favorites.length}
+          <br />
+          🔍 Données: {JSON.stringify(favorites.slice(0, 1))}
         </div>
 
         {favorites.length === 0 ? (
@@ -292,42 +299,51 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
           </div>
         ) : (
           <AnimatePresence>
-            {favorites.filter(Boolean).map((favorite) => {
-              // Protection: s'assurer que favorite existe et a toutes les propriétés requises
-              if (!favorite || !favorite.icon || !favorite.address || !favorite.name) {
-                console.error('Favori invalide détecté:', favorite);
+            {favorites.filter(Boolean).map((favorite, index) => {
+              // Log pour déboguer
+              console.log(`🔍 Rendu favori ${index}:`, favorite);
+              
+              // Protection: s'assurer que favorite existe
+              if (!favorite) {
+                console.error('❌ Favori undefined/null:', favorite);
                 return null;
               }
 
-              try {
-                const iconData = getIconComponent(favorite.icon);
-                const IconComponent = iconData.icon;
+              // Utiliser des valeurs par défaut si les propriétés manquent
+              const name = favorite.name || 'Sans nom';
+              const address = favorite.address || 'Adresse non définie';
+              const icon = favorite.icon || 'home';
+              const lat = favorite.lat || -4.3276;
+              const lng = favorite.lng || 15.3136;
 
-                // Double vérification que IconComponent est bien un composant
-                if (!IconComponent || typeof IconComponent !== 'function') {
-                  console.error('IconComponent invalide pour:', favorite.icon);
-                  return null;
-                }
+              console.log(`✅ Favori ${index} valide:`, { name, address, icon, lat, lng });
+
+              try {
+                const iconData = getIconComponent(icon);
+                const IconComponent = iconData.icon;
 
                 return (
                   <motion.button
-                    key={favorite.id || `fav-${Math.random()}`}
+                    key={favorite.id || `fav-${index}-${Math.random()}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100 }}
-                    onClick={() => onSelectLocation({
-                      address: favorite.address,
-                      lat: favorite.lat || -4.3276,
-                      lng: favorite.lng || 15.3136
-                    })}
+                    onClick={() => {
+                      console.log('🎯 Favori cliqué:', { address, lat, lng });
+                      onSelectLocation({
+                        address: address,
+                        lat: lat,
+                        lng: lng
+                      });
+                    }}
                     className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all group"
                   >
                     <div className={`p-2 rounded-full bg-gray-100 ${iconData.color}`}>
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-sm text-gray-900">{favorite.name}</p>
-                      <p className="text-xs text-gray-500">{favorite.address}</p>
+                      <p className="text-sm text-gray-900">{name}</p>
+                      <p className="text-xs text-gray-500">{address}</p>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
@@ -356,10 +372,10 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                   </motion.button>
                 );
               } catch (error) {
-                console.error('Erreur lors du rendu du favori:', error, favorite);
+                console.error('❌ Erreur lors du rendu du favori:', error, favorite);
                 return null;
               }
-            }).filter(Boolean)}
+            })}
           </AnimatePresence>
         )}
       </div>
