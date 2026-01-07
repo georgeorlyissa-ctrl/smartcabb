@@ -90,11 +90,12 @@ export function PaymentScreen() {
       console.log('🔄 Rechargement des détails de la course depuis le backend...');
       
       try {
+        // ✅ CORRECTION : Utiliser /status/:rideId au lieu de /details/:rideId
         const response = await fetch(
-          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/rides/details/${currentRide.id}`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${currentRide.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${publicAnonKey}`,
               'Content-Type': 'application/json'
             }
           }
@@ -105,17 +106,26 @@ export function PaymentScreen() {
           if (data.ride) {
             console.log('✅ Détails de course rechargés depuis le backend:', {
               duration: data.ride.duration,
+              billingElapsedTime: data.ride.billingElapsedTime,
               finalPrice: data.ride.finalPrice,
-              distance: data.ride.distance
+              distance: data.ride.distance,
+              status: data.ride.status
             });
+            
+            // ✅ CORRECTION : Utiliser duration depuis le backend (en SECONDES)
+            const backendDuration = data.ride.duration || data.ride.billingElapsedTime || 0;
+            
             // Mettre à jour le state avec les vraies données du backend
-            if (state.setCurrentRide) {
+            if (state.setCurrentRide && backendDuration > 0) {
               state.setCurrentRide({
                 ...currentRide,
-                duration: data.ride.duration, // ✅ Durée en SECONDES depuis le backend
+                duration: backendDuration,
                 finalPrice: data.ride.finalPrice || data.ride.estimatedPrice,
                 distance: data.ride.distance
               });
+              console.log(`⏱️ DURATION MISE À JOUR: ${backendDuration}s`);
+            } else if (backendDuration === 0) {
+              console.warn('⚠️ Duration toujours à 0, le driver n\'a peut-être pas encore terminé la course');
             }
           }
         }
@@ -124,14 +134,36 @@ export function PaymentScreen() {
       }
     };
     
+    // ✅ POLLING : Recharger toutes les 2 secondes jusqu'à ce que duration soit disponible
     refreshRideFromBackend();
+    
+    const interval = setInterval(() => {
+      if (!currentRide?.duration || currentRide.duration === 0) {
+        console.log('🔁 Duration toujours à 0, rechargement...');
+        refreshRideFromBackend();
+      } else {
+        console.log(`✅ Duration disponible (${currentRide.duration}s), arrêt du polling`);
+        clearInterval(interval);
+      }
+    }, 2000);
+    
+    // Arrêter le polling après 30 secondes max
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      console.log('⏱️ Timeout polling duration (30s)');
+    }, 30000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, [currentRide?.id]);
 
   // ✅ Calculer la distance et durée depuis les données de la course
   const distance = currentRide?.distanceKm || currentRide?.distance || 0;
   
   // ✅ v517.91: CORRECTION - Utiliser duration depuis le backend OU calculer localement
-  // Si le backend n'a pas encore mis à jour duration, calculer depuis le temps de départ
+  // Si le backend n'a pas encore mis à jour duration, calculer depuis startTime si disponible
   let durationInSeconds = currentRide?.duration || 0;
   
   // Si duration est 0, essayer de calculer depuis startTime si disponible
@@ -271,7 +303,7 @@ export function PaymentScreen() {
             console.error('❌ Erreur rechargement solde:', balanceResponse.status);
           }
         } catch (error) {
-          console.error('❌ Erreur rechargement solde:', error);
+          console.error('�� Erreur rechargement solde:', error);
         }
       }
 
