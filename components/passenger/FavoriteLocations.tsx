@@ -282,15 +282,6 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
           </div>
         </div>
 
-        {/* 🔍 DEBUG: Afficher l'état de chargement */}
-        <div className="text-xs text-gray-500 mb-2 p-2 bg-gray-50 rounded">
-          👤 Utilisateur: {state.currentUser?.id || 'Non connecté'}
-          <br />
-          📍 Favoris chargés: {favorites.length}
-          <br />
-          🔍 Données: {JSON.stringify(favorites.slice(0, 1))}
-        </div>
-
         {favorites.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <MapPin className="w-12 h-12 mx-auto mb-2 text-gray-300" />
