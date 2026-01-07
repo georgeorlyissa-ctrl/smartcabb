@@ -16,6 +16,7 @@ import { DriverBalanceManager } from './DriverBalanceManager';
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, isDayTime, VehicleCategory } from '../../lib/pricing';
 import { useDriverLocation, isNearPickupLocation, calculateDistance } from '../../lib/gps-utils';
+import { reverseGeocodeWithCache } from '../../lib/geocoding';
 import { 
   Power, 
   Euro, 
@@ -153,9 +154,12 @@ export function DriverDashboard() {
   const [waitingTimeStarted, setWaitingTimeStarted] = useState(false);
   const [waitingStartTime, setWaitingStartTime] = useState<Date | null>(null);
   
+  // 🗺️ NOUVEAU: Nom du lieu géocodé (ex: "Matete", "Gombe")
+  const [locationName, setLocationName] = useState<string>('Détection...');
+  
   // ✅ CRITIQUE: GPS activé dès que le conducteur est connecté (pas seulement en course)
   // Sans GPS, le conducteur ne peut pas passer en ligne
-  const { location: driverLocation, error: gpsError, permissionDenied } = useDriverLocation(true);
+  const { location: driverLocation, error: gpsError, permissionDenied, accuracy } = useDriverLocation(true);
   
   // ✅ SOLDE SYNCHRONISÉ AVEC LE BACKEND (source de vérité unique)
   const [accountBalance, setAccountBalance] = useState(0);
@@ -366,7 +370,34 @@ export function DriverDashboard() {
     const interval = setInterval(sendLocation, 10000);
 
     return () => clearInterval(interval);
-  }, [driverLocation, driver?.id]); // ✅ Retiré isOnline des dépendances!
+  }, [driverLocation, driver?.id, updateDriver]); // ✅ Retiré isOnline des dépendances!
+
+  // 🗺️ GEOCODER LA POSITION GPS EN NOM DE LIEU
+  useEffect(() => {
+    if (!driverLocation) {
+      setLocationName('Détection...');
+      return;
+    }
+    
+    const geocodeLocation = async () => {
+      try {
+        console.log('🗺️ Geocoding position:', driverLocation);
+        const name = await reverseGeocodeWithCache(driverLocation.lat, driverLocation.lng);
+        setLocationName(name);
+        console.log('✅ Nom du lieu:', name);
+      } catch (error) {
+        console.error('❌ Erreur geocoding:', error);
+        setLocationName('Position GPS activée');
+      }
+    };
+    
+    geocodeLocation();
+    
+    // Re-géocoder toutes les 30 secondes si la position change
+    const interval = setInterval(geocodeLocation, 30000);
+    
+    return () => clearInterval(interval);
+  }, [driverLocation]);
 
   // ✅ VÉRIFICATION TEMPS RÉEL DES DEMANDES DE COURSE depuis le backend
   useEffect(() => {
@@ -676,13 +707,28 @@ export function DriverDashboard() {
       setIsOnline(newStatus);
 
       if (driver) {
-        updateDriver(driver.id, { isOnline: newStatus });
+        updateDriver(driver.id, { isOnline: newStatus, location: driverLocation || undefined });
       }
 
-      toast.success(newStatus ? 'Vous êtes maintenant en ligne' : 'Vous êtes maintenant hors ligne');
-
       if (newStatus) {
-        toast.info('Recherche de courses en cours...');
+        // 🔥 AFFICHER LE NOM DU LIEU QUAND LE CONDUCTEUR PASSE EN LIGNE
+        toast.success('✅ Vous êtes maintenant en ligne !', { duration: 3000 });
+        
+        if (driverLocation) {
+          toast.success(
+            `📍 Votre position: ${locationName}`,
+            { duration: 5000 }
+          );
+          console.log('🟢 CONDUCTEUR EN LIGNE - Position GPS:', driverLocation);
+          console.log('   Latitude:', driverLocation.lat);
+          console.log('   Longitude:', driverLocation.lng);
+          console.log('   Lieu:', locationName);
+          console.log('   Cette position est maintenant visible par les passagers');
+        }
+        
+        toast.info('🔍 Recherche de courses en cours...', { duration: 3000 });
+      } else {
+        toast.success('Vous êtes maintenant hors ligne');
       }
     } catch (error) {
       console.error('❌ Erreur toggle status:', error);
@@ -1342,7 +1388,7 @@ export function DriverDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className={`w-4 h-4 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className={`w-4 h-4 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
               <div className="flex-1">
                 <h3 className="font-semibold">
                   {isOnline ? 'Vous êtes en ligne' : 'Vous êtes hors ligne'}
@@ -1357,15 +1403,43 @@ export function DriverDashboard() {
                         : '👆 Activez pour recevoir des courses'
                   }
                 </p>
-                {!driverLocation && !isOnline && gpsError && (
-                  <p className="text-xs text-red-500 mt-1">
-                    {gpsError}
-                  </p>
+                
+                {/* 🔥 AFFICHAGE POSITION GPS EN TEMPS RÉEL (style capture1) */}
+                {driverLocation && (
+                  <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-start space-x-2">
+                      <MapPin className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-green-800">
+                          {isOnline ? '🟢 Actif pour recevoir des courses' : '⚪ Hors ligne'}
+                        </p>
+                        <p className="text-xs text-green-700 mt-0.5">
+                          📍 {locationName}
+                        </p>
+                        {accuracy && (
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            Précision GPS: ±{accuracy.toFixed(0)}m
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
-                {driverLocation && !isOnline && (
-                  <p className="text-xs text-green-600 mt-1">
-                    ✅ GPS activé: {driverLocation.lat.toFixed(4)}, {driverLocation.lng.toFixed(4)}
-                  </p>
+                
+                {!driverLocation && !isOnline && gpsError && (
+                  <div className="mt-2 p-2 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-600">
+                      ⚠️ {gpsError}
+                    </p>
+                  </div>
+                )}
+                
+                {!driverLocation && !gpsError && !isOnline && (
+                  <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-xs text-yellow-700">
+                      ⏳ Détection GPS en cours...
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
