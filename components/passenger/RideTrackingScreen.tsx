@@ -8,10 +8,14 @@ import {
   MapPin,
   Clock,
   Phone,
-  MessageCircle
+  MessageCircle,
+  Share2,
+  AlertTriangle
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { toast } from 'sonner';
 
 interface Location {
   lat: number;
@@ -22,7 +26,114 @@ interface Location {
 export function RideTrackingScreen() {
   const { state, setCurrentScreen } = useAppState();
   const [driverLocation, setDriverLocation] = useState<Location | null>(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [showSOSDialog, setShowSOSDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const currentRide = state.currentRide;
+
+  // ⏱️ Chronomètre - Calculer le temps écoulé depuis le début de la course
+  useEffect(() => {
+    if (!currentRide?.startedAt) return;
+
+    const updateTimer = () => {
+      const startTime = new Date(currentRide.startedAt).getTime();
+      const now = Date.now();
+      const elapsed = Math.floor((now - startTime) / 1000); // en secondes
+      setElapsedTime(elapsed);
+    };
+
+    updateTimer(); // Mise à jour immédiate
+    const timer = setInterval(updateTimer, 1000); // Mise à jour chaque seconde
+
+    return () => clearInterval(timer);
+  }, [currentRide?.startedAt]);
+
+  // Formater le temps en HH:MM:SS ou MM:SS
+  const formatTime = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // 🔗 Partager l'itinéraire
+  const handleShareTrip = async () => {
+    const shareText = `🚕 Je suis en course SmartCabb\n\n📍 Départ: ${currentRide.pickup?.address || 'Position de départ'}\n📍 Arrivée: ${currentRide.destination?.address || 'Destination'}\n👤 Conducteur: ${currentRide.driver?.name || 'N/A'}\n🚗 Véhicule: ${currentRide.driver?.vehicle?.make} ${currentRide.driver?.vehicle?.model || ''}\n⏱️ Temps écoulé: ${formatTime(elapsedTime)}\n💰 Prix: ${currentRide.estimatedPrice?.toLocaleString() || 'N/A'} CDF\n\nSuivez ma course en temps réel: https://smartcabb.com/track/${currentRide?.id}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Ma course SmartCabb',
+          text: shareText
+        });
+        toast.success('Itinéraire partagé avec succès !');
+        setShowShareDialog(false);
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          console.error('Erreur partage:', error);
+        }
+      }
+    } else {
+      // Fallback: Copier dans le presse-papiers
+      try {
+        await navigator.clipboard.writeText(shareText);
+        toast.success('Informations copiées dans le presse-papiers !');
+        setShowShareDialog(false);
+      } catch (error) {
+        console.error('Erreur copie:', error);
+        toast.error('Impossible de copier les informations');
+      }
+    }
+  };
+
+  // 🚨 Déclencher SOS
+  const handleSOS = async () => {
+    try {
+      const sosData = {
+        userId: state.currentUser?.id,
+        userName: state.currentUser?.name,
+        userPhone: state.currentUser?.phone,
+        rideId: currentRide?.id,
+        driverName: currentRide.driver?.name,
+        driverPhone: currentRide.driver?.phone,
+        vehicleInfo: `${currentRide.driver?.vehicle?.make} ${currentRide.driver?.vehicle?.model} - ${currentRide.driver?.vehicle?.licensePlate || 'N/A'}`,
+        currentLocation: driverLocation || currentRide.pickup,
+        timestamp: new Date().toISOString()
+      };
+
+      console.log('🚨 SOS déclenché:', sosData);
+      
+      // Envoyer l'alerte SOS au backend
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/emergency/sos`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(sosData)
+        }
+      );
+
+      if (response.ok) {
+        toast.success('🚨 Alerte SOS envoyée !', {
+          description: 'Les services d\'urgence ont été notifiés.',
+          duration: 5000
+        });
+        setShowSOSDialog(false);
+      } else {
+        toast.error('Erreur lors de l\'envoi de l\'alerte SOS');
+      }
+    } catch (error) {
+      console.error('Erreur SOS:', error);
+      toast.error('Impossible d\'envoyer l\'alerte SOS');
+    }
+  };
 
   // ✅ POLLING : Obtenir la position du conducteur en temps réel
   useEffect(() => {
@@ -126,6 +237,22 @@ export function RideTrackingScreen() {
     }
   };
 
+  const handleShareRide = () => {
+    if (currentRide.driver?.phone) {
+      const cleanPhone = currentRide.driver.phone.replace(/[\s\-\(\)]/g, '');
+      const message = `Voici les détails de ma course avec ${currentRide.driver?.name} :
+Départ : ${currentRide.pickup?.address}
+Destination : ${currentRide.destination?.address}
+Prix estimé : ${currentRide.estimatedPrice?.toLocaleString() || 'N/A'} CDF
+Contact : ${currentRide.driver?.phone}`;
+      window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    }
+  };
+
+  const handleReportDriver = () => {
+    toast.error('Fonctionnalité en cours de développement');
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Carte en plein écran */}
@@ -184,6 +311,20 @@ export function RideTrackingScreen() {
                 >
                   <MessageCircle className="w-4 h-4" />
                 </Button>
+                <Button 
+                  onClick={handleShareRide}
+                  size="sm"
+                  className="bg-blue-500 hover:bg-blue-600"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+                <Button 
+                  onClick={handleReportDriver}
+                  size="sm"
+                  className="bg-red-500 hover:bg-red-600"
+                >
+                  <AlertTriangle className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           </Card>
@@ -235,16 +376,120 @@ export function RideTrackingScreen() {
 
             {/* Prix */}
             <div className="pt-4 border-t">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center mb-4">
                 <span className="text-gray-600">Prix de la course</span>
                 <span className="text-2xl font-bold text-green-600">
                   {currentRide.estimatedPrice?.toLocaleString() || 'N/A'} CDF
                 </span>
               </div>
+              
+              {/* Chronomètre */}
+              {currentRide.startedAt && (
+                <div className="flex items-center justify-center mb-4 py-3 bg-blue-50 rounded-lg">
+                  <Clock className="w-5 h-5 text-blue-600 mr-2" />
+                  <span className="text-2xl font-bold text-blue-600 tabular-nums">
+                    {formatTime(elapsedTime)}
+                  </span>
+                </div>
+              )}
+              
+              {/* Boutons Partager et SOS */}
+              <div className="grid grid-cols-2 gap-3">
+                <Button
+                  onClick={() => setShowShareDialog(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md transition-all"
+                >
+                  <Share2 className="w-5 h-5 mr-2" />
+                  Partager
+                </Button>
+                <Button
+                  onClick={() => setShowSOSDialog(true)}
+                  className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl shadow-md transition-all"
+                >
+                  <AlertTriangle className="w-5 h-5 mr-2" />
+                  SOS
+                </Button>
+              </div>
             </div>
           </Card>
         </motion.div>
       </div>
+
+      {/* Dialog SOS */}
+      <Dialog open={showSOSDialog} onOpenChange={setShowSOSDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Alerte SOS d'urgence
+            </DialogTitle>
+            <DialogDescription>
+              En cas de problème grave, cette alerte notifiera immédiatement les services d'urgence et vos contacts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <div className="bg-red-50 border border-red-200 p-3 rounded-lg text-sm text-red-800">
+              <p className="font-semibold mb-2">⚠️ Cette action va :</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Alerter les services d'urgence</li>
+                <li>Envoyer votre position GPS</li>
+                <li>Notifier vos contacts d'urgence</li>
+                <li>Enregistrer les infos du conducteur</li>
+              </ul>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                onClick={() => setShowSOSDialog(false)}
+                variant="outline"
+                className="py-3"
+              >
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSOS}
+                className="bg-red-600 hover:bg-red-700 text-white py-3 font-semibold"
+              >
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                Confirmer SOS
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Partage */}
+      <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-blue-600" />
+              Partager votre course
+            </DialogTitle>
+            <DialogDescription>
+              Partagez votre itinéraire avec vos amis ou votre famille pour qu'ils puissent suivre votre course en temps réel.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <div className="bg-gray-50 p-3 rounded-lg text-sm space-y-1">
+              <p><strong>📍 Départ:</strong> {currentRide.pickup?.address || 'Position de départ'}</p>
+              <p><strong>📍 Arrivée:</strong> {currentRide.destination?.address || 'Destination'}</p>
+              <p><strong>👤 Conducteur:</strong> {currentRide.driver?.name || 'N/A'}</p>
+              <p><strong>🚗 Véhicule:</strong> {currentRide.driver?.vehicle?.make} {currentRide.driver?.vehicle?.model}</p>
+              {currentRide.startedAt && (
+                <p><strong>⏱️ Temps:</strong> {formatTime(elapsedTime)}</p>
+              )}
+              <p><strong>💰 Prix:</strong> {currentRide.estimatedPrice?.toLocaleString() || 'N/A'} CDF</p>
+            </div>
+            <Button
+              onClick={handleShareTrip}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold"
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Partager maintenant
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
