@@ -17,8 +17,6 @@ export function MapScreen() {
   const [showMenu, setShowMenu] = useState(false);
   
   // 🔍 Debug: Log quand destination change
-  // 🔍 Debug: Log quand destination change
-  // 🔍 Debug: Log quand destination change
   useEffect(() => {
     console.log('🎯 MapScreen - destination a changé:', destination);
   }, [destination]);
@@ -501,7 +499,9 @@ export function MapScreen() {
                   <FavoriteLocations
                     currentLocation={currentLocation}
                     onSelectLocation={(location) => {
+                      console.log('🎯 Favori sélectionné dans MapScreen:', location);
                       setDestination(location.address);
+                      console.log('✅ Destination définie à:', location.address);
                       // Enregistrer aussi les coordonnées de la destination
                       if (setGlobalDestination) {
                         setGlobalDestination({
@@ -509,6 +509,7 @@ export function MapScreen() {
                           lng: location.lng,
                           address: location.address
                         });
+                        console.log('✅ Destination globale définie:', { lat: location.lat, lng: location.lng });
                       }
                       setShowFavorites(false);
                       toast.success('✅ Destination sélectionnée depuis vos favoris !');
