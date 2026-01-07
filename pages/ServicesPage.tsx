@@ -341,14 +341,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   {standardVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentStandardIndex === index ? 1 : 0,
                         transform: currentStandardIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -433,14 +433,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100">
                   {confortVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentConfortIndex === index ? 1 : 0,
                         transform: currentConfortIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -529,14 +529,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-green-50 to-green-100">
                   {familiaVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentFamiliaIndex === index ? 1 : 0,
                         transform: currentFamiliaIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -625,14 +625,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100">
                   {businessVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentBusinessIndex === index ? 1 : 0,
                         transform: currentBusinessIndex === index ? 'scale(1)' : 'scale(1.1)',
