@@ -316,12 +316,14 @@ export function DriverDashboard() {
 
   // ✅ ENVOYER LA POSITION GPS EN TEMPS RÉEL AU BACKEND
   useEffect(() => {
-    // Envoyer uniquement si en ligne ET que la position GPS est disponible
-    if (!isOnline || !driverLocation || !driver?.id) {
+    // ✅ CORRECTION CRITIQUE: Envoyer la position dès qu'elle est disponible
+    // PAS seulement quand en ligne, sinon le conducteur ne peut jamais passer en ligne!
+    if (!driverLocation || !driver?.id) {
+      console.log('⏸️ Envoi GPS en attente - Position:', !!driverLocation, 'Driver:', !!driver?.id);
       return;
     }
 
-    console.log('📍 Envoi position GPS au backend:', driverLocation);
+    console.log('📍 Envoi position GPS RÉELLE au backend:', driverLocation);
 
     // Fonction pour envoyer la position
     const sendLocation = async () => {
@@ -342,7 +344,7 @@ export function DriverDashboard() {
         );
 
         if (response.ok) {
-          console.log('✅ Position GPS envoyée au backend');
+          console.log('✅ Position GPS RÉELLE envoyée au backend:', driverLocation);
         } else {
           console.error('❌ Erreur envoi position GPS:', await response.text());
         }
@@ -354,11 +356,11 @@ export function DriverDashboard() {
     // Envoyer immédiatement
     sendLocation();
 
-    // Puis envoyer toutes les 10 secondes
+    // Puis envoyer toutes les 10 secondes (même si hors ligne, pour garder la position à jour)
     const interval = setInterval(sendLocation, 10000);
 
     return () => clearInterval(interval);
-  }, [isOnline, driverLocation, driver?.id]);
+  }, [driverLocation, driver?.id]); // ✅ Retiré isOnline des dépendances!
 
   // ✅ VÉRIFICATION TEMPS RÉEL DES DEMANDES DE COURSE depuis le backend
   useEffect(() => {
