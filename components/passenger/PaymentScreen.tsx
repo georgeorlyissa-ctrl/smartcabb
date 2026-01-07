@@ -82,15 +82,20 @@ export function PaymentScreen() {
   const currentRide = state.currentRide;
   const currentUser = state.currentUser;
 
-  // 🆕 RECHARGER LA COURSE DEPUIS LE BACKEND AU MONTAGE
+  // 🆕 RECHARGER LA COURSE DEPUIS LE BACKEND AU MONTAGE (fallback si duration manque)
   useEffect(() => {
     const refreshRideFromBackend = async () => {
       if (!currentRide?.id) return;
       
+      // Si duration existe déjà, pas besoin de recharger
+      if (currentRide.duration && currentRide.duration > 0) {
+        console.log(`✅ Duration déjà disponible: ${currentRide.duration}s`);
+        return;
+      }
+      
       console.log('🔄 Rechargement des détails de la course depuis le backend...');
       
       try {
-        // ✅ CORRECTION : Utiliser /status/:rideId au lieu de /details/:rideId
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${currentRide.id}`,
           {
@@ -112,10 +117,8 @@ export function PaymentScreen() {
               status: data.ride.status
             });
             
-            // ✅ CORRECTION : Utiliser duration depuis le backend (en SECONDES)
             const backendDuration = data.ride.duration || data.ride.billingElapsedTime || 0;
             
-            // Mettre à jour le state avec les vraies données du backend
             if (state.setCurrentRide && backendDuration > 0) {
               state.setCurrentRide({
                 ...currentRide,
@@ -134,29 +137,7 @@ export function PaymentScreen() {
       }
     };
     
-    // ✅ POLLING : Recharger toutes les 2 secondes jusqu'à ce que duration soit disponible
     refreshRideFromBackend();
-    
-    const interval = setInterval(() => {
-      if (!currentRide?.duration || currentRide.duration === 0) {
-        console.log('🔁 Duration toujours à 0, rechargement...');
-        refreshRideFromBackend();
-      } else {
-        console.log(`✅ Duration disponible (${currentRide.duration}s), arrêt du polling`);
-        clearInterval(interval);
-      }
-    }, 2000);
-    
-    // Arrêter le polling après 30 secondes max
-    const timeout = setTimeout(() => {
-      clearInterval(interval);
-      console.log('⏱️ Timeout polling duration (30s)');
-    }, 30000);
-    
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
   }, [currentRide?.id]);
 
   // ✅ Calculer la distance et durée depuis les données de la course
@@ -303,7 +284,7 @@ export function PaymentScreen() {
             console.error('❌ Erreur rechargement solde:', balanceResponse.status);
           }
         } catch (error) {
-          console.error('�� Erreur rechargement solde:', error);
+          console.error(' Erreur rechargement solde:', error);
         }
       }
 
