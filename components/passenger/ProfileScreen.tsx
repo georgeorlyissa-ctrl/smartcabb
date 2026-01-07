@@ -28,6 +28,7 @@ import { supabase } from '../../lib/supabase';
 import { formatCDF, CONSTANTS } from '../../lib/pricing';
 import { syncUserProfile } from '../../lib/sync-service';
 import { sendSMS } from '../../lib/sms-service';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function ProfileScreen() {
   const { setCurrentScreen, state, passengers, setCurrentUser, setCurrentView } = useAppState();
@@ -57,10 +58,10 @@ export function ProfileScreen() {
       
       try {
         const response = await fetch(
-          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/balance`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/balance`,
           {
             headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${publicAnonKey}`,
               'Content-Type': 'application/json'
             }
           }
@@ -100,15 +101,18 @@ export function ProfileScreen() {
       
       try {
         // 🆕 v517.91: Utiliser la nouvelle route /passengers/:id/stats
+        console.log('📊 🔥 APPEL /passengers/:id/stats avec ID:', state.currentUser.id);
         const response = await fetch(
-          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/stats`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/stats`,
           {
             headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${publicAnonKey}`,
               'Content-Type': 'application/json'
             }
           }
         );
+        
+        console.log('📊 🔥 Réponse /passengers/:id/stats:', response.status, response.ok);
         
         if (response.ok) {
           const data = await response.json();
@@ -121,10 +125,12 @@ export function ProfileScreen() {
             });
             console.log(`✅ v517.91 - ${data.stats.totalRides} courses réalisées par le passager`);
           } else {
+            console.warn('⚠️ data.success ou data.stats manquant:', data);
             setRideStats({ totalRides: 0, loading: false });
           }
         } else {
-          console.error('❌ v517.91 - Erreur réponse API:', response.status);
+          const errorText = await response.text();
+          console.error('❌ v517.91 - Erreur réponse API:', response.status, errorText);
           setRideStats({ totalRides: 0, loading: false });
         }
       } catch (error) {
