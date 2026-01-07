@@ -22,6 +22,8 @@ export function MapScreen() {
   }, [destination]);
 
   // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+  // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+  // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
   const [gpsTracker] = useState(() => new PreciseGPSTracker());
   
   // États pour la géolocalisation
