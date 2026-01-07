@@ -69,11 +69,15 @@ driverRoutes.get('/online-drivers', async (c) => {
       const locationKey = `driver:${driver.id}:location`;
       const locationData = await kv.get(locationKey);
       
+      console.log(`🔍 Conducteur ${driver.full_name} - Position KV:`, locationData);
+      
       // Si pas de position GPS enregistrée, ne pas afficher ce conducteur
       if (!locationData || !locationData.lat || !locationData.lng) {
         console.log(`⚠️ Conducteur ${driver.full_name} en ligne mais sans position GPS`);
         return null;
       }
+      
+      console.log(`✅ Position GPS du conducteur ${driver.full_name}: ${locationData.lat}, ${locationData.lng}`);
       
       return {
         id: driver.id,
@@ -217,6 +221,18 @@ driverRoutes.post('/toggle-online-status', async (c) => {
     };
 
     await kv.set(statusKey, statusData);
+    
+    // ✅ CRITIQUE: Si une location est fournie, l'enregistrer dans la clé séparée
+    if (location && location.lat && location.lng) {
+      const locationKey = `driver:${user.id}:location`;
+      const locationData = {
+        lat: location.lat,
+        lng: location.lng,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(locationKey, locationData);
+      console.log(`📍 Position GPS enregistrée: ${location.lat}, ${location.lng}`);
+    }
     
     // ✅ CORRECTION CRITIQUE : Aussi mettre à jour le profil conducteur principal
     // Récupérer le profil conducteur complet
