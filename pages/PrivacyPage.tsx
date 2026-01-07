@@ -146,8 +146,8 @@ export function PrivacyPage() {
             className="text-xl text-white/90"
           >
             {language === 'fr' 
-              ? 'Dernière mise à jour : 8 novembre 2025'
-              : 'Last updated: November 8, 2025'
+              ? 'Dernière mise à jour : 7 janvier 2026'
+              : 'Last updated: January 7, 2026'
             }
           </motion.p>
         </div>
@@ -370,7 +370,7 @@ export function PrivacyPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2025 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
+            <p>&copy; 2026 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
           </div>
         </div>
       </footer>
