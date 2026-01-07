@@ -18,6 +18,8 @@ driverRoutes.get('/online-drivers', async (c) => {
     );
 
     // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
+    // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
+    // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
     const { data: drivers, error } = await supabase
       .from('profiles')
       .select('id, full_name, phone, email, role')
