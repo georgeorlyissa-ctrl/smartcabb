@@ -374,10 +374,64 @@ app.get('/pending/:driverId', async (c) => {
       });
     }
 
-    // Prendre la première demande correspondante et abordable
-    const rideRequest = matchingRequests[0];
+    // 🔥 NOUVELLE LOGIQUE : TRI PAR DISTANCE (conducteur le plus proche)
+    // Calculer la distance entre le conducteur et le point de départ de chaque course
+    const driverLocation = driver.currentLocation;
     
-    console.log('✅ Demande trouvée pour catégorie', driverVehicleCategory, ':', rideRequest.id);
+    if (!driverLocation || !driverLocation.latitude || !driverLocation.longitude) {
+      console.log('⚠️ Position GPS du conducteur non disponible, retour première demande');
+      const rideRequest = matchingRequests[0];
+      return c.json({
+        success: true,
+        ride: rideRequest
+      });
+    }
+
+    // Fonction pour calculer la distance (formule de Haversine)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Ajouter la distance à chaque demande
+    const requestsWithDistance = matchingRequests.map(req => {
+      const pickupLat = req.pickup?.latitude || req.pickup?.lat;
+      const pickupLon = req.pickup?.longitude || req.pickup?.lng;
+      
+      if (!pickupLat || !pickupLon) {
+        console.log('⚠️ Course sans coordonnées de départ:', req.id);
+        return { ...req, distanceToDriver: 999999 }; // Distance infinie si pas de coordonnées
+      }
+      
+      const distance = calculateDistance(
+        driverLocation.latitude,
+        driverLocation.longitude,
+        pickupLat,
+        pickupLon
+      );
+      
+      return { ...req, distanceToDriver: distance };
+    });
+
+    // Trier par distance (le plus proche en premier)
+    requestsWithDistance.sort((a, b) => a.distanceToDriver - b.distanceToDriver);
+
+    // Prendre la demande la plus proche
+    const rideRequest = requestsWithDistance[0];
+    
+    console.log('✅ Demande la plus proche trouvée:', {
+      rideId: rideRequest.id,
+      category: driverVehicleCategory,
+      distanceToDriver: `${rideRequest.distanceToDriver.toFixed(2)} km`,
+      totalMatching: matchingRequests.length
+    });
 
     return c.json({
       success: true,
@@ -1473,6 +1527,59 @@ app.post('/start', async (c) => {
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔥 VÉRIFIER LE STATUT D'UNE COURSE
+// Utilisé par les conducteurs pour détecter les annulations
+// ou si un autre conducteur a accepté
+// ============================================
+app.get('/:rideId/status', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    
+    if (!rideId) {
+      return c.json({
+        success: false,
+        error: 'rideId requis'
+      }, 400);
+    }
+
+    console.log('🔍 Vérification statut de la course:', rideId);
+
+    // Récupérer la course depuis le KV store
+    const ride = await kv.get(`ride_request_${rideId}`);
+
+    if (!ride) {
+      return c.json({
+        success: false,
+        error: 'Course introuvable'
+      }, 404);
+    }
+
+    console.log('✅ Statut de la course:', {
+      id: ride.id,
+      status: ride.status,
+      assignedDriverId: ride.assignedDriverId
+    });
+
+    return c.json({
+      success: true,
+      ride: {
+        id: ride.id,
+        status: ride.status,
+        assignedDriverId: ride.assignedDriverId,
+        passengerId: ride.passengerId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur vérification statut course:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur serveur'
     }, 500);
   }
 });
