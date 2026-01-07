@@ -16,6 +16,7 @@ import {
 import { useState, useEffect } from 'react';
 import { formatCDF } from '../../lib/pricing';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { reverseGeocodeWithCache } from '../../lib/geocoding';
 
 export function DriverApproachingScreen() {
   const { state, setCurrentScreen, updateDriver } = useAppState();
@@ -27,6 +28,7 @@ export function DriverApproachingScreen() {
   const [driverDistance, setDriverDistance] = useState<number>(0);
   const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [driverLocationName, setDriverLocationName] = useState<string>('Calcul...');
 
   // 🔥 FIX 3: CHARGER LA POSITION DU CONDUCTEUR DEPUIS LE BACKEND
   useEffect(() => {
@@ -148,6 +150,27 @@ export function DriverApproachingScreen() {
 
     return () => clearInterval(interval);
   }, [driver?.location, currentRide?.pickup]);
+
+  // 🗺️ GEOCODER LA POSITION DU CONDUCTEUR EN NOM DE LIEU
+  useEffect(() => {
+    if (!driver?.location) {
+      setDriverLocationName('Calcul...');
+      return;
+    }
+    
+    const geocodeLocation = async () => {
+      try {
+        const name = await reverseGeocodeWithCache(driver.location.lat, driver.location.lng);
+        setDriverLocationName(name);
+        console.log('✅ Position conducteur:', name);
+      } catch (error) {
+        console.error('❌ Erreur geocoding position conducteur:', error);
+        setDriverLocationName('En route');
+      }
+    };
+    
+    geocodeLocation();
+  }, [driver?.location]);
 
   // 🎨 ANIMATION DE PROGRESSION
   const getProgressPercentage = () => {
