@@ -56,6 +56,8 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
   }, [state.currentRide?.billingStartTime]);
 
   // Formater le temps en HH:MM:SS ou MM:SS
+   // Formater le temps en HH:MM:SS ou MM:SS
+   // Formater le temps en HH:MM:SS ou MM:SS
   const formatTime = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
