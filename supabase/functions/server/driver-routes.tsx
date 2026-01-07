@@ -18,8 +18,6 @@ driverRoutes.get('/online-drivers', async (c) => {
     );
 
     // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
-    // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
-    // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
     const { data: drivers, error } = await supabase
       .from('profiles')
       .select('id, full_name, phone, email, role')
@@ -153,6 +151,50 @@ driverRoutes.post('/update-driver-location', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur update-driver-location:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// RÉCUPÉRER LA POSITION D'UN CONDUCTEUR
+// ============================================
+driverRoutes.get('/location/:driverId', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    
+    if (!driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'ID conducteur requis' 
+      }, 400);
+    }
+
+    // Récupérer la position depuis le KV store
+    const locationKey = `driver:${driverId}:location`;
+    const locationData = await kv.get(locationKey);
+    
+    if (!locationData || !locationData.lat || !locationData.lng) {
+      console.warn('⚠️ Position conducteur non trouvée:', driverId);
+      return c.json({ 
+        success: false, 
+        error: 'Position non disponible' 
+      }, 404);
+    }
+
+    console.log('✅ Position conducteur récupérée:', driverId, locationData);
+    return c.json({ 
+      success: true, 
+      location: {
+        lat: locationData.lat,
+        lng: locationData.lng
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur get-driver-location:', error);
     return c.json({ 
       success: false, 
       error: 'Erreur serveur: ' + String(error)
