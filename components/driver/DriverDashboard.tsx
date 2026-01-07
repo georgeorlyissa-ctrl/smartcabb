@@ -91,9 +91,6 @@ async function updateBalanceInBackend(
         const newBalance = data.balance;
         
         // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
-        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
-        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
-        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
         localStorage.setItem(`driver_balance_${driverId}`, newBalance.toString());
         
         console.log(
@@ -331,6 +328,12 @@ export function DriverDashboard() {
     // Fonction pour envoyer la position
     const sendLocation = async () => {
       try {
+        // 🔥 FIX CRITIQUE 1: METTRE À JOUR LE STATE LOCAL EN PREMIER
+        // Cela permet au passager de voir la position en temps réel IMMÉDIATEMENT
+        updateDriver(driver.id, { location: driverLocation });
+        console.log('✅ Position GPS mise à jour dans state local:', driverLocation);
+        
+        // Puis envoyer au backend pour persistance
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-driver-location`,
           {
