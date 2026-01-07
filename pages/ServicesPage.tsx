@@ -433,7 +433,7 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-blue-50 to-blue-100">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300">
                   {confortVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
@@ -625,7 +625,7 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-amber-50 to-amber-100">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100">
                   {businessVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
