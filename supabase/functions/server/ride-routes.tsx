@@ -1590,4 +1590,56 @@ app.get('/:rideId/status', async (c) => {
   }
 });
 
+// ============================================
+// 🆕 METTRE À JOUR LE TEMPS DE FACTURATION
+// Permet au conducteur de synchroniser billingStartTime avec le passager
+// ============================================
+app.post('/update-billing/:rideId', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    const { billingStartTime, freeWaitingDisabled, billingElapsedTime } = await c.req.json();
+    
+    console.log('💰 Mise à jour facturation pour course:', rideId, {
+      billingStartTime,
+      freeWaitingDisabled,
+      billingElapsedTime
+    });
+
+    // Récupérer la course existante
+    const ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      return c.json({
+        success: false,
+        error: 'Course introuvable'
+      }, 404);
+    }
+
+    // Mettre à jour les champs de facturation
+    const updatedRide = {
+      ...ride,
+      billingStartTime: billingStartTime || ride.billingStartTime,
+      freeWaitingDisabled: freeWaitingDisabled !== undefined ? freeWaitingDisabled : ride.freeWaitingDisabled,
+      billingElapsedTime: billingElapsedTime || ride.billingElapsedTime
+    };
+
+    // Sauvegarder
+    await kv.set(`ride_request_${rideId}`, updatedRide);
+
+    console.log('✅ Facturation mise à jour avec succès');
+
+    return c.json({
+      success: true,
+      ride: updatedRide
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur mise à jour facturation:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
 export default app;
