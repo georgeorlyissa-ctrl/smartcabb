@@ -10,28 +10,28 @@ export function DriversLandingPage() {
 
   const vehicles = [
     {
-      src: '/vehicules/economique/Economique_1.png',
+      src: '/vehicles/smartcabb_standard/Standard_1.png',
       fallbackSrc: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
-      alt: 'SmartCabb Go - Économique',
-      badge: 'SmartCabb Go'
+      alt: 'SmartCabb Standard',
+      badge: 'SmartCabb Standard'
     },
     {
-      src: '/vehicules/confort/Confort_1.png',
+      src: '/vehicles/smartcabb_confort/Confort_2.png',
       fallbackSrc: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
       alt: 'SmartCabb Confort',
       badge: 'SmartCabb Confort'
     },
     {
-      src: '/vehicules/premium/Premium_1.png',
-      fallbackSrc: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
-      alt: 'SmartCabb Premium',
-      badge: 'SmartCabb Premium'
-    },
-    {
-      src: '/vehicules/famille/Familiale_1.png',
+      src: '/vehicles/smartcabb_familiale/Familiale_1.png',
       fallbackSrc: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
       alt: 'SmartCabb Familia',
       badge: 'SmartCabb Familia'
+    },
+    {
+      src: '/vehicles/smartcabb_business/Bussiness_1.png',
+      fallbackSrc: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
+      alt: 'SmartCabb Business',
+      badge: 'SmartCabb Business'
     }
   ];
 
