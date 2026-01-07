@@ -55,10 +55,14 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   }, [state.currentUser]);
 
   const loadFavorites = async () => {
-    if (!state.currentUser?.id) return;
+    if (!state.currentUser?.id) {
+      console.log('⚠️ Pas d\'utilisateur connecté, impossible de charger les favoris');
+      return;
+    }
 
     try {
       console.log('🔍 Chargement des favoris pour:', state.currentUser.id);
+      console.log('🔍 URL:', `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`);
       
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
@@ -70,18 +74,27 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
         }
       );
 
+      console.log('📡 Réponse status:', response.status);
+      const data = await response.json();
+      console.log('📡 Réponse data:', data);
+
       if (response.ok) {
-        const data = await response.json();
         console.log('✅ Favoris chargés:', data);
         
         if (data.success && data.favorites) {
+          console.log('✅ Nombre de favoris:', data.favorites.length);
           setFavorites(data.favorites);
+        } else {
+          console.log('⚠️ Pas de favoris dans la réponse');
+          setFavorites([]);
         }
       } else {
-        console.error('❌ Erreur chargement favoris:', response.status);
+        console.error('❌ Erreur chargement favoris:', response.status, data);
+        setFavorites([]);
       }
     } catch (error) {
       console.error('❌ Erreur lors du chargement des favoris:', error);
+      setFavorites([]);
     }
   };
 
@@ -239,16 +252,36 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
       {/* Liste des favoris */}
       <div className="space-y-2">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm text-gray-600">Lieux favoris</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAddDialog(true)}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Ajouter
-          </Button>
+          <h3 className="text-sm text-gray-600">
+            Lieux favoris {favorites.length > 0 && `(${favorites.length})`}
+          </h3>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadFavorites}
+              className="text-gray-600 hover:text-gray-700"
+              title="Recharger les favoris"
+            >
+              <Navigation className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAddDialog(true)}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Ajouter
+            </Button>
+          </div>
+        </div>
+
+        {/* 🔍 DEBUG: Afficher l'état de chargement */}
+        <div className="text-xs text-gray-500 mb-2">
+          👤 Utilisateur: {state.currentUser?.id || 'Non connecté'}
+          <br />
+          📍 Favoris chargés: {favorites.length}
         </div>
 
         {favorites.length === 0 ? (
