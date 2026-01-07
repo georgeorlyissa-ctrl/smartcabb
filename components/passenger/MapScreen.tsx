@@ -17,6 +17,8 @@ export function MapScreen() {
   const [showMenu, setShowMenu] = useState(false);
   
   // 🔍 Debug: Log quand destination change
+  // 🔍 Debug: Log quand destination change
+  // 🔍 Debug: Log quand destination change
   useEffect(() => {
     console.log('🎯 MapScreen - destination a changé:', destination);
   }, [destination]);
