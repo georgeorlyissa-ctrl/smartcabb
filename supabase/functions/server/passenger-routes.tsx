@@ -8,6 +8,11 @@ const app = new Hono();
 // ============================================
 // ⚠️ IMPORTANT: Ces routes doivent être AVANT /:id pour éviter les conflits
 
+// ============================================
+// 🌟 GESTION DES LIEUX FAVORIS
+// ============================================
+// ⚠️ IMPORTANT: Ces routes doivent être AVANT /:id pour éviter les conflits
+
 /**
  * ✅ GET /passengers/:userId/favorites - Récupérer les lieux favoris d'un passager
  */
