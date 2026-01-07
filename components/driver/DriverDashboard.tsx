@@ -484,7 +484,7 @@ export function DriverDashboard() {
     const checkRideStatus = async () => {
       try {
         const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${rideRequest.id}/status`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${rideRequest.id}`,
           {
             headers: {
               'Authorization': `Bearer ${publicAnonKey}`
@@ -497,7 +497,7 @@ export function DriverDashboard() {
           
           if (data.success && data.ride) {
             const rideStatus = data.ride.status;
-            const assignedDriverId = data.ride.assignedDriverId;
+            const assignedDriverId = data.ride.driverId;
             
             // Cas 1: Le passager a annulé
             if (rideStatus === 'cancelled') {
