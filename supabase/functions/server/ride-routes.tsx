@@ -5,8 +5,6 @@ import * as kv from "./kv_store.tsx";
 const app = new Hono();
 
 // Créer le client Supabase
-// Créer le client Supabase
-// Créer le client Supabase
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -1019,15 +1017,21 @@ app.post('/cancel', async (c) => {
     
     if (!ride) {
       console.warn(`⚠️ Course non trouvée dans ride_pending_${rideId}, vérification dans ride_active...`);
-      ride = await kv.get(`ride_active_${rideId}`);
+      ride = await kv.get(`ride_active_${rideId}`)
     }
     
     if (!ride) {
-      console.error('❌ Course introuvable dans TOUS les emplacements:', rideId);
-      return c.json({ 
-        success: false, 
-        error: 'Course introuvable' 
-      }, 404);
+      // ✅ NOUVELLE LOGIQUE: Si la course n'existe pas dans le backend,
+      // c'est qu'elle a été créée localement uniquement (ou déjà nettoyée)
+      // On accepte l'annulation sans erreur
+      console.warn(`⚠️ Course ${rideId} non trouvée dans le backend (création locale uniquement)`);
+      console.log('✅ Annulation acceptée (course locale)');
+      
+      return c.json({
+        success: true,
+        message: 'Course annulée (locale uniquement)',
+        localOnly: true
+      });
     }
     
     console.log('✅ Course trouvée, statut actuel:', ride.status);
