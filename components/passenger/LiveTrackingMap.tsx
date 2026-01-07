@@ -3,7 +3,7 @@ import { LiveTrackingMap } from './LiveTrackingMap';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from 'sonner';
-import { Share2, AlertTriangle, Clock, Navigation } from 'lucide-react';
+import { Share2, AlertTriangle, Clock } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
@@ -109,19 +109,20 @@ export function LiveTrackingScreen() {
 
       if (response.ok) {
         toast.success('🚨 Alerte SOS envoyée !', {
-          description: 'Les services d\'urgence ont été notifiés.',
+          description: "Les services d'urgence ont été notifiés.",
           duration: 5000
         });
         setShowSOSDialog(false);
       } else {
-        toast.error('Erreur lors de l\'envoi de l\'alerte SOS');
+        toast.error("Erreur lors de l'envoi de l'alerte SOS");
       }
     } catch (error) {
       console.error('Erreur SOS:', error);
-      toast.error('Impossible d\'envoyer l\'alerte SOS');
+      toast.error("Impossible d'envoyer l'alerte SOS");
     }
   };
 
+  // 📡 Polling pour synchroniser billingStartTime depuis le backend
   useEffect(() => {
     if (!currentRide?.id) return;
 
@@ -210,7 +211,7 @@ export function LiveTrackingScreen() {
         </div>
       </div>
 
-      <div className="flex-1 p-4">
+      <div className="flex-1 relative">
         <LiveTrackingMap 
           driverId={currentRide.driverId || ''}
           pickup={state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
@@ -220,15 +221,17 @@ export function LiveTrackingScreen() {
       </div>
 
       <div className="bg-white border-t border-gray-200 p-4 space-y-4">
-        {/* Chronomètre + Infos de course */}
-        <div className="flex items-center justify-center mb-3">
-          <div className="flex items-center gap-2 bg-gray-100 px-4 py-2 rounded-full">
-            <Clock className="w-5 h-5 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900 tabular-nums">
-              {formatTime(elapsedTime)}
-            </span>
+        {/* Chronomètre de facturation - Affiche UNIQUEMENT si billingStartTime existe */}
+        {currentRide.billingStartTime && (
+          <div className="flex items-center justify-center mb-3">
+            <div className="flex items-center gap-2 bg-orange-100 border-2 border-orange-500 px-4 py-2 rounded-full">
+              <Clock className="w-5 h-5 text-orange-600" />
+              <span className="text-2xl font-bold text-orange-600 tabular-nums">
+                {formatTime(elapsedTime)}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Prix et Durée estimée */}
         <div className="grid grid-cols-2 gap-4 mb-4">
