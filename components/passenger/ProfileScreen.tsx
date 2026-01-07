@@ -361,19 +361,19 @@ export function ProfileScreen() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Card className="p-6 bg-white/60 backdrop-blur-sm border-border shadow-lg">
+          <Card className="p-4 md:p-6 bg-white/60 backdrop-blur-sm border-border shadow-lg">
             <div className="flex items-center space-x-4 mb-6 min-w-0">
               <div className="relative flex-shrink-0">
-                <div className="w-20 h-20 bg-gradient-to-br from-secondary to-primary rounded-full flex items-center justify-center shadow-lg">
-                  <User className="w-10 h-10 text-white" />
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-secondary to-primary rounded-full flex items-center justify-center shadow-lg">
+                  <User className="w-8 h-8 md:w-10 md:h-10 text-white" />
                 </div>
-                <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-secondary rounded-full flex items-center justify-center border-2 border-white shadow-md">
-                  <Shield className="w-4 h-4 text-white" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 md:w-7 md:h-7 bg-secondary rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                  <Shield className="w-3 h-3 md:w-4 md:h-4 text-white" />
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-xl text-primary truncate">{passengerData?.name}</h2>
-                <p className="text-muted-foreground truncate">Client SmartCabb</p>
+                <h2 className="text-lg md:text-xl text-primary truncate">{passengerData?.name}</h2>
+                <p className="text-sm text-muted-foreground truncate">Client SmartCabb</p>
                 <div className="flex items-center space-x-2 mt-2 overflow-x-auto">
                   <div className="flex items-center px-2 py-1 bg-secondary/10 rounded-full flex-shrink-0">
                     <Shield className="w-3.5 h-3.5 text-secondary mr-1" />
@@ -384,21 +384,21 @@ export function ProfileScreen() {
             </div>
 
             {/* Statistiques */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 p-4 rounded-2xl text-center border border-secondary/20 shadow-sm">
-                <p className="text-2xl font-bold text-secondary">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 p-3 md:p-4 rounded-2xl text-center border border-secondary/20 shadow-sm">
+                <p className="text-xl md:text-2xl font-bold text-secondary">
                   {rideStats.loading ? '...' : rideStats.totalRides}
                 </p>
-                <p className="text-sm text-secondary/80">Courses réalisées</p>
+                <p className="text-xs md:text-sm text-secondary/80">Courses réalisées</p>
               </div>
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-2xl text-center border border-primary/20 shadow-sm">
-                <p className="text-2xl font-bold text-primary">
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-3 md:p-4 rounded-2xl text-center border border-primary/20 shadow-sm">
+                <p className="text-xl md:text-2xl font-bold text-primary">
                   {passengerData?.registeredAt 
                     ? new Date(passengerData.registeredAt).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
                     : new Date(passengerData?.created_at || Date.now()).toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' })
                   }
                 </p>
-                <p className="text-sm text-primary/80">Membre depuis</p>
+                <p className="text-xs md:text-sm text-primary/80">Membre depuis</p>
               </div>
             </div>
           </Card>
@@ -414,15 +414,15 @@ export function ProfileScreen() {
             onClick={() => setCurrentScreen('wallet')}
             className="w-full"
           >
-            <Card className="p-6 bg-gradient-to-br from-secondary/5 to-primary/5 border-secondary/20 hover:shadow-lg transition-all cursor-pointer">
+            <Card className="p-4 md:p-6 bg-gradient-to-br from-secondary/5 to-primary/5 border-secondary/20 hover:shadow-lg transition-all cursor-pointer">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-secondary to-primary rounded-2xl flex items-center justify-center shadow-lg">
-                    <Wallet className="w-7 h-7 text-white" />
+                <div className="flex items-center gap-3 md:gap-4">
+                  <div className="w-12 h-12 md:w-14 md:h-14 bg-gradient-to-br from-secondary to-primary rounded-2xl flex items-center justify-center shadow-lg">
+                    <Wallet className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm text-muted-foreground mb-1">Mon Portefeuille</p>
-                    <p className="text-2xl font-bold text-primary">
+                    <p className="text-xs md:text-sm text-muted-foreground mb-1">Mon Portefeuille</p>
+                    <p className="text-xl md:text-2xl font-bold text-primary">
                       {formatCDF(walletBalance)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -435,7 +435,7 @@ export function ProfileScreen() {
                     )}
                   </div>
                 </div>
-                <ChevronRight className="w-6 h-6 text-muted-foreground" />
+                <ChevronRight className="w-5 h-5 md:w-6 md:h-6 text-muted-foreground" />
               </div>
             </Card>
           </button>
@@ -447,8 +447,8 @@ export function ProfileScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Informations personnelles</h3>
+          <Card className="p-4 md:p-6">
+            <h3 className="text-base md:text-lg font-semibold mb-4">Informations personnelles</h3>
             
             <div className="space-y-4">
               <div>
