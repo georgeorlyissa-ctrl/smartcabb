@@ -65,15 +65,21 @@ driverRoutes.get('/online-drivers', async (c) => {
         return null;
       }
 
-      // Position aléatoire dans un rayon de ~5km autour de Kinshasa
-      const randomLat = -4.3276 + (Math.random() - 0.5) * 0.09; // ~5km
-      const randomLng = 15.3136 + (Math.random() - 0.5) * 0.09; // ~5km
+      // ✅ UTILISER LA VRAIE POSITION GPS DU CONDUCTEUR (pas de simulation)
+      const locationKey = `driver:${driver.id}:location`;
+      const locationData = await kv.get(locationKey);
+      
+      // Si pas de position GPS enregistrée, ne pas afficher ce conducteur
+      if (!locationData || !locationData.lat || !locationData.lng) {
+        console.log(`⚠️ Conducteur ${driver.full_name} en ligne mais sans position GPS`);
+        return null;
+      }
       
       return {
         id: driver.id,
         name: driver.full_name || 'Conducteur',
         phone: driver.phone || 'N/A',
-        location: { lat: randomLat, lng: randomLng },
+        location: { lat: locationData.lat, lng: locationData.lng }, // ✅ Position GPS réelle
         vehicleInfo: { 
           make: 'Toyota',
           model: 'Corolla',
@@ -124,18 +130,18 @@ driverRoutes.post('/update-driver-location', async (c) => {
       }, 400);
     }
 
-    console.log('📍 Mise à jour position conducteur:', driverId);
+    console.log('📍 Mise à jour position conducteur:', driverId, `(${location.lat}, ${location.lng})`);
 
-    // Pour l'instant, on stocke la position dans le KV store
-    // car la table profiles ne contient pas de colonne current_location
+    // Stocker la position dans le KV store
     const locationKey = `driver:${driverId}:location`;
     const locationData = {
-      ...location,
+      lat: location.lat,
+      lng: location.lng,
       updated_at: new Date().toISOString()
     };
 
-    // Note: Il faudrait importer kv_store ici
-    // Pour l'instant on retourne juste un succès
+    await kv.set(locationKey, locationData);
+    
     console.log('✅ Position conducteur mise à jour (KV):', locationKey);
     return c.json({ success: true });
 
