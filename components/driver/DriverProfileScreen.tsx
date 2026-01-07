@@ -31,6 +31,15 @@ export function DriverProfileScreen() {
   const [postpaidPending, setPostpaidPending] = useState(0);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 🔥 NOUVELLES DONNÉES DEPUIS LE BACKEND
+  const [driverStats, setDriverStats] = useState({
+    rating: 0,
+    totalRides: 0,
+    accountBalance: 0,
+    loading: true
+  });
+  
   const [formData, setFormData] = useState({
     name: state.currentDriver?.name || '',
     email: state.currentDriver?.email || '',
@@ -44,7 +53,83 @@ export function DriverProfileScreen() {
 
   useEffect(() => {
     loadPostpaidPending();
+    loadDriverStatsFromBackend(); // 🔥 Charger les stats depuis le backend
   }, [state.currentDriver?.id]);
+
+  // 🔥 CHARGER LES STATISTIQUES DEPUIS LE BACKEND
+  const loadDriverStatsFromBackend = async () => {
+    if (!state.currentDriver?.id) return;
+    
+    try {
+      console.log('📊 Chargement statistiques conducteur depuis backend...');
+      
+      // Charger le solde
+      const balanceResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${state.currentDriver.id}/balance`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        }
+      );
+      
+      // Charger les stats (rating + courses)
+      const statsResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${state.currentDriver.id}/stats`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        }
+      );
+      
+      let balance = 0;
+      let rating = 0;
+      let totalRides = 0;
+      
+      if (balanceResponse.ok) {
+        const balanceData = await balanceResponse.json();
+        if (balanceData.success) {
+          balance = balanceData.balance || 0;
+          console.log('✅ Solde chargé:', balance, 'CDF');
+        }
+      }
+      
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json();
+        if (statsData.success && statsData.stats) {
+          rating = statsData.stats.averageRating || 0;
+          totalRides = statsData.stats.totalRides || 0;
+          console.log('✅ Stats chargées:', { rating, totalRides });
+        }
+      }
+      
+      setDriverStats({
+        rating,
+        totalRides,
+        accountBalance: balance,
+        loading: false
+      });
+      
+      // Mettre à jour le state global aussi
+      if (state.currentDriver) {
+        updateDriver(state.currentDriver.id, {
+          rating,
+          totalRides,
+          earnings: balance
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur chargement stats conducteur:', error);
+      setDriverStats({
+        rating: 0,
+        totalRides: 0,
+        accountBalance: 0,
+        loading: false
+      });
+    }
+  };
 
   const loadPostpaidPending = async () => {
     if (!state.currentDriver?.id) return;
@@ -373,13 +458,15 @@ export function DriverProfileScreen() {
               <div className="flex items-center space-x-4 mt-2 overflow-x-auto">
                 <div className="flex items-center space-x-1 flex-shrink-0">
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                  <span className="text-sm font-medium">{state.currentDriver.rating}</span>
+                  <span className="text-sm font-medium">
+                    {driverStats.loading ? '...' : driverStats.rating.toFixed(1)}
+                  </span>
                 </div>
                 <div className="text-sm text-gray-600 flex-shrink-0">
-                  {state.currentDriver.totalRides} courses
+                  {driverStats.loading ? '...' : `${driverStats.totalRides} courses`}
                 </div>
                 <div className="text-sm text-gray-600 flex-shrink-0">
-                  {formatCDF(state.currentDriver.earnings)}
+                  {driverStats.loading ? '...' : formatCDF(driverStats.accountBalance)}
                 </div>
               </div>
             </div>
