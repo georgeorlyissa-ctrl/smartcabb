@@ -17,6 +17,7 @@ import rideRoutes from "./ride-routes.tsx";
 import adminRoutes from "./admin-routes.tsx";
 import settingsRoutes from "./settings-routes.tsx";
 import emailRoutes from "./email-routes.tsx";
+import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
 
 const app = new Hono();
@@ -1938,6 +1939,11 @@ app.get('/make-server-2eb02e52/settings-test', async (c) => {
 // EMAIL ROUTES (Email Management)
 // ============================================
 app.route('/make-server-2eb02e52', emailRoutes);
+
+// ============================================
+// EMERGENCY ROUTES (SOS & Alerts)
+// ============================================
+app.route('/make-server-2eb02e52/emergency', emergencyRoutes);
 
 // ============================================
 // CONTACT FORM ROUTE
