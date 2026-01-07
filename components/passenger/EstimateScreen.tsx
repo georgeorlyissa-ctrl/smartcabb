@@ -22,21 +22,28 @@ import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-re
 
 // 🚗 CHEMINS DES IMAGES DE VÉHICULES (pour GitHub/Vercel)
 // ⚠️ Ces chemins pointent vers /public/vehicles/
-const standardVehicle1 = '/vehicles/smartcabb_standard/vehicle1.png';
-const standardVehicle2 = '/vehicles/smartcabb_standard/vehicle2.png';
-const standardVehicle3 = '/vehicles/smartcabb_standard/vehicle3.png';
+const standardVehicle1 = '/vehicles/smartcabb_standard/Standard_1.png';
+const standardVehicle2 = '/vehicles/smartcabb_standard/Standard_2.png';
+const standardVehicle3 = '/vehicles/smartcabb_standard/Standard_3.png';
+const standardVehicle4 = '/vehicles/smartcabb_standard/Standard_4.png';
+const standardVehicle5 = '/vehicles/smartcabb_standard/Stadard_5.png';
+const standardVehicle5 = '/vehicles/smartcabb_standard/Standard_6.png';
 
-const confortVehicle1 = '/vehicles/smartcabb_confort/vehicle1.png';
-const confortVehicle2 = '/vehicles/smartcabb_confort/vehicle2.png';
-const confortVehicle3 = '/vehicles/smartcabb_confort/vehicle3.png';
+const confortVehicle1 = '/vehicles/smartcabb_confort/confort 1.png';
+const confortVehicle2 = '/vehicles/smartcabb_confort/Confort_2.png';
+const confortVehicle3 = '/vehicles/smartcabb_confort/Confort_3.png';
 
-const plusVehicle1 = '/vehicles/smartcabb_familiale/vehicle1.png';
-const plusVehicle2 = '/vehicles/smartcabb_familiale/vehicle2.png';
-const plusVehicle3 = '/vehicles/smartcabb_familiale/vehicle3.png';
+const plusVehicle1 = '/vehicles/smartcabb_familiale/Familiale_1.png';
+const plusVehicle2 = '/vehicles/smartcabb_familiale/Familiale_2.png';
+const plusVehicle3 = '/vehicles/smartcabb_familiale/Familiale_3.png';
+const plusVehicle4 = '/vehicles/smartcabb_familiale/Familiale_4.png';
 
-const businessVehicle1 = '/vehicles/smartcabb_business/vehicle1.png';
-const businessVehicle2 = '/vehicles/smartcabb_business/vehicle2.png';
-const businessVehicle3 = '/vehicles/smartcabb_business/vehicle3.png';
+const businessVehicle1 = '/vehicles/smartcabb_business/Bussiness_1.png';
+const businessVehicle2 = '/vehicles/smartcabb_business/Bussiness_2.png';
+const businessVehicle3 = '/vehicles/smartcabb_business/Bussiness_3.png';
+const businessVehicle4 = '/vehicles/smartcabb_business/Bussiness_4.png';
+const businessVehicle5 = '/vehicles/smartcabb_business/Bussiness_5.png';
+const businessVehicle6 = '/vehicles/smartcabb_business/Business_6.png';
 
 export function EstimateScreen() {
   const { t } = useTranslation();
