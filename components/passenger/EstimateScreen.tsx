@@ -1,24 +1,10 @@
-import { useState, useEffect } from 'react';
-import { useTranslation } from '../../hooks/useTranslation';
-import { useAppState } from '../../hooks/useAppState';
-import { PassengerCountSelector } from '../PassengerCountSelector';
-import { PromoCodeInput } from '../PromoCodeInput';
-import { BookForSomeoneElse } from './BookForSomeoneElse';
-import { RouteMapPreview } from '../RouteMapPreview';
-import { PromoCode } from '../../types';
-import { VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
-import { 
-  calculateEstimatedDuration, 
-  calculateDetailedDuration, 
-  calculateDurationRange,
-  formatDuration,
-  getCurrentTrafficConditions
-} from '../../lib/duration-calculator';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
 import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
+
+// Import des images de véhicules pour toutes les catégories SmartCabb
+// SmartCabb Standard
+import standardVehicle1 from 'figma:asset/9c52133fa933aa7ee7ec1ccc2758c47a7249bd61.png';
+import standardVehicle2 from 'figma:asset/58a8688d1ca38c4983144a7d631c55ab73565bd5.png';
+import standardVehicle3 from 'figma:asset/d0aac8032211ed6b4d2a0159f84da8df6da3cd93.png';
 
 export function EstimateScreen() {
   const { t } = useTranslation();
@@ -59,7 +45,8 @@ export function EstimateScreen() {
       hourlyRateUSD: VEHICLE_PRICING.smart_standard.pricing.course_heure.jour.usd,
       hourlyRateCDF: convertUSDtoCDF(VEHICLE_PRICING.smart_standard.pricing.course_heure.jour.usd),
       rateText: `${formatCDF(convertUSDtoCDF(VEHICLE_PRICING.smart_standard.pricing.course_heure.jour.usd))} par heure`,
-      rateTextShort: `${VEHICLE_PRICING.smart_standard.pricing.course_heure.jour.usd}$/h`
+      rateTextShort: `${VEHICLE_PRICING.smart_standard.pricing.course_heure.jour.usd}$/h`,
+      images: [standardVehicle1, standardVehicle2, standardVehicle3] // ✅ Images SmartCabb Standard
     },
     {
       id: 'smart_confort' as VehicleCategory,
@@ -71,7 +58,8 @@ export function EstimateScreen() {
       hourlyRateUSD: VEHICLE_PRICING.smart_confort.pricing.course_heure.jour.usd,
       hourlyRateCDF: convertUSDtoCDF(VEHICLE_PRICING.smart_confort.pricing.course_heure.jour.usd),
       rateText: `${formatCDF(convertUSDtoCDF(VEHICLE_PRICING.smart_confort.pricing.course_heure.jour.usd))} par heure`,
-      rateTextShort: `${VEHICLE_PRICING.smart_confort.pricing.course_heure.jour.usd}$/h`
+      rateTextShort: `${VEHICLE_PRICING.smart_confort.pricing.course_heure.jour.usd}$/h`,
+      images: [] // TODO: Ajoutez vos images confort ici
     },
     {
       id: 'smart_plus' as VehicleCategory,
@@ -83,7 +71,8 @@ export function EstimateScreen() {
       hourlyRateUSD: VEHICLE_PRICING.smart_plus.pricing.course_heure.jour.usd,
       hourlyRateCDF: convertUSDtoCDF(VEHICLE_PRICING.smart_plus.pricing.course_heure.jour.usd),
       rateText: `${formatCDF(convertUSDtoCDF(VEHICLE_PRICING.smart_plus.pricing.course_heure.jour.usd))} par heure`,
-      rateTextShort: `${VEHICLE_PRICING.smart_plus.pricing.course_heure.jour.usd}$/h`
+      rateTextShort: `${VEHICLE_PRICING.smart_plus.pricing.course_heure.jour.usd}$/h`,
+      images: [] // TODO: Ajoutez vos images plus/familiale ici
     },
     {
       id: 'smart_business' as VehicleCategory,
@@ -92,10 +81,11 @@ export function EstimateScreen() {
       capacity: VEHICLE_PRICING.smart_business.capacity,
       icon: Users,
       color: 'bg-amber-100',
-      hourlyRateUSD: VEHICLE_PRICING.smart_business.pricing.location_jour.usd, // Business = Location uniquement
+      hourlyRateUSD: VEHICLE_PRICING.smart_business.pricing.location_jour.usd,
       hourlyRateCDF: convertUSDtoCDF(VEHICLE_PRICING.smart_business.pricing.location_jour.usd),
       rateText: `${formatCDF(convertUSDtoCDF(VEHICLE_PRICING.smart_business.pricing.location_jour.usd))} par jour`,
-      rateTextShort: `${VEHICLE_PRICING.smart_business.pricing.location_jour.usd}$/jour`
+      rateTextShort: `${VEHICLE_PRICING.smart_business.pricing.location_jour.usd}$/jour`,
+      images: [] // TODO: Ajoutez vos images business ici
     }
   ];
   
@@ -522,11 +512,22 @@ export function EstimateScreen() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                        isSelected ? 'bg-secondary text-white' : 'bg-muted text-primary'
-                      } transition-colors duration-300`}>
-                        <Icon className="w-7 h-7" />
-                      </div>
+                      {/* Afficher les images du véhicule si disponibles */}
+                      {vehicle.images && vehicle.images.length > 0 ? (
+                        <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-muted flex-shrink-0">
+                          <img 
+                            src={vehicle.images[0]} 
+                            alt={vehicle.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                          isSelected ? 'bg-secondary text-white' : 'bg-muted text-primary'
+                        } transition-colors duration-300`}>
+                          <Icon className="w-7 h-7" />
+                        </div>
+                      )}
                       <div className="text-left">
                         <h3 className="text-foreground">{vehicle.name}</h3>
                         <p className="text-sm text-muted-foreground">{vehicle.description}</p>
