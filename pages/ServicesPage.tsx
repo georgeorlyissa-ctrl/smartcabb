@@ -16,7 +16,7 @@ export function ServicesPage() {
   // Images pour SmartCabb Standard - vos vraies images + fallback
   const standardVehicles = [
     { 
-      src: '/vehicles/smartcabb_standard/vehicle1.png',
+      src: '/vehicles/smartcabb_standard/Standard_1.png',
       fallback: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
       alt: 'SmartCabb Standard - Véhicule 1'
     },
