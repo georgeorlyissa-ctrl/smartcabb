@@ -5,6 +5,8 @@ import * as kv from "./kv_store.tsx";
 const app = new Hono();
 
 // Créer le client Supabase
+// Créer le client Supabase
+// Créer le client Supabase
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL') ?? '',
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
