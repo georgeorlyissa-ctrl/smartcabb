@@ -43,35 +43,35 @@ export function isNearPickupLocation(
 
 /**
  * Hook pour obtenir la position GPS du conducteur
+ * ⚠️ POSITION RÉELLE UNIQUEMENT - Pas de position par défaut
  */
 export function useDriverLocation(isActive: boolean = true) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [hasLoggedPermissionDenied, setHasLoggedPermissionDenied] = useState(false);
 
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive) {
+      setLocation(null);
+      return;
+    }
     
-    // Si la permission a déjà été refusée, ne pas réessayer
+    // Si la permission a été refusée, arrêter complètement
     if (permissionDenied) {
-      if (!hasLoggedPermissionDenied) {
-        console.log('ℹ️ GPS non autorisé. Position par défaut Kinshasa utilisée.');
-        setHasLoggedPermissionDenied(true);
-      }
-      setLocation({ lat: -4.4419, lng: 15.2663 });
+      setError('GPS non autorisé - Veuillez autoriser la géolocalisation dans les paramètres de votre navigateur');
+      setLocation(null);
       return;
     }
 
     if (!navigator.geolocation) {
       const errorMsg = 'La géolocalisation n\'est pas supportée par votre navigateur';
       setError(errorMsg);
-      
-      // Utiliser une position par défaut à Kinshasa
-      setLocation({ lat: -4.4419, lng: 15.2663 });
-      console.log('📍 Position par défaut Kinshasa: -4.4419, 15.2663');
+      setLocation(null);
+      console.error('❌ Géolocalisation non supportée');
       return;
     }
+
+    console.log('🔍 Demande d\'autorisation GPS...');
 
     // Obtenir la position initiale
     navigator.geolocation.getCurrentPosition(
@@ -82,30 +82,32 @@ export function useDriverLocation(isActive: boolean = true) {
         };
         setLocation(newLocation);
         setError(null);
-        console.log(`✅ Position GPS obtenue: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
+        console.log(`✅ Position GPS RÉELLE obtenue: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
       },
       (err) => {
         // Si permission refusée, arrêter les tentatives
         if (err.code === err.PERMISSION_DENIED) {
-          if (!hasLoggedPermissionDenied) {
-            console.log('ℹ️ GPS non autorisé. Position par défaut utilisée.');
-            setHasLoggedPermissionDenied(true);
-          }
+          console.error('❌ GPS refusé par l\'utilisateur');
           setPermissionDenied(true);
-          setError('GPS non autorisé');
+          setError('GPS non autorisé - Veuillez autoriser la géolocalisation');
+          setLocation(null);
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          console.error('❌ Position GPS indisponible');
+          setError('Position GPS indisponible - Vérifiez votre connexion GPS');
+          setLocation(null);
+        } else if (err.code === err.TIMEOUT) {
+          console.error('❌ Timeout GPS');
+          setError('Délai de géolocalisation dépassé - Réessayez');
+          setLocation(null);
         } else {
-          if (!hasLoggedPermissionDenied) {
-            console.log(`ℹ️ GPS temporairement indisponible`);
-          }
-          setError('GPS temporairement indisponible');
+          console.error('❌ Erreur GPS:', err.message);
+          setError('Erreur GPS: ' + err.message);
+          setLocation(null);
         }
-        
-        // Utiliser position par défaut Kinshasa
-        setLocation({ lat: -4.4419, lng: 15.2663 });
       },
       {
         enableHighAccuracy: true,
-        timeout: 5000,
+        timeout: 10000,
         maximumAge: 0
       }
     );
@@ -122,22 +124,21 @@ export function useDriverLocation(isActive: boolean = true) {
         };
         setLocation(newLocation);
         setError(null);
-        console.log(`📍 Position GPS mise à jour: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
+        console.log(`📍 Position GPS RÉELLE mise à jour: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
       },
       (err) => {
         // Si permission refusée, arrêter complètement le tracking
         if (err.code === err.PERMISSION_DENIED) {
-          if (!hasLoggedPermissionDenied) {
-            console.log('ℹ️ GPS non autorisé - Arrêt du suivi');
-            setHasLoggedPermissionDenied(true);
-          }
+          console.error('❌ GPS refusé - Arrêt du suivi');
           setPermissionDenied(true);
           setError('GPS non autorisé');
+          setLocation(null);
           navigator.geolocation.clearWatch(watchId);
           return;
         }
         
-        // Pour les autres erreurs, pas de message (silencieux)
+        // Pour les autres erreurs, juste logger (ne pas effacer la dernière position connue)
+        console.warn('⚠️ Erreur temporaire GPS:', err.message);
       },
       {
         enableHighAccuracy: true,
@@ -150,7 +151,7 @@ export function useDriverLocation(isActive: boolean = true) {
       navigator.geolocation.clearWatch(watchId);
       console.log('🔴 Arrêt du suivi GPS');
     };
-  }, [isActive, permissionDenied, hasLoggedPermissionDenied]);
+  }, [isActive, permissionDenied]);
 
   return { location, error, permissionDenied };
 }
