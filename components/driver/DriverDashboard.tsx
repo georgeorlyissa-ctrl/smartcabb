@@ -315,6 +315,52 @@ export function DriverDashboard() {
     }
   }, [driverLocation, state.currentRide, isNearPickup]);
 
+  // ✅ ENVOYER LA POSITION GPS EN TEMPS RÉEL AU BACKEND
+  useEffect(() => {
+    // Envoyer uniquement si en ligne ET que la position GPS est disponible
+    if (!isOnline || !driverLocation || !driver?.id) {
+      return;
+    }
+
+    console.log('📍 Envoi position GPS au backend:', driverLocation);
+
+    // Fonction pour envoyer la position
+    const sendLocation = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-driver-location`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            },
+            body: JSON.stringify({
+              driverId: driver.id,
+              location: driverLocation
+            })
+          }
+        );
+
+        if (response.ok) {
+          console.log('✅ Position GPS envoyée au backend');
+        } else {
+          console.error('❌ Erreur envoi position GPS:', await response.text());
+        }
+      } catch (error) {
+        console.error('❌ Erreur réseau envoi GPS:', error);
+      }
+    };
+
+    // Envoyer immédiatement
+    sendLocation();
+
+    // Puis envoyer toutes les 10 secondes
+    const interval = setInterval(sendLocation, 10000);
+
+    return () => clearInterval(interval);
+  }, [isOnline, driverLocation, driver?.id]);
+
   // ✅ VÉRIFICATION TEMPS RÉEL DES DEMANDES DE COURSE depuis le backend
   useEffect(() => {
     // ✅ CORRECTION CRITIQUE : Polling simplifié - uniquement si en ligne
