@@ -91,6 +91,9 @@ async function updateBalanceInBackend(
         const newBalance = data.balance;
         
         // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
+        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
+        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
+        // ✅ v517.79 IMPORTANT: Sauvegarder aussi dans localStorage pour persistance
         localStorage.setItem(`driver_balance_${driverId}`, newBalance.toString());
         
         console.log(
