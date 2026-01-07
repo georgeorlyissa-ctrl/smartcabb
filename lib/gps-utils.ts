@@ -138,6 +138,8 @@ export function useDriverLocation(isActive: boolean = true) {
         }
         
         // Pour les autres erreurs, juste logger (ne pas effacer la dernière position connue)
+        // Pour les autres erreurs, juste logger (ne pas effacer la dernière position connue)
+        // Pour les autres erreurs, juste logger (ne pas effacer la dernière position connue)
         console.warn('⚠️ Erreur temporaire GPS:', err.message);
       },
       {
