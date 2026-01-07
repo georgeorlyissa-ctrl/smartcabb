@@ -153,10 +153,9 @@ export function DriverDashboard() {
   const [waitingTimeStarted, setWaitingTimeStarted] = useState(false);
   const [waitingStartTime, setWaitingStartTime] = useState<Date | null>(null);
   
-  // Hook pour suivre la position GPS du conducteur (seulement en course)
-  const { location: driverLocation, error: gpsError } = useDriverLocation(
-    state.currentRide !== null && state.currentRide.status === 'accepted'
-  );
+  // ✅ CRITIQUE: GPS activé dès que le conducteur est connecté (pas seulement en course)
+  // Sans GPS, le conducteur ne peut pas passer en ligne
+  const { location: driverLocation, error: gpsError, permissionDenied } = useDriverLocation(true);
   
   // ✅ SOLDE SYNCHRONISÉ AVEC LE BACKEND (source de vérité unique)
   const [accountBalance, setAccountBalance] = useState(0);
@@ -596,7 +595,22 @@ export function DriverDashboard() {
   }, [accountBalance, balanceRenderKey]); // Dépend du balanceRenderKey ET accountBalance
 
   const toggleOnlineStatus = async () => {
-    // ✅ VÉRIFICATION DU SOLDE UNIQUEMENT (plus besoin de post-payé)
+    // ✅ VÉRIFICATION GPS AVANT TOUT (CRITIQUE)
+    if (!isOnline && !driverLocation) {
+      toast.error(
+        '📍 GPS requis ! Veuillez autoriser la géolocalisation pour passer en ligne.',
+        { duration: 6000 }
+      );
+      if (permissionDenied) {
+        toast.error(
+          '⚠️ Accédez aux paramètres de votre navigateur pour autoriser la géolocalisation',
+          { duration: 8000 }
+        );
+      }
+      return;
+    }
+
+    // ✅ VÉRIFICATION DU SOLDE
     if (!isOnline && accountBalance <= 0) {
       toast.error(
         'Solde insuffisant ! Vous devez recharger votre compte pour vous mettre en ligne.',
@@ -1328,17 +1342,29 @@ export function DriverDashboard() {
                 <p className="text-sm text-gray-600">
                   {isOnline 
                     ? '✅ Prêt à recevoir des courses' 
-                    : accountBalance <= 0
-                      ? '⚠️ Solde insuffisant - Rechargez pour vous mettre en ligne'
-                      : '👆 Activez pour recevoir des courses'
+                    : !driverLocation
+                      ? '📍 GPS requis - Autorisez la géolocalisation'
+                      : accountBalance <= 0
+                        ? '⚠️ Solde insuffisant - Rechargez pour vous mettre en ligne'
+                        : '👆 Activez pour recevoir des courses'
                   }
                 </p>
+                {!driverLocation && !isOnline && gpsError && (
+                  <p className="text-xs text-red-500 mt-1">
+                    {gpsError}
+                  </p>
+                )}
+                {driverLocation && !isOnline && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✅ GPS activé: {driverLocation.lat.toFixed(4)}, {driverLocation.lng.toFixed(4)}
+                  </p>
+                )}
               </div>
             </div>
             <Switch
               checked={isOnline}
               onCheckedChange={toggleOnlineStatus}
-              disabled={accountBalance <= 0}
+              disabled={accountBalance <= 0 || !driverLocation}
             />
           </div>
         </Card>
