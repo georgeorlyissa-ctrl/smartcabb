@@ -80,6 +80,8 @@ export function useDriverLocation(isActive: boolean = true) {
     console.log('🔍 Demande d\'autorisation GPS ULTRA-PRÉCIS...');
 
     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
+     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
+     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
     const attemptHighAccuracy = () => {
       console.log('⚡ Tentative haute précision (GPS/réseau)...');
       
