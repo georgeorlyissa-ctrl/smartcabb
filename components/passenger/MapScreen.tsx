@@ -22,8 +22,6 @@ export function MapScreen() {
   }, [destination]);
 
   // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
-  // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
-  // ✅ NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
   const [gpsTracker] = useState(() => new PreciseGPSTracker());
   
   // États pour la géolocalisation
@@ -498,26 +496,28 @@ export function MapScreen() {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <FavoriteLocations
-                    currentLocation={currentLocation}
-                    onSelectLocation={(location) => {
-                      console.log('🎯 Favori sélectionné dans MapScreen:', location);
-                      setDestination(location.address);
-                      console.log('✅ Destination définie à:', location.address);
-                      // Enregistrer aussi les coordonnées de la destination
-                      if (setGlobalDestination) {
-                        setGlobalDestination({
-                          lat: location.lat,
-                          lng: location.lng,
-                          address: location.address
-                        });
-                        console.log('✅ Destination globale définie:', { lat: location.lat, lng: location.lng });
-                      }
-                      setShowFavorites(false);
-                      toast.success('✅ Destination sélectionnée depuis vos favoris !');
-                    }}
-                    className="py-2"
-                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    <FavoriteLocations
+                      currentLocation={currentLocation}
+                      onSelectLocation={(location) => {
+                        console.log('🎯 Favori sélectionné dans MapScreen:', location);
+                        setDestination(location.address);
+                        console.log('✅ Destination définie à:', location.address);
+                        // Enregistrer aussi les coordonnées de la destination
+                        if (setGlobalDestination) {
+                          setGlobalDestination({
+                            lat: location.lat,
+                            lng: location.lng,
+                            address: location.address
+                          });
+                          console.log('✅ Destination globale définie:', { lat: location.lat, lng: location.lng });
+                        }
+                        setShowFavorites(false);
+                        toast.success('✅ Destination sélectionnée depuis vos favoris !');
+                      }}
+                      className="py-2"
+                    />
+                  </div>
                 </motion.div>
               )}
             </div>
