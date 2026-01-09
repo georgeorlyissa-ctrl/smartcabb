@@ -88,9 +88,9 @@ export function PaymentScreen() {
   // ✅ Calculer la distance et durée depuis les données de la course
   const distance = currentRide?.distanceKm || currentRide?.distance || 0;
   
-  // ✅ SIMPLIFICATION : duration est maintenant TOUJOURS disponible car LiveTrackingScreen attend
-  // qu'elle soit > 0 avant de passer à PaymentScreen
-  const durationInSeconds = currentRide?.duration || 0;
+  // 🔥 CORRECTION MAJEURE : Prioriser billingElapsedTime qui est la vraie durée
+  // duration peut être à 0 si pas encore sauvegardé, mais billingElapsedTime devrait être là
+  const durationInSeconds = currentRide?.duration || currentRide?.billingElapsedTime || 0;
   const durationInMinutes = Math.round(durationInSeconds / 60);
   
   // ✅ FONCTION POUR FORMATER LA DURÉE (cohérente avec le driver)
@@ -130,13 +130,23 @@ export function PaymentScreen() {
         if (response.ok) {
           const data = await response.json();
           
-          if (data.ride && data.ride.duration && data.ride.duration > 0) {
-            console.log('✅ PaymentScreen - Durée récupérée:', data.ride.duration);
+          console.log('🔍 Données récupérées du backend:', {
+            duration: data.ride?.duration,
+            billingElapsedTime: data.ride?.billingElapsedTime,
+            distance: data.ride?.distance
+          });
+          
+          // 🔥 Vérifier SOIT duration SOIT billingElapsedTime
+          const retrievedDuration = data.ride?.duration || data.ride?.billingElapsedTime || 0;
+          
+          if (data.ride && retrievedDuration > 0) {
+            console.log('✅ PaymentScreen - Durée récupérée:', retrievedDuration);
             
             // Mettre à jour la course avec la durée
             if (state.updateRide) {
               state.updateRide(currentRide.id, {
-                duration: data.ride.duration,
+                duration: retrievedDuration,
+                billingElapsedTime: retrievedDuration, // Mettre à jour les deux
                 distance: data.ride.distance || currentRide.distance,
                 finalPrice: data.ride.finalPrice || currentRide.estimatedPrice
               });
@@ -168,6 +178,8 @@ export function PaymentScreen() {
   }, [currentRide?.id, durationInSeconds, state.updateRide]);
   
   console.log('⏱️ PaymentScreen - Durée:', {
+    duration: currentRide?.duration,
+    billingElapsedTime: currentRide?.billingElapsedTime,
     durationInSeconds,
     durationInMinutes,
     formatted: formatDuration(durationInSeconds),
