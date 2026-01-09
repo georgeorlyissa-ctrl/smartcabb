@@ -17,6 +17,7 @@ import {
   formatDuration,
   getCurrentTrafficConditions
 } from '../../lib/duration-calculator';
+import { calculateRoute, getCurrentTrafficCondition } from '../../lib/distance-calculator';
 import { Button } from '../ui/button';
 import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
 
@@ -62,6 +63,10 @@ export function EstimateScreen() {
   const pickup = state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Boulevard du 30 Juin, Gombe, Kinshasa' };
   const destination = state.destination || { lat: -4.4050, lng: 15.2980, address: 'Université de Kinshasa (UNIKIN)' }; // ✅ CORRIGÉ: Coordonnées exactes de UNIKIN
   const distanceKm = calculateDistance ? calculateDistance(pickup, destination) : 10.0; // Distance réaliste Kinshasa
+  
+  // 🆕 CALCUL PRÉCIS DE DISTANCE ET DURÉE
+  const routeCalculation = calculateRoute(pickup.lat, pickup.lng, destination.lat, destination.lng);
+  const trafficCondition = getCurrentTrafficCondition();
   
   // Récupérer les instructions de prise en charge (point de repère)
   const pickupInstructions = state.pickupInstructions || '';
@@ -391,6 +396,70 @@ export function EstimateScreen() {
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto pb-6">{/* AJOUTÉ: pb-6 pour padding en bas */}
+        {/* 🆕 AFFICHAGE DE DISTANCE ET DURÉE PRÉCISES */}
+        <div className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50">
+          <div className="bg-white rounded-2xl p-5 shadow-lg border-2 border-cyan-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">Détails du trajet</h3>
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${trafficCondition.color} bg-opacity-10`}>
+                <span className="text-lg">{trafficCondition.emoji}</span>
+                <span className={`text-xs font-medium ${trafficCondition.color}`}>
+                  {trafficCondition.description}
+                </span>
+              </div>
+            </div>
+            
+            {/* Grille d'informations */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Distance */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-blue-700">Distance</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-900">{routeCalculation.distanceText}</p>
+                <p className="text-xs text-blue-600 mt-1">Distance précise calculée</p>
+              </div>
+              
+              {/* Durée */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="text-xs font-medium text-green-700">Durée</span>
+                </div>
+                <p className="text-2xl font-bold text-green-900">{routeCalculation.durationText}</p>
+                <p className="text-xs text-green-600 mt-1">Selon conditions actuelles</p>
+              </div>
+            </div>
+            
+            {/* Informations supplémentaires */}
+            <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Vitesse moyenne estimée</span>
+                <span className="font-semibold text-gray-900">
+                  {Math.round((routeCalculation.distance / (routeCalculation.duration / 60)))} km/h
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Heure de départ</span>
+                <span className="font-semibold text-gray-900">
+                  {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">Arrivée estimée</span>
+                <span className="font-semibold text-green-600">
+                  {new Date(Date.now() + routeCalculation.duration * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         {/* 🗺️ CARTE INTERACTIVE DE L'ITINÉRAIRE AVEC TRAFIC */}
         <div className="p-6 bg-white/60 backdrop-blur-sm">
           <RouteMapPreview
