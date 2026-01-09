@@ -22,10 +22,12 @@ import {
   Wallet,
   Bell,
   MessageCircle,
-  Phone
+  Phone,
+  ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
 
 interface DataStats {
   rides: number;
@@ -44,6 +46,7 @@ interface DataStats {
 }
 
 export function DataCleanupPanel() {
+  const { setCurrentScreen } = useAppState();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<DataStats | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -140,6 +143,17 @@ export function DataCleanupPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Bouton retour */}
+      <Button
+        onClick={() => setCurrentScreen('admin-dashboard')}
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-foreground -mb-2"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Retour au tableau de bord
+      </Button>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
