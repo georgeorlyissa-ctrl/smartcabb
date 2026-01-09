@@ -13,7 +13,7 @@ import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/pre
 export function MapScreen() {
   const { state, setCurrentScreen, setCurrentUser, setCurrentView, setPickup, setDestination: setGlobalDestination, setPickupInstructions, drivers } = useAppState();
   const [destination, setDestination] = useState('');
-  const [pickupInstructions, setLocalPickupInstructions] = useState('');
+  const [pickupInstructionsValue, setPickupInstructionsValue] = useState(''); // Renommé pour clarté
   const [showMenu, setShowMenu] = useState(false);
   
   // 🔍 Debug: Log quand destination change
@@ -213,8 +213,8 @@ export function MapScreen() {
     
     // Enregistrer les instructions de prise en charge
     if (setPickupInstructions) {
-      setPickupInstructions(pickupInstructions);
-      console.log('📍 Instructions enregistrées:', pickupInstructions);
+      setPickupInstructions(pickupInstructionsValue);
+      console.log('📍 Instructions enregistrées:', pickupInstructionsValue);
     }
     
     setCurrentScreen('estimate');
@@ -447,22 +447,24 @@ export function MapScreen() {
               </div>
             </div>
 
-            {/* 🆕 Champ d'instructions de prise en charge */}
+            {/* 🆕 Champ point de repère - UTILISE LA BASE DE DONNÉES */}
             <div className="flex items-start gap-2">
               <div className="bg-green-500 p-2 rounded-full flex-shrink-0 mt-1">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="relative">
-                  <Input
-                    placeholder="Point de repère (ex: Devant Total...)"
-                    value={pickupInstructions}
-                    onChange={(e) => setLocalPickupInstructions(e.target.value)}
-                    className="h-12 text-sm bg-white border-gray-200 rounded-xl shadow-sm pl-3 pr-3 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                  />
-                </div>
+                <AddressSearchInput
+                  placeholder="Point de repère (ex: Arrêt Armée, Marché Central...)"
+                  value={pickupInstructionsValue}
+                  onChange={setPickupInstructionsValue}
+                  onAddressSelect={(address) => {
+                    console.log('📍 Point de repère sélectionné:', address.name);
+                    setPickupInstructionsValue(address.name);
+                    toast.success(`📍 Repère : ${address.name}`, { duration: 2000 });
+                  }}
+                />
                 <p className="text-xs text-gray-500 mt-1.5 ml-1">
-                  💡 Aidez le conducteur à vous trouver facilement
+                  💡 Choisissez un lieu proche pour faciliter la prise en charge
                 </p>
               </div>
             </div>
