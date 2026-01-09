@@ -19,6 +19,7 @@ import settingsRoutes from "./settings-routes.tsx";
 import emailRoutes from "./email-routes.tsx";
 import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
+import diagnosticRoute from "./diagnostic-driver-route.tsx";
 
 const app = new Hono();
 
@@ -1851,6 +1852,11 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 // TEST ROUTES
 // ============================================
 app.route('/make-server-2eb02e52/test', testRoutes);
+
+// ============================================
+// DIAGNOSTIC ROUTES (Diagnostic conducteur)
+// ============================================
+app.route('/make-server-2eb02e52', diagnosticRoute);
 
 // ============================================
 // BACKUP ROUTES
