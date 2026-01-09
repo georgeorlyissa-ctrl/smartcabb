@@ -1850,7 +1850,7 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 // ============================================
 // TEST ROUTES
 // ============================================
-app.route('/make-server-2eb02e52/test-sms', testRoutes);
+app.route('/make-server-2eb02e52/test', testRoutes);
 
 // ============================================
 // BACKUP ROUTES
