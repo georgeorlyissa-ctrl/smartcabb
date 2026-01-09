@@ -7,6 +7,7 @@ import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { DriverLoginDiagnostic } from './DriverLoginDiagnostic';
 
 export function DriverLoginScreen() {
   const { setCurrentScreen, setCurrentDriver, setCurrentUser } = useAppState();
@@ -14,6 +15,7 @@ export function DriverLoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier || !password) {
@@ -209,6 +211,24 @@ export function DriverLoginScreen() {
               Mot de passe oublié ?
             </button>
           </div>
+
+          {/* 🔧 BOUTON DE DIAGNOSTIC */}
+          <div className="text-center">
+            <button 
+              onClick={() => setShowDiagnostic(!showDiagnostic)}
+              className="text-sm text-amber-600 hover:text-amber-700 font-medium transition-colors underline"
+              disabled={loading}
+            >
+              {showDiagnostic ? '✕ Masquer l\'aide' : '🔧 Problème de connexion ?'}
+            </button>
+          </div>
+
+          {/* 🔧 COMPOSANT DE DIAGNOSTIC */}
+          {showDiagnostic && (
+            <div className="mt-4">
+              <DriverLoginDiagnostic />
+            </div>
+          )}
 
           <div className="text-center">
             <p className="text-gray-600">
