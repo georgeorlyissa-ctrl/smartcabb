@@ -5,6 +5,7 @@ import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'motion/react';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
+import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
 
 interface Address {
   id: string;
@@ -112,51 +113,21 @@ export function AddressSearchInput({
     setTimeout(() => {
       const queryLower = query.toLowerCase().trim();
       
-      // 🇨🇩 RECHERCHE CONTEXTUELLE : Quartiers de Kinshasa
-      const matchedQuartiers = searchQuartiers(queryLower);
+      // 🇨🇩 NOUVELLE RECHERCHE INTELLIGENTE PAR COMMUNE
+      // Utilise la base de données complète avec arrêts de bus, marchés, etc.
+      const matchedLocations = searchLocationsByCommune(queryLower);
       
-      // 🎯 FILTRAGE PAR PROXIMITÉ : Si position actuelle disponible
-      let finalQuartiers: Quartier[] = matchedQuartiers;
-      
-      if (currentLocation && matchedQuartiers.length > 0) {
-        // Trouver les quartiers proches (rayon de 10km)
-        const nearbyQuartiers = findNearbyQuartiers(
-          currentLocation.lat, 
-          currentLocation.lng, 
-          10 // rayon en km
-        );
-        
-        // Filtrer les résultats pour ne garder que ceux proches
-        // SI l'utilisateur cherche dans une commune proche
-        const nearbyNames = new Set(nearbyQuartiers.map(q => q.nom.toLowerCase()));
-        const nearbyCommunes = new Set(nearbyQuartiers.map(q => q.commune.toLowerCase()));
-        
-        finalQuartiers = matchedQuartiers.filter(q => {
-          const isNearbyQuartier = nearbyNames.has(q.nom.toLowerCase());
-          const isNearbyCommune = nearbyCommunes.has(q.commune.toLowerCase());
-          
-          // Garder si le quartier OU sa commune est proche
-          return isNearbyQuartier || isNearbyCommune || q.populaire; // Toujours garder les lieux populaires
-        });
-        
-        // Si aucun résultat proche, utiliser tous les matchs (éviter liste vide)
-        if (finalQuartiers.length === 0) {
-          finalQuartiers = matchedQuartiers;
-        }
-        
-        console.log(`🔍 Recherche "${query}":`, {
-          totalMatches: matchedQuartiers.length,
-          nearby: nearbyQuartiers.length,
-          filtered: finalQuartiers.length
-        });
-      }
+      console.log(`🔍 Recherche intelligente "${query}":`, {
+        totalResults: matchedLocations.length,
+        locations: matchedLocations.slice(0, 5).map(l => `${l.nom} (${l.commune})`)
+      });
       
       // Convertir en format Address
-      const suggestions: Address[] = finalQuartiers.slice(0, 15).map((quartier, index) => ({
-        id: `quartier-${index}`,
-        name: quartier.nom,
-        description: `${quartier.commune}, Kinshasa, RDC`,
-        coordinates: { lat: quartier.lat, lng: quartier.lng }
+      const suggestions: Address[] = matchedLocations.map((location, index) => ({
+        id: `location-${index}`,
+        name: location.nom,
+        description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
+        coordinates: { lat: location.lat, lng: location.lng }
       }));
       
       // Si aucune suggestion trouvée, créer une suggestion personnalisée
