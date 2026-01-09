@@ -82,84 +82,13 @@ export function PaymentScreen() {
   const currentRide = state.currentRide;
   const currentUser = state.currentUser;
 
-  // 🆕 RECHARGER LA COURSE DEPUIS LE BACKEND AU MONTAGE (fallback si duration manque)
-  useEffect(() => {
-    const refreshRideFromBackend = async () => {
-      if (!currentRide?.id) return;
-      
-      // Si duration existe déjà, pas besoin de recharger
-      if (currentRide.duration && currentRide.duration > 0) {
-        console.log(`✅ Duration déjà disponible: ${currentRide.duration}s`);
-        return;
-      }
-      
-      console.log('🔄 Rechargement des détails de la course depuis le backend...');
-      
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${currentRide.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.ride) {
-            console.log('✅ Détails de course rechargés depuis le backend:', {
-              duration: data.ride.duration,
-              billingElapsedTime: data.ride.billingElapsedTime,
-              finalPrice: data.ride.finalPrice,
-              distance: data.ride.distance,
-              status: data.ride.status
-            });
-            
-            const backendDuration = data.ride.duration || data.ride.billingElapsedTime || 0;
-            
-            if (state.setCurrentRide && backendDuration > 0) {
-              state.setCurrentRide({
-                ...currentRide,
-                duration: backendDuration,
-                finalPrice: data.ride.finalPrice || data.ride.estimatedPrice,
-                distance: data.ride.distance
-              });
-              console.log(`⏱️ DURATION MISE À JOUR: ${backendDuration}s`);
-            } else if (backendDuration === 0) {
-              console.warn('⚠️ Duration toujours à 0, le driver n\'a peut-être pas encore terminé la course');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erreur rechargement course:', error);
-      }
-    };
-    
-    refreshRideFromBackend();
-  }, [currentRide?.id]);
-
   // ✅ Calculer la distance et durée depuis les données de la course
   const distance = currentRide?.distanceKm || currentRide?.distance || 0;
   
-  // ✅ v517.91: CORRECTION - Utiliser duration depuis le backend OU calculer localement
-  // Si le backend n'a pas encore mis à jour duration, calculer depuis startTime si disponible
-  let durationInSeconds = currentRide?.duration || 0;
-  
-  // Si duration est 0, essayer de calculer depuis startTime si disponible
-  if (durationInSeconds === 0 && currentRide?.startTime) {
-    const startTime = new Date(currentRide.startTime);
-    const endTime = currentRide?.completedAt ? new Date(currentRide.completedAt) : new Date();
-    durationInSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-    console.log('⏱️ v517.91 - Durée calculée localement:', {
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      duration: durationInSeconds
-    });
-  }
-  
-  const durationInMinutes = Math.round(durationInSeconds / 60); // Convertir en minutes pour l'affichage
+  // ✅ SIMPLIFICATION : duration est maintenant TOUJOURS disponible car LiveTrackingScreen attend
+  // qu'elle soit > 0 avant de passer à PaymentScreen
+  const durationInSeconds = currentRide?.duration || 0;
+  const durationInMinutes = Math.round(durationInSeconds / 60);
   
   // ✅ FONCTION POUR FORMATER LA DURÉE (cohérente avec le driver)
   const formatDuration = (seconds: number): string => {
@@ -178,7 +107,7 @@ export function PaymentScreen() {
     durationInSeconds,
     durationInMinutes,
     formatted: formatDuration(durationInSeconds),
-    source: currentRide?.duration ? 'backend' : 'local'
+    distance
   });
     
   const ridePrice = currentRide?.estimatedPrice || 0;
