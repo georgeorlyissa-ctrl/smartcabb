@@ -862,78 +862,178 @@ authRoutes.post('/auth/check-phone-exists', async (c) => {
     };
 
     const phoneFormats = normalizePhone(phoneNumber);
-    console.log('🔍 Formats à rechercher:', phoneFormats);
+    console.log('📱 Formats à chercher:', phoneFormats);
 
-    // Chercher dans le KV store (passenger:, driver:, profile:)
-    let found = false;
-    let accountType = null;
-
-    // Chercher dans passenger:
-    const passengers = await kv.getByPrefix('passenger:');
-    if (passengers && passengers.length > 0) {
-      const match = passengers.find((p: any) => {
-        const profilePhone = p.phone || p.phone_number || '';
-        const profileFormats = normalizePhone(profilePhone);
-        return phoneFormats.some(format => profileFormats.includes(format));
-      });
-      if (match) {
-        found = true;
-        accountType = 'passenger';
-        console.log('✅ Compte passager trouvé');
-      }
-    }
-
-    // Chercher dans driver: si pas encore trouvé
-    if (!found) {
-      const drivers = await kv.getByPrefix('driver:');
-      if (drivers && drivers.length > 0) {
-        const match = drivers.find((d: any) => {
-          const profilePhone = d.phone || d.phone_number || '';
-          const profileFormats = normalizePhone(profilePhone);
-          return phoneFormats.some(format => profileFormats.includes(format));
-        });
-        if (match) {
-          found = true;
-          accountType = 'driver';
-          console.log('✅ Compte conducteur trouvé');
+    // 🔥 CHERCHER DANS LE KV STORE AU LIEU DE LA TABLE PROFILES
+    console.log('🔍 Recherche dans le KV store...');
+    
+    // Chercher dans tous les profils du KV store
+    const allProfiles = await kv.getByPrefix('profile:');
+    console.log(`📊 ${allProfiles.length} profils trouvés dans le KV store`);
+    
+    let foundEmail = null;
+    let foundProfile = null;
+    
+    for (const profileData of allProfiles) {
+      if (profileData && profileData.phone) {
+        // Vérifier si le téléphone correspond à un des formats
+        if (phoneFormats.includes(profileData.phone)) {
+          foundEmail = profileData.email;
+          foundProfile = profileData;
+          console.log('✅ Profil trouvé dans KV:', { id: profileData.id, email: profileData.email, phone: profileData.phone });
+          break;
         }
       }
     }
-
-    // Chercher dans profile: si pas encore trouvé
-    if (!found) {
-      const profiles = await kv.getByPrefix('profile:');
-      if (profiles && profiles.length > 0) {
-        const match = profiles.find((p: any) => {
-          const profilePhone = p.phone || p.phone_number || '';
-          const profileFormats = normalizePhone(profilePhone);
-          return phoneFormats.some(format => profileFormats.includes(format));
-        });
-        if (match) {
-          found = true;
-          accountType = 'admin';
-          console.log('✅ Compte admin trouvé');
-        }
-      }
-    }
-
-    if (found) {
-      console.log('✅ Compte existant:', accountType);
-      return c.json({
-        success: true,
-        exists: true,
-        accountType: accountType
-      });
-    } else {
-      console.log('❌ Aucun compte trouvé');
+    
+    if (!foundEmail) {
+      console.log('❌ Aucun profil trouvé avec ce numéro dans le KV store');
       return c.json({
         success: true,
         exists: false
       });
     }
 
+    return c.json({
+      success: true,
+      exists: true,
+      email: foundEmail
+    });
+
   } catch (error) {
     console.error('❌ Erreur check-phone-exists:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔥 NOUVELLE ROUTE : RÉCUPÉRER L'EMAIL PAR TÉLÉPHONE (KV STORE)
+// ============================================
+authRoutes.post('/auth/get-email-by-phone', async (c) => {
+  try {
+    const { phoneNumber } = await c.req.json();
+    
+    if (!phoneNumber) {
+      return c.json({ 
+        success: false, 
+        error: 'Numéro de téléphone requis' 
+      }, 400);
+    }
+
+    console.log('🔥 Récupération email par téléphone (KV store):', phoneNumber);
+
+    // Normaliser le numéro de téléphone
+    const normalizePhone = (phone: string): string[] => {
+      const clean = phone.replace(/[\s\-()]/g, '');
+      const formats: string[] = [clean];
+      
+      if (clean.startsWith('+243')) {
+        const digits = clean.substring(4);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      } else if (clean.startsWith('243')) {
+        const digits = clean.substring(3);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      } else if (clean.startsWith('0')) {
+        const digits = clean.substring(1);
+        formats.push(`+243${digits}`);
+        formats.push(`243${digits}`);
+        formats.push(`0${digits}`);
+      }
+      
+      return [...new Set(formats)];
+    };
+
+    const phoneFormats = normalizePhone(phoneNumber);
+    console.log('📱 Formats à chercher:', phoneFormats);
+
+    // 🔥 CHERCHER DANS LE KV STORE
+    console.log('🔍 Recherche dans le KV store...');
+    
+    // Chercher dans tous les profils
+    const allProfiles = await kv.getByPrefix('profile:');
+    console.log(`📊 ${allProfiles.length} profils trouvés`);
+    
+    for (const profileData of allProfiles) {
+      if (profileData && profileData.phone) {
+        // Vérifier si le téléphone correspond
+        if (phoneFormats.includes(profileData.phone)) {
+          console.log('✅ Email trouvé (KV):', profileData.email);
+          return c.json({
+            success: true,
+            email: profileData.email,
+            userId: profileData.id
+          });
+        }
+      }
+    }
+    
+    // Si pas trouvé dans profile:, chercher dans user:, passenger:, driver:
+    console.log('🔍 Recherche dans user:...');
+    const allUsers = await kv.getByPrefix('user:');
+    console.log(`📊 ${allUsers.length} users trouvés`);
+    
+    for (const userData of allUsers) {
+      if (userData && userData.phone) {
+        if (phoneFormats.includes(userData.phone)) {
+          console.log('✅ Email trouvé (user:):', userData.email);
+          return c.json({
+            success: true,
+            email: userData.email,
+            userId: userData.id
+          });
+        }
+      }
+    }
+    
+    console.log('🔍 Recherche dans passenger:...');
+    const allPassengers = await kv.getByPrefix('passenger:');
+    console.log(`📊 ${allPassengers.length} passengers trouvés`);
+    
+    for (const passengerData of allPassengers) {
+      if (passengerData && passengerData.phone) {
+        if (phoneFormats.includes(passengerData.phone)) {
+          console.log('✅ Email trouvé (passenger:):', passengerData.email);
+          return c.json({
+            success: true,
+            email: passengerData.email,
+            userId: passengerData.id
+          });
+        }
+      }
+    }
+    
+    console.log('🔍 Recherche dans driver:...');
+    const allDrivers = await kv.getByPrefix('driver:');
+    console.log(`📊 ${allDrivers.length} drivers trouvés`);
+    
+    for (const driverData of allDrivers) {
+      if (driverData && driverData.phone) {
+        if (phoneFormats.includes(driverData.phone)) {
+          console.log('✅ Email trouvé (driver:):', driverData.email);
+          return c.json({
+            success: true,
+            email: driverData.email,
+            userId: driverData.id
+          });
+        }
+      }
+    }
+    
+    console.log('❌ Aucun compte trouvé avec ce numéro:', phoneNumber);
+    return c.json({
+      success: false,
+      error: 'Aucun compte trouvé avec ce numéro'
+    }, 404);
+
+  } catch (error) {
+    console.error('❌ Erreur get-email-by-phone:', error);
     return c.json({ 
       success: false, 
       error: 'Erreur serveur: ' + String(error)
