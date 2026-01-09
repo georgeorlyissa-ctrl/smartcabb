@@ -234,7 +234,8 @@ export function LiveTrackingScreen() {
         </div>
       </div>
 
-      <div className="flex-1 relative">
+      {/* 🗺️ CARTE - Hauteur fixe pour laisser place aux boutons */}
+      <div className="flex-1 relative" style={{ maxHeight: 'calc(100vh - 280px)' }}>
         <LiveTrackingMap 
           driverId={currentRide.driverId || ''}
           pickup={state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
@@ -257,6 +258,7 @@ export function LiveTrackingScreen() {
         )}
       </div>
 
+      {/* 🎛️ CONTRÔLES ET INFOS - Toujours visibles en bas */}
       <div className="bg-white border-t border-gray-200 p-4 space-y-4">
         {/* Chronomètre de facturation - Affiche UNIQUEMENT si billingStartTime existe */}
         {currentRide.billingStartTime && (
@@ -286,7 +288,7 @@ export function LiveTrackingScreen() {
           </div>
         </div>
 
-        {/* Boutons Partager et SOS */}
+        {/* Boutons Partager et SOS - TOUJOURS VISIBLES */}
         <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={() => setShowShareDialog(true)}
