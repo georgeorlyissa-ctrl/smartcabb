@@ -452,6 +452,35 @@ app.put("/update/:id", async (c) => {
       }
     }
 
+    // 5. 🔥 METTRE À JOUR LA TABLE PROFILES (critique pour la connexion)
+    try {
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      const updateData: any = {};
+      if (body.name) updateData.full_name = body.name;
+      if (body.email) updateData.email = body.email;
+      if (body.phone) updateData.phone = body.phone;
+      
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', passengerId);
+      
+      if (profileError) {
+        console.error("⚠️ Erreur mise à jour table profiles:", profileError);
+        // Ne pas bloquer si la table n'existe pas
+      } else {
+        console.log("✅ Table profiles mise à jour");
+      }
+    } catch (error) {
+      console.error("⚠️ Erreur table profiles:", error);
+      // Ne pas bloquer
+    }
+
     console.log("✅ Passager mis à jour avec succès dans toutes les clés");
 
     return c.json({
