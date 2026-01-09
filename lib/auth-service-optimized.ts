@@ -66,31 +66,39 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       
       console.log('🔍 Recherche du profil avec le numéro:', normalizedPhone);
       
-      // Chercher le profil par numéro de téléphone
-      const { data: profiles, error: searchError } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('phone', normalizedPhone)
-        .limit(1);
-      
-      if (searchError) {
-        console.error('❌ Erreur lors de la recherche du profil:', searchError);
+      // 🔥 UTILISER LA NOUVELLE ROUTE QUI CHERCHE DANS LE KV STORE
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            },
+            body: JSON.stringify({ phoneNumber: normalizedPhone })
+          }
+        );
+        
+        const result = await response.json();
+        
+        if (!result.success || !result.email) {
+          console.error('❌ Aucun compte trouvé avec ce numéro');
+          return {
+            success: false,
+            error: 'Aucun compte trouvé - Veuillez créer un compte'
+          };
+        }
+        
+        email = result.email;
+        console.log('✅ Email trouvé (KV store):', email);
+      } catch (error) {
+        console.error('❌ Erreur lors de la recherche du téléphone:', error);
         return {
           success: false,
           error: 'Erreur lors de la recherche du compte.'
         };
       }
-      
-      if (!profiles || profiles.length === 0) {
-        console.error('❌ Aucun compte trouvé avec ce numéro:', normalizedPhone);
-        return {
-          success: false,
-          error: 'Aucun compte trouvé - Veuillez créer un compte'
-        };
-      }
-      
-      email = profiles[0].email;
-      console.log('✅ Email trouvé:', email);
     }
     
     // Connexion avec Supabase Auth
@@ -105,30 +113,10 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       
       // Messages d'erreur personnalisés
       if (error.message.includes('Invalid login credentials')) {
-        // Vérifier si le compte existe dans la table profiles
-        const { data: profileCheck } = await supabase
-          .from('profiles')
-          .select('id, email, role')
-          .eq('email', email)
-          .limit(1);
-        
-        console.log('🔍 Vérification du profil dans la base:', profileCheck);
-        
-        if (profileCheck && profileCheck.length > 0) {
-          // Le profil existe mais les identifiants sont incorrects
-          console.error('⚠️ Le compte existe dans profiles mais mot de passe incorrect');
-          return {
-            success: false,
-            error: 'Mot de passe incorrect'
-          };
-        } else {
-          // Le compte n'existe pas du tout
-          console.error('⚠️ Aucun compte trouvé avec cet email:', email);
-          return {
-            success: false,
-            error: 'Aucun compte trouvé - Veuillez créer un compte'
-          };
-        }
+        return {
+          success: false,
+          error: 'Mot de passe incorrect'
+        };
       }
       
       if (error.message.includes('Database error querying schema') || 
