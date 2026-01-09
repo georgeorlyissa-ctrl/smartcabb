@@ -397,6 +397,13 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
     
     // ✅ ENVOYER LA COURSE TERMINÉE AU BACKEND
     try {
+      console.log('🔥 NavigationScreen - Envoi au backend:', {
+        rideId: rideData.id,
+        billingElapsedTime: billingElapsedTime,
+        finalCost: finalCost,
+        distance: distance
+      });
+      
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
         {
@@ -410,7 +417,7 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
             driverId: state.currentDriver?.id,
             passengerId: rideData.passengerId,
             finalPrice: finalCost,
-            duration: billingElapsedTime,
+            duration: billingElapsedTime, // 🔥 DOIT ÊTRE > 0
             rating: 0,
             feedback: '',
             paymentMethod: 'cash',
