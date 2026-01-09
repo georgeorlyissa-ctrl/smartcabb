@@ -486,7 +486,7 @@ app.put("/update/:id", async (c) => {
       
       let authUpdated = false;
       
-      // 🔥 CAS 1: L'email a changé
+      // 🔥 CAS 1: L'email a changé (email réel, pas généré)
       if (body.email && existingPassenger.email !== body.email) {
         console.log(`📧 Email changé: ${existingPassenger.email} → ${body.email}`);
         const { error: updateError } = await supabase.auth.admin.updateUserById(
@@ -502,19 +502,17 @@ app.put("/update/:id", async (c) => {
         }
       }
       
-      // 🔥 CAS 2: Le téléphone a changé (CRITIQUE!)
+      // 🔥 CAS 2: Le téléphone a changé
+      // ⚠️ CORRECTION CRITIQUE : NE PAS MODIFIER L'EMAIL DANS SUPABASE AUTH
+      // L'email dans Auth sert uniquement pour l'authentification et doit rester stable
+      // On met seulement à jour les user_metadata pour garder la trace du nouveau téléphone
       if (normalizedPhone && existingPassenger.phone !== normalizedPhone) {
         console.log(`📱 Téléphone changé: ${existingPassenger.phone} → ${normalizedPhone}`);
-        console.log(`🔄 Mise à jour de l'email Auth pour refléter le nouveau téléphone...`);
-        
-        // Générer le nouvel email basé sur le nouveau téléphone
-        const newAuthEmail = `${normalizedPhone}@smartcabb.app`;
-        console.log(`📧 Nouvel email Auth: ${newAuthEmail}`);
+        console.log(`🔄 Mise à jour des user_metadata uniquement (sans changer l'email Auth)...`);
         
         const { error: updatePhoneError } = await supabase.auth.admin.updateUserById(
           passengerId,
           { 
-            email: newAuthEmail,
             user_metadata: {
               phone: normalizedPhone
             }
@@ -524,7 +522,7 @@ app.put("/update/:id", async (c) => {
         if (updatePhoneError) {
           console.error("⚠️ Erreur mise à jour téléphone dans Supabase Auth:", updatePhoneError);
         } else {
-          console.log("✅ Supabase Auth: email et téléphone mis à jour");
+          console.log("✅ Supabase Auth: user_metadata.phone mis à jour (email Auth inchangé)");
           authUpdated = true;
         }
       }
