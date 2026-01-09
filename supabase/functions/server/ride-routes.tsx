@@ -704,6 +704,7 @@ app.post('/complete', async (c) => {
 
     console.log('🏁 Fin de course:', rideId, 'Payment:', paymentMethod);
     console.log('📍 Données de course:', { pickup, destination, distance, vehicleType });
+    console.log('⏱️  DURÉE REÇUE:', duration, 'secondes (type:', typeof duration, ')');
 
     let ride = await kv.get(`ride_request_${rideId}`);
     
@@ -828,11 +829,14 @@ app.post('/complete', async (c) => {
       driverEarnings: driverEarnings,
       commissionPercentage: commissionPercentage,
       duration: duration || 0,
+      billingElapsedTime: duration || 0, // 🔥 AJOUTER AUSSI billingElapsedTime pour compatibilité
       rating: rating || 0,
       feedback: feedback || '',
       completedAt: completedAt || new Date().toISOString()
     };
 
+    console.log('💾 Course sauvegardée avec duration:', completedRide.duration, 'et billingElapsedTime:', completedRide.billingElapsedTime);
+    
     await kv.set(`ride_request_${rideId}`, completedRide);
     await kv.set(`ride_completed_${rideId}`, completedRide);
     await kv.del(`ride_active_${rideId}`);
