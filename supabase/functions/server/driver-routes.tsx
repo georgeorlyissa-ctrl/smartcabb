@@ -698,35 +698,44 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       }
       
       const updateData: any = {};
-      if (updates.name) {
+      
+      // ✅ Ne mettre à jour QUE les champs qui ont changé
+      if (updates.name && updates.name !== currentProfileData?.full_name) {
         updateData.full_name = updates.name;
-        console.log(`   → full_name: "${updates.name}"`);
+        console.log(`   → full_name: "${currentProfileData?.full_name}" → "${updates.name}"`);
       }
-      if (updates.email) {
+      
+      if (updates.email && updates.email !== currentProfileData?.email) {
         updateData.email = updates.email;
-        console.log(`   → email: "${updates.email}"`);
-      }
-      if (updates.phone) {
-        updateData.phone = updates.phone;
-        console.log(`   → phone: "${updates.phone}"`);
+        console.log(`   → email: "${currentProfileData?.email}" → "${updates.email}"`);
       }
       
-      console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+      if (normalizedPhone && normalizedPhone !== currentProfileData?.phone) {
+        updateData.phone = normalizedPhone;
+        console.log(`   → phone: "${currentProfileData?.phone}" → "${normalizedPhone}"`);
+      }
       
-      const { data: updatedData, error: profileError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', driverId)
-        .select();
-      
-      if (profileError) {
-        console.error("❌ Erreur mise à jour table profiles:", profileError);
-        console.error("   Code:", profileError.code);
-        console.error("   Message:", profileError.message);
-        console.error("   Details:", profileError.details);
+      // ✅ Seulement si on a des changements
+      if (Object.keys(updateData).length === 0) {
+        console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
       } else {
-        console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
-        console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+        console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+        
+        const { data: updatedData, error: profileError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', driverId)
+          .select();
+        
+        if (profileError) {
+          console.error("❌ Erreur mise à jour table profiles:", profileError);
+          console.error("   Code:", profileError.code);
+          console.error("   Message:", profileError.message);
+          console.error("   Details:", profileError.details);
+        } else {
+          console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+          console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+        }
       }
     } catch (error) {
       console.error("❌ Exception table profiles:", error);
