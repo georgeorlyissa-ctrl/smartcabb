@@ -693,48 +693,53 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         console.error("   Code:", selectError.code);
         console.error("   Message:", selectError.message);
         console.error("   Details:", selectError.details);
+        console.log("⏭️ 5/5 - Table profiles: erreur de lecture, mise à jour ignorée pour éviter les conflits");
+        // ⚠️ NE PAS continuer si on ne peut pas lire les données actuelles
+      } else if (!currentProfileData) {
+        console.error("❌ currentProfileData est null/undefined");
+        console.log("⏭️ 5/5 - Table profiles: données actuelles introuvables, mise à jour ignorée");
       } else {
         console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
-      }
-      
-      const updateData: any = {};
-      
-      // ✅ Ne mettre à jour QUE les champs qui ont changé
-      if (updates.name && updates.name !== currentProfileData?.full_name) {
-        updateData.full_name = updates.name;
-        console.log(`   → full_name: "${currentProfileData?.full_name}" → "${updates.name}"`);
-      }
-      
-      if (updates.email && updates.email !== currentProfileData?.email) {
-        updateData.email = updates.email;
-        console.log(`   → email: "${currentProfileData?.email}" → "${updates.email}"`);
-      }
-      
-      if (normalizedPhone && normalizedPhone !== currentProfileData?.phone) {
-        updateData.phone = normalizedPhone;
-        console.log(`   → phone: "${currentProfileData?.phone}" → "${normalizedPhone}"`);
-      }
-      
-      // ✅ Seulement si on a des changements
-      if (Object.keys(updateData).length === 0) {
-        console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
-      } else {
-        console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
         
-        const { data: updatedData, error: profileError } = await supabase
-          .from('profiles')
-          .update(updateData)
-          .eq('id', driverId)
-          .select();
+        const updateData: any = {};
         
-        if (profileError) {
-          console.error("❌ Erreur mise à jour table profiles:", profileError);
-          console.error("   Code:", profileError.code);
-          console.error("   Message:", profileError.message);
-          console.error("   Details:", profileError.details);
+        // ✅ Ne mettre à jour QUE les champs qui ont changé
+        if (updates.name && updates.name !== currentProfileData.full_name) {
+          updateData.full_name = updates.name;
+          console.log(`   → full_name: "${currentProfileData.full_name}" → "${updates.name}"`);
+        }
+        
+        if (updates.email && updates.email !== currentProfileData.email) {
+          updateData.email = updates.email;
+          console.log(`   → email: "${currentProfileData.email}" → "${updates.email}"`);
+        }
+        
+        if (normalizedPhone && normalizedPhone !== currentProfileData.phone) {
+          updateData.phone = normalizedPhone;
+          console.log(`   → phone: "${currentProfileData.phone}" → "${normalizedPhone}"`);
+        }
+        
+        // ✅ Seulement si on a des changements
+        if (Object.keys(updateData).length === 0) {
+          console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
         } else {
-          console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
-          console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+          console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+          
+          const { data: updatedData, error: profileError } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', driverId)
+            .select();
+          
+          if (profileError) {
+            console.error("❌ Erreur mise à jour table profiles:", profileError);
+            console.error("   Code:", profileError.code);
+            console.error("   Message:", profileError.message);
+            console.error("   Details:", profileError.details);
+          } else {
+            console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+            console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+          }
         }
       }
     } catch (error) {
