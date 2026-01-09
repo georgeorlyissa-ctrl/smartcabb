@@ -1,9 +1,13 @@
 /**
- * 🧮 CALCULATEUR DE DISTANCE ET DURÉE PRÉCIS POUR KINSHASA
+ * 🧮 CALCULATEUR DE DISTANCE ET DURÉE PROFESSIONNEL POUR KINSHASA
  * 
- * Utilise la formule de Haversine pour calculer la distance entre deux points GPS
- * Estime la durée basée sur les conditions de trafic réelles à Kinshasa
+ * ✅ VERSION 2.0 - UTILISE OSRM POUR LES VRAIS ITINÉRAIRES
+ * ✅ Compatible Yango/Uber - suit les vraies routes
+ * ✅ Fallback intelligent si OSRM échoue
+ * ✅ Optimisé pour les conditions de trafic de Kinshasa
  */
+
+import { calculateRoute as calculateOSRMRoute } from './routing';
 
 export interface RouteCalculation {
   distance: number; // Distance en kilomètres
@@ -13,10 +17,10 @@ export interface RouteCalculation {
 }
 
 /**
- * 🌍 CALCUL DE DISTANCE HAVERSINE (ULTRA-PRÉCIS)
- * Formule mathématique pour calculer la distance entre deux points GPS sur une sphère
+ * 🌍 CALCUL DE DISTANCE HAVERSINE (BACKUP UNIQUEMENT)
+ * Utilisé seulement si OSRM échoue
  */
-export function calculateDistance(
+function calculateDistanceHaversine(
   lat1: number,
   lng1: number,
   lat2: number,
@@ -40,6 +44,18 @@ export function calculateDistance(
   const distance = R * c; // Distance en km
   
   return distance;
+}
+
+/**
+ * 🌍 FONCTION PUBLIQUE POUR COMPATIBILITÉ (garde l'ancien nom)
+ */
+export function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  return calculateDistanceHaversine(lat1, lng1, lat2, lng2);
 }
 
 /**
@@ -91,54 +107,97 @@ export function calculateDuration(distanceKm: number): number {
 }
 
 /**
- * 🚗 CALCUL COMPLET DE L'ITINÉRAIRE
+ * 🚗 CALCUL COMPLET DE L'ITINÉRAIRE AVEC OSRM
+ * ✅ VERSION ASYNC - Utilise les vraies routes
  * Retourne distance et durée formatées
  */
-export function calculateRoute(
+export async function calculateRoute(
   fromLat: number,
   fromLng: number,
   toLat: number,
   toLng: number
-): RouteCalculation {
-  // Calculer la distance en km
-  const distance = calculateDistance(fromLat, fromLng, toLat, toLng);
-  
-  // Calculer la durée en minutes
-  const duration = calculateDuration(distance);
-  
-  // Formater la distance
-  let distanceText: string;
-  if (distance < 1) {
-    // Moins de 1 km : afficher en mètres
-    distanceText = `${Math.round(distance * 1000)} m`;
-  } else if (distance < 10) {
-    // Entre 1 et 10 km : 1 décimale
-    distanceText = `${distance.toFixed(1)} km`;
-  } else {
-    // Plus de 10 km : nombre entier
-    distanceText = `${Math.round(distance)} km`;
-  }
-  
-  // Formater la durée
-  let durationText: string;
-  if (duration < 60) {
-    durationText = `${duration} min`;
-  } else {
-    const hours = Math.floor(duration / 60);
-    const mins = duration % 60;
-    if (mins === 0) {
-      durationText = `${hours}h`;
+): Promise<RouteCalculation> {
+  try {
+    console.log(`🧮 Calcul itinéraire: (${fromLat}, ${fromLng}) → (${toLat}, ${toLng})`);
+    
+    // ✅ ESSAYER D'ABORD AVEC OSRM (vrais itinéraires)
+    const osrmRoute = await calculateOSRMRoute(
+      { lat: fromLat, lng: fromLng },
+      { lat: toLat, lng: toLng }
+    );
+    
+    console.log(`✅ OSRM OK: ${osrmRoute.distance.toFixed(1)}km en ${Math.round(osrmRoute.duration)}min`);
+    
+    // Formater la distance
+    let distanceText: string;
+    if (osrmRoute.distance < 1) {
+      distanceText = `${Math.round(osrmRoute.distance * 1000)} m`;
+    } else if (osrmRoute.distance < 10) {
+      distanceText = `${osrmRoute.distance.toFixed(1)} km`;
     } else {
-      durationText = `${hours}h${mins.toString().padStart(2, '0')}`;
+      distanceText = `${Math.round(osrmRoute.distance)} km`;
     }
+    
+    // Formater la durée
+    const duration = Math.round(osrmRoute.duration);
+    let durationText: string;
+    if (duration < 60) {
+      durationText = `${duration} min`;
+    } else {
+      const hours = Math.floor(duration / 60);
+      const mins = duration % 60;
+      if (mins === 0) {
+        durationText = `${hours}h`;
+      } else {
+        durationText = `${hours}h${mins.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    return {
+      distance: osrmRoute.distance,
+      duration,
+      distanceText,
+      durationText
+    };
+    
+  } catch (error) {
+    console.warn('⚠️ OSRM échoué, utilisation fallback Haversine:', error);
+    
+    // 🔙 FALLBACK : Utiliser Haversine si OSRM échoue
+    const distance = calculateDistanceHaversine(fromLat, fromLng, toLat, toLng);
+    const duration = calculateDuration(distance);
+    
+    // Formater la distance
+    let distanceText: string;
+    if (distance < 1) {
+      distanceText = `${Math.round(distance * 1000)} m`;
+    } else if (distance < 10) {
+      distanceText = `${distance.toFixed(1)} km`;
+    } else {
+      distanceText = `${Math.round(distance)} km`;
+    }
+    
+    // Formater la durée
+    let durationText: string;
+    if (duration < 60) {
+      durationText = `${duration} min`;
+    } else {
+      const hours = Math.floor(duration / 60);
+      const mins = duration % 60;
+      if (mins === 0) {
+        durationText = `${hours}h`;
+      } else {
+        durationText = `${hours}h${mins.toString().padStart(2, '0')}`;
+      }
+    }
+    
+    return {
+      distance,
+      duration,
+      distanceText,
+      durationText
+    };
   }
-  
-  return {
-    distance,
-    duration,
-    distanceText,
-    durationText
-  };
 }
 
 /**
