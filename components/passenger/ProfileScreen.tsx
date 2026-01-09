@@ -222,7 +222,6 @@ export function ProfileScreen() {
     setIsEditing(false);
     
     try {
-      // ✅ VRAIE SAUVEGARDE: Mettre à jour le profil dans Supabase
       console.log('💾 [PROFILE SAVE] Début de la sauvegarde...', {
         userId: state.currentUser.id,
         currentName: state.currentUser.name,
@@ -232,58 +231,51 @@ export function ProfileScreen() {
         newAddress: editData.address
       });
       
-      // 🔄 SYNCHRONISATION COMPLÈTE: Utiliser le service de synchronisation
-      const syncSuccess = await syncUserProfile(state.currentUser.id, {
-        name: editData.name,
-        email: editData.email,
-        phone: editData.phone,
-        address: editData.address
-      });
-
-      if (syncSuccess) {
-        console.log('✅ [PROFILE SAVE] Synchronisation complète réussie!');
-        
-        // 🔄 RECHARGER le profil depuis localStorage pour être sûr d'avoir les bonnes données
-        const userKey = `smartcabb_user_${state.currentUser.id}`;
-        const savedData = localStorage.getItem(userKey);
-        
-        if (savedData) {
-          const reloadedUser = JSON.parse(savedData);
-          console.log('🔄 [PROFILE SAVE] Profil rechargé depuis localStorage:', reloadedUser);
-          
-          // Mettre à jour le state avec les données rechargées
-          setCurrentUser({
-            ...state.currentUser,
-            name: reloadedUser.name,
-            email: reloadedUser.email,
-            phone: reloadedUser.phone,
-            address: reloadedUser.address !== undefined ? reloadedUser.address : ''
-          });
-          
-          // Mettre à jour aussi editData pour éviter les incohérences
-          setEditData({
-            name: reloadedUser.name,
-            email: reloadedUser.email,
-            phone: reloadedUser.phone,
-            address: reloadedUser.address !== undefined ? reloadedUser.address : ''
-          });
+      // 🔥 NOUVELLE MÉTHODE: Sauvegarder directement dans le backend KV store
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/update/${state.currentUser.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: editData.name,
+            email: editData.email,
+            phone: editData.phone,
+            address: editData.address
+          })
         }
-        
-        toast.success('Profil mis à jour avec succès ✅');
-      } else {
-        console.error('⚠️ [PROFILE SAVE] Échec de la synchronisation');
-        toast.error('Erreur lors de la synchronisation complète');
-        // Rollback en cas d'erreur
-        setCurrentUser(previousUser);
-        setEditData({
-          name: previousUser.name,
-          email: previousUser.email,
-          phone: previousUser.phone,
-          address: previousUser.address || ''
-        });
-        setIsSaving(false);
-        return;
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur backend:', response.status, errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
+
+      const result = await response.json();
+      console.log('✅ [PROFILE SAVE] Backend mis à jour:', result);
+      
+      // 🔄 Mettre à jour localStorage
+      const userKey = `smartcabb_user_${state.currentUser.id}`;
+      const savedData = localStorage.getItem(userKey);
+      
+      if (savedData) {
+        const existingData = JSON.parse(savedData);
+        const updatedData = {
+          ...existingData,
+          name: editData.name,
+          email: editData.email,
+          phone: editData.phone,
+          address: editData.address
+        };
+        localStorage.setItem(userKey, JSON.stringify(updatedData));
+        console.log('✅ localStorage mis à jour');
+      }
+      
+      toast.success('Profil mis à jour avec succès ✅');
 
       // 📱 Envoyer SMS de confirmation (sans bloquer si échec)
       if (editData.phone) {
