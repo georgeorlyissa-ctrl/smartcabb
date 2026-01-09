@@ -6,6 +6,14 @@
  * ✅ Compatible avec Yango/Uber pour itinéraires réalistes
  * ✅ Système de fallback multi-niveaux
  */
+/**
+ * 🗺️ SERVICE DE ROUTING PROFESSIONNEL POUR SMART CABB
+ * 
+ * ✅ Utilise OSRM (Open Source Routing Machine) avec serveurs de backup
+ * ✅ Optimisé pour Kinshasa, RDC
+ * ✅ Compatible avec Yango/Uber pour itinéraires réalistes
+ * ✅ Système de fallback multi-niveaux
+ */
 
 interface RoutePoint {
   lat: number;
