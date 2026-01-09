@@ -360,6 +360,41 @@ app.put("/update/:id", async (c) => {
       }, 400);
     }
 
+    // 🔥 NORMALISER LE TÉLÉPHONE avant de sauvegarder
+    let normalizedPhone = body.phone;
+    if (body.phone) {
+      // Fonction de normalisation (même logique que le frontend)
+      const normalizePhone = (phone: string): string => {
+        const cleaned = phone.replace(/[\s\-+]/g, '');
+        
+        // Cas 1: 9 chiffres → 243XXXXXXXXX
+        if (cleaned.length === 9) {
+          return `243${cleaned}`;
+        }
+        
+        // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+          return `243${cleaned.substring(1)}`;
+        }
+        
+        // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
+        if (cleaned.length === 12 && cleaned.startsWith('243')) {
+          return cleaned;
+        }
+        
+        // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
+        if (cleaned.length === 13 && cleaned.startsWith('2430')) {
+          return `243${cleaned.substring(4)}`;
+        }
+        
+        // Si aucun cas ne correspond, retourner tel quel
+        return phone;
+      };
+      
+      normalizedPhone = normalizePhone(body.phone);
+      console.log(`📱 Téléphone normalisé: ${body.phone} → ${normalizedPhone}`);
+    }
+
     // Récupérer les données existantes depuis TOUTES les clés possibles
     let existingPassenger = await kv.get(`user:${passengerId}`);
     const existingProfile = await kv.get(`profile:${passengerId}`);
@@ -378,7 +413,7 @@ app.put("/update/:id", async (c) => {
         name: body.name || "Utilisateur",
         full_name: body.name || "Utilisateur",
         email: body.email || "",
-        phone: body.phone || "",
+        phone: normalizedPhone || "",
         address: body.address || "",
         role: "passenger",
         created_at: new Date().toISOString(),
@@ -395,7 +430,7 @@ app.put("/update/:id", async (c) => {
       name: body.name || existingPassenger.name,
       full_name: body.name || existingPassenger.full_name,
       email: body.email || existingPassenger.email,
-      phone: body.phone || existingPassenger.phone,
+      phone: normalizedPhone || existingPassenger.phone,
       address: body.address !== undefined ? body.address : existingPassenger.address,
       updated_at: new Date().toISOString()
     };
@@ -413,7 +448,7 @@ app.put("/update/:id", async (c) => {
         ...existingProfile,
         full_name: body.name || existingProfile.full_name,
         email: body.email || existingProfile.email,
-        phone: body.phone || existingProfile.phone,
+        phone: normalizedPhone || existingProfile.phone,
         address: body.address !== undefined ? body.address : existingProfile.address,
         updated_at: new Date().toISOString()
       };
@@ -430,7 +465,7 @@ app.put("/update/:id", async (c) => {
         name: body.name || existingPassengerKey.name,
         full_name: body.name || existingPassengerKey.full_name,
         email: body.email || existingPassengerKey.email,
-        phone: body.phone || existingPassengerKey.phone,
+        phone: normalizedPhone || existingPassengerKey.phone,
         address: body.address !== undefined ? body.address : existingPassengerKey.address,
         updated_at: new Date().toISOString()
       };
