@@ -392,7 +392,8 @@ export function MapScreen() {
         initial={false}
         animate={{ 
           top: isPanelExpanded ? 'calc(35vh + 64px)' : 'calc(35vh + 64px)',
-          height: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto'
+          height: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto',
+          maxHeight: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto'
         }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="absolute left-0 right-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-30 flex flex-col"
@@ -405,8 +406,14 @@ export function MapScreen() {
           <div className="w-10 h-1 bg-gray-400 rounded-full" />
         </div>
 
-        {/* Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 pb-safe">
+        {/* Contenu scrollable avec padding important en bas */}
+        <div className="flex-1 overflow-y-auto px-4 pb-24 overscroll-contain"
+             style={{ 
+               WebkitOverflowScrolling: 'touch',
+               scrollbarWidth: 'none',
+               msOverflowStyle: 'none'
+             }}
+        >
           {/* Destination compacte */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
