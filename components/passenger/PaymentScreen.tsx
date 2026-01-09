@@ -79,6 +79,9 @@ export function PaymentScreen() {
   const [showMobileMoneyModal, setShowMobileMoneyModal] = useState(false);
   const [showMixedPaymentModal, setShowMixedPaymentModal] = useState(false);
   
+  // 🆕 État pour polling de la durée si elle est à 0
+  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
+  
   const currentRide = state.currentRide;
   const currentUser = state.currentUser;
 
@@ -103,11 +106,73 @@ export function PaymentScreen() {
     return `${minutes}min`;
   };
   
+  // 🔥 NOUVEAU: Polling pour récupérer la durée si elle est à 0
+  useEffect(() => {
+    if (!currentRide?.id || durationInSeconds > 0) {
+      return; // Pas besoin de polling si la durée existe déjà
+    }
+    
+    console.log('⚠️ PaymentScreen - Durée à 0, démarrage du polling...');
+    setIsLoadingDuration(true);
+    
+    const fetchDuration = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${currentRide.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.ride && data.ride.duration && data.ride.duration > 0) {
+            console.log('✅ PaymentScreen - Durée récupérée:', data.ride.duration);
+            
+            // Mettre à jour la course avec la durée
+            if (state.updateRide) {
+              state.updateRide(currentRide.id, {
+                duration: data.ride.duration,
+                distance: data.ride.distance || currentRide.distance,
+                finalPrice: data.ride.finalPrice || currentRide.estimatedPrice
+              });
+            }
+            
+            setIsLoadingDuration(false);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur récupération durée:', error);
+      }
+    };
+    
+    // Vérifier immédiatement
+    fetchDuration();
+    
+    // Puis toutes les 2 secondes pendant 30 secondes max
+    const interval = setInterval(fetchDuration, 2000);
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      setIsLoadingDuration(false);
+      console.warn('⚠️ Timeout polling durée - durée reste à 0');
+    }, 30000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [currentRide?.id, durationInSeconds, state.updateRide]);
+  
   console.log('⏱️ PaymentScreen - Durée:', {
     durationInSeconds,
     durationInMinutes,
     formatted: formatDuration(durationInSeconds),
-    distance
+    distance,
+    isLoadingDuration
   });
     
   const ridePrice = currentRide?.estimatedPrice || 0;
