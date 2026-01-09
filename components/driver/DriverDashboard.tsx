@@ -1265,9 +1265,17 @@ export function DriverDashboard() {
       // 🔥 v517.85: SAUVEGARDER LA COURSE DANS LE BACKEND (CRITIQUE!)
       // SANS CETTE ÉTAPE, LES STATS NE PEUVENT PAS SE METTRE À JOUR !
       try {
-        // ✅ v517.85: GÉNÉRER UN rideId UNIQUE pour éviter d'écraser les courses précédentes
-        const uniqueRideId = `ride_${driver.id}_${Date.now()}`;
-        console.log('💾 v517.85 - Sauvegarde course dans le backend avec ID unique:', uniqueRideId);
+        // 🔥 CORRECTION CRITIQUE: Utiliser state.currentRide.id au lieu de générer un nouveau
+        const rideId = state.currentRide.id;
+        console.log('💾 v517.92 - Sauvegarde course dans le backend avec rideId:', rideId);
+        console.log('📊 Durée calculée:', durationInSeconds, 'secondes');
+        console.log('📊 Données complètes:', {
+          rideId,
+          driverId: driver.id,
+          finalPrice: totalRideCost,
+          duration: durationInSeconds,
+          distance: rideRequest?.distance || state.currentRide.distance || 0
+        });
         
         const completeResponse = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
@@ -1278,11 +1286,11 @@ export function DriverDashboard() {
               'Authorization': `Bearer ${publicAnonKey}`
             },
             body: JSON.stringify({
-              rideId: uniqueRideId, // ✅ v517.85: ID unique pour chaque course
+              rideId: rideId, // 🔥 UTILISER L'ID EXISTANT POUR QUE LE PASSAGER PUISSE LE RETROUVER
               driverId: driver.id,
               passengerId: rideRequest?.passengerId || state.currentRide.passengerId || 'unknown',
               finalPrice: totalRideCost,
-              duration: durationInSeconds,
+              duration: durationInSeconds, // 🔥 CETTE VALEUR DOIT ÊTRE > 0
               rating: 0, // Sera mis à jour par le passager plus tard
               feedback: '',
               paymentMethod: 'cash', // Mode post-payé = cash à la fin
