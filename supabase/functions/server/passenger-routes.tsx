@@ -8,11 +8,6 @@ const app = new Hono();
 // ============================================
 // ⚠️ IMPORTANT: Ces routes doivent être AVANT /:id pour éviter les conflits
 
-// ============================================
-// 🌟 GESTION DES LIEUX FAVORIS
-// ============================================
-// ⚠️ IMPORTANT: Ces routes doivent être AVANT /:id pour éviter les conflits
-
 /**
  * ✅ GET /passengers/:userId/favorites - Récupérer les lieux favoris d'un passager
  */
@@ -342,6 +337,64 @@ app.get("/:id", async (c) => {
     return c.json({ 
       success: false, 
       error: "Erreur serveur lors de la récupération des données" 
+    }, 500);
+  }
+});
+
+/**
+ * 🔥 PUT /passengers/update/:id - Mettre à jour les informations d'un passager
+ */
+app.put("/update/:id", async (c) => {
+  try {
+    const passengerId = c.req.param("id");
+    const body = await c.req.json();
+    
+    console.log("💾 Mise à jour passager:", passengerId, body);
+
+    if (!passengerId) {
+      return c.json({ 
+        success: false, 
+        error: "ID passager requis" 
+      }, 400);
+    }
+
+    // Récupérer les données existantes
+    const existingPassenger = await kv.get(`user:${passengerId}`);
+    
+    if (!existingPassenger) {
+      console.warn("⚠️ Passager non trouvé:", passengerId);
+      return c.json({ 
+        success: false, 
+        error: "Passager non trouvé" 
+      }, 404);
+    }
+
+    // Mettre à jour les champs
+    const updatedPassenger = {
+      ...existingPassenger,
+      name: body.name || existingPassenger.name,
+      full_name: body.name || existingPassenger.full_name,
+      email: body.email || existingPassenger.email,
+      phone: body.phone || existingPassenger.phone,
+      address: body.address !== undefined ? body.address : existingPassenger.address,
+      updated_at: new Date().toISOString()
+    };
+
+    // Sauvegarder dans le KV store
+    await kv.set(`user:${passengerId}`, updatedPassenger);
+
+    console.log("✅ Passager mis à jour avec succès:", updatedPassenger);
+
+    return c.json({
+      success: true,
+      passenger: updatedPassenger
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur mise à jour passager:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la mise à jour: " + String(error)
     }, 500);
   }
 });
