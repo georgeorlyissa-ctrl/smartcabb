@@ -177,14 +177,17 @@ export function PaymentScreen() {
     };
   }, [currentRide?.id, durationInSeconds, state.updateRide]);
   
-  console.log('⏱️ PaymentScreen - Durée:', {
-    duration: currentRide?.duration,
-    billingElapsedTime: currentRide?.billingElapsedTime,
-    durationInSeconds,
-    durationInMinutes,
-    formatted: formatDuration(durationInSeconds),
-    distance,
-    isLoadingDuration
+  console.log('🔥🔥🔥 PaymentScreen - ÉTAT ACTUEL:', {
+    'currentRide.id': currentRide?.id,
+    'currentRide.duration': currentRide?.duration,
+    'currentRide.billingElapsedTime': currentRide?.billingElapsedTime,
+    'durationInSeconds (calculé)': durationInSeconds,
+    'durationInMinutes': durationInMinutes,
+    'formatted': formatDuration(durationInSeconds),
+    'distance': distance,
+    'isLoadingDuration': isLoadingDuration,
+    'currentRide.status': currentRide?.status,
+    'OBJET COMPLET currentRide': currentRide
   });
     
   const ridePrice = currentRide?.estimatedPrice || 0;
