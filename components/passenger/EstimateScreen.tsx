@@ -59,17 +59,58 @@ export function EstimateScreen() {
   const [showBeneficiaryForm, setShowBeneficiaryForm] = useState(false);
   const [beneficiary, setBeneficiary] = useState<{ name: string; phone: string } | null>(null);
   
+  // 🆕 État pour le calcul OSRM (async)
+  const [routeInfo, setRouteInfo] = useState<{
+    distance: number;
+    duration: number;
+    distanceText: string;
+    durationText: string;
+  } | null>(null);
+  const [isCalculatingRoute, setIsCalculatingRoute] = useState(true);
+  
   // Utiliser les vraies données de l'état global (pickup et destination saisies par l'utilisateur)
   const pickup = state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Boulevard du 30 Juin, Gombe, Kinshasa' };
   const destination = state.destination || { lat: -4.4050, lng: 15.2980, address: 'Université de Kinshasa (UNIKIN)' }; // ✅ CORRIGÉ: Coordonnées exactes de UNIKIN
-  const distanceKm = calculateDistance ? calculateDistance(pickup, destination) : 10.0; // Distance réaliste Kinshasa
+  const distanceKm = routeInfo?.distance || (calculateDistance ? calculateDistance(pickup, destination) : 10.0);
   
-  // 🆕 CALCUL PRÉCIS DE DISTANCE ET DURÉE
-  const routeCalculation = calculateRoute(pickup.lat, pickup.lng, destination.lat, destination.lng);
   const trafficCondition = getCurrentTrafficCondition();
   
   // Récupérer les instructions de prise en charge (point de repère)
   const pickupInstructions = state.pickupInstructions || '';
+  
+  // 🛣️ CALCUL OSRM ASYNC AU CHARGEMENT
+  useEffect(() => {
+    const fetchRoute = async () => {
+      try {
+        setIsCalculatingRoute(true);
+        console.log('🛣️ Calcul itinéraire OSRM...');
+        
+        const result = await calculateRoute(
+          pickup.lat,
+          pickup.lng,
+          destination.lat,
+          destination.lng
+        );
+        
+        setRouteInfo(result);
+        console.log(`✅ Itinéraire calculé: ${result.distanceText} en ${result.durationText}`);
+      } catch (error) {
+        console.error('❌ Erreur calcul itinéraire:', error);
+        // Fallback: utiliser distance Haversine
+        const fallbackDist = calculateDistance ? calculateDistance(pickup, destination) : 10.0;
+        setRouteInfo({
+          distance: fallbackDist,
+          duration: Math.round(fallbackDist * 3), // ~20 km/h moyen
+          distanceText: `${fallbackDist.toFixed(1)} km`,
+          durationText: `${Math.round(fallbackDist * 3)} min`
+        });
+      } finally {
+        setIsCalculatingRoute(false);
+      }
+    };
+    
+    fetchRoute();
+  }, [pickup.lat, pickup.lng, destination.lat, destination.lng]);
   
   console.log('📍 EstimateScreen - Pickup:', pickup.address, `(${pickup.lat}, ${pickup.lng})`);
   console.log('📍 EstimateScreen - Point de repère:', pickupInstructions || 'Aucun');
@@ -419,7 +460,7 @@ export function EstimateScreen() {
                   </div>
                   <span className="text-[10px] font-medium text-blue-700">Distance</span>
                 </div>
-                <p className="text-lg font-bold text-blue-900">{routeCalculation.distanceText}</p>
+                <p className="text-lg font-bold text-blue-900">{routeInfo?.distanceText || 'Calcul...'}</p>
                 <p className="text-[10px] text-blue-600 mt-0.5">Distance précise</p>
               </div>
               
@@ -431,7 +472,7 @@ export function EstimateScreen() {
                   </div>
                   <span className="text-[10px] font-medium text-green-700">Durée</span>
                 </div>
-                <p className="text-lg font-bold text-green-900">{routeCalculation.durationText}</p>
+                <p className="text-lg font-bold text-green-900">{routeInfo?.durationText || 'Calcul...'}</p>
                 <p className="text-[10px] text-green-600 mt-0.5">Actuelles</p>
               </div>
             </div>
@@ -447,7 +488,7 @@ export function EstimateScreen() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Arrivée estimée</span>
                 <span className="font-medium text-green-600">
-                  {new Date(Date.now() + routeCalculation.duration * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(Date.now() + (routeInfo?.duration || 0) * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             </div>
