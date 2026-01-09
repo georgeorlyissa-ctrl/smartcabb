@@ -358,8 +358,10 @@ app.put("/update/:id", async (c) => {
       }, 400);
     }
 
-    // Récupérer les données existantes
+    // Récupérer les données existantes depuis TOUTES les clés possibles
     let existingPassenger = await kv.get(`user:${passengerId}`);
+    const existingProfile = await kv.get(`profile:${passengerId}`);
+    const existingPassengerKey = await kv.get(`passenger:${passengerId}`);
     
     // 🔥 Si l'utilisateur n'existe pas, le créer
     if (!existingPassenger) {
@@ -391,10 +393,66 @@ app.put("/update/:id", async (c) => {
       updated_at: new Date().toISOString()
     };
 
-    // Sauvegarder dans le KV store
+    // 🔥 MISE À JOUR DANS TOUTES LES CLÉS DU KV STORE
+    // 1. Sauvegarder dans user:
     await kv.set(`user:${passengerId}`, updatedPassenger);
+    
+    // 2. Sauvegarder dans profile: (si existe)
+    if (existingProfile) {
+      const updatedProfile = {
+        ...existingProfile,
+        full_name: body.name || existingProfile.full_name,
+        email: body.email || existingProfile.email,
+        phone: body.phone || existingProfile.phone,
+        address: body.address !== undefined ? body.address : existingProfile.address,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`profile:${passengerId}`, updatedProfile);
+      console.log("✅ profile: mis à jour");
+    }
+    
+    // 3. Sauvegarder dans passenger: (si existe)
+    if (existingPassengerKey) {
+      const updatedPassengerKey = {
+        ...existingPassengerKey,
+        name: body.name || existingPassengerKey.name,
+        full_name: body.name || existingPassengerKey.full_name,
+        email: body.email || existingPassengerKey.email,
+        phone: body.phone || existingPassengerKey.phone,
+        address: body.address !== undefined ? body.address : existingPassengerKey.address,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`passenger:${passengerId}`, updatedPassengerKey);
+      console.log("✅ passenger: mis à jour");
+    }
 
-    console.log("✅ Passager mis à jour avec succès:", updatedPassenger);
+    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé
+    if (body.email && existingPassenger.email !== body.email) {
+      try {
+        const { createClient } = await import('npm:@supabase/supabase-js@2');
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          passengerId,
+          { email: body.email }
+        );
+        
+        if (updateError) {
+          console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
+          // Ne pas bloquer la mise à jour si Supabase Auth échoue
+        } else {
+          console.log("✅ Email mis à jour dans Supabase Auth");
+        }
+      } catch (error) {
+        console.error("⚠️ Erreur Supabase Auth:", error);
+        // Ne pas bloquer
+      }
+    }
+
+    console.log("✅ Passager mis à jour avec succès dans toutes les clés");
 
     return c.json({
       success: true,
