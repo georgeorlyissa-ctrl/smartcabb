@@ -349,7 +349,9 @@ app.put("/update/:id", async (c) => {
     const passengerId = c.req.param("id");
     const body = await c.req.json();
     
-    console.log("💾 Mise à jour passager:", passengerId, body);
+    console.log("🔥🔥🔥 ========== DÉBUT UPDATE PASSAGER ==========");
+    console.log("💾 ID:", passengerId);
+    console.log("💾 Nouvelles données:", JSON.stringify(body, null, 2));
 
     if (!passengerId) {
       return c.json({ 
@@ -362,6 +364,11 @@ app.put("/update/:id", async (c) => {
     let existingPassenger = await kv.get(`user:${passengerId}`);
     const existingProfile = await kv.get(`profile:${passengerId}`);
     const existingPassengerKey = await kv.get(`passenger:${passengerId}`);
+    
+    console.log("📖 Données existantes:");
+    console.log("  - user:", existingPassenger ? "✅" : "❌");
+    console.log("  - profile:", existingProfile ? "✅" : "❌");
+    console.log("  - passenger:", existingPassengerKey ? "✅" : "❌");
     
     // 🔥 Si l'utilisateur n'existe pas, le créer
     if (!existingPassenger) {
@@ -393,9 +400,12 @@ app.put("/update/:id", async (c) => {
       updated_at: new Date().toISOString()
     };
 
+    console.log("🔄 Passager mis à jour:", JSON.stringify(updatedPassenger, null, 2));
+
     // 🔥 MISE À JOUR DANS TOUTES LES CLÉS DU KV STORE
     // 1. Sauvegarder dans user:
     await kv.set(`user:${passengerId}`, updatedPassenger);
+    console.log("✅ 1/5 - user: mis à jour");
     
     // 2. Sauvegarder dans profile: (si existe)
     if (existingProfile) {
@@ -408,7 +418,9 @@ app.put("/update/:id", async (c) => {
         updated_at: new Date().toISOString()
       };
       await kv.set(`profile:${passengerId}`, updatedProfile);
-      console.log("✅ profile: mis à jour");
+      console.log("✅ 2/5 - profile: mis à jour");
+    } else {
+      console.log("⏭️ 2/5 - profile: n'existe pas, ignoré");
     }
     
     // 3. Sauvegarder dans passenger: (si existe)
@@ -423,11 +435,14 @@ app.put("/update/:id", async (c) => {
         updated_at: new Date().toISOString()
       };
       await kv.set(`passenger:${passengerId}`, updatedPassengerKey);
-      console.log("✅ passenger: mis à jour");
+      console.log("✅ 3/5 - passenger: mis à jour");
+    } else {
+      console.log("⏭️ 3/5 - passenger: n'existe pas, ignoré");
     }
 
     // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé
     if (body.email && existingPassenger.email !== body.email) {
+      console.log(`🔄 4/5 - Email changé: ${existingPassenger.email} → ${body.email}`);
       try {
         const { createClient } = await import('npm:@supabase/supabase-js@2');
         const supabase = createClient(
@@ -442,17 +457,18 @@ app.put("/update/:id", async (c) => {
         
         if (updateError) {
           console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
-          // Ne pas bloquer la mise à jour si Supabase Auth échoue
         } else {
-          console.log("✅ Email mis à jour dans Supabase Auth");
+          console.log("✅ 4/5 - Supabase Auth: email mis à jour");
         }
       } catch (error) {
         console.error("⚠️ Erreur Supabase Auth:", error);
-        // Ne pas bloquer
       }
+    } else {
+      console.log("⏭️ 4/5 - Supabase Auth: email inchangé, ignoré");
     }
 
-    // 5. 🔥 METTRE À JOUR LA TABLE PROFILES (critique pour la connexion)
+    // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
+    console.log("🔥 5/5 - Mise à jour table profiles...");
     try {
       const { createClient } = await import('npm:@supabase/supabase-js@2');
       const supabase = createClient(
@@ -460,28 +476,59 @@ app.put("/update/:id", async (c) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
       
-      const updateData: any = {};
-      if (body.name) updateData.full_name = body.name;
-      if (body.email) updateData.email = body.email;
-      if (body.phone) updateData.phone = body.phone;
+      // 📖 D'abord, lire les données actuelles
+      const { data: currentProfileData, error: selectError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', passengerId)
+        .single();
       
-      const { error: profileError } = await supabase
+      if (selectError) {
+        console.error("❌ Erreur lecture table profiles:", selectError);
+        console.error("   Code:", selectError.code);
+        console.error("   Message:", selectError.message);
+        console.error("   Details:", selectError.details);
+      } else {
+        console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
+      }
+      
+      const updateData: any = {};
+      if (body.name) {
+        updateData.full_name = body.name;
+        console.log(`   → full_name: "${body.name}"`);
+      }
+      if (body.email) {
+        updateData.email = body.email;
+        console.log(`   → email: "${body.email}"`);
+      }
+      if (body.phone) {
+        updateData.phone = body.phone;
+        console.log(`   → phone: "${body.phone}"`);
+      }
+      
+      console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+      
+      const { data: updatedData, error: profileError } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', passengerId);
+        .eq('id', passengerId)
+        .select();
       
       if (profileError) {
-        console.error("⚠️ Erreur mise à jour table profiles:", profileError);
-        // Ne pas bloquer si la table n'existe pas
+        console.error("❌ Erreur mise à jour table profiles:", profileError);
+        console.error("   Code:", profileError.code);
+        console.error("   Message:", profileError.message);
+        console.error("   Details:", profileError.details);
       } else {
-        console.log("✅ Table profiles mise à jour");
+        console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+        console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
       }
     } catch (error) {
-      console.error("⚠️ Erreur table profiles:", error);
-      // Ne pas bloquer
+      console.error("❌ Exception table profiles:", error);
+      console.error("   Stack:", error instanceof Error ? error.stack : 'N/A');
     }
 
-    console.log("✅ Passager mis à jour avec succès dans toutes les clés");
+    console.log("🔥🔥🔥 ========== FIN UPDATE PASSAGER (SUCCÈS) ==========");
 
     return c.json({
       success: true,
@@ -489,7 +536,9 @@ app.put("/update/:id", async (c) => {
     });
 
   } catch (error) {
+    console.error("🔥🔥🔥 ========== FIN UPDATE PASSAGER (ERREUR) ==========");
     console.error("❌ Erreur mise à jour passager:", error);
+    console.error("❌ Stack:", error instanceof Error ? error.stack : 'N/A');
     return c.json({ 
       success: false, 
       error: "Erreur serveur lors de la mise à jour: " + String(error)
