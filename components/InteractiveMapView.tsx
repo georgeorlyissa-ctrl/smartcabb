@@ -449,121 +449,274 @@ export function InteractiveMapView({
         // Créer la polyligne avec TOUTES les coordonnées de l'itinéraire réel
         const routeCoordinates = routeResult.coordinates.map(coord => [coord.lat, coord.lng] as [number, number]);
         
-        // ✅ LIGNE VERTE ÉPAISSE ET VISIBLE
-        const routeLine = (L as any).polyline(
+        // 🌈 EFFET MULTI-COUCHES POUR UN TRACÉ ULTRA-MODERNE
+        
+        // Couche 1: Halo extérieur (glow effect)
+        const haloLine = (L as any).polyline(
           routeCoordinates,
           {
-            color: '#10B981',      // ✅ Vert vif au lieu de bleu
-            weight: 8,              // ✅ Plus épais (8 au lieu de 5)
-            opacity: 1,             // ✅ Opacité complète (1 au lieu de 0.8)
+            color: '#10B981',
+            weight: 14,
+            opacity: 0.15,
             lineJoin: 'round',
             lineCap: 'round',
-            className: 'route-line-pulse' // ✅ Pour animation CSS
+            className: 'route-line-halo'
           }
         ).addTo(map);
+        
+        // Couche 2: Bordure blanche pour contraste
+        const borderLine = (L as any).polyline(
+          routeCoordinates,
+          {
+            color: '#ffffff',
+            weight: 10,
+            opacity: 0.9,
+            lineJoin: 'round',
+            lineCap: 'round',
+            className: 'route-line-border'
+          }
+        ).addTo(map);
+        
+        // Couche 3: Gradient principal (vert → jaune pour simuler trafic)
+        // On divise la route en segments pour créer un gradient
+        const totalSegments = routeCoordinates.length;
+        const midPoint = Math.floor(totalSegments / 2);
+        
+        // Première moitié (vert vif)
+        const firstHalf = routeCoordinates.slice(0, midPoint + 1);
+        const greenLine = (L as any).polyline(
+          firstHalf,
+          {
+            color: '#10B981',      // Vert émeraude
+            weight: 7,
+            opacity: 1,
+            lineJoin: 'round',
+            lineCap: 'round',
+            className: 'route-line-green'
+          }
+        ).addTo(map);
+        
+        // Deuxième moitié (gradient vert → jaune)
+        const secondHalf = routeCoordinates.slice(midPoint);
+        const yellowLine = (L as any).polyline(
+          secondHalf,
+          {
+            color: '#22C55E',      // Vert légèrement plus clair
+            weight: 7,
+            opacity: 1,
+            lineJoin: 'round',
+            lineCap: 'round',
+            className: 'route-line-yellow'
+          }
+        ).addTo(map);
+        
+        // Couche 4: Points animés sur le tracé (effet de mouvement)
+        const createAnimatedDots = () => {
+          const dotCount = 6;
+          const dots = [];
+          
+          for (let i = 0; i < dotCount; i++) {
+            const index = Math.floor((totalSegments / dotCount) * i);
+            if (index < routeCoordinates.length) {
+              const dotIcon = (L as any).divIcon({
+                html: `
+                  <div style="
+                    width: 8px;
+                    height: 8px;
+                    background: white;
+                    border: 2px solid #10B981;
+                    border-radius: 50%;
+                    box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+                    animation: pulse-dot 2s ease-in-out infinite;
+                    animation-delay: ${i * 0.3}s;
+                  "></div>
+                  <style>
+                    @keyframes pulse-dot {
+                      0%, 100% { transform: scale(1); opacity: 1; }
+                      50% { transform: scale(1.5); opacity: 0.7; }
+                    }
+                  </style>
+                `,
+                iconSize: [8, 8],
+                className: 'route-dot-marker'
+              });
+              
+              const dot = (L as any).marker(routeCoordinates[index], { icon: dotIcon }).addTo(map);
+              dots.push(dot);
+            }
+          }
+          return dots;
+        };
+        
+        const animatedDots = createAnimatedDots();
 
-        routeLayerRef.current = routeLine;
+        // Grouper toutes les couches
+        const routeGroup = (L as any).layerGroup([haloLine, borderLine, greenLine, yellowLine, ...animatedDots]);
+        routeLayerRef.current = routeGroup;
 
-        console.log(`✅ Itinéraire affiché: ${routeResult.distance.toFixed(1)}km, ${Math.round(routeResult.duration)}min, ${routeCoordinates.length} points`);
+        console.log(`✅ Itinéraire ultra-moderne affiché: ${routeResult.distance.toFixed(1)}km, ${Math.round(routeResult.duration)}min, ${routeCoordinates.length} points`);
 
-        // ✅ ICÔNE DÉPART : Point A avec marqueur bleu
+        // ✅ MARQUEUR DÉPART : Design moderne avec pulse animation
         const startIcon = (L as any).divIcon({
-          html: `<div style="
-            position: relative;
-            width: 40px;
-            height: 50px;
-          ">
-            <div style="
-              position: absolute;
-              bottom: 0;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 36px;
-              height: 45px;
-              background: #3B82F6;
-              border: 3px solid white;
-              border-radius: 50% 50% 50% 0;
-              transform: rotate(-45deg) translateX(-50%);
-              box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
-            "></div>
-            <div style="
-              position: absolute;
-              bottom: 8px;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 26px;
-              height: 26px;
-              background: white;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 10;
-              font-weight: bold;
-              font-size: 16px;
-              color: #3B82F6;
-            ">A</div>
-          </div>`,
-          iconSize: [40, 50],
-          iconAnchor: [20, 50],
-          className: 'start-marker'
+          html: `
+            <div style="position: relative; width: 48px; height: 58px;">
+              <!-- Pulse effect -->
+              <div style="
+                position: absolute;
+                bottom: 4px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 40px;
+                height: 40px;
+                background: rgba(16, 185, 129, 0.3);
+                border-radius: 50%;
+                animation: marker-pulse 2s ease-out infinite;
+              "></div>
+              
+              <!-- Main pin -->
+              <div style="
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 40px;
+                height: 50px;
+                background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+                border: 3px solid white;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg) translateX(-50%);
+                box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+              "></div>
+              
+              <!-- Icon circle -->
+              <div style="
+                position: absolute;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 28px;
+                height: 28px;
+                background: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              ">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="3" fill="#10B981"/>
+                </svg>
+              </div>
+              
+              <style>
+                @keyframes marker-pulse {
+                  0% { transform: translateX(-50%) scale(1); opacity: 0.7; }
+                  50% { transform: translateX(-50%) scale(1.5); opacity: 0; }
+                  100% { transform: translateX(-50%) scale(1); opacity: 0; }
+                }
+              </style>
+            </div>
+          `,
+          iconSize: [48, 58],
+          iconAnchor: [24, 58],
+          className: 'modern-start-marker'
         });
 
-        // ✅ ICÔNE DESTINATION : Point B avec marqueur rouge
+        // ✅ MARQUEUR DESTINATION : Design moderne avec animation
         const endIcon = (L as any).divIcon({
-          html: `<div style="
-            position: relative;
-            width: 40px;
-            height: 50px;
-          ">
-            <div style="
-              position: absolute;
-              bottom: 0;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 36px;
-              height: 45px;
-              background: #EF4444;
-              border: 3px solid white;
-              border-radius: 50% 50% 50% 0;
-              transform: rotate(-45deg) translateX(-50%);
-              box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
-            "></div>
-            <div style="
-              position: absolute;
-              bottom: 8px;
-              left: 50%;
-              transform: translateX(-50%);
-              width: 26px;
-              height: 26px;
-              background: white;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              z-index: 10;
-              font-weight: bold;
-              font-size: 16px;
-              color: #EF4444;
-            ">B</div>
-          </div>`,
-          iconSize: [40, 50],
-          iconAnchor: [20, 50],
-          className: 'end-marker'
+          html: `
+            <div style="position: relative; width: 48px; height: 58px;">
+              <!-- Pulse effect -->
+              <div style="
+                position: absolute;
+                bottom: 4px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 40px;
+                height: 40px;
+                background: rgba(239, 68, 68, 0.3);
+                border-radius: 50%;
+                animation: marker-pulse 2s ease-out infinite;
+                animation-delay: 0.5s;
+              "></div>
+              
+              <!-- Main pin -->
+              <div style="
+                position: absolute;
+                bottom: 0;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 40px;
+                height: 50px;
+                background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+                border: 3px solid white;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg) translateX(-50%);
+                box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+              "></div>
+              
+              <!-- Icon circle -->
+              <div style="
+                position: absolute;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 28px;
+                height: 28px;
+                background: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+              ">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                  <circle cx="12" cy="10" r="3" fill="#EF4444"/>
+                </svg>
+              </div>
+              
+              <style>
+                @keyframes marker-pulse {
+                  0% { transform: translateX(-50%) scale(1); opacity: 0.7; }
+                  50% { transform: translateX(-50%) scale(1.5); opacity: 0; }
+                  100% { transform: translateX(-50%) scale(1); opacity: 0; }
+                }
+              </style>
+            </div>
+          `,
+          iconSize: [48, 58],
+          iconAnchor: [24, 58],
+          className: 'modern-end-marker'
         });
 
         (L as any).marker([routeStart.lat, routeStart.lng], { icon: startIcon })
           .addTo(map)
-          .bindPopup(`📍 Départ: ${routeStart.address || ''}`);
+          .bindPopup(`
+            <div style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; margin-bottom: 4px;">🚀</div>
+              <strong style="color: #10B981; font-size: 14px;">Point de départ</strong><br/>
+              <span style="color: #6B7280; font-size: 12px;">${routeStart.address || ''}</span>
+            </div>
+          `);
 
         (L as any).marker([routeEnd.lat, routeEnd.lng], { icon: endIcon })
           .addTo(map)
-          .bindPopup(`🎯 Arrivée: ${routeEnd.address || ''}`);
+          .bindPopup(`
+            <div style="text-align: center; padding: 8px;">
+              <div style="font-size: 24px; margin-bottom: 4px;">🎯</div>
+              <strong style="color: #EF4444; font-size: 14px;">Destination</strong><br/>
+              <span style="color: #6B7280; font-size: 12px;">${routeEnd.address || ''}</span>
+            </div>
+          `);
 
         // ✅ ZOOM UNIQUE : Ajuster la vue seulement au premier chargement
         // Ne pas réajuster si l'utilisateur zoome manuellement
         if (!map._routeInitialized) {
-          map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+          map.fitBounds(greenLine.getBounds(), { padding: [60, 60] });
           map._routeInitialized = true; // Marquer comme initialisé
         }
 
