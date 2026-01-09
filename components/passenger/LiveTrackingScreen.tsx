@@ -13,6 +13,7 @@ export function LiveTrackingScreen() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [showSOSDialog, setShowSOSDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [waitingForFinalData, setWaitingForFinalData] = useState(false); // 🆕 Indicateur d'attente
 
   // ⏱️ Chronomètre - CORRECTION : Utiliser billingStartTime au lieu de startedAt
   // Le chronomètre démarre UNIQUEMENT quand le driver désactive le temps d'attente
@@ -152,30 +153,41 @@ export function LiveTrackingScreen() {
           }
           
           if (data.ride?.status === 'completed') {
-            console.log('✅ Course terminée par le conducteur ! Passage au paiement');
+            console.log('✅ Course terminée par le conducteur ! Vérification des données...');
             
-            // ✅ CORRECTION : Récupérer AUSSI duration depuis le backend
+            // ✅ CORRECTION CRITIQUE : Attendre que duration soit disponible
+            const backendDuration = data.ride.duration || data.ride.billingElapsedTime || 0;
+            
             console.log('📊 Données finales de la course:', {
               duration: data.ride.duration,
               billingElapsedTime: data.ride.billingElapsedTime,
               finalPrice: data.ride.finalPrice,
-              distance: data.ride.distance
+              distance: data.ride.distance,
+              status: data.ride.status
             });
             
+            // 🔥 NE PAS PASSER À PAYMENTSCREEN SI DURATION EST À 0
+            // Le backend n'a probablement pas encore fini de sauvegarder
+            if (backendDuration === 0) {
+              console.warn('⚠️ Duration à 0, on attend le prochain polling...');
+              setWaitingForFinalData(true); // 🆕 Indiquer qu'on attend les données finales
+              return; // ❌ Ne pas passer au paiement, attendre le prochain cycle
+            }
+            
+            // ✅ Duration disponible, on peut passer au paiement
             if (updateRide) {
               updateRide(currentRide.id, {
                 status: 'completed',
                 completedAt: data.ride.completedAt || new Date().toISOString(),
                 finalPrice: data.ride.finalPrice || currentRide.estimatedPrice,
-                // ✅ AJOUT : Récupérer la durée totale de la course
-                duration: data.ride.duration || data.ride.billingElapsedTime || 0,
+                duration: backendDuration,
                 distance: data.ride.distance || currentRide.distance
               });
             }
             
             toast.success('Course terminée !', {
-              description: 'Votre chauffeur a terminé la course. Procédez au paiement.',
-              duration: 5000
+              description: `Durée : ${Math.floor(backendDuration / 60)}min ${backendDuration % 60}s`,
+              duration: 3000
             });
             
             setCurrentScreen('payment');
@@ -229,6 +241,20 @@ export function LiveTrackingScreen() {
           destination={state.destination || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
           driverName={currentRide.driverName || 'Conducteur'}
         />
+        
+        {/* 🆕 Overlay d'attente des données finales */}
+        {waitingForFinalData && (
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm mx-4 text-center">
+              <div className="w-16 h-16 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Course terminée !</h3>
+              <p className="text-sm text-gray-600">
+                Finalisation du calcul en cours...<br/>
+                <span className="text-xs text-gray-500">Veuillez patienter quelques secondes</span>
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-white border-t border-gray-200 p-4 space-y-4">
