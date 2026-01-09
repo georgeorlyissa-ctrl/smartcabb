@@ -4,6 +4,12 @@ import * as kv from './kv_store.tsx';
 
 const driverRoutes = new Hono();
 
+// Initialiser le client Supabase
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 // ============================================
 // RÉCUPÉRER LES CONDUCTEURS EN LIGNE
 // ⚠️ AUCUNE SIMULATION - Données réelles uniquement
@@ -11,11 +17,6 @@ const driverRoutes = new Hono();
 driverRoutes.get('/online-drivers', async (c) => {
   try {
     console.log('🚗 Récupération des conducteurs en ligne...');
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
     const { data: drivers, error } = await supabase
@@ -209,11 +210,6 @@ driverRoutes.post('/toggle-online-status', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
     
     if (authError || !user?.id) {
@@ -648,12 +644,6 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé OU si le téléphone a changé
     console.log("🔥 4/5 - Mise à jour Supabase Auth...");
     try {
-      const { createClient } = await import('npm:@supabase/supabase-js@2');
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
       let authUpdated = false;
       
       // 🔥 CAS 1: L'email a changé (email réel, pas généré)
@@ -709,12 +699,6 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
     console.log("🔥 5/5 - Mise à jour table profiles...");
     try {
-      const { createClient } = await import('npm:@supabase/supabase-js@2');
-      const supabase = createClient(
-        Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-      );
-      
       // 📖 D'abord, lire les données actuelles
       const { data: currentProfileData, error: selectError } = await supabase
         .from('profiles')
@@ -850,18 +834,69 @@ driverRoutes.get('/:driverId', async (c) => {
 
     // Récupérer les données du conducteur depuis le KV store
     const driverKey = `driver:${driverId}`;
-    const driverData = await kv.get(driverKey);
+    let driverData = await kv.get(driverKey);
 
     if (!driverData) {
-      console.error('❌ Conducteur introuvable:', driverId);
-      return c.json({ 
-        success: false, 
-        error: 'Conducteur introuvable',
-        driver: null
-      }, 404);
+      console.warn('⚠️ Conducteur introuvable dans le KV store:', driverId);
+      console.log('🔄 Tentative de récupération depuis auth.users via Supabase...');
+      
+      // 🆕 NOUVEAU : Essayer de récupérer l'utilisateur depuis Supabase Auth
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(driverId);
+        
+        if (userError || !user) {
+          console.error('❌ Utilisateur introuvable dans Supabase Auth:', driverId);
+          return c.json({ 
+            success: false, 
+            error: 'Conducteur introuvable. Veuillez vous inscrire en tant que conducteur.',
+            driver: null
+          }, 404);
+        }
+        
+        console.log('✅ Utilisateur trouvé dans Auth:', user.email);
+        
+        // Créer un profil conducteur "pending" par défaut
+        console.log('🆕 Création d\'un profil conducteur par défaut (status: pending)...');
+        
+        const newDriverProfile = {
+          id: user.id,
+          user_id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
+          phone: user.user_metadata?.phone || user.phone || '',
+          status: 'pending', // ⚠️ Statut "pending" par défaut
+          is_available: false,
+          photo: null,
+          vehicle: null,
+          vehicle_make: '',
+          vehicle_model: '',
+          vehicle_plate: '',
+          vehicle_category: '',
+          rating: 0,
+          total_rides: 0,
+          wallet_balance: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Sauvegarder le profil dans le KV store
+        await kv.set(driverKey, newDriverProfile);
+        console.log('✅ Profil conducteur "pending" créé:', newDriverProfile.email);
+        
+        // Utiliser ce nouveau profil
+        driverData = newDriverProfile;
+        
+      } catch (authError) {
+        console.error('❌ Erreur lors de la récupération depuis Supabase Auth:', authError);
+        return c.json({ 
+          success: false, 
+          error: 'Conducteur introuvable',
+          driver: null
+        }, 404);
+      }
     }
 
-    console.log('✅ Conducteur trouvé:', driverData.name);
+    console.log('✅ Conducteur trouvé:', driverData.full_name || driverData.name);
 
     return c.json({
       success: true,
