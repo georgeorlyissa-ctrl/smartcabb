@@ -554,6 +554,41 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     console.log(`💾 ID:`, driverId);
     console.log('📝 Nouvelles données:', JSON.stringify(updates, null, 2));
     
+    // 🔥 NORMALISER LE TÉLÉPHONE avant de sauvegarder
+    let normalizedPhone = updates.phone;
+    if (updates.phone) {
+      // Fonction de normalisation (même logique que le frontend)
+      const normalizePhone = (phone: string): string => {
+        const cleaned = phone.replace(/[\s\-+]/g, '');
+        
+        // Cas 1: 9 chiffres → 243XXXXXXXXX
+        if (cleaned.length === 9) {
+          return `243${cleaned}`;
+        }
+        
+        // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+          return `243${cleaned.substring(1)}`;
+        }
+        
+        // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
+        if (cleaned.length === 12 && cleaned.startsWith('243')) {
+          return cleaned;
+        }
+        
+        // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
+        if (cleaned.length === 13 && cleaned.startsWith('2430')) {
+          return `243${cleaned.substring(4)}`;
+        }
+        
+        // Si aucun cas ne correspond, retourner tel quel
+        return phone;
+      };
+      
+      normalizedPhone = normalizePhone(updates.phone);
+      console.log(`📱 Téléphone normalisé: ${updates.phone} → ${normalizedPhone}`);
+    }
+    
     // 🔥 Récupérer le profil depuis TOUTES les clés possibles
     let currentDriver = await kv.get(`driver:${driverId}`) || {};
     const currentProfile = await kv.get(`profile:${driverId}`);
@@ -564,10 +599,11 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     console.log("  - profile:", currentProfile ? "✅" : "❌");
     console.log("  - user:", currentUser ? "✅" : "❌");
     
-    // Fusionner les mises à jour
+    // Fusionner les mises à jour avec le téléphone normalisé
     const updatedDriver = {
       ...currentDriver,
       ...updates,
+      phone: normalizedPhone || currentDriver.phone,
       updatedAt: new Date().toISOString()
     };
     
@@ -584,7 +620,7 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         ...currentProfile,
         full_name: updates.name || currentProfile.full_name,
         email: updates.email || currentProfile.email,
-        phone: updates.phone || currentProfile.phone,
+        phone: normalizedPhone || currentProfile.phone,
         updated_at: new Date().toISOString()
       };
       await kv.set(`profile:${driverId}`, updatedProfile);
@@ -600,7 +636,7 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         name: updates.name || currentUser.name,
         full_name: updates.name || currentUser.full_name,
         email: updates.email || currentUser.email,
-        phone: updates.phone || currentUser.phone,
+        phone: normalizedPhone || currentUser.phone,
         updated_at: new Date().toISOString()
       };
       await kv.set(`user:${driverId}`, updatedUser);
