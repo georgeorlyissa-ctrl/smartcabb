@@ -1,763 +1,634 @@
-import { supabase } from './supabase';
-import { profileService } from './supabase-services';
-import { normalizePhoneNumber, detectInputType, isValidEmail, generateEmailFromPhone } from './phone-utils';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { Hono } from "npm:hono";
+import * as kv from "./kv_store.tsx";
+
+const app = new Hono();
+
+// ============================================
+// 🌟 GESTION DES LIEUX FAVORIS
+// ============================================
+// ⚠️ IMPORTANT: Ces routes doivent être AVANT /:id pour éviter les conflits
 
 /**
- * Service d'authentification pour SmartCabb (Version optimisée)
- * Messages d'erreur courts - L'UI gère les actions via toasts
+ * ✅ GET /passengers/:userId/favorites - Récupérer les lieux favoris d'un passager
  */
-
-export interface LoginCredentials {
-  identifier: string; // Email ou numéro de téléphone
-  password: string;
-}
-
-export interface SignUpData {
-  email?: string;
-  phone?: string;
-  password: string;
-  fullName: string;
-  role: 'passenger' | 'driver';
-}
-
-export interface AuthResult {
-  success: boolean;
-  user?: any;
-  profile?: any;
-  error?: string;
-  accessToken?: string;
-}
-
-export interface CreateAdminData {
-  email: string;
-  password: string;
-  fullName: string;
-}
-
-/**
- * Connexion avec email ou numéro de téléphone
- */
-export async function signIn(credentials: LoginCredentials): Promise<AuthResult> {
+app.get("/:userId/favorites", async (c) => {
   try {
-    const { identifier, password } = credentials;
+    const userId = c.req.param("userId");
     
-    // Nettoyer l'identifiant (enlever les espaces avant/après)
-    const cleanIdentifier = identifier.trim();
+    console.log(`🌟 Récupération des favoris pour le passager ${userId}...`);
+
+    // Récupérer les favoris depuis le KV store
+    const favorites = await kv.get(`favorites:${userId}`);
     
-    console.log('🔐 [signIn] Début de la connexion...');
-    console.log('🔐 [signIn] Identifier:', cleanIdentifier);
+    if (!favorites || !Array.isArray(favorites)) {
+      console.log(`⚠️ Aucun favori trouvé pour ${userId}`);
+      return c.json({
+        success: true,
+        favorites: []
+      });
+    }
+
+    console.log(`✅ ${favorites.length} favoris trouvés pour ${userId}`);
+
+    return c.json({
+      success: true,
+      favorites: favorites
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur récupération favoris:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la récupération des favoris",
+      favorites: []
+    }, 500);
+  }
+});
+
+/**
+ * ✅ POST /passengers/:userId/favorites - Ajouter un lieu favori
+ */
+app.post("/:userId/favorites", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const body = await c.req.json();
     
-    if (!cleanIdentifier) {
-      console.log('❌ [signIn] Identifiant vide');
-      return {
+    console.log(`🌟 Ajout d'un favori pour le passager ${userId}:`, body);
+
+    // Validation
+    if (!body.name || !body.address) {
+      return c.json({
         success: false,
-        error: 'Veuillez entrer un email ou un numéro de téléphone'
+        error: "Nom et adresse requis"
+      }, 400);
+    }
+
+    // Récupérer les favoris existants
+    let favorites = await kv.get(`favorites:${userId}`) || [];
+    if (!Array.isArray(favorites)) {
+      favorites = [];
+    }
+
+    // Créer le nouveau favori
+    const newFavorite = {
+      id: `fav_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      user_id: userId,
+      name: body.name,
+      address: body.address,
+      lat: body.lat || -4.3276,
+      lng: body.lng || 15.3136,
+      icon: body.icon || 'home',
+      created_at: new Date().toISOString()
+    };
+
+    // Ajouter au début de la liste
+    favorites.unshift(newFavorite);
+
+    // Sauvegarder dans le KV store
+    await kv.set(`favorites:${userId}`, favorites);
+
+    console.log(`✅ Favori ajouté avec succès:`, newFavorite.id);
+
+    return c.json({
+      success: true,
+      favorite: newFavorite
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur ajout favori:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de l'ajout du favori" 
+    }, 500);
+  }
+});
+
+/**
+ * ✅ PUT /passengers/:userId/favorites/:favoriteId - Modifier un lieu favori
+ */
+app.put("/:userId/favorites/:favoriteId", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const favoriteId = c.req.param("favoriteId");
+    const body = await c.req.json();
+    
+    console.log(`🌟 Modification du favori ${favoriteId} pour ${userId}:`, body);
+
+    // Récupérer les favoris existants
+    let favorites = await kv.get(`favorites:${userId}`) || [];
+    if (!Array.isArray(favorites)) {
+      return c.json({
+        success: false,
+        error: "Aucun favori trouvé"
+      }, 404);
+    }
+
+    // Trouver et mettre à jour le favori
+    const index = favorites.findIndex(f => f.id === favoriteId);
+    if (index === -1) {
+      return c.json({
+        success: false,
+        error: "Favori introuvable"
+      }, 404);
+    }
+
+    favorites[index] = {
+      ...favorites[index],
+      name: body.name || favorites[index].name,
+      address: body.address || favorites[index].address,
+      lat: body.lat || favorites[index].lat,
+      lng: body.lng || favorites[index].lng,
+      icon: body.icon || favorites[index].icon
+    };
+
+    // Sauvegarder
+    await kv.set(`favorites:${userId}`, favorites);
+
+    console.log(`✅ Favori ${favoriteId} mis à jour avec succès`);
+
+    return c.json({
+      success: true,
+      favorite: favorites[index]
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur modification favori:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la modification du favori" 
+    }, 500);
+  }
+});
+
+/**
+ * ✅ DELETE /passengers/:userId/favorites/:favoriteId - Supprimer un lieu favori
+ */
+app.delete("/:userId/favorites/:favoriteId", async (c) => {
+  try {
+    const userId = c.req.param("userId");
+    const favoriteId = c.req.param("favoriteId");
+    
+    console.log(`🌟 Suppression du favori ${favoriteId} pour ${userId}`);
+
+    // Récupérer les favoris existants
+    let favorites = await kv.get(`favorites:${userId}`) || [];
+    if (!Array.isArray(favorites)) {
+      return c.json({
+        success: false,
+        error: "Aucun favori trouvé"
+      }, 404);
+    }
+
+    // Filtrer pour retirer le favori
+    const newFavorites = favorites.filter(f => f.id !== favoriteId);
+
+    if (newFavorites.length === favorites.length) {
+      return c.json({
+        success: false,
+        error: "Favori introuvable"
+      }, 404);
+    }
+
+    // Sauvegarder
+    await kv.set(`favorites:${userId}`, newFavorites);
+
+    console.log(`✅ Favori ${favoriteId} supprimé avec succès`);
+
+    return c.json({
+      success: true
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur suppression favori:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la suppression du favori" 
+    }, 500);
+  }
+});
+
+// ============================================
+// 📊 RÉCUPÉRER LES STATISTIQUES D'UN PASSAGER
+// ============================================
+app.get('/:id/stats', async (c) => {
+  try {
+    const passengerId = c.req.param('id');
+    console.log(`📊 Récupération des stats du passager ${passengerId}...`);
+
+    // Récupérer toutes les courses depuis le KV store
+    const allRides = await kv.getByPrefix('ride_request_');
+    
+    if (!allRides || allRides.length === 0) {
+      console.log('⚠️ Aucune course trouvée dans le système');
+      return c.json({
+        success: true,
+        stats: {
+          totalRides: 0,
+          completedRides: 0,
+          totalSpent: 0
+        }
+      });
+    }
+
+    // 🔍 v517.91: LOG DÉTAILLÉ pour débogage
+    console.log(`🔍 Recherche courses pour passengerId: \"${passengerId}\"`);
+    console.log(`🔍 Total courses dans le système: ${allRides.length}`);
+    
+    // Examiner les passengerIds uniques
+    const uniquePassengerIds = [...new Set(allRides.map((r: any) => r.passengerId))];
+    console.log(`🔍 PassengerIds uniques trouvés:`, uniquePassengerIds);
+    
+    // Filtrer les courses du passager qui sont complétées
+    const passengerRides = allRides.filter((ride: any) => {
+      const matches = ride.passengerId === passengerId && ride.status === 'completed';
+      if (ride.passengerId === passengerId) {
+        console.log(`🔍 Course ${ride.id}: passengerId match, status=${ride.status}, included=${matches}`);
+      }
+      return matches;
+    });
+
+    // Calculer le total dépensé
+    const totalSpent = passengerRides.reduce((sum: number, ride: any) => 
+      sum + (ride.finalPrice || 0), 0
+    );
+
+    console.log(`✅ Stats calculées:`, {
+      passengerId,
+      totalRides: passengerRides.length,
+      completedRides: passengerRides.length,
+      totalSpent,
+      coursesExaminées: allRides.length
+    });
+
+    return c.json({
+      success: true,
+      stats: {
+        totalRides: passengerRides.length,
+        completedRides: passengerRides.length,
+        totalSpent: totalSpent
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur get-stats passager:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error),
+      stats: {
+        totalRides: 0,
+        completedRides: 0,
+        totalSpent: 0
+      }
+    }, 500);
+  }
+});
+
+/**
+ * ✅ GET /passengers/:id - Récupérer les informations d'un passager
+ */
+app.get("/:id", async (c) => {
+  try {
+    const passengerId = c.req.param("id");
+    
+    if (!passengerId) {
+      return c.json({ 
+        success: false, 
+        error: "ID passager requis" 
+      }, 400);
+    }
+
+    console.log("🔍 Récupération informations passager:", passengerId);
+
+    // Récupérer les informations du passager depuis le KV store
+    const passenger = await kv.get(`user:${passengerId}`);
+    
+    if (!passenger) {
+      console.warn("⚠️ Passager non trouvé:", passengerId);
+      return c.json({ 
+        success: false, 
+        error: "Passager non trouvé" 
+      }, 404);
+    }
+
+    console.log("✅ Passager trouvé:", passenger);
+
+    return c.json({
+      success: true,
+      passenger: {
+        id: passengerId,
+        name: passenger.name || passenger.full_name || "Passager",
+        full_name: passenger.full_name || passenger.name || "Passager",
+        phone: passenger.phone || "",
+        email: passenger.email || "",
+        address: passenger.address || "",
+        total_rides: passenger.total_rides || passenger.totalRides || 0,
+        totalRides: passenger.total_rides || passenger.totalRides || 0,
+        created_at: passenger.created_at || passenger.createdAt || new Date().toISOString(),
+        registeredAt: passenger.created_at || passenger.createdAt || new Date().toISOString(),
+        favorite_payment_method: passenger.favorite_payment_method || passenger.favoritePaymentMethod || "cash",
+        favoritePaymentMethod: passenger.favorite_payment_method || passenger.favoritePaymentMethod || "cash",
+        balance: passenger.balance || 0,
+        rating: passenger.rating || 5.0
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Erreur récupération passager:", error);
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la récupération des données" 
+    }, 500);
+  }
+});
+
+/**
+ * 🔥 PUT /passengers/update/:id - Mettre à jour les informations d'un passager
+ */
+app.put("/update/:id", async (c) => {
+  try {
+    const passengerId = c.req.param("id");
+    const body = await c.req.json();
+    
+    console.log("🔥🔥🔥 ========== DÉBUT UPDATE PASSAGER ==========");
+    console.log("💾 ID:", passengerId);
+    console.log("💾 Nouvelles données:", JSON.stringify(body, null, 2));
+
+    if (!passengerId) {
+      return c.json({ 
+        success: false, 
+        error: "ID passager requis" 
+      }, 400);
+    }
+
+    // 🔥 NORMALISER LE TÉLÉPHONE avant de sauvegarder
+    let normalizedPhone = body.phone;
+    if (body.phone) {
+      // Fonction de normalisation (même logique que le frontend)
+      const normalizePhone = (phone: string): string => {
+        const cleaned = phone.replace(/[\s\-+]/g, '');
+        
+        // Cas 1: 9 chiffres → 243XXXXXXXXX
+        if (cleaned.length === 9) {
+          return `243${cleaned}`;
+        }
+        
+        // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+          return `243${cleaned.substring(1)}`;
+        }
+        
+        // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
+        if (cleaned.length === 12 && cleaned.startsWith('243')) {
+          return cleaned;
+        }
+        
+        // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
+        if (cleaned.length === 13 && cleaned.startsWith('2430')) {
+          return `243${cleaned.substring(4)}`;
+        }
+        
+        // Si aucun cas ne correspond, retourner tel quel
+        return phone;
+      };
+      
+      normalizedPhone = normalizePhone(body.phone);
+      console.log(`📱 Téléphone normalisé: ${body.phone} → ${normalizedPhone}`);
+    }
+
+    // Récupérer les données existantes depuis TOUTES les clés possibles
+    let existingPassenger = await kv.get(`user:${passengerId}`);
+    const existingProfile = await kv.get(`profile:${passengerId}`);
+    const existingPassengerKey = await kv.get(`passenger:${passengerId}`);
+    
+    console.log("📖 Données existantes:");
+    console.log("  - user:", existingPassenger ? "✅" : "❌");
+    console.log("  - profile:", existingProfile ? "✅" : "❌");
+    console.log("  - passenger:", existingPassengerKey ? "✅" : "❌");
+    
+    // 🔥 Si l'utilisateur n'existe pas, le créer
+    if (!existingPassenger) {
+      console.log("⚠️ Passager non trouvé, création d'un nouveau profil...");
+      existingPassenger = {
+        id: passengerId,
+        name: body.name || "Utilisateur",
+        full_name: body.name || "Utilisateur",
+        email: body.email || "",
+        phone: normalizedPhone || "",
+        address: body.address || "",
+        role: "passenger",
+        created_at: new Date().toISOString(),
+        total_rides: 0,
+        balance: 0,
+        rating: 5.0,
+        favorite_payment_method: "cash"
       };
     }
+
+    // Mettre à jour les champs
+    const updatedPassenger = {
+      ...existingPassenger,
+      name: body.name || existingPassenger.name,
+      full_name: body.name || existingPassenger.full_name,
+      email: body.email || existingPassenger.email,
+      phone: normalizedPhone || existingPassenger.phone,
+      address: body.address !== undefined ? body.address : existingPassenger.address,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log("🔄 Passager mis à jour:", JSON.stringify(updatedPassenger, null, 2));
+
+    // 🔥 MISE À JOUR DANS TOUTES LES CLÉS DU KV STORE
+    // 1. Sauvegarder dans user:
+    await kv.set(`user:${passengerId}`, updatedPassenger);
+    console.log("✅ 1/5 - user: mis à jour");
     
-    if (!password) {
-      console.log('❌ [signIn] Mot de passe vide');
-      return {
-        success: false,
-        error: 'Veuillez entrer votre mot de passe'
+    // 2. Sauvegarder dans profile: (si existe)
+    if (existingProfile) {
+      const updatedProfile = {
+        ...existingProfile,
+        full_name: body.name || existingProfile.full_name,
+        email: body.email || existingProfile.email,
+        phone: normalizedPhone || existingProfile.phone,
+        address: body.address !== undefined ? body.address : existingProfile.address,
+        updated_at: new Date().toISOString()
       };
+      await kv.set(`profile:${passengerId}`, updatedProfile);
+      console.log("✅ 2/5 - profile: mis à jour");
+    } else {
+      console.log("⏭️ 2/5 - profile: n'existe pas, ignoré");
     }
     
-    // Détecter si c'est un email ou un numéro de téléphone
-    const inputType = detectInputType(cleanIdentifier);
-    
-    console.log('🔍 [signIn] Type détecté:', inputType, 'pour:', cleanIdentifier);
-    
-    let email = cleanIdentifier;
-    
-    // Si c'est un numéro de téléphone, générer l'email correspondant
-    if (inputType === 'phone') {
-      const normalizedPhone = normalizePhoneNumber(cleanIdentifier);
-      if (!normalizedPhone) {
-        return {
-          success: false,
-          error: 'Numéro de téléphone invalide. Format attendu: 0812345678'
-        };
+    // 3. Sauvegarder dans passenger: (si existe)
+    if (existingPassengerKey) {
+      const updatedPassengerKey = {
+        ...existingPassengerKey,
+        name: body.name || existingPassengerKey.name,
+        full_name: body.name || existingPassengerKey.full_name,
+        email: body.email || existingPassengerKey.email,
+        phone: normalizedPhone || existingPassengerKey.phone,
+        address: body.address !== undefined ? body.address : existingPassengerKey.address,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`passenger:${passengerId}`, updatedPassengerKey);
+      console.log("✅ 3/5 - passenger: mis à jour");
+    } else {
+      console.log("⏭️ 3/5 - passenger: n'existe pas, ignoré");
+    }
+
+    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé OU si le téléphone a changé
+    console.log("🔥 4/5 - Mise à jour Supabase Auth...");
+    try {
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      let authUpdated = false;
+      
+      // 🔥 CAS 1: L'email a changé
+      if (body.email && existingPassenger.email !== body.email) {
+        console.log(`📧 Email changé: ${existingPassenger.email} → ${body.email}`);
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          passengerId,
+          { email: body.email }
+        );
+        
+        if (updateError) {
+          console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
+        } else {
+          console.log("✅ Supabase Auth: email mis à jour");
+          authUpdated = true;
+        }
       }
       
-      console.log('📱 Connexion par téléphone:', normalizedPhone);
-      
-      // 🆕 NOUVEAU : Chercher l'email associé au numéro dans la base de données
-      console.log('🔍 Recherche de l\'email associé au numéro...');
-      
-      try {
-        const findEmailResponse = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${publicAnonKey}`
-            },
-            body: JSON.stringify({ phoneNumber: normalizedPhone })
+      // 🔥 CAS 2: Le téléphone a changé (CRITIQUE!)
+      if (normalizedPhone && existingPassenger.phone !== normalizedPhone) {
+        console.log(`📱 Téléphone changé: ${existingPassenger.phone} → ${normalizedPhone}`);
+        console.log(`🔄 Mise à jour de l'email Auth pour refléter le nouveau téléphone...`);
+        
+        // Générer le nouvel email basé sur le nouveau téléphone
+        const newAuthEmail = `${normalizedPhone}@smartcabb.app`;
+        console.log(`📧 Nouvel email Auth: ${newAuthEmail}`);
+        
+        const { error: updatePhoneError } = await supabase.auth.admin.updateUserById(
+          passengerId,
+          { 
+            email: newAuthEmail,
+            user_metadata: {
+              phone: normalizedPhone
+            }
           }
         );
         
-        const findEmailResult = await findEmailResponse.json();
-        console.log('📥 Résultat recherche email:', findEmailResult);
-        
-        if (findEmailResult.success && findEmailResult.email) {
-          // Email trouvé ! Utiliser cet email pour la connexion
-          email = findEmailResult.email;
-          console.log('✅ Email trouvé pour le numéro:', email);
-        } else if (findEmailResult.error === 'ORPHAN_PROFILE') {
-          // Profil orphelin détecté
-          console.log('⚠️ Profil orphelin détecté');
-          return {
-            success: false,
-            error: 'ORPHAN_PROFILE',
-            orphanProfile: findEmailResult.profile
-          };
+        if (updatePhoneError) {
+          console.error("⚠️ Erreur mise à jour téléphone dans Supabase Auth:", updatePhoneError);
         } else {
-          // Aucun compte trouvé, essayer le format email généré (ancien système)
-          console.log('⚠️ Aucun email trouvé, utilisation du format email généré (ancien système)');
-          email = `${normalizedPhone}@smartcabb.app`;
-          console.log('🔐 Email généré (ancien format):', email);
+          console.log("✅ Supabase Auth: email et téléphone mis à jour");
+          authUpdated = true;
         }
-      } catch (fetchError) {
-        console.error('❌ Erreur lors de la recherche de l\'email:', fetchError);
-        // Fallback : utiliser le format email généré
-        email = `${normalizedPhone}@smartcabb.app`;
-        console.log('🔐 Email généré (fallback):', email);
       }
-    } else if (inputType === 'email') {
-      // Vérifier que l'email est valide
-      if (!isValidEmail(cleanIdentifier)) {
-        return {
-          success: false,
-          error: 'Format email invalide'
-        };
-      }
-      email = cleanIdentifier.toLowerCase();
-    } else if (inputType === 'unknown') {
-      // Essayer de normaliser comme téléphone quand même
-      const normalizedPhone = normalizePhoneNumber(cleanIdentifier);
-      if (normalizedPhone) {
-        console.log('📱 Traitement comme téléphone:', normalizedPhone);
-        email = `${normalizedPhone}@smartcabb.app`;
+      
+      if (!authUpdated) {
+        console.log("⏭️ 4/5 - Supabase Auth: aucun changement, ignoré");
       } else {
-        return {
-          success: false,
-          error: 'Format invalide. Entrez un email (ex: nom@email.com) ou un numéro de téléphone (ex: 0812345678)'
-        };
+        console.log("✅ 4/5 - Supabase Auth: mis à jour avec succès!");
       }
+    } catch (error) {
+      console.error("⚠️ Erreur Supabase Auth:", error);
     }
-    
-    // Connexion avec Supabase Auth
-    console.log('🔐 Tentative de connexion avec email:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    if (error) {
-      console.error('❌ Erreur de connexion:', error.message);
-      
-      // Message d'erreur spécifique pour "Email not confirmed"
-      if (error.message.includes('Email not confirmed')) {
-        console.error('═══════════════════════════════════════════════');
-        console.error('❌ ERREUR: Email non confirmé');
-        console.error('');
-        console.error('Votre compte existe mais lemail nest pas confirmé.');
-        console.error('');
-        console.error('💡 SOLUTION RAPIDE:');
-        console.error('   Ouvrez la console Supabase:');
-        console.error('   https://supabase.com/dashboard/project/YOUR_PROJECT/editor');
-        console.error('');
-        console.error('   Puis exécutez:');
-        console.error('   UPDATE auth.users');
-        console.error('   SET email_confirmed_at = NOW()');
-        console.error('   WHERE email = votre_email_ici;');
-        console.error('═══════════════════════════════════════════════');
-        return {
-          success: false,
-          error: 'Compte non activé. Vérifiez vos emails ou contactez le support.'
-        };
-      }
-      
-      // Messages d'erreur personnalisés pour "Invalid login credentials"
-      if (error.message.includes('Invalid login credentials')) {
-        // Si c'était un téléphone et que ça a échoué, essayer les anciens formats
-        if (inputType === 'phone') {
-          const normalizedPhone = normalizePhoneNumber(identifier);
-          
-          if (!normalizedPhone) {
-            return {
-              success: false,
-              error: 'Numéro de téléphone invalide'
-            };
-          }
-          
-          console.log('🔄 Tentative avec autres formats pour:', normalizedPhone);
-          
-          // Liste des formats à essayer
-          const emailFormats = [
-            `${normalizedPhone}@smartcabb.app`,       // Ancien format 1
-            `phone+${normalizedPhone}@smartcabb.app`, // Ancien format 2
-            `${normalizedPhone}@smartcabb.temp`,      // Legacy
-            `sc${normalizedPhone}@temp.mail`,         // Format généré
-          ];
-          
-          for (const testEmail of emailFormats) {
-            console.log('🔄 Test avec:', testEmail);
-            
-            const { data: testData, error: testError } = await supabase.auth.signInWithPassword({
-              email: testEmail,
-              password
-            });
-            
-            if (!testError && testData.session) {
-              console.log('✅ Connexion réussie avec format:', testEmail);
-              
-              const profile = await profileService.getProfile(testData.user.id);
-              return {
-                success: true,
-                user: testData.user,
-                profile,
-                accessToken: testData.session?.access_token
-              };
-            }
-          }
-        }
-        
-        // 🔍 NOUVEAU : Vérifier si un profil orphelin existe (via backend)
-        console.log('🔍 Vérification si un profil orphelin existe...');
-        try {
-          const { projectId, publicAnonKey } = await import('../utils/supabase/info');
-          
-          const checkResponse = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/check-orphan-profile`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${publicAnonKey}`
-              },
-              body: JSON.stringify({ identifier: cleanIdentifier })
-            }
-          );
-          
-          const checkResult = await checkResponse.json();
-          console.log('📥 Résultat vérification profil orphelin:', checkResult);
-          
-          if (checkResult.success && checkResult.hasOrphanProfile && checkResult.profile) {
-            console.log('⚠️ PROFIL ORPHELIN DÉTECTÉ:', checkResult.profile.email);
-            console.error('═══════════════════════════════════════════════');
-            console.error('⚠️ COMPTE INCOMPLET DÉTECTÉ');
-            console.error('');
-            console.error('Votre profil existe mais votre compte d\'authentification n\'a pas été créé.');
-            console.error('');
-            console.error('💡 SOLUTION:');
-            console.error('   Allez sur: /auth/create-auth-from-profile');
-            console.error('   Ou utilisez le bouton "Activer mon compte" sur l\'écran de connexion');
-            console.error('═══════════════════════════════════════════════');
-            
-            return {
-              success: false,
-              error: 'ORPHAN_PROFILE', // Code d'erreur spécial
-              orphanProfile: checkResult.profile // Données du profil
-            };
-          }
-        } catch (profileCheckError) {
-          console.error('❌ Erreur vérification profil:', profileCheckError);
-        }
-        
-        // Si toujours en échec (pas de profil orphelin)
-        console.info('═══════════════════════════════════════════════');
-        console.info('ℹ️ INFO: Identifiants non reconnus');
-        console.info('');
-        console.info('Le numéro/email ou le mot de passe ne correspond pas');
-        console.info('');
-        console.info('💡 SUGGESTIONS:');
-        console.info('   1. Vérifiez votre numéro de téléphone/email');
-        console.info('   2. Vérifiez votre mot de passe');
-        console.info('   3. Si vous n\'avez pas de compte, cliquez sur Inscription');
-        console.info('═══════════════════════════════════════════════');
-        return {
-          success: false,
-          error: inputType === 'phone' 
-            ? `Numéro ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire.`
-            : `Email ou mot de passe incorrect`
-        };
-      }
-      
-      if (error.message.includes('Database error querying schema') || 
-          error.message.includes('relation') || 
-          error.message.includes('does not exist')) {
-        console.error('═══════════════════════════════════════════════');
-        console.error('❌ BASE DE DONNÉES NON INITIALISÉE');
-        console.error('Exécutez SETUP-TOUT-EN-UN.sql dans Supabase');
-        console.error('══════════════════════════════════════════════');
-        
-        return {
-          success: false,
-          error: 'BASE DE DONNÉES NON INITIALISÉE'
-        };
-      }
-      
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-    
-    if (!data.user) {
-      return {
-        success: false,
-        error: 'Erreur de connexion. Veuillez réessayer.'
-      };
-    }
-    
-    // Récupérer le profil de l'utilisateur
-    let profile = await profileService.getProfile(data.user.id);
-    
-    // Si le profil n'existe pas, essayer de le créer
-    if (!profile) {
-      console.warn('⚠️ Profil non trouvé, tentative de création...');
-      
-      try {
-        const userData = data.user.user_metadata;
-        const email = data.user.email || '';
-        const fullName = userData?.full_name || userData?.name || 'Utilisateur';
-        const phone = userData?.phone || null;
-        const role = userData?.role || 'passenger';
-        
-        profile = await profileService.createProfile({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          phone: phone || undefined,
-          role
-        });
-        
-        if (profile) {
-          console.log('✅ Profil créé avec succès lors de la connexion');
-        }
-      } catch (profileError: any) {
-        console.error('❌ Erreur création profil:', profileError);
-        
-        // Si l'erreur est une clé dupliquée, essayer de récupérer le profil à nouveau
-        if (profileError.message?.includes('duplicate key') || profileError.code === '23505') {
-          console.log('🔄 Clé dupliquée détectée, récupération du profil existant...');
-          profile = await profileService.getProfile(data.user.id);
-        }
-      }
-    }
-    
-    console.log('✅ Connexion réussie:', data.user.id);
-    
-    return {
-      success: true,
-      user: data.user,
-      profile,
-      accessToken: data.session?.access_token
-    };
-    
-  } catch (error) {
-    console.error('❌ Erreur inattendue lors de la connexion:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inconnue'
-    };
-  }
-}
 
-/**
- * Inscription avec email ou numéro de téléphone
- */
-export async function signUp(userData: SignUpData): Promise<AuthResult> {
-  try {
-    const { email, phone, password, fullName, role } = userData;
-    
-    // Validation basique
-    if (!password || password.length < 6) {
-      return {
-        success: false,
-        error: 'Le mot de passe doit contenir au moins 6 caractères'
-      };
-    }
-    
-    if (!fullName || fullName.trim().length < 2) {
-      return {
-        success: false,
-        error: 'Veuillez entrer votre nom complet'
-      };
-    }
-    
-    // Normaliser le numéro de téléphone si fourni
-    const normalizedPhone = phone ? normalizePhoneNumber(phone) : null;
-    
-    // Déterminer l'email final à utiliser
-    let finalEmail: string;
-    if (email && email.trim() && isValidEmail(email)) {
-      // Email fourni et valide
-      finalEmail = email.trim().toLowerCase();
-    } else if (normalizedPhone) {
-      // Pas d'email valide mais téléphone fourni
-      finalEmail = generateEmailFromPhone(normalizedPhone);
-      console.log('📧 Email généré depuis téléphone:', finalEmail);
-    } else {
-      return {
-        success: false,
-        error: 'Veuillez fournir un email ou un numéro de téléphone valide'
-      };
-    }
-    
-    console.log('📝 Inscription avec:', { finalEmail, phone: normalizedPhone, role });
-    
-    // UTILISER LE SERVEUR pour créer le compte (l'API Admin accepte tous les formats)
-    console.log('🔄 Création via API serveur (Admin API)...');
-    
+    // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
+    console.log("🔥 5/5 - Mise à jour table profiles...");
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/signup-passenger`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: finalEmail,
-            phone: normalizedPhone,
-            password,
-            fullName,
-            role
-          }),
-        }
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
-
-      const result = await response.json();
-
-      if (!result.success) {
-        console.error('❌ Erreur serveur inscription:', result.error);
-        return {
-          success: false,
-          error: result.error || 'Erreur lors de l\'inscription'
-        };
-      }
-
-      console.log('✅ Compte créé via serveur:', result);
-
-      // Se connecter automatiquement après inscription
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: finalEmail,
-        password
-      });
-
-      if (error) {
-        console.error('❌ Erreur connexion automatique:', error);
-        return {
-          success: true,
-          user: result.user,
-          profile: result.profile,
-          error: 'Compte créé mais erreur de connexion. Veuillez vous connecter manuellement.'
-        };
-      }
-
-      return {
-        success: true,
-        user: data.user,
-        profile: result.profile,
-        accessToken: data.session?.access_token
-      };
-
-    } catch (fetchError) {
-      console.error('❌ Erreur appel serveur:', fetchError);
       
-      // Fallback: essayer l'inscription côté client
-      console.log('⚠️ Fallback: tentative inscription côté client...');
+      // 📖 D'abord, lire les données actuelles
+      const { data: currentProfileData, error: selectError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', passengerId)
+        .single();
       
-      const { data, error } = await supabase.auth.signUp({
-        email: finalEmail,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            phone: normalizedPhone,
-            role
-          }
-        }
-      });
-      
-      if (error) {
-        console.error('❌ Erreur inscription fallback:', error);
+      if (selectError) {
+        console.error("❌ Erreur lecture table profiles:", selectError);
+        console.error("   Code:", selectError.code);
+        console.error("   Message:", selectError.message);
+        console.error("   Details:", selectError.details);
+        console.log("⏭️ 5/5 - Table profiles: erreur de lecture, mise à jour ignorée pour éviter les conflits");
+        // ⚠️ NE PAS continuer si on ne peut pas lire les données actuelles
+      } else if (!currentProfileData) {
+        console.error("❌ currentProfileData est null/undefined");
+        console.log("⏭️ 5/5 - Table profiles: données actuelles introuvables, mise à jour ignorée");
+      } else {
+        console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
         
-        if (error.message.includes('already registered')) {
-          return {
-            success: false,
-            error: 'Un compte existe déjà avec cet email ou ce numéro de téléphone'
-          };
+        const updateData: any = {};
+        
+        // ✅ Ne mettre à jour QUE les champs qui ont changé
+        if (body.name && body.name !== currentProfileData.full_name) {
+          updateData.full_name = body.name;
+          console.log(`   → full_name: "${currentProfileData.full_name}" → "${body.name}"`);
         }
         
-        return {
-          success: false,
-          error: error.message
-        };
-      }
-      
-      if (!data.user) {
-        return {
-          success: false,
-          error: 'Aucun utilisateur créé'
-        };
-      }
-      
-      // Créer le profil dans la table profiles
-      let profile;
-      try {
-        profile = await profileService.createProfile({
-          id: data.user.id,
-          email: finalEmail,
-          full_name: fullName,
-          phone: normalizedPhone || undefined,
-          role
-        });
+        if (body.email && body.email !== currentProfileData.email) {
+          updateData.email = body.email;
+          console.log(`   → email: "${currentProfileData.email}" → "${body.email}"`);
+        }
         
-        console.log('✅ Profil créé avec succès');
-      } catch (profileError: any) {
-        console.error('❌ Erreur création profil:', profileError);
+        if (normalizedPhone && normalizedPhone !== currentProfileData.phone) {
+          updateData.phone = normalizedPhone;
+          console.log(`   → phone: "${currentProfileData.phone}" → "${normalizedPhone}"`);
+        }
         
-        // Si c'est une erreur de clé dupliquée, essayer de récupérer le profil existant
-        if (profileError.message?.includes('duplicate key') || profileError.code === '23505') {
-          console.log('🔄 Profil existe déjà, récupération...');
-          profile = await profileService.getProfile(data.user.id);
-          
-          if (!profile) {
-            return {
-              success: false,
-              error: 'Erreur lors de la création du profil. Veuillez réessayer.'
-            };
-          }
-          
-          console.log('✅ Profil existant récupéré');
+        // ✅ Seulement si on a des changements
+        if (Object.keys(updateData).length === 0) {
+          console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
         } else {
-          return {
-            success: false,
-            error: 'Erreur lors de la création du profil. Veuillez réessayer.'
-          };
+          console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+          
+          const { data: updatedData, error: profileError } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', passengerId)
+            .select();
+          
+          if (profileError) {
+            console.error("❌ Erreur mise à jour table profiles:", profileError);
+            console.error("   Code:", profileError.code);
+            console.error("   Message:", profileError.message);
+            console.error("   Details:", profileError.details);
+          } else {
+            console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+            console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+          }
         }
       }
-      
-      return {
-        success: true,
-        user: data.user,
-        profile,
-        accessToken: data.session?.access_token
-      };
+    } catch (error) {
+      console.error("❌ Exception table profiles:", error);
+      console.error("   Stack:", error instanceof Error ? error.stack : 'N/A');
     }
-  } catch (error) {
-    console.error('❌ Erreur inattendue lors de inscription:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inattendue'
-    };
-  }
-}
 
-/**
- * Déconnexion
- */
-export async function signOut(): Promise<{ success: boolean; error?: string }> {
-  try {
-    const { error } = await supabase.auth.signOut();
-    
-    if (error) {
-      console.error('❌ Erreur lors de la déconnexion:', error);
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-    
-    console.log('✅ Déconnexion réussie');
-    return {
-      success: true
-    };
-  } catch (error) {
-    console.error('❌ Erreur inattendue lors de la déconnexion:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inattendue'
-    };
-  }
-}
+    console.log("🔥🔥🔥 ========== FIN UPDATE PASSAGER (SUCCÈS) ==========");
 
-/**
- * Récupérer la session active
- */
-export async function getSession(): Promise<AuthResult> {
-  try {
-    const { data, error } = await supabase.auth.getSession();
-    
-    if (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-    
-    if (!data.session) {
-      return {
-        success: false,
-        error: 'No active session'
-      };
-    }
-    
-    const profile = await profileService.getProfile(data.session.user.id);
-    
-    return {
+    return c.json({
       success: true,
-      user: data.session.user,
-      profile,
-      accessToken: data.session.access_token
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-}
-
-/**
- * Créer un compte administrateur
- */
-export async function createAdmin(adminData: CreateAdminData): Promise<AuthResult> {
-  try {
-    const { email, password, fullName } = adminData;
-    
-    // Validation
-    if (!email || !isValidEmail(email)) {
-      return {
-        success: false,
-        error: 'Email invalide'
-      };
-    }
-    
-    if (!password || password.length < 6) {
-      return {
-        success: false,
-        error: 'Le mot de passe doit contenir au moins 6 caractères'
-      };
-    }
-    
-    // Appel à l'endpoint serveur pour créer l'admin
-    const response = await fetch(
-      `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/create-admin`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`
-        },
-        body: JSON.stringify({ email, password, fullName })
-      }
-    );
-    
-    const result = await response.json();
-    
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error || 'Erreur lors de la création du compte admin'
-      };
-    }
-    
-    console.log('✅ Admin créé avec succès');
-    return {
-      success: true,
-      user: result.user,
-      profile: result.profile
-    };
-  } catch (error) {
-    console.error('❌ Erreur création admin:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inattendue'
-    };
-  }
-}
-
-/**
- * Alias pour createAdmin (compatibilité)
- */
-export const createAdminUser = createAdmin;
-
-/**
- * Réinitialiser le mot de passe
- */
-export async function resetPassword(identifier: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Nettoyer l'identifiant
-    const cleanIdentifier = identifier.trim();
-    
-    if (!cleanIdentifier) {
-      return {
-        success: false,
-        error: 'Veuillez entrer un email ou un numéro de téléphone'
-      };
-    }
-    
-    // Détecter le type d'identifiant
-    const inputType = detectInputType(cleanIdentifier);
-    let email = cleanIdentifier;
-    
-    // Si c'est un numéro de téléphone, convertir en email
-    if (inputType === 'phone') {
-      const normalizedPhone = normalizePhoneNumber(cleanIdentifier);
-      if (!normalizedPhone) {
-        return {
-          success: false,
-          error: 'Numéro de téléphone invalide. Format: 0812345678'
-        };
-      }
-      
-      // Générer l'email depuis le téléphone
-      email = `${normalizedPhone}@smartcabb.app`;
-      console.log('📱 Réinitialisation pour téléphone:', normalizedPhone, '-> Email:', email);
-    } else if (inputType === 'email') {
-      if (!isValidEmail(cleanIdentifier)) {
-        return {
-          success: false,
-          error: 'Email invalide'
-        };
-      }
-      email = cleanIdentifier.toLowerCase();
-    } else {
-      return {
-        success: false,
-        error: 'Format invalide. Utilisez un email ou un numéro (0812345678)'
-      };
-    }
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
+      passenger: updatedPassenger
     });
-    
-    if (error) {
-      console.error('❌ Erreur réinitialisation mot de passe:', error);
-      return {
-        success: false,
-        error: 'Erreur lors de l\'envoi. Vérifiez que ce compte existe.'
-      };
-    }
-    
-    console.log('✅ Email de réinitialisation envoyé à:', email);
-    return {
-      success: true
-    };
+
   } catch (error) {
-    console.error('❌ Erreur inattendue lors de la réinitialisation:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Erreur inattendue'
-    };
+    console.error("🔥🔥🔥 ========== FIN UPDATE PASSAGER (ERREUR) ==========");
+    console.error("❌ Erreur mise à jour passager:", error);
+    console.error("❌ Stack:", error instanceof Error ? error.stack : 'N/A');
+    return c.json({ 
+      success: false, 
+      error: "Erreur serveur lors de la mise à jour: " + String(error)
+    }, 500);
   }
-}
+});
+
+export default app;
