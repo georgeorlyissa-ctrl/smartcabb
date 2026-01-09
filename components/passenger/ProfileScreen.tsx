@@ -293,7 +293,8 @@ export function ProfileScreen() {
 
     } catch (error: any) {
       console.error('❌ [PROFILE SAVE] Erreur handleSave:', error);
-      toast.error('Erreur lors de la sauvegarde dans la base de données');
+      console.error('❌ [PROFILE SAVE] Détails erreur:', error.message);
+      toast.error(`Erreur: ${error.message || 'Erreur lors de la sauvegarde'}`);
       // Rollback en cas d'erreur
       setCurrentUser(previousUser);
       setEditData({
