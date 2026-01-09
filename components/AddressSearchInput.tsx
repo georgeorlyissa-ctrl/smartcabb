@@ -130,22 +130,8 @@ export function AddressSearchInput({
         coordinates: { lat: location.lat, lng: location.lng }
       }));
       
-      // Si aucune suggestion trouvée, créer une suggestion personnalisée
-      if (suggestions.length === 0 && queryLower.length >= 2) {
-        const baseLatKinshasa = -4.3276;
-        const baseLngKinshasa = 15.3136;
-        const randomOffset = () => (Math.random() - 0.5) * 0.05;
-        
-        suggestions.push({
-          id: 'custom',
-          name: query.trim(),
-          description: 'Adresse personnalisée, Kinshasa, RDC',
-          coordinates: { 
-            lat: baseLatKinshasa + randomOffset(), 
-            lng: baseLngKinshasa + randomOffset() 
-          }
-        });
-      }
+      // ❌ SUPPRIMÉ : Plus d'adresse personnalisée
+      // L'application utilise UNIQUEMENT les 544+ lieux de la base de données
       
       setSuggestions(suggestions);
       setIsOpen(suggestions.length > 0);
@@ -237,10 +223,18 @@ export function AddressSearchInput({
       )}
       
       {!isLoading && suggestions.length === 0 && value.length >= 2 && (
-        <div className="p-4 text-center text-gray-600">
-          <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm">Aucune adresse trouvée</p>
-          <p className="text-xs">Essayez avec un autre terme de recherche</p>
+        <div className="p-6 text-center text-gray-600">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <MapPin className="w-8 h-8 text-red-500" />
+          </div>
+          <p className="text-base font-semibold text-gray-900 mb-1">Lieu introuvable</p>
+          <p className="text-sm text-gray-600 mb-2">Ce lieu n'existe pas dans notre base de données</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+            <p className="text-xs text-blue-800 font-medium mb-1">💡 Suggestions :</p>
+            <p className="text-xs text-blue-700">• Vérifiez l'orthographe</p>
+            <p className="text-xs text-blue-700">• Utilisez le nom d'un quartier ou lieu connu</p>
+            <p className="text-xs text-blue-700">• Essayez un point de repère proche</p>
+          </div>
         </div>
       )}
     </motion.div>
