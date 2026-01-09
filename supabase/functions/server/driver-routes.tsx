@@ -550,13 +550,19 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     const driverId = c.req.param('driverId');
     const updates = await c.req.json();
     
-    console.log(`💾 Mise à jour du profil du conducteur ${driverId}...`);
-    console.log('📝 Mises à jour:', updates);
+    console.log(`🔥🔥🔥 ========== DÉBUT UPDATE CONDUCTEUR ==========`);
+    console.log(`💾 ID:`, driverId);
+    console.log('📝 Nouvelles données:', JSON.stringify(updates, null, 2));
     
     // 🔥 Récupérer le profil depuis TOUTES les clés possibles
     let currentDriver = await kv.get(`driver:${driverId}`) || {};
     const currentProfile = await kv.get(`profile:${driverId}`);
     const currentUser = await kv.get(`user:${driverId}`);
+    
+    console.log("📖 Données existantes:");
+    console.log("  - driver:", currentDriver && Object.keys(currentDriver).length > 0 ? "✅" : "❌");
+    console.log("  - profile:", currentProfile ? "✅" : "❌");
+    console.log("  - user:", currentUser ? "✅" : "❌");
     
     // Fusionner les mises à jour
     const updatedDriver = {
@@ -565,10 +571,12 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       updatedAt: new Date().toISOString()
     };
     
+    console.log("🔄 Conducteur mis à jour:", JSON.stringify(updatedDriver, null, 2));
+    
     // 🔥 SAUVEGARDER DANS TOUTES LES CLÉS DU KV STORE
     // 1. Sauvegarder dans driver:
     await kv.set(`driver:${driverId}`, updatedDriver);
-    console.log('✅ driver: mis à jour');
+    console.log('✅ 1/5 - driver: mis à jour');
     
     // 2. Sauvegarder dans profile: (si existe)
     if (currentProfile) {
@@ -580,7 +588,9 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         updated_at: new Date().toISOString()
       };
       await kv.set(`profile:${driverId}`, updatedProfile);
-      console.log('✅ profile: mis à jour');
+      console.log('✅ 2/5 - profile: mis à jour');
+    } else {
+      console.log("⏭️ 2/5 - profile: n'existe pas, ignoré");
     }
     
     // 3. Sauvegarder dans user: (si existe)
@@ -594,11 +604,14 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         updated_at: new Date().toISOString()
       };
       await kv.set(`user:${driverId}`, updatedUser);
-      console.log('✅ user: mis à jour');
+      console.log('✅ 3/5 - user: mis à jour');
+    } else {
+      console.log("⏭️ 3/5 - user: n'existe pas, ignoré");
     }
     
     // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé
     if (updates.email && currentDriver.email !== updates.email) {
+      console.log(`🔄 4/5 - Email changé: ${currentDriver.email} → ${updates.email}`);
       try {
         const { createClient } = await import('npm:@supabase/supabase-js@2');
         const supabase = createClient(
@@ -613,17 +626,18 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         
         if (updateError) {
           console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
-          // Ne pas bloquer la mise à jour si Supabase Auth échoue
         } else {
-          console.log("✅ Email mis à jour dans Supabase Auth");
+          console.log("✅ 4/5 - Supabase Auth: email mis à jour");
         }
       } catch (error) {
         console.error("⚠️ Erreur Supabase Auth:", error);
-        // Ne pas bloquer
       }
+    } else {
+      console.log("⏭️ 4/5 - Supabase Auth: email inchangé, ignoré");
     }
     
-    // 5. 🔥 METTRE À JOUR LA TABLE PROFILES (critique pour la connexion)
+    // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
+    console.log("🔥 5/5 - Mise à jour table profiles...");
     try {
       const { createClient } = await import('npm:@supabase/supabase-js@2');
       const supabase = createClient(
@@ -631,28 +645,59 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
       
-      const updateData: any = {};
-      if (updates.name) updateData.full_name = updates.name;
-      if (updates.email) updateData.email = updates.email;
-      if (updates.phone) updateData.phone = updates.phone;
+      // 📖 D'abord, lire les données actuelles
+      const { data: currentProfileData, error: selectError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', driverId)
+        .single();
       
-      const { error: profileError } = await supabase
+      if (selectError) {
+        console.error("❌ Erreur lecture table profiles:", selectError);
+        console.error("   Code:", selectError.code);
+        console.error("   Message:", selectError.message);
+        console.error("   Details:", selectError.details);
+      } else {
+        console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
+      }
+      
+      const updateData: any = {};
+      if (updates.name) {
+        updateData.full_name = updates.name;
+        console.log(`   → full_name: "${updates.name}"`);
+      }
+      if (updates.email) {
+        updateData.email = updates.email;
+        console.log(`   → email: "${updates.email}"`);
+      }
+      if (updates.phone) {
+        updateData.phone = updates.phone;
+        console.log(`   → phone: "${updates.phone}"`);
+      }
+      
+      console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+      
+      const { data: updatedData, error: profileError } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', driverId);
+        .eq('id', driverId)
+        .select();
       
       if (profileError) {
-        console.error("⚠️ Erreur mise à jour table profiles:", profileError);
-        // Ne pas bloquer si la table n'existe pas
+        console.error("❌ Erreur mise à jour table profiles:", profileError);
+        console.error("   Code:", profileError.code);
+        console.error("   Message:", profileError.message);
+        console.error("   Details:", profileError.details);
       } else {
-        console.log("✅ Table profiles mise à jour");
+        console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+        console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
       }
     } catch (error) {
-      console.error("⚠️ Erreur table profiles:", error);
-      // Ne pas bloquer
+      console.error("❌ Exception table profiles:", error);
+      console.error("   Stack:", error instanceof Error ? error.stack : 'N/A');
     }
     
-    console.log(`✅ Profil du conducteur ${driverId} mis à jour dans toutes les clés`);
+    console.log(`🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========`);
     
     return c.json({
       success: true,
@@ -660,7 +705,9 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       driver: updatedDriver
     });
   } catch (error) {
+    console.error('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (ERREUR) ==========');
     console.error('❌ Erreur mise à jour profil conducteur:', error);
+    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
