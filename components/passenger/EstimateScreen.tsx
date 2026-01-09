@@ -373,7 +373,7 @@ export function EstimateScreen() {
       className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col"
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-6 bg-white/80 backdrop-blur-sm border-b border-border flex-shrink-0">
+      <div className="flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm border-b border-border flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -386,73 +386,67 @@ export function EstimateScreen() {
               console.error('❌ Estimate - Erreur lors de setCurrentScreen:', error);
             }
           }}
-          className="w-10 h-10 hover:bg-muted"
+          className="w-9 h-9 hover:bg-muted"
         >
           <ArrowLeft className="w-5 h-5 text-primary" />
         </Button>
-        <h1 className="text-primary">Estimation du trajet</h1>
-        <div className="w-10" />
+        <h1 className="text-base font-semibold text-primary">Estimation du trajet</h1>
+        <div className="w-9" />
       </div>
 
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto pb-6">{/* AJOUTÉ: pb-6 pour padding en bas */}
-        {/* 🆕 AFFICHAGE DE DISTANCE ET DURÉE PRÉCISES */}
-        <div className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50">
-          <div className="bg-white rounded-2xl p-5 shadow-lg border-2 border-cyan-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Détails du trajet</h3>
-              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${trafficCondition.color} bg-opacity-10`}>
-                <span className="text-lg">{trafficCondition.emoji}</span>
-                <span className={`text-xs font-medium ${trafficCondition.color}`}>
+        {/* 🆕 AFFICHAGE DE DISTANCE ET DURÉE PRÉCISES - VERSION COMPACTE */}
+        <div className="p-4 bg-gradient-to-br from-cyan-50 to-blue-50">
+          <div className="bg-white rounded-xl p-3 shadow-md border border-cyan-200">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-bold text-gray-900">Détails du trajet</h3>
+              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full ${trafficCondition.color} bg-opacity-10`}>
+                <span className="text-base">{trafficCondition.emoji}</span>
+                <span className={`text-[10px] font-medium ${trafficCondition.color}`}>
                   {trafficCondition.description}
                 </span>
               </div>
             </div>
             
-            {/* Grille d'informations */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Grille d'informations compacte */}
+            <div className="grid grid-cols-2 gap-2">
               {/* Distance */}
-              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <MapPin className="w-4 h-4 text-white" />
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg p-2.5 border border-blue-200">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                    <MapPin className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-blue-700">Distance</span>
+                  <span className="text-[10px] font-medium text-blue-700">Distance</span>
                 </div>
-                <p className="text-2xl font-bold text-blue-900">{routeCalculation.distanceText}</p>
-                <p className="text-xs text-blue-600 mt-1">Distance précise calculée</p>
+                <p className="text-lg font-bold text-blue-900">{routeCalculation.distanceText}</p>
+                <p className="text-[10px] text-blue-600 mt-0.5">Distance précise</p>
               </div>
               
               {/* Durée */}
-              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-white" />
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-2.5 border border-green-200">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                    <Clock className="w-3 h-3 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-green-700">Durée</span>
+                  <span className="text-[10px] font-medium text-green-700">Durée</span>
                 </div>
-                <p className="text-2xl font-bold text-green-900">{routeCalculation.durationText}</p>
-                <p className="text-xs text-green-600 mt-1">Selon conditions actuelles</p>
+                <p className="text-lg font-bold text-green-900">{routeCalculation.durationText}</p>
+                <p className="text-[10px] text-green-600 mt-0.5">Actuelles</p>
               </div>
             </div>
             
-            {/* Informations supplémentaires */}
-            <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Vitesse moyenne estimée</span>
-                <span className="font-semibold text-gray-900">
-                  {Math.round((routeCalculation.distance / (routeCalculation.duration / 60)))} km/h
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Heure de départ</span>
-                <span className="font-semibold text-gray-900">
+            {/* Informations supplémentaires compactes */}
+            <div className="mt-2 pt-2 border-t border-gray-200 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Départ</span>
+                <span className="font-medium text-gray-900">
                   {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Arrivée estimée</span>
-                <span className="font-semibold text-green-600">
+                <span className="font-medium text-green-600">
                   {new Date(Date.now() + routeCalculation.duration * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
@@ -460,304 +454,231 @@ export function EstimateScreen() {
           </div>
         </div>
         
-        {/* 🗺️ CARTE INTERACTIVE DE L'ITINÉRAIRE AVEC TRAFIC */}
-        <div className="p-6 bg-white/60 backdrop-blur-sm">
+        {/* 🗺️ CARTE INTERACTIVE DE L'ITINÉRAIRE AVEC TRAFIC - VERSION COMPACTE */}
+        <div className="p-3 bg-white/60 backdrop-blur-sm">
           <RouteMapPreview
             pickup={pickup}
             destination={destination}
             distanceKm={distanceKm}
             estimatedDuration={estimatedDuration}
-            className="mb-6"
+            className="mb-3"
           />
         </div>
 
-        {/* Route Info */}
-        <div className="p-6 bg-white/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-border space-y-4">
-            <div className="flex items-start space-x-3">
-              <div className="w-3 h-3 bg-secondary rounded-full mt-2 shadow-lg shadow-secondary/30" />
+        {/* Route Info - VERSION COMPACTE */}
+        <div className="p-3 bg-white/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-border space-y-3">
+            <div className="flex items-start space-x-2">
+              <div className="w-2.5 h-2.5 bg-secondary rounded-full mt-1.5 shadow-lg shadow-secondary/30" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">{t('pickup_location')}</p>
-                <p className="text-foreground">{pickup.address}</p>
+                <p className="text-xs text-muted-foreground">{t('pickup_location')}</p>
+                <p className="text-sm text-foreground">{pickup.address}</p>
                 {pickupInstructions && (
-                  <div className="flex items-start gap-2 mt-2 px-3 py-2 bg-green-50 rounded-lg border border-green-100">
-                    <MapPin className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex items-start gap-1.5 mt-1.5 px-2 py-1.5 bg-green-50 rounded-lg border border-green-100">
+                    <MapPin className="w-3 h-3 text-green-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-green-700 font-medium mb-1">Point de repère</p>
-                      <p className="text-sm text-green-900">{pickupInstructions}</p>
+                      <p className="text-[10px] text-green-700 font-medium mb-0.5">Point de repère</p>
+                      <p className="text-xs text-green-900">{pickupInstructions}</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
             
-            <div className="h-8 border-l-2 border-dashed border-border ml-1.5" />
+            <div className="h-6 border-l-2 border-dashed border-border ml-1" />
             
-            <div className="flex items-start space-x-3">
-              <div className="w-3 h-3 bg-accent rounded-full mt-2 shadow-lg shadow-accent/30" />
+            <div className="flex items-start space-x-2">
+              <div className="w-2.5 h-2.5 bg-accent rounded-full mt-1.5 shadow-lg shadow-accent/30" />
               <div className="flex-1">
-                <p className="text-sm text-muted-foreground">{t('destination')}</p>
-                <p className="text-foreground">{destination.address}</p>
+                <p className="text-xs text-muted-foreground">{t('destination')}</p>
+                <p className="text-sm text-foreground">{destination.address}</p>
               </div>
-            </div>
-            
-            <div className="flex items-center justify-between pt-3 border-t border-border">
-              <span className="text-sm text-muted-foreground">Distance estimée</span>
-              <span className="font-medium text-primary">{distanceKm.toFixed(1)} {t('km')}</span>
-            </div>
-            
-            {/* Afficher la durée estimée avec fourchette */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Durée estimée</span>
-              </div>
-              <div className="text-right">
-                <span className="font-medium text-primary">{formatDuration(estimatedDuration)}</span>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {(() => {
-                    // ✅ PROTECTION : Vérifier que pickup et destination existent
-                    if (!pickup || !destination) {
-                      return '(calcul en cours...)';
-                    }
-                    const range = calculateDurationRange(pickup, destination);
-                    return `(${range.min}-${range.max} min)`;
-                  })()}
-                </div>
-              </div>
-            </div>
-            
-            {/* Info trafic */}
-            <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-100">
-              <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
-              <span className="text-xs text-blue-700">
-                {(() => {
-                  const traffic = getCurrentTrafficConditions();
-                  const trafficLabels = {
-                    morning_rush: 'Heure de pointe matinale - Trafic dense',
-                    evening_rush: 'Heure de pointe du soir - Trafic très dense',
-                    midday: 'Milieu de journée - Trafic modéré',
-                    night: 'Circulation nocturne - Trafic fluide',
-                    weekend: 'Weekend - Trafic léger'
-                  };
-                  return trafficLabels[traffic.timeOfDay];
-                })()}
-              </span>
             </div>
           </div>
         </div>
 
-        {/* Vehicle Options */}
-        <div className="p-6 space-y-6">
-          <h2 className="text-lg mb-4">{t('choose_vehicle')}</h2>
+        {/* Vehicle Options - HORIZONTAL SCROLLABLE */}
+        <div className="space-y-4">
+          <div className="px-4">
+            <h2 className="text-base font-semibold mb-3">{t('choose_vehicle')}</h2>
+          </div>
           
           {/* Wallet Discount Badge */}
           {((state.currentUser?.walletBalance || 0) >= convertUSDtoCDF(20)) && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4"
+              className="mx-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3 mb-3"
             >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="flex items-start gap-2">
+                <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 text-sm">
                   🎁
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-green-900 text-sm mb-1">
+                  <p className="font-medium text-green-900 text-xs mb-0.5">
                     Réduction Portefeuille Active !
                   </p>
-                  <p className="text-xs text-green-700">
-                    Vous bénéficiez de <span className="font-semibold">5% de réduction</span> sur tous les prix grâce à votre solde de {formatCDF(state.currentUser?.walletBalance || 0)}.
+                  <p className="text-[10px] text-green-700">
+                    <span className="font-semibold">-5%</span> sur tous les prix · Solde: {formatCDF(state.currentUser?.walletBalance || 0)}
                   </p>
                 </div>
               </div>
             </motion.div>
           )}
           
-          <div className="space-y-3">
-            {vehicles.map((vehicle) => {
-              const Icon = vehicle.icon;
-              const isSelected = selectedVehicle === vehicle.id;
-              const vehiclePrice = calculatePrice(vehicle.id, estimatedDuration);
-              
-              // Récupérer les tarifs jour et nuit
-              const currentHour = new Date().getHours();
-              const isDay = isDayTime(currentHour);
-              const isNight = !isDay; // Définir isNight
-              const pricing = VEHICLE_PRICING[vehicle.id];
-              
-              // Prix pour affichage (jour et nuit)
-              let dayPriceUSD, nightPriceUSD, dayPriceCDF, nightPriceCDF;
-              
-              if (vehicle.id === 'smart_business') {
-                // Business = tarif journalier uniquement
-                dayPriceUSD = pricing.pricing.location_jour.usd;
-                dayPriceCDF = convertUSDtoCDF(dayPriceUSD);
-                nightPriceUSD = null;
-                nightPriceCDF = null;
-              } else {
-                // Autres catégories = tarif horaire jour/nuit
-                const hours = Math.max(1, Math.ceil(estimatedDuration / 60));
+          {/* 🚗 SCROLL HORIZONTAL DES VÉHICULES */}
+          <div className="overflow-x-auto pb-2 px-4 scrollbar-hide">
+            <div className="flex gap-3" style={{ width: 'max-content' }}>
+              {vehicles.map((vehicle) => {
+                const Icon = vehicle.icon;
+                const isSelected = selectedVehicle === vehicle.id;
+                const vehiclePrice = calculatePrice(vehicle.id, estimatedDuration);
                 
-                dayPriceUSD = (pricing.pricing.course_heure.jour.usd || 0) * hours;
-                dayPriceCDF = convertUSDtoCDF(dayPriceUSD);
+                // Récupérer les tarifs jour et nuit
+                const currentHour = new Date().getHours();
+                const isDay = isDayTime(currentHour);
+                const isNight = !isDay;
+                const pricing = VEHICLE_PRICING[vehicle.id];
                 
-                nightPriceUSD = (pricing.pricing.course_heure.nuit.usd || 0) * hours;
-                nightPriceCDF = convertUSDtoCDF(nightPriceUSD);
-              }
-              
-              return (
-                <motion.button
-                  key={vehicle.id}
-                  onClick={() => setSelectedVehicle(vehicle.id)}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full p-5 rounded-2xl border-2 transition-all duration-300 bg-white ${
-                    isSelected 
-                      ? 'border-secondary bg-secondary/5 shadow-lg shadow-secondary/20' 
-                      : 'border-border hover:border-secondary/50 hover:shadow-md'
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Afficher les images du véhicule si disponibles */}
-                      {vehicle.images && vehicle.images.length > 0 ? (
-                        <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-muted flex-shrink-0">
-                          <img 
-                            src={vehicle.images[0]} 
-                            alt={vehicle.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ) : (
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                          isSelected ? 'bg-secondary text-white' : 'bg-muted text-primary'
-                        } transition-colors duration-300`}>
-                          <Icon className="w-7 h-7" />
-                        </div>
-                      )}
-                      <div className="text-left">
-                        <h3 className="text-foreground">{vehicle.name}</h3>
-                        <p className="text-sm text-muted-foreground">{vehicle.description}</p>
-                        <div className="flex items-center space-x-3 mt-1.5">
-                          <div className="flex items-center space-x-1 text-xs text-muted-foreground">
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>{estimatedDuration} {t('minutes')}</span>
+                // Prix pour affichage (jour et nuit)
+                let dayPriceUSD, nightPriceUSD, dayPriceCDF, nightPriceCDF;
+                
+                if (vehicle.id === 'smart_business') {
+                  // Business = tarif journalier uniquement
+                  dayPriceUSD = pricing.pricing.location_jour.usd;
+                  dayPriceCDF = convertUSDtoCDF(dayPriceUSD);
+                  nightPriceUSD = null;
+                  nightPriceCDF = null;
+                } else {
+                  // Autres catégories = tarif horaire jour/nuit
+                  const hours = Math.max(1, Math.ceil(estimatedDuration / 60));
+                  
+                  dayPriceUSD = (pricing.pricing.course_heure.jour.usd || 0) * hours;
+                  dayPriceCDF = convertUSDtoCDF(dayPriceUSD);
+                  
+                  nightPriceUSD = (pricing.pricing.course_heure.nuit.usd || 0) * hours;
+                  nightPriceCDF = convertUSDtoCDF(nightPriceUSD);
+                }
+                
+                return (
+                  <motion.button
+                    key={vehicle.id}
+                    onClick={() => setSelectedVehicle(vehicle.id)}
+                    whileTap={{ scale: 0.95 }}
+                    className={`flex-shrink-0 w-[240px] rounded-xl border-2 transition-all duration-300 bg-white overflow-hidden ${
+                      isSelected 
+                        ? 'border-secondary bg-secondary/5 shadow-lg shadow-secondary/20' 
+                        : 'border-border hover:border-secondary/50 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Image du véhicule */}
+                    {vehicle.images && vehicle.images.length > 0 && (
+                      <div className="relative h-24 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                        <img 
+                          src={vehicle.images[0]} 
+                          alt={vehicle.name}
+                          className="w-full h-full object-cover"
+                        />
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-secondary rounded-full flex items-center justify-center shadow-lg">
+                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
                           </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Informations du véhicule */}
+                    <div className="p-3 space-y-2">
+                      <div>
+                        <h3 className={`text-sm font-semibold ${isSelected ? 'text-secondary' : 'text-foreground'}`}>
+                          {vehicle.name}
+                        </h3>
+                        <p className="text-[10px] text-muted-foreground line-clamp-1">
+                          {vehicle.capacity} places · {VEHICLE_PRICING[vehicle.id].features[0]}
+                        </p>
+                      </div>
+                      
+                      {/* Prix principal */}
+                      <div className="space-y-1">
+                        <div className="flex items-baseline justify-between">
+                          <span className={`text-lg font-bold ${isSelected ? 'text-secondary' : 'text-primary'}`}>
+                            {vehiclePrice.toLocaleString()}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">{t('cdf')}</span>
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          ≈ {vehicle.id === 'smart_business' 
+                            ? `${dayPriceUSD}$ USD/jour`
+                            : `${isNight ? nightPriceUSD.toFixed(1) : dayPriceUSD.toFixed(1)}$ USD`
+                          }
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Prix avec tarifs jour/nuit */}
-                    <div className="text-right space-y-2">
-                      {vehicle.id === 'smart_business' ? (
-                        // VIP : Tarif journalier uniquement
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className={`text-xl font-semibold ${isSelected ? 'text-secondary' : 'text-primary'}`}>
-                              {dayPriceCDF.toLocaleString()}
-                            </span>
-                            <span className="text-xs text-muted-foreground">{t('cdf')}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            ≈ {dayPriceUSD}$ USD/jour
-                          </div>
-                        </div>
-                      ) : (
-                        // Autres : Tarifs horaires jour/nuit
-                        <div className="space-y-2">
-                          {/* Tarif actuel (selon l'heure) */}
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-end gap-2">
-                              <span className={`text-xl font-semibold ${isSelected ? 'text-secondary' : 'text-primary'}`}>
-                                {vehiclePrice.toLocaleString()}
-                              </span>
-                              <span className="text-xs text-muted-foreground">{t('cdf')}</span>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              ≈ {isNight ? nightPriceUSD.toFixed(1) : dayPriceUSD.toFixed(1)}$ USD
-                            </div>
-                          </div>
-                          
-                          {/* Afficher les deux tarifs */}
-                          <div className="bg-muted/50 rounded-lg px-2 py-1.5 space-y-1">
-                            <div className="flex items-center justify-between gap-3 text-xs">
-                              <div className="flex items-center gap-1">
-                                <Sun className="w-3 h-3 text-amber-500" />
-                                <span className={isNight ? 'text-muted-foreground' : 'text-primary font-medium'}>
-                                  Jour
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span className={isNight ? 'text-muted-foreground' : 'text-primary font-medium'}>
-                                  {dayPriceCDF.toLocaleString()}
-                                </span>
-                                <span className="text-muted-foreground text-[10px]">
-                                  ({dayPriceUSD.toFixed(1)}$)
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between gap-3 text-xs">
-                              <div className="flex items-center gap-1">
-                                <Moon className="w-3 h-3 text-blue-500" />
-                                <span className={isNight ? 'text-primary font-medium' : 'text-muted-foreground'}>
-                                  Nuit
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <span className={isNight ? 'text-primary font-medium' : 'text-muted-foreground'}>
-                                  {nightPriceCDF.toLocaleString()}
-                                </span>
-                                <span className="text-muted-foreground text-[10px]">
-                                  ({nightPriceUSD.toFixed(1)}$)
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                       
-                      {isSelected && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="mt-2 w-6 h-6 bg-secondary rounded-full flex items-center justify-center mx-auto"
-                        >
-                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        </motion.div>
+                      {/* Tarifs jour/nuit pour les véhicules non-business */}
+                      {vehicle.id !== 'smart_business' && (
+                        <div className="bg-muted/30 rounded-lg px-2 py-1.5 space-y-0.5">
+                          <div className="flex items-center justify-between text-[10px]">
+                            <div className="flex items-center gap-1">
+                              <Sun className="w-2.5 h-2.5 text-amber-500" />
+                              <span className={isNight ? 'text-muted-foreground' : 'text-primary font-medium'}>
+                                Jour
+                              </span>
+                            </div>
+                            <span className={isNight ? 'text-muted-foreground' : 'text-primary font-medium'}>
+                              {Math.round(dayPriceCDF).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px]">
+                            <div className="flex items-center gap-1">
+                              <Moon className="w-2.5 h-2.5 text-blue-500" />
+                              <span className={isNight ? 'text-primary font-medium' : 'text-muted-foreground'}>
+                                Nuit
+                              </span>
+                            </div>
+                            <span className={isNight ? 'text-primary font-medium' : 'text-muted-foreground'}>
+                              {Math.round(nightPriceCDF).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </motion.button>
-              );
-            })}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Passenger Count Selector */}
-          <PassengerCountSelector
-            value={passengerCount}
-            onChange={setPassengerCount}
-            maxPassengers={
-              selectedVehicle === 'smart_plus' ? 7 : 
-              selectedVehicle === 'smart_business' ? 7 : 
-              3 // smart_standard et smart_confort
-            }
-          />
+          {/* Passenger Count Selector - PLUS COMPACT */}
+          <div className="px-4">
+            <PassengerCountSelector
+              value={passengerCount}
+              onChange={setPassengerCount}
+              maxPassengers={
+                selectedVehicle === 'smart_plus' ? 7 : 
+                selectedVehicle === 'smart_business' ? 7 : 
+                3 // smart_standard et smart_confort
+              }
+            />
+          </div>
 
-          {/* Promo Code Input */}
-          <PromoCodeInput
-            rideAmount={basePrice}
-            onPromoApplied={setAppliedPromo}
-          />
+          {/* Promo Code Input - PLUS COMPACT */}
+          <div className="px-4">
+            <PromoCodeInput
+              rideAmount={basePrice}
+              onPromoApplied={setAppliedPromo}
+            />
+          </div>
           
           {/* Option pour réservation pour quelqu'un d'autre */}
-          <BookForSomeoneElse
-            showForm={showBeneficiaryForm}
-            onToggleForm={setShowBeneficiaryForm}
-            onBeneficiaryChange={setBeneficiary}
-          />
+          <div className="px-4">
+            <BookForSomeoneElse
+              showForm={showBeneficiaryForm}
+              onToggleForm={setShowBeneficiaryForm}
+              onBeneficiaryChange={setBeneficiary}
+            />
+          </div>
         </div>
       </div>
 
