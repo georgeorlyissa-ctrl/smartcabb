@@ -359,14 +359,25 @@ app.put("/update/:id", async (c) => {
     }
 
     // Récupérer les données existantes
-    const existingPassenger = await kv.get(`user:${passengerId}`);
+    let existingPassenger = await kv.get(`user:${passengerId}`);
     
+    // 🔥 Si l'utilisateur n'existe pas, le créer
     if (!existingPassenger) {
-      console.warn("⚠️ Passager non trouvé:", passengerId);
-      return c.json({ 
-        success: false, 
-        error: "Passager non trouvé" 
-      }, 404);
+      console.log("⚠️ Passager non trouvé, création d'un nouveau profil...");
+      existingPassenger = {
+        id: passengerId,
+        name: body.name || "Utilisateur",
+        full_name: body.name || "Utilisateur",
+        email: body.email || "",
+        phone: body.phone || "",
+        address: body.address || "",
+        role: "passenger",
+        created_at: new Date().toISOString(),
+        total_rides: 0,
+        balance: 0,
+        rating: 5.0,
+        favorite_payment_method: "cash"
+      };
     }
 
     // Mettre à jour les champs
