@@ -645,16 +645,20 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       console.log("⏭️ 3/5 - user: n'existe pas, ignoré");
     }
     
-    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé
-    if (updates.email && currentDriver.email !== updates.email) {
-      console.log(`🔄 4/5 - Email changé: ${currentDriver.email} → ${updates.email}`);
-      try {
-        const { createClient } = await import('npm:@supabase/supabase-js@2');
-        const supabase = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-        );
-        
+    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé OU si le téléphone a changé
+    console.log("🔥 4/5 - Mise à jour Supabase Auth...");
+    try {
+      const { createClient } = await import('npm:@supabase/supabase-js@2');
+      const supabase = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+      );
+      
+      let authUpdated = false;
+      
+      // 🔥 CAS 1: L'email a changé (email réel, pas généré)
+      if (updates.email && currentDriver.email !== updates.email) {
+        console.log(`📧 Email changé: ${currentDriver.email} → ${updates.email}`);
         const { error: updateError } = await supabase.auth.admin.updateUserById(
           driverId,
           { email: updates.email }
@@ -663,13 +667,43 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
         if (updateError) {
           console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
         } else {
-          console.log("✅ 4/5 - Supabase Auth: email mis à jour");
+          console.log("✅ Supabase Auth: email mis à jour");
+          authUpdated = true;
         }
-      } catch (error) {
-        console.error("⚠️ Erreur Supabase Auth:", error);
       }
-    } else {
-      console.log("⏭️ 4/5 - Supabase Auth: email inchangé, ignoré");
+      
+      // 🔥 CAS 2: Le téléphone a changé
+      // ⚠️ CORRECTION CRITIQUE : NE PAS MODIFIER L'EMAIL DANS SUPABASE AUTH
+      // L'email dans Auth sert uniquement pour l'authentification et doit rester stable
+      // On met seulement à jour les user_metadata pour garder la trace du nouveau téléphone
+      if (normalizedPhone && currentDriver.phone !== normalizedPhone) {
+        console.log(`📱 Téléphone changé: ${currentDriver.phone} → ${normalizedPhone}`);
+        console.log(`🔄 Mise à jour des user_metadata uniquement (sans changer l'email Auth)...`);
+        
+        const { error: updatePhoneError } = await supabase.auth.admin.updateUserById(
+          driverId,
+          { 
+            user_metadata: {
+              phone: normalizedPhone
+            }
+          }
+        );
+        
+        if (updatePhoneError) {
+          console.error("⚠️ Erreur mise à jour téléphone dans Supabase Auth:", updatePhoneError);
+        } else {
+          console.log("✅ Supabase Auth: user_metadata.phone mis à jour (email Auth inchangé)");
+          authUpdated = true;
+        }
+      }
+      
+      if (!authUpdated) {
+        console.log("⏭️ 4/5 - Supabase Auth: aucun changement, ignoré");
+      } else {
+        console.log("✅ 4/5 - Supabase Auth: mis à jour avec succès!");
+      }
+    } catch (error) {
+      console.error("⚠️ Erreur Supabase Auth:", error);
     }
     
     // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
