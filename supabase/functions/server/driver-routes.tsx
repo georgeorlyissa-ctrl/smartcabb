@@ -553,8 +553,10 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     console.log(`💾 Mise à jour du profil du conducteur ${driverId}...`);
     console.log('📝 Mises à jour:', updates);
     
-    // Récupérer le profil actuel du conducteur
-    const currentDriver = await kv.get(`driver:${driverId}`) || {};
+    // 🔥 Récupérer le profil depuis TOUTES les clés possibles
+    let currentDriver = await kv.get(`driver:${driverId}`) || {};
+    const currentProfile = await kv.get(`profile:${driverId}`);
+    const currentUser = await kv.get(`user:${driverId}`);
     
     // Fusionner les mises à jour
     const updatedDriver = {
@@ -563,10 +565,65 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       updatedAt: new Date().toISOString()
     };
     
-    // Sauvegarder dans le KV store
+    // 🔥 SAUVEGARDER DANS TOUTES LES CLÉS DU KV STORE
+    // 1. Sauvegarder dans driver:
     await kv.set(`driver:${driverId}`, updatedDriver);
+    console.log('✅ driver: mis à jour');
     
-    console.log(`✅ Profil du conducteur ${driverId} mis à jour avec succès`);
+    // 2. Sauvegarder dans profile: (si existe)
+    if (currentProfile) {
+      const updatedProfile = {
+        ...currentProfile,
+        full_name: updates.name || currentProfile.full_name,
+        email: updates.email || currentProfile.email,
+        phone: updates.phone || currentProfile.phone,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`profile:${driverId}`, updatedProfile);
+      console.log('✅ profile: mis à jour');
+    }
+    
+    // 3. Sauvegarder dans user: (si existe)
+    if (currentUser) {
+      const updatedUser = {
+        ...currentUser,
+        name: updates.name || currentUser.name,
+        full_name: updates.name || currentUser.full_name,
+        email: updates.email || currentUser.email,
+        phone: updates.phone || currentUser.phone,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`user:${driverId}`, updatedUser);
+      console.log('✅ user: mis à jour');
+    }
+    
+    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé
+    if (updates.email && currentDriver.email !== updates.email) {
+      try {
+        const { createClient } = await import('npm:@supabase/supabase-js@2');
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          driverId,
+          { email: updates.email }
+        );
+        
+        if (updateError) {
+          console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
+          // Ne pas bloquer la mise à jour si Supabase Auth échoue
+        } else {
+          console.log("✅ Email mis à jour dans Supabase Auth");
+        }
+      } catch (error) {
+        console.error("⚠️ Erreur Supabase Auth:", error);
+        // Ne pas bloquer
+      }
+    }
+    
+    console.log(`✅ Profil du conducteur ${driverId} mis à jour dans toutes les clés`);
     
     return c.json({
       success: true,
