@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'motion/react';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
+import { searchAddress, type GeocodedAddress } from '../lib/geocoding-service'; // 🆕 GÉOCODAGE RÉEL
 
 interface Address {
   id: string;
@@ -110,34 +111,73 @@ export function AddressSearchInput({
     setIsLoading(true);
     updateDropdownPosition();
     
-    setTimeout(() => {
+    // 🌍 SYSTÈME HYBRIDE : Base locale + Nominatim (comme Yango)
+    setTimeout(async () => {
       const queryLower = query.toLowerCase().trim();
       
-      // 🇨🇩 NOUVELLE RECHERCHE INTELLIGENTE PAR COMMUNE
-      // Utilise la base de données complète avec arrêts de bus, marchés, etc.
-      const matchedLocations = searchLocationsByCommune(queryLower);
+      // 1️⃣ RECHERCHE LOCALE RAPIDE (base de données 544+ lieux)
+      const localResults = searchLocationsByCommune(queryLower);
       
-      console.log(`🔍 Recherche intelligente "${query}":`, {
-        totalResults: matchedLocations.length,
-        locations: matchedLocations.slice(0, 5).map(l => `${l.nom} (${l.commune})`)
+      console.log(`🔍 Recherche locale \"${query}\":`, {
+        totalResults: localResults.length,
+        locations: localResults.slice(0, 3).map(l => `${l.nom} (${l.commune})`)
       });
       
-      // Convertir en format Address
-      const suggestions: Address[] = matchedLocations.map((location, index) => ({
-        id: `location-${index}`,
+      // Convertir résultats locaux en format Address
+      const localSuggestions: Address[] = localResults.slice(0, 5).map((location, index) => ({
+        id: `local-${index}`,
         name: location.nom,
         description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
         coordinates: { lat: location.lat, lng: location.lng }
       }));
+
+      // 2️⃣ RECHERCHE NOMINATIM (comme Yango) - EN PARALLÈLE
+      let nominatimSuggestions: Address[] = [];
+      try {
+        const geocodedResults = await searchAddress(query);
+        nominatimSuggestions = geocodedResults.map((result, index) => ({
+          id: result.id,
+          name: result.name,
+          description: result.description,
+          coordinates: result.coordinates
+        }));
+        
+        console.log(`🌍 Nominatim \"${query}\":`, {
+          totalResults: nominatimSuggestions.length,
+          locations: nominatimSuggestions.slice(0, 3).map(l => l.name)
+        });
+      } catch (error) {
+        console.warn('⚠️ Nominatim non disponible, utilisation base locale uniquement');
+      }
+
+      // 3️⃣ FUSIONNER LES RÉSULTATS (Nominatim en priorité)
+      const allSuggestions: Address[] = [];
       
-      // ❌ SUPPRIMÉ : Plus d'adresse personnalisée
-      // L'application utilise UNIQUEMENT les 544+ lieux de la base de données
+      // D'abord les résultats Nominatim (plus précis)
+      allSuggestions.push(...nominatimSuggestions);
       
-      setSuggestions(suggestions);
-      setIsOpen(suggestions.length > 0);
+      // Puis les résultats locaux qui ne sont pas déjà présents
+      for (const local of localSuggestions) {
+        const alreadyExists = allSuggestions.some(nom => 
+          Math.abs(nom.coordinates.lat - local.coordinates.lat) < 0.001 &&
+          Math.abs(nom.coordinates.lng - local.coordinates.lng) < 0.001
+        );
+        
+        if (!alreadyExists) {
+          allSuggestions.push(local);
+        }
+      }
+      
+      // Limiter à 10 résultats max
+      const finalSuggestions = allSuggestions.slice(0, 10);
+      
+      console.log(`✅ Résultats finaux: ${finalSuggestions.length} (${nominatimSuggestions.length} Nominatim + ${localSuggestions.length} locaux)`);
+      
+      setSuggestions(finalSuggestions);
+      setIsOpen(finalSuggestions.length > 0);
       setIsLoading(false);
       isUserTypingRef.current = false;
-    }, 200);
+    }, 300); // Petit délai pour éviter trop de requêtes
   };
 
   const handleAddressSelect = (address: Address) => {
