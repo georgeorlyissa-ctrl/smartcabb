@@ -13,6 +13,7 @@ interface Address {
   name: string;
   description: string;
   coordinates: { lat: number; lng: number };
+  distance?: number; // 🆕 Distance en km depuis la position actuelle (comme Yango)
 }
 
 interface AddressSearchInputProps {
@@ -123,13 +124,30 @@ export function AddressSearchInput({
         locations: localResults.slice(0, 3).map(l => `${l.nom} (${l.commune})`)
       });
       
-      // Convertir résultats locaux en format Address
-      const localSuggestions: Address[] = localResults.slice(0, 5).map((location, index) => ({
-        id: `local-${index}`,
-        name: location.nom,
-        description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
-        coordinates: { lat: location.lat, lng: location.lng }
-      }));
+      // Convertir résultats locaux en format Address AVEC DISTANCE (comme Yango)
+      const localSuggestions: Address[] = localResults.slice(0, 5).map((location, index) => {
+        // Calculer la distance depuis la position actuelle
+        let distance: number | undefined;
+        if (currentLocation) {
+          const R = 6371; // Rayon de la Terre en km
+          const dLat = (location.lat - currentLocation.lat) * Math.PI / 180;
+          const dLng = (location.lng - currentLocation.lng) * Math.PI / 180;
+          const a = 
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(currentLocation.lat * Math.PI / 180) * Math.cos(location.lat * Math.PI / 180) *
+            Math.sin(dLng / 2) * Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          distance = Math.round(R * c * 10) / 10; // Arrondir à 0.1 km
+        }
+        
+        return {
+          id: `local-${index}`,
+          name: location.nom,
+          description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
+          coordinates: { lat: location.lat, lng: location.lng },
+          distance // 🆕 DISTANCE COMME YANGO
+        };
+      });
 
       // 2️⃣ RECHERCHE NOMINATIM (comme Yango) - EN PARALLÈLE
       let nominatimSuggestions: Address[] = [];
@@ -253,10 +271,16 @@ export function AddressSearchInput({
           >
             <div className="flex items-start space-x-3">
               <MapPin className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-base font-semibold text-gray-900 leading-snug">{address.name}</p>
                 <p className="text-sm text-gray-700 mt-1 leading-relaxed">{address.description}</p>
               </div>
+              {/* 🆕 DISTANCE COMME YANGO */}
+              {address.distance !== undefined && (
+                <div className="flex-shrink-0 ml-2">
+                  <p className="text-sm font-medium text-gray-500">{address.distance.toFixed(1)} km</p>
+                </div>
+              )}
             </div>
           </button>
         ))
