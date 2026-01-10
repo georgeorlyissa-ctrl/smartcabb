@@ -15,6 +15,8 @@ export function MapScreen() {
   const [destination, setDestination] = useState('');
   const [pickupInstructionsValue, setPickupInstructionsValue] = useState(''); // Renommé pour clarté
   const [showMenu, setShowMenu] = useState(false);
+  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false); // 🆕 Mode sélection sur carte
+  const [selectedMapPoint, setSelectedMapPoint] = useState<{ lat: number; lng: number } | null>(null); // 🆕
   
   // 🔍 Debug: Log quand destination change
   useEffect(() => {
@@ -196,20 +198,10 @@ export function MapScreen() {
       }
     }
     
-    // Enregistrer la destination dans l'état global
-    if (setGlobalDestination) {
-      // Générer des coordonnées approximatives si pas de coordonnées spécifiques
-      const baseLatKinshasa = -4.3276;
-      const baseLngKinshasa = 15.3136;
-      const randomOffset = () => (Math.random() - 0.5) * 0.1; // ±5km environ
-      
-      setGlobalDestination({
-        lat: baseLatKinshasa + randomOffset(),
-        lng: baseLngKinshasa + randomOffset(),
-        address: destination.trim()
-      });
-      console.log('🎯 Destination enregistrée:', destination.trim());
-    }
+    // ✅ NE PLUS RIEN FAIRE ICI
+    // Les coordonnées sont déjà enregistrées par AddressSearchInput onAddressSelect
+    // Cette fonction est juste pour lancer la course
+    console.log('🎯 Destination déjà enregistrée par AddressSearchInput');
     
     // Enregistrer les instructions de prise en charge
     if (setPickupInstructions) {
