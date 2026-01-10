@@ -180,6 +180,22 @@ export const KINSHASA_LOCATIONS: Location[] = [
   { nom: "Banque Rawbank Lemba", commune: "Lemba", quartier: "Lemba", type: "banque", lat: -4.3844, lng: 15.3171 },
   { nom: "Station Shell Lemba", commune: "Lemba", quartier: "Lemba", type: "autre", lat: -4.3846, lng: 15.3169 },
   
+  // 🆕 LIEUX YANGO - EXACTEMENT COMME DANS L'APPLICATION
+  { nom: "Lemba Terminus", commune: "Lemba", quartier: "Lemba", type: "autre", lat: -4.3820, lng: 15.3195, populaire: true }, // Organisation d'événements • Rue Makanga
+  { nom: "Super Lemba", commune: "Lemba", quartier: "Lemba", type: "centre_commercial", lat: -4.3865, lng: 15.3188, populaire: true }, // Grand magasin • Rue Munza  
+  { nom: "Lemba Foire", commune: "Lemba", quartier: "Lemba", type: "centre_commercial", lat: -4.3855, lng: 15.3181, populaire: true }, // Magasin de vêtements • Rue Lulonga
+  { nom: "S&K Supermarché Lemba", commune: "Lemba", quartier: "Lemba", type: "centre_commercial", lat: -4.3860, lng: 15.3185, populaire: true }, // Épicerie • Avenue Lubudi
+  { nom: "Station Salongo", commune: "Lemba", quartier: "Lemba", type: "autre", lat: -4.3870, lng: 15.3190, populaire: true }, // Station service • Avenue By Pass
+  { nom: "Commune de Lemba", commune: "Lemba", quartier: "Lemba", type: "autre", lat: -4.3850, lng: 15.3180, populaire: true }, // Mont Amba
+  { nom: "Lemba foire", commune: "Lemba", quartier: "Lemba", type: "centre_commercial", lat: -4.3858, lng: 15.3183, populaire: true }, // Site commercial • Rue Paka
+  
+  // 🆕 AUTRES LIEUX POPULAIRES DE LEMBA
+  { nom: "Avenue Lubudi", commune: "Lemba", quartier: "Lemba", type: "rue", lat: -4.3862, lng: 15.3186 },
+  { nom: "Rue Makanga", commune: "Lemba", quartier: "Lemba", type: "rue", lat: -4.3822, lng: 15.3197 },
+  { nom: "Rue Munza", commune: "Lemba", quartier: "Lemba", type: "rue", lat: -4.3867, lng: 15.3189 },
+  { nom: "Rue Lulonga", commune: "Lemba", quartier: "Lemba", type: "rue", lat: -4.3857, lng: 15.3182 },
+  { nom: "Rue Paka", commune: "Lemba", quartier: "Lemba", type: "rue", lat: -4.3859, lng: 15.3184 },
+  
   // ==================== GOMBE (60+ lieux) ====================
   { nom: "Arrêt Centre-ville", commune: "Gombe", quartier: "Centre-ville", type: "arret_bus", lat: -4.3217, lng: 15.3136, populaire: true },
   { nom: "Arrêt Socimat", commune: "Gombe", quartier: "Socimat", type: "arret_bus", lat: -4.3228, lng: 15.3192, populaire: true },
@@ -524,6 +540,7 @@ export function getLocationTypeLabel(type: string): string {
     restaurant: '🍽️ Restaurant',
     hotel: '🏨 Hôtel',
     banque: '🏦 Banque',
+    stade: '🏟️ Stade',
     autre: '📍 Lieu'
   };
   return labels[type] || '📍 Lieu';
