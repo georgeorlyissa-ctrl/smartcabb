@@ -237,6 +237,8 @@ export async function hybridSearch(query: string, localResults: any[]): Promise<
   ]);
 
   // 4. Fusionner les résultats (priorité à Nominatim)
+  // 4. Fusionner les résultats (priorité à Nominatim)
+  // 4. Fusionner les résultats (priorité à Nominatim)
   const combined = [...nominatimResults];
   
   // Ajouter les résultats locaux qui ne sont pas déjà dans Nominatim
