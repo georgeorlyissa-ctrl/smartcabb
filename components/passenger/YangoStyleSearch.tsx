@@ -5,12 +5,24 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Clock, X } from 'lucide-react';
-import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Search, MapPin, Clock, Star, TrendingUp, X } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { smartSearch, type SearchResult } from '../../lib/smart-search';
-import { PLACE_TYPE_ICONS } from '../../lib/kinshasa-places';
+import { smartSearch } from '../../lib/smart-search';
+import { rankSearchResults } from '../../lib/search-ranker';
+import { trackSearch, trackSelection } from '../../lib/search-analytics';
+
+interface SearchResult {
+  id: string;
+  name: string;
+  description: string;
+  coordinates?: { lat: number; lng: number };
+  placeId?: string;
+  type?: 'place' | 'recent' | 'favorite';
+  placeType?: string;
+  distance?: number;
+}
 
 interface YangoStyleSearchProps {
   placeholder?: string;
@@ -92,7 +104,16 @@ export function YangoStyleSearch({
               console.log(`🎯 Filtre 5km: ${data.results.length} → ${filtered.length} résultats`);
               
               if (filtered.length > 0) {
-                setResults(filtered);
+                // 🧠 RANKING INTELLIGENT - Trier par pertinence
+                const ranked = rankSearchResults(
+                  filtered,
+                  currentLocation,
+                  recentSearches.map(r => r.id),
+                  [] // TODO: Ajouter favoris depuis le store
+                );
+                
+                console.log('🧠 Ranking intelligent appliqué');
+                setResults(ranked);
                 setSearchSource('mapbox');
                 foundResults = true;
               }
@@ -266,6 +287,9 @@ export function YangoStyleSearch({
       
       setRecentSearches(newRecent);
       localStorage.setItem('smartcabb_recent_searches', JSON.stringify(newRecent));
+      
+      // 📊 TRACKING ANALYTICS - Enregistrer la sélection
+      trackSelection(result.id, result.name, result.distance).catch(console.warn);
     }
     
     // Notifier le parent
