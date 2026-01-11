@@ -273,14 +273,11 @@ geocodingApp.get('/autocomplete', async (c) => {
       });
     }
 
-    // 🚀 NOUVELLE STRATÉGIE : Ne PAS appeler Details API ici (trop lent)
-    // On retourne juste le place_id et on récupère les coordonnées SEULEMENT à la sélection
-    
-    // Limiter à 20 résultats comme Yango (au lieu de 5)
+    // 🚀 AMÉLIORATION : Augmenter à 20 résultats comme Yango (au lieu de 5)
     const predictions = data.predictions.slice(0, 20);
     console.log(`📊 Traitement de ${predictions.length} prédictions Google Places...`);
 
-    // Transformer les résultats SANS appeler Details API
+    // Transformer les résultats SANS appeler Details API (pour la vitesse)
     const results = predictions.map((prediction) => {
       const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
       const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
@@ -293,7 +290,7 @@ geocodingApp.get('/autocomplete', async (c) => {
         id: prediction.place_id,
         name: mainText,
         description: `${icon} ${typeLabel} • ${secondaryText}`,
-        // ⚠️ ATTENTION : On n'a pas les coordonnées ici
+        // ⚠️ IMPORTANT : On n'a pas les coordonnées ici
         // On va utiliser le place_id pour obtenir les coordonnées quand l'utilisateur sélectionne
         placeId: prediction.place_id,
         coordinates: { lat: 0, lng: 0 }, // Placeholder (sera rempli à la sélection)
@@ -302,7 +299,7 @@ geocodingApp.get('/autocomplete', async (c) => {
       };
     });
     
-    console.log(`✅ Google Places returned ${results.length} results`);
+    console.log(`✅ Google Places returned ${results.length} results (${data.predictions.length} total disponibles)`);
     
     return c.json({ 
       results: results,
