@@ -24,6 +24,12 @@ const DEFAULT_POSITION: GracefulPosition = {
   source: 'default'
 };
 
+// Export de la position centrale pour usage externe
+export const KINSHASA_CENTER = {
+  lat: -4.3276,
+  lng: 15.3136
+};
+
 // Cache de la dernière position connue
 let cachedPosition: GracefulPosition | null = null;
 
@@ -46,12 +52,12 @@ export async function isGeolocationAvailable(): Promise<boolean> {
     return false;
   }
 
-  // Tester avec un timeout très court pour ne pas bloquer
+  // ⚡ OPTIMISATION: Tester avec un timeout plus réaliste
   try {
     const result = await new Promise<boolean>((resolve) => {
       const timeout = setTimeout(() => {
         resolve(false);
-      }, 100); // 100ms seulement
+      }, 2000); // ⚡ 2 secondes au lieu de 100ms (trop court)
 
       navigator.geolocation.getCurrentPosition(
         () => {
@@ -68,7 +74,11 @@ export async function isGeolocationAvailable(): Promise<boolean> {
             resolve(true);
           }
         },
-        { timeout: 100 }
+        { 
+          timeout: 2000,
+          enableHighAccuracy: false, // ⚡ Rapide pour le test
+          maximumAge: 60000 // Accepter position en cache
+        }
       );
     });
 
@@ -112,9 +122,10 @@ export async function getCurrentPosition(options?: {
         resolve,
         reject,
         {
-          enableHighAccuracy: options?.enableHighAccuracy ?? true,
-          timeout: options?.timeout ?? 10000,
-          maximumAge: options?.maximumAge ?? 30000
+          // ⚡ OPTIMISATION: Valeurs par défaut RAPIDES
+          enableHighAccuracy: options?.enableHighAccuracy ?? false, // false = rapide (WiFi/cellulaire)
+          timeout: options?.timeout ?? 5000, // 5 secondes au lieu de 10
+          maximumAge: options?.maximumAge ?? 60000 // Accepter position vieille de 1 minute
         }
       );
     });
@@ -236,15 +247,41 @@ export function watchPosition(
 export async function getQuickPosition(): Promise<GracefulPosition> {
   // Si on a une position en cache récente, l'utiliser
   if (cachedPosition && !cachedPosition.isDefault) {
+    console.log('⚡ Position en cache utilisée (rapide)');
     return cachedPosition;
   }
 
   // Sinon, essayer avec un timeout court
   return getCurrentPosition({
-    enableHighAccuracy: false,
-    timeout: 3000,
-    maximumAge: 60000 // Accepter une position vieille de 1 minute
+    enableHighAccuracy: false, // Pas de haute précision = plus rapide
+    timeout: 2000, // 2 secondes maximum
+    maximumAge: 120000 // Accepter une position vieille de 2 minutes
   });
+}
+
+/**
+ * ⚡ Obtient une position INSTANTANÉE (retourne immédiatement le cache ou position par défaut)
+ * Puis lance une mise à jour en arrière-plan
+ */
+export function getInstantPosition(onUpdate?: (position: GracefulPosition) => void): GracefulPosition {
+  // Retourner immédiatement la position en cache ou par défaut
+  const instant = cachedPosition || DEFAULT_POSITION;
+  console.log('⚡ Position instantanée:', instant.source);
+  
+  // En arrière-plan, essayer d'obtenir une position fraîche
+  if (onUpdate) {
+    getQuickPosition().then((freshPosition) => {
+      // Si la position a changé, notifier
+      if (freshPosition.lat !== instant.lat || freshPosition.lng !== instant.lng) {
+        console.log('🔄 Position mise à jour en arrière-plan');
+        onUpdate(freshPosition);
+      }
+    }).catch(() => {
+      // Ignorer les erreurs en arrière-plan
+    });
+  }
+  
+  return instant;
 }
 
 /**
