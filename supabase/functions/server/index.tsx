@@ -21,6 +21,7 @@ import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
 import diagnosticRoute from "./diagnostic-driver-route.tsx";
 import geocodingApp from "./geocoding-api.ts";
+import analyticsApp from "./analytics-api.ts";
 
 const app = new Hono();
 
@@ -1855,9 +1856,14 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 app.route('/make-server-2eb02e52/test', testRoutes);
 
 // ============================================
-// GEOCODING API ROUTES (Mapbox + Google Places)
+// GEOCODING API ROUTES (Mapbox + Nominatim)
 // ============================================
 app.route('/make-server-2eb02e52/geocoding', geocodingApp);
+
+// ============================================
+// ANALYTICS API ROUTES (Tracking pour ranking intelligent)
+// ============================================
+app.route('/make-server-2eb02e52/analytics', analyticsApp);
 
 // ============================================
 // DIAGNOSTIC ROUTES (Diagnostic conducteur)
