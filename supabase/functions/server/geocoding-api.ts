@@ -183,27 +183,30 @@ geocodingApp.get('/autocomplete', async (c) => {
     const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY') || '';
     
     if (!GOOGLE_PLACES_API_KEY) {
-      console.warn('⚠️ GOOGLE_PLACES_API_KEY non défini, fallback vers Mapbox');
-      return c.json({ error: 'API Google Places non configurée', fallback: true }, 503);
+      console.warn('⚠️ GOOGLE_PLACES_API_KEY non défini');
+      return c.json({ 
+        error: 'API Google Places non configurée',
+        fallback: true 
+      }, 503);
     }
 
-    console.log('🌍 Google Places Autocomplete - Query:', query);
-    console.log('🌍 Google Places Autocomplete - Location:', lat && lng ? `${lat},${lng}` : 'Kinshasa default');
+    console.log('🔍 Google Places Autocomplete - Query:', query);
+    console.log('🔍 Google Places Autocomplete - Location:', lat, lng);
 
     // Construire l'URL Google Places Autocomplete
     const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
     url.searchParams.set('input', query);
     url.searchParams.set('key', GOOGLE_PLACES_API_KEY);
     url.searchParams.set('language', 'fr');
-    url.searchParams.set('components', 'country:cd'); // Limiter à la RDC
     
-    // Centrer autour de Kinshasa
-    if (lat && lng) {
+    // Limiter à Kinshasa, RDC
+    url.searchParams.set('components', 'country:cd');
+    
+    // Si position fournie, utiliser pour améliorer les résultats
+    if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
       url.searchParams.set('location', `${lat},${lng}`);
-      url.searchParams.set('radius', '50000'); // 50 km
-    } else {
-      url.searchParams.set('location', '-4.3276,15.3136'); // Centre de Kinshasa
-      url.searchParams.set('radius', '50000');
+      url.searchParams.set('radius', '50000'); // 50km autour de la position
+      url.searchParams.set('strictbounds', 'false'); // Permettre résultats hors rayon si pertinents
     }
 
     console.log('🔗 Google Places URL:', url.toString().replace(GOOGLE_PLACES_API_KEY, 'HIDDEN'));
@@ -212,98 +215,52 @@ geocodingApp.get('/autocomplete', async (c) => {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Google Places API HTTP error:', response.status, response.statusText);
-      console.error('❌ Google Places response:', errorText);
-      return c.json({ error: 'Erreur API Google Places', fallback: true }, response.status);
+      console.error('❌ Google Places HTTP error:', response.status, response.statusText);
+      console.error('❌ Response:', errorText);
+      return c.json({ 
+        error: 'Erreur HTTP Google Places',
+        status: response.status,
+        fallback: true 
+      }, response.status);
     }
 
     const data: GooglePlacesAutocompleteResponse = await response.json();
     
-    console.log('📊 Google Places API status:', data.status);
-    
+    // Vérifier le statut de la réponse
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      console.error('❌ Google Places API status:', data.status);
-      
-      // Messages d'erreur détaillés avec instructions de correction
-      let errorMessage = `Google Places error: ${data.status}`;
-      let instructions = '';
-      
-      if (data.status === 'REQUEST_DENIED') {
-        errorMessage = '🔒 Google Places API : Accès refusé';
-        instructions = `
-        
-📋 INSTRUCTIONS POUR CORRIGER :
-        
-1️⃣ Allez sur https://console.cloud.google.com/apis/library
-2️⃣ Recherchez "Places API" et activez-la
-3️⃣ Allez dans "Identifiants" : https://console.cloud.google.com/apis/credentials
-4️⃣ Cliquez sur votre clé API
-5️⃣ Dans "Restrictions liées à l'application", sélectionnez "Aucune"
-   OU ajoutez l'IP de Supabase dans la liste blanche
-6️⃣ Dans "Restrictions liées aux API", assurez-vous que "Places API" est cochée
-7️⃣ Enregistrez et attendez 2-3 minutes
-
-⚠️ EN ATTENDANT : Le système utilise automatiquement Nominatim (OpenStreetMap) comme fallback.
-        `;
-      } else if (data.status === 'INVALID_REQUEST') {
-        errorMessage = 'Requête invalide';
-        instructions = 'Vérifiez les paramètres de la requête';
-      } else if (data.status === 'OVER_QUERY_LIMIT') {
-        errorMessage = 'Quota Google Places dépassé';
-        instructions = 'Le système utilise Nominatim comme fallback';
-      }
-      
-      console.warn('⚠️' + instructions);
-      
+      console.error('❌ Google Places status:', data.status);
       return c.json({ 
-        error: errorMessage,
-        status: data.status,
-        instructions: instructions.trim(),
-        fallback: true // ✅ Déclencher le fallback automatique
-      }, 503); // 503 pour forcer le fallback côté frontend
+        error: `Google Places error: ${data.status}`,
+        fallback: true 
+      }, 500);
     }
 
+    // Si ZERO_RESULTS, retourner tableau vide (pas une erreur)
     if (data.status === 'ZERO_RESULTS') {
-      console.log('⚠️ Google Places: Aucun résultat pour', query);
+      console.log('ℹ️ Google Places: Aucun résultat');
       return c.json({ 
         results: [],
-        source: 'google_places',
-        count: 0,
-        fallback: true // ✅ Essayer le fallback
+        source: 'google_places_autocomplete',
+        count: 0 
       });
     }
 
-    // 🚀 AMÉLIORATION : Augmenter à 20 résultats comme Yango (au lieu de 5)
-    const predictions = data.predictions.slice(0, 20);
-    console.log(`📊 Traitement de ${predictions.length} prédictions Google Places...`);
+    // Transformer les prédictions au format SmartCabb
+    const results = data.predictions.map((prediction) => ({
+      id: prediction.place_id,
+      name: prediction.structured_formatting.main_text,
+      description: prediction.structured_formatting.secondary_text || 'Kinshasa, RDC',
+      placeId: prediction.place_id,
+      fullAddress: prediction.description,
+      types: prediction.types,
+      source: 'google_places'
+    }));
 
-    // Transformer les résultats SANS appeler Details API (pour la vitesse)
-    const results = predictions.map((prediction) => {
-      const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
-      const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
-      
-      // Extraire le nom principal et la description
-      const mainText = prediction.structured_formatting.main_text;
-      const secondaryText = prediction.structured_formatting.secondary_text || 'Kinshasa';
-      
-      return {
-        id: prediction.place_id,
-        name: mainText,
-        description: `${icon} ${typeLabel} • ${secondaryText}`,
-        // ⚠️ IMPORTANT : On n'a pas les coordonnées ici
-        // On va utiliser le place_id pour obtenir les coordonnées quand l'utilisateur sélectionne
-        placeId: prediction.place_id,
-        coordinates: { lat: 0, lng: 0 }, // Placeholder (sera rempli à la sélection)
-        fullAddress: prediction.description,
-        source: 'google_places'
-      };
-    });
-    
-    console.log(`✅ Google Places returned ${results.length} results (${data.predictions.length} total disponibles)`);
+    console.log(`✅ Google Places returned ${results.length} results`);
     
     return c.json({ 
-      results: results,
-      source: 'google_places',
+      results,
+      source: 'google_places_autocomplete',
       count: results.length 
     });
 
