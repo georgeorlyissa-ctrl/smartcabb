@@ -239,8 +239,8 @@ async function searchWithLocalDatabase(
 ): Promise<ProfessionalPlace[]> {
   try {
     // Importer la base de données locale
-    const { searchLocations, getLocationTypeLabel } = await import('./kinshasa-locations-database');
-    const results = searchLocations(query);
+    const { searchLocationsByCommune, getLocationTypeLabel } = await import('./kinshasa-locations-database');
+    const results = searchLocationsByCommune(query);
     
     return results.slice(0, 10).map((location, index) => ({
       id: `local-${index}`,
