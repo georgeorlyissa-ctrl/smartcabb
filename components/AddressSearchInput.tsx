@@ -117,7 +117,7 @@ export function AddressSearchInput({
     setTimeout(async () => {
       const queryLower = query.toLowerCase().trim();
       
-      console.log('🌍 === RECHERCHE PROFESSIONNELLE DÉMARRÉE ===');
+      console.log('🌍 ===== RECHERCHE ADRESSE DÉMARRÉE =====');
       console.log(`🔍 Query: "${query}"`);
       console.log(`📍 Position actuelle:`, currentLocation);
       
@@ -127,7 +127,7 @@ export function AddressSearchInput({
         
         console.log(`✅ Résultats professionnels: ${professionalResults.length}`);
         professionalResults.forEach((result, i) => {
-          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance?.toFixed(1) || '?'} km`);
+          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance !== undefined ? result.distance.toFixed(1) + ' km' : 'distance inconnue'}`);
         });
         
         // Convertir au format Address
@@ -140,8 +140,8 @@ export function AddressSearchInput({
           placeId: place.placeId // 🆕 Pour Google Places
         }));
         
-        console.log(`🎯 ${suggestions.length} résultats à afficher`);
-        console.log('🌍 === RECHERCHE PROFESSIONNELLE TERMINÉE ===');
+        console.log(`🎯 ${suggestions.length} suggestions à afficher`);
+        console.log('🌍 ===== RECHERCHE TERMINÉE =====');
         
         setSuggestions(suggestions);
         setIsOpen(suggestions.length > 0);
