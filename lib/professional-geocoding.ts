@@ -26,6 +26,7 @@ export interface ProfessionalPlace {
   rating?: number;
   userRatingsTotal?: number;
   source: 'mapbox' | 'google_places' | 'nominatim' | 'local';
+  placeId?: string; // 🆕 Pour Google Places (obtenir coordonnées plus tard)
 }
 
 export interface RouteInfo {
@@ -180,7 +181,7 @@ async function searchWithGooglePlaces(
     
     // Calculer les distances si position actuelle fournie
     return data.results.map((place: ProfessionalPlace) => {
-      if (currentLocation) {
+      if (currentLocation && place.coordinates && place.coordinates.lat) {
         place.distance = calculateDistance(
           currentLocation.lat,
           currentLocation.lng,
@@ -300,6 +301,45 @@ export async function calculateRoute(
 
   } catch (error) {
     console.error('❌ Erreur calcul d\'itinéraire:', error);
+    return null;
+  }
+}
+
+/**
+ * 📍 OBTENIR LES COORDONNÉES D'UN LIEU GOOGLE PLACES
+ * 
+ * Appelé quand l'utilisateur sélectionne un lieu depuis Autocomplete
+ */
+export async function getPlaceCoordinates(placeId: string): Promise<{
+  coordinates: { lat: number; lng: number };
+  name: string;
+  fullAddress: string;
+} | null> {
+  try {
+    const url = new URL(`${BACKEND_URL}/geocoding/place-details`);
+    url.searchParams.set('place_id', placeId);
+
+    console.log('📍 Récupération coordonnées pour place_id:', placeId);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${publicAnonKey}`
+      }
+    });
+
+    if (!response.ok) {
+      console.error('❌ Erreur récupération coordonnées:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    console.log(`✅ Coordonnées récupérées: ${data.coordinates.lat}, ${data.coordinates.lng}`);
+    
+    return data;
+
+  } catch (error) {
+    console.error('❌ Erreur getPlaceCoordinates:', error);
     return null;
   }
 }
