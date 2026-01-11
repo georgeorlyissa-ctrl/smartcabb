@@ -412,6 +412,9 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
 /**
  * 📱 DÉTECTER SI L'UTILISATEUR EST SUR MOBILE
  */
+/**
+ * 📱 DÉTECTER SI L'UTILISATEUR EST SUR MOBILE
+ */
 export function isMobileDevice(): boolean {
   return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
