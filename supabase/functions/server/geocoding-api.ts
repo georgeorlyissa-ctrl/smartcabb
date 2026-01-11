@@ -224,21 +224,43 @@ geocodingApp.get('/autocomplete', async (c) => {
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error('❌ Google Places API status:', data.status);
       
-      // Messages d'erreur détaillés
+      // Messages d'erreur détaillés avec instructions de correction
       let errorMessage = `Google Places error: ${data.status}`;
+      let instructions = '';
+      
       if (data.status === 'REQUEST_DENIED') {
-        errorMessage += ' - Vérifiez que Places API est activée dans Google Cloud Console';
+        errorMessage = '🔒 Google Places API : Accès refusé';
+        instructions = `
+        
+📋 INSTRUCTIONS POUR CORRIGER :
+        
+1️⃣ Allez sur https://console.cloud.google.com/apis/library
+2️⃣ Recherchez "Places API" et activez-la
+3️⃣ Allez dans "Identifiants" : https://console.cloud.google.com/apis/credentials
+4️⃣ Cliquez sur votre clé API
+5️⃣ Dans "Restrictions liées à l'application", sélectionnez "Aucune"
+   OU ajoutez l'IP de Supabase dans la liste blanche
+6️⃣ Dans "Restrictions liées aux API", assurez-vous que "Places API" est cochée
+7️⃣ Enregistrez et attendez 2-3 minutes
+
+⚠️ EN ATTENDANT : Le système utilise automatiquement Nominatim (OpenStreetMap) comme fallback.
+        `;
       } else if (data.status === 'INVALID_REQUEST') {
-        errorMessage += ' - Requête invalide, vérifiez les paramètres';
+        errorMessage = 'Requête invalide';
+        instructions = 'Vérifiez les paramètres de la requête';
       } else if (data.status === 'OVER_QUERY_LIMIT') {
-        errorMessage += ' - Quota dépassé';
+        errorMessage = 'Quota Google Places dépassé';
+        instructions = 'Le système utilise Nominatim comme fallback';
       }
+      
+      console.warn('⚠️' + instructions);
       
       return c.json({ 
         error: errorMessage,
         status: data.status,
-        fallback: true 
-      }, 500);
+        instructions: instructions.trim(),
+        fallback: true // ✅ Déclencher le fallback automatique
+      }, 503); // 503 pour forcer le fallback côté frontend
     }
 
     if (data.status === 'ZERO_RESULTS') {
@@ -246,7 +268,8 @@ geocodingApp.get('/autocomplete', async (c) => {
       return c.json({ 
         results: [],
         source: 'google_places',
-        count: 0 
+        count: 0,
+        fallback: true // ✅ Essayer le fallback
       });
     }
 
