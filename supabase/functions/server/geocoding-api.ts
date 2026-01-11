@@ -189,8 +189,6 @@ geocodingApp.get('/autocomplete', async (c) => {
 
     console.log('🌍 Google Places Autocomplete - Query:', query);
     console.log('🌍 Google Places Autocomplete - Location:', lat && lng ? `${lat},${lng}` : 'Kinshasa default');
-    console.log('🔑 Google Places API Key présente:', !!GOOGLE_PLACES_API_KEY);
-    console.log('🔑 Google Places API Key length:', GOOGLE_PLACES_API_KEY.length);
 
     // Construire l'URL Google Places Autocomplete
     const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
@@ -225,12 +223,11 @@ geocodingApp.get('/autocomplete', async (c) => {
     
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error('❌ Google Places API status:', data.status);
-      console.error('📋 Données complètes:', JSON.stringify(data, null, 2));
       
       // Messages d'erreur détaillés
       let errorMessage = `Google Places error: ${data.status}`;
       if (data.status === 'REQUEST_DENIED') {
-        errorMessage += ' - Vérifiez que Places API est activée dans Google Cloud Console et que les restrictions IP/HTTP sont correctes';
+        errorMessage += ' - Vérifiez que Places API est activée dans Google Cloud Console';
       } else if (data.status === 'INVALID_REQUEST') {
         errorMessage += ' - Requête invalide, vérifiez les paramètres';
       } else if (data.status === 'OVER_QUERY_LIMIT') {
@@ -253,56 +250,41 @@ geocodingApp.get('/autocomplete', async (c) => {
       });
     }
 
-    // Transformer les résultats
-    const results = await Promise.all(
-      data.predictions.slice(0, 5).map(async (prediction) => { // Limiter à 5 pour éviter trop d'appels
-        try {
-          // Obtenir les détails du lieu pour avoir les coordonnées
-          const detailsUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-          detailsUrl.searchParams.set('place_id', prediction.place_id);
-          detailsUrl.searchParams.set('key', GOOGLE_PLACES_API_KEY);
-          detailsUrl.searchParams.set('fields', 'geometry,name,formatted_address,types,rating,user_ratings_total');
-          
-          const detailsResponse = await fetch(detailsUrl.toString());
-          const detailsData = await detailsResponse.json();
-          
-          if (detailsData.status !== 'OK') {
-            console.warn('⚠️ Impossible de récupérer les détails pour', prediction.place_id);
-            return null;
-          }
-          
-          const place = detailsData.result;
-          const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
-          const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
-          
-          return {
-            id: prediction.place_id,
-            name: prediction.structured_formatting.main_text,
-            description: `${icon} ${typeLabel} • ${prediction.structured_formatting.secondary_text}`,
-            coordinates: {
-              lat: place.geometry.location.lat,
-              lng: place.geometry.location.lng
-            },
-            fullAddress: prediction.description,
-            rating: place.rating,
-            userRatingsTotal: place.user_ratings_total,
-            source: 'google_places'
-          };
-        } catch (err) {
-          console.error('❌ Erreur lors du traitement de', prediction.place_id, err);
-          return null;
-        }
-      })
-    );
-
-    const validResults = results.filter(r => r !== null);
+    // 🚀 NOUVELLE STRATÉGIE : Ne PAS appeler Details API ici (trop lent)
+    // On retourne juste le place_id et on récupère les coordonnées SEULEMENT à la sélection
     
-    console.log(`✅ Google Places returned ${validResults.length} results`);
+    // Limiter à 20 résultats comme Yango (au lieu de 5)
+    const predictions = data.predictions.slice(0, 20);
+    console.log(`📊 Traitement de ${predictions.length} prédictions Google Places...`);
+
+    // Transformer les résultats SANS appeler Details API
+    const results = predictions.map((prediction) => {
+      const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
+      const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
+      
+      // Extraire le nom principal et la description
+      const mainText = prediction.structured_formatting.main_text;
+      const secondaryText = prediction.structured_formatting.secondary_text || 'Kinshasa';
+      
+      return {
+        id: prediction.place_id,
+        name: mainText,
+        description: `${icon} ${typeLabel} • ${secondaryText}`,
+        // ⚠️ ATTENTION : On n'a pas les coordonnées ici
+        // On va utiliser le place_id pour obtenir les coordonnées quand l'utilisateur sélectionne
+        placeId: prediction.place_id,
+        coordinates: { lat: 0, lng: 0 }, // Placeholder (sera rempli à la sélection)
+        fullAddress: prediction.description,
+        source: 'google_places'
+      };
+    });
+    
+    console.log(`✅ Google Places returned ${results.length} results`);
     
     return c.json({ 
-      results: validResults,
+      results: results,
       source: 'google_places',
-      count: validResults.length 
+      count: results.length 
     });
 
   } catch (error) {
@@ -383,6 +365,79 @@ geocodingApp.get('/directions', async (c) => {
     console.error('❌ Erreur Mapbox Directions:', error);
     return c.json({ 
       error: 'Erreur lors du calcul d\'itinéraire',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
+
+/**
+ * 📍 OBTENIR LES COORDONNÉES D'UN LIEU PAR PLACE_ID (Google Places)
+ * 
+ * GET /geocoding/place-details?place_id=ChIJN1t_tDeuEmsRUsoyG83frY4
+ * 
+ * Appelé UNIQUEMENT quand l'utilisateur sélectionne un lieu
+ */
+geocodingApp.get('/place-details', async (c) => {
+  try {
+    const placeId = c.req.query('place_id');
+    
+    if (!placeId) {
+      return c.json({ error: 'place_id requis' }, 400);
+    }
+
+    const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY') || '';
+    
+    if (!GOOGLE_PLACES_API_KEY) {
+      console.warn('⚠️ GOOGLE_PLACES_API_KEY non défini');
+      return c.json({ error: 'API Google Places non configurée' }, 503);
+    }
+
+    console.log('📍 Google Places Details - Place ID:', placeId);
+
+    // Construire l'URL Google Places Details
+    const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+    url.searchParams.set('place_id', placeId);
+    url.searchParams.set('key', GOOGLE_PLACES_API_KEY);
+    // Demander UNIQUEMENT les coordonnées (moins cher)
+    url.searchParams.set('fields', 'geometry,name,formatted_address');
+    url.searchParams.set('language', 'fr');
+
+    console.log('🔗 Google Places Details URL:', url.toString().replace(GOOGLE_PLACES_API_KEY, 'HIDDEN'));
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Google Places Details HTTP error:', response.status, response.statusText);
+      console.error('❌ Response:', errorText);
+      return c.json({ error: 'Erreur API Google Places Details' }, response.status);
+    }
+
+    const data = await response.json();
+    
+    if (data.status !== 'OK') {
+      console.error('❌ Google Places Details status:', data.status);
+      return c.json({ error: `Google Places error: ${data.status}` }, 500);
+    }
+
+    const place = data.result;
+    
+    console.log(`✅ Coordonnées récupérées: ${place.geometry.location.lat}, ${place.geometry.location.lng}`);
+    
+    return c.json({
+      coordinates: {
+        lat: place.geometry.location.lat,
+        lng: place.geometry.location.lng
+      },
+      name: place.name,
+      fullAddress: place.formatted_address,
+      source: 'google_places_details'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur Google Places Details:', error);
+    return c.json({ 
+      error: 'Erreur lors de la récupération des coordonnées',
       message: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
