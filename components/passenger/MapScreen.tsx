@@ -3,6 +3,7 @@ import { useAppState } from '../../hooks/useAppState';
 import { FavoriteLocations } from './FavoriteLocations';
 import { InteractiveMapView } from '../InteractiveMapView';
 import { AddressSearchInput } from '../AddressSearchInput';
+import { YangoStyleSearch } from './YangoStyleSearch'; // 🆕 Nouveau composant Yango-style
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from 'lucide-react';
@@ -407,27 +408,31 @@ export function MapScreen() {
                 <Search className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <AddressSearchInput
+                {/* 🆕 NOUVEAU : Composant de recherche Yango-style (SIMPLE ET EFFICACE) */}
+                <YangoStyleSearch
                   placeholder="Où allez-vous ?"
-                  currentLocation={currentLocation} // 🆕 Passer la position actuelle pour filtrage contextuel
-                  onAddressSelect={(address) => {
-                    console.log('🎯 onAddressSelect MapScreen appelé - Adresse:', address.name);
+                  currentLocation={currentLocation}
+                  onSelect={(result) => {
+                    console.log('🎯 Destination sélectionnée:', result.name);
                     
                     // ✅ Mettre à jour destination LOCALEMENT
-                    setDestination(address.name);
+                    setDestination(result.name);
                     
                     // ✅ Enregistrer les coordonnées dans l'état global
-                    if (setGlobalDestination) {
+                    if (setGlobalDestination && result.coordinates) {
                       setGlobalDestination({
-                        lat: address.coordinates.lat,
-                        lng: address.coordinates.lng,
-                        address: address.name
+                        lat: result.coordinates.lat,
+                        lng: result.coordinates.lng,
+                        address: result.name
                       });
-                      console.log('✅ Coordonnées de destination enregistrées:', address.coordinates);
+                      console.log('✅ Coordonnées de destination enregistrées:', result.coordinates);
+                    } else if (!result.coordinates) {
+                      console.warn('⚠️ Résultat sans coordonnées, sélectionné depuis historique');
+                      // Pour l'historique, les coordonnées sont déjà enregistrées
                     }
                     
                     // ✅ Afficher une confirmation visuelle
-                    toast.success(`📍 Destination : ${address.name}`, { duration: 2000 });
+                    toast.success(`📍 Destination : ${result.name}`, { duration: 2000 });
                   }}
                 />
               </div>
@@ -439,14 +444,13 @@ export function MapScreen() {
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <AddressSearchInput
+                <YangoStyleSearch
                   placeholder="Point de repère (ex: Arrêt Armée, Marché Central...)"
-                  value={pickupInstructionsValue}
-                  onChange={setPickupInstructionsValue}
-                  onAddressSelect={(address) => {
-                    console.log('📍 Point de repère sélectionné:', address.name);
-                    setPickupInstructionsValue(address.name);
-                    toast.success(`📍 Repère : ${address.name}`, { duration: 2000 });
+                  currentLocation={currentLocation}
+                  onSelect={(result) => {
+                    console.log('📍 Point de repère sélectionné:', result.name);
+                    setPickupInstructionsValue(result.name);
+                    toast.success(`📍 Repère : ${result.name}`, { duration: 2000 });
                   }}
                 />
                 <p className="text-xs text-gray-500 mt-1.5 ml-1">
