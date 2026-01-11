@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCurrentPosition, watchPosition, GracefulPosition } from '../lib/graceful-geolocation';
+import { isGeolocationAvailable, getCurrentPosition, watchPosition, GracefulPosition, stopWatching, KINSHASA_CENTER } from '../lib/graceful-geolocation';
 
 interface Location {
   lat: number;
@@ -178,9 +178,9 @@ export function useStableLocation(
 
     const errorCallback = (err: GeolocationPositionError) => {
       // Ne pas afficher d'erreurs alarmantes si géolocalisation bloquée
-      if (err.message.includes('permissions policy')) {
-        console.log('📍 Géolocalisation non disponible, position par défaut utilisée');
-        setError('Géolocalisation non disponible');
+      if (err.message && (err.message.includes('permissions policy') || err.message.includes('disabled in this document'))) {
+        console.log('📍 Géolocalisation non disponible (environnement iframe), position par défaut utilisée');
+        setError(null); // Pas d'erreur visible pour l'utilisateur
       } else {
         console.log('⚠️ Erreur géolocalisation:', err.message);
         
@@ -202,10 +202,7 @@ export function useStableLocation(
       }
       
       // Position par défaut : Kinshasa Centre
-      const defaultPosition: Location = {
-        lat: -4.3276,
-        lng: 15.3136
-      };
+      const defaultPosition: Location = KINSHASA_CENTER;
       
       console.log('📍 Utilisation position par défaut (Kinshasa)');
       setLocation(defaultPosition);
@@ -213,28 +210,83 @@ export function useStableLocation(
       positionsHistory.current = [defaultPosition];
     };
 
-    // Démarrer le suivi de position
-    if (navigator.geolocation) {
-      // Obtenir la position initiale
-      navigator.geolocation.getCurrentPosition(successCallback, errorCallback, geoOptions);
+    // Démarrer le suivi de position avec le service graceful (async)
+    (async () => {
+      const available = await isGeolocationAvailable();
       
-      // Puis surveiller les changements
-      watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, geoOptions);
-    } else {
-      setError('Géolocalisation non supportée');
-      errorCallback({
-        code: 2,
-        message: 'Geolocation not supported',
-        PERMISSION_DENIED: 1,
-        POSITION_UNAVAILABLE: 2,
-        TIMEOUT: 3
-      });
-    }
+      if (!available) {
+        console.log('📍 Géolocalisation non disponible, position par défaut utilisée');
+        const defaultPosition: Location = KINSHASA_CENTER;
+        setLocation(defaultPosition);
+        lastStablePosition.current = defaultPosition;
+        positionsHistory.current = [defaultPosition];
+        return;
+      }
+
+      // Utiliser le service graceful au lieu d'appeler directement navigator.geolocation
+      try {
+        // Obtenir la position initiale
+        const initialPos = await getCurrentPosition({ 
+          enableHighAccuracy: true, 
+          timeout: 10000, 
+          maximumAge: 0 
+        });
+        
+        if (initialPos) {
+          successCallback({
+            coords: {
+              latitude: initialPos.lat,
+              longitude: initialPos.lng,
+              accuracy: initialPos.accuracy,
+              altitude: null,
+              altitudeAccuracy: null,
+              heading: null,
+              speed: null
+            },
+            timestamp: initialPos.timestamp
+          } as GeolocationPosition);
+        }
+        
+        // Puis surveiller les changements avec watchPosition graceful
+        watchId = watchPosition(
+          (position) => {
+            successCallback({
+              coords: {
+                latitude: position.lat,
+                longitude: position.lng,
+                accuracy: position.accuracy,
+                altitude: null,
+                altitudeAccuracy: null,
+                heading: null,
+                speed: null
+              },
+              timestamp: position.timestamp
+            } as GeolocationPosition);
+          },
+          (error) => {
+            errorCallback({
+              code: 2,
+              message: error,
+              PERMISSION_DENIED: 1,
+              POSITION_UNAVAILABLE: 2,
+              TIMEOUT: 3
+            });
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } catch (error: any) {
+        console.log('📍 Impossible d\'obtenir la position GPS, position par défaut utilisée');
+        const defaultPosition: Location = KINSHASA_CENTER;
+        setLocation(defaultPosition);
+        lastStablePosition.current = defaultPosition;
+        positionsHistory.current = [defaultPosition];
+      }
+    })();
 
     // Cleanup
     return () => {
       if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
+        stopWatching();
         console.log('🛑 Arrêt géolocalisation stable');
       }
     };
