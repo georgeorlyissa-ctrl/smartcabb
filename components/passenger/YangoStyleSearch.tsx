@@ -34,6 +34,7 @@ export function YangoStyleSearch({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
+  const [searchSource, setSearchSource] = useState<'google_places' | 'local' | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Charger l'historique au démarrage
@@ -60,70 +61,68 @@ export function YangoStyleSearch({
     
     // Délai anti-spam (comme Uber/Yango)
     const timer = setTimeout(async () => {
-      console.log('🔍 Recherche Google Places:', query);
+      console.log('🔍 Recherche:', query);
       
       try {
-        // 🎯 APPELER GOOGLE PLACES API VIA LE BACKEND
-        const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/autocomplete`);
-        url.searchParams.set('q', query);
+        // 🎯 STRATÉGIE : Essayer Google Places, fallback vers recherche locale
+        let searchResults: SearchResult[] = [];
+        let usedSource = 'local';
         
-        // Ajouter la position actuelle pour améliorer les résultats
-        if (currentLocation) {
-          url.searchParams.set('lat', currentLocation.lat.toString());
-          url.searchParams.set('lng', currentLocation.lng.toString());
-        }
-        
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`
-          }
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('❌ Erreur API:', errorData);
+        // Tenter Google Places d'abord
+        try {
+          const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/autocomplete`);
+          url.searchParams.set('q', query);
           
-          // Fallback vers recherche locale si API échoue
-          if (errorData.fallback) {
-            console.log('⏭️ Fallback vers recherche locale');
-            const localResults = await searchLocalDatabase(query, currentLocation);
-            setResults(localResults);
-          } else {
-            setResults([]);
+          if (currentLocation) {
+            url.searchParams.set('lat', currentLocation.lat.toString());
+            url.searchParams.set('lng', currentLocation.lng.toString());
           }
-          return;
+          
+          const response = await fetch(url.toString(), {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            if (data.results && data.results.length > 0) {
+              searchResults = data.results.map((r: any) => ({
+                id: r.placeId || r.id,
+                name: r.name,
+                description: r.description,
+                placeId: r.placeId,
+                type: 'place' as const
+              }));
+              usedSource = 'google_places';
+              console.log(`✅ ${searchResults.length} résultats Google Places`);
+            } else {
+              throw new Error('Aucun résultat Google Places');
+            }
+          } else {
+            const errorData = await response.json();
+            console.warn('⚠️ Google Places non disponible:', errorData.error);
+            throw new Error('Google Places unavailable');
+          }
+        } catch (googleError) {
+          // Fallback silencieux vers recherche locale
+          console.log('⏭️ Fallback vers recherche locale');
+          searchResults = await searchLocalDatabase(query, currentLocation);
+          usedSource = 'local';
         }
         
-        const data = await response.json();
-        
-        // Transformer les résultats Google Places en SearchResult
-        const searchResults: SearchResult[] = data.results.map((r: any) => ({
-          id: r.placeId || r.id,
-          name: r.name,
-          description: r.description,
-          placeId: r.placeId,
-          type: 'place' as const
-        }));
-        
-        console.log(`✅ ${searchResults.length} résultats Google Places`);
+        console.log(`✅ ${searchResults.length} résultats (source: ${usedSource})`);
         setResults(searchResults);
+        setSearchSource(usedSource);
         
       } catch (error) {
         console.error('❌ Erreur recherche:', error);
-        
-        // Fallback vers recherche locale en cas d'erreur réseau
-        try {
-          console.log('⏭️ Fallback vers recherche locale');
-          const localResults = await searchLocalDatabase(query, currentLocation);
-          setResults(localResults);
-        } catch (localError) {
-          console.error('❌ Erreur fallback local:', localError);
-          setResults([]);
-        }
+        setResults([]);
       } finally {
         setIsLoading(false);
       }
-    }, 200); // 200ms de délai (Yango utilise ~150-250ms)
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [query, currentLocation, recentSearches]);
