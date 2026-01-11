@@ -163,67 +163,61 @@ export class PreciseGPSTracker {
   /**
    * 🎯 DÉMARRER LA GÉOLOCALISATION PRÉCISE
    */
-  async start(lockOnAccuracy: number = 20) {
-    // Vérifier si la géolocalisation est disponible
-    const available = await isGeolocationAvailable();
+  async start(options?: {
+    onPositionUpdate?: (position: GPSCoordinates) => void;
+    onAccuracyReached?: (position: GPSCoordinates) => void;
+    onError?: (error: string) => void;
+    lockOnAccuracy?: number;
+  }) {
+    // Sauvegarder les callbacks
+    this.onPositionUpdate = options?.onPositionUpdate;
+    this.onAccuracyReached = options?.onAccuracyReached;
+    this.onError = options?.onError;
     
-    if (!available) {
-      console.log('📍 Géolocalisation non disponible (environnement iframe), position par défaut utilisée');
-      this.onError?.('Géolocalisation non disponible dans cet environnement');
-      return;
-    }
-
+    const lockOnAccuracy = options?.lockOnAccuracy || 20;
+    
+    // Vérifier si l'API de géolocalisation existe
     if (!navigator.geolocation) {
       console.warn('⚠️ Géolocalisation non supportée par ce navigateur');
       this.onError?.('Géolocalisation non supportée');
       return;
     }
 
-    console.log('🎯 Démarrage géolocalisation PRÉCISE...');
+    console.log('🎯 Démarrage géolocalisation RAPIDE...');
     
-    // Options de haute précision
-    const preciseGeoOptions: PositionOptions = {
-      enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 0
+    // ⚡ OPTIMISATION: Options RAPIDES pour la première position
+    const quickGeoOptions: PositionOptions = {
+      enableHighAccuracy: false, // ⚡ WiFi/cellulaire = RAPIDE
+      timeout: 3000, // ⚡ 3 secondes max
+      maximumAge: 60000 // ⚡ Accepter position de 1 minute
     };
 
-    // Stratégie améliorée : Plusieurs tentatives avec délais croissants
-    const tryGetPosition = (attemptNumber: number) => {
-      if (attemptNumber > 3) {
-        console.warn('⚠️ Maximum de tentatives GPS atteint, utilisation position par défaut');
-        this.onError?.('Impossible d\'obtenir une position précise');
-        return;
-      }
+    // 🎯 Première position RAPIDE immédiate
+    console.log('⚡ Obtention position rapide...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('✅ Position rapide obtenue !');
+        this.handlePosition(position, lockOnAccuracy);
+      },
+      (error) => {
+        // Ne pas bloquer si la position rapide échoue
+        if (error.message.includes('permissions policy')) {
+          console.log('📍 Géolocalisation bloquée par permissions policy');
+          this.onError?.('Géolocalisation non disponible dans cet environnement');
+        } else {
+          console.log('⚠️ Position rapide échouée, passage en mode précis...');
+        }
+      },
+      quickGeoOptions
+    );
 
-      console.log(`📡 Tentative GPS ${attemptNumber}/3...`);
-      
-      setTimeout(
-        () => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              this.handlePosition(position, lockOnAccuracy);
-            },
-            (error) => {
-              // Ne pas afficher d'erreurs alarmantes pour les permissions policy
-              if (error.message.includes('permissions policy')) {
-                console.log('📍 Géolocalisation bloquée par iframe, position par défaut utilisée');
-              } else {
-                console.log(`⚠️ Tentative ${attemptNumber} échouée, nouvelle tentative...`);
-              }
-              this.onError?.(error.message);
-            },
-            preciseGeoOptions
-          );
-        },
-        attemptNumber * 1000 // Délai croissant : 1s, 2s, 3s
-      );
+    // 🔄 TRACKING CONTINU : watchPosition avec options équilibrées
+    const balancedGeoOptions: PositionOptions = {
+      enableHighAccuracy: isMobileDevice(), // Haute précision uniquement sur mobile
+      timeout: 8000, // 8 secondes (compromis)
+      maximumAge: 5000 // Accepter position de 5 secondes
     };
-
-    // Commencer les tentatives
-    tryGetPosition(1);
-
-    // 🔄 TRACKING CONTINU : watchPosition pour affinage progressif
+    
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
         // Si position verrouillée, ignorer les nouvelles mises à jour
@@ -235,10 +229,13 @@ export class PreciseGPSTracker {
         this.handlePosition(position, lockOnAccuracy);
       },
       (error) => {
-        console.error('❌ Erreur GPS tracking:', error.message);
-        this.onError?.(error.message);
+        // Ne pas afficher d'erreurs alarmantes
+        if (!error.message.includes('permissions policy')) {
+          console.log('⚠️ GPS tracking:', error.message);
+        }
+        // Ne pas appeler onError pour les erreurs de tracking continu
       },
-      preciseGeoOptions
+      balancedGeoOptions
     );
   }
 
@@ -409,9 +406,6 @@ export async function reverseGeocode(lat: number, lng: number): Promise<string> 
   }
 }
 
-/**
- * 📱 DÉTECTER SI L'UTILISATEUR EST SUR MOBILE
- */
 /**
  * 📱 DÉTECTER SI L'UTILISATEUR EST SUR MOBILE
  */
