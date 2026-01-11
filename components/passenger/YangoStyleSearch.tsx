@@ -9,6 +9,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Search, MapPin, Clock, Star, TrendingUp, X } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { rankSearchResults } from '../../lib/search-ranker';
 
 interface SearchResult {
   id: string;
@@ -94,7 +95,18 @@ export function YangoStyleSearch({
             });
             
             console.log(`🎯 ${filtered.length} résultats après filtre 5km`);
-            setResults(filtered);
+            
+            // 🧠 RANKING INTELLIGENT - COMME UBER/YANGO
+            const ranked = rankSearchResults(
+              filtered,
+              currentLocation,
+              recentSearches.map(r => r.id)
+            );
+            
+            console.log('🧠 Résultats triés par pertinence');
+            console.log('📊 Top 3:', ranked.slice(0, 3).map(r => `${r.name} (score: ${r.score?.toFixed(1)})`));
+            
+            setResults(ranked);
           } else {
             console.log('⚠️ Aucun résultat');
             setResults([]);
