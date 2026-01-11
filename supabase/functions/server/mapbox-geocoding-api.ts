@@ -68,9 +68,17 @@ export async function searchPlaces(c: Context) {
     
     console.log(`✅ Mapbox returned ${data.features?.length || 0} results`);
 
+    // 🎯 RÉCUPÉRER LA POSITION DE L'UTILISATEUR AVANT LA BOUCLE
+    const userLat = lat ? parseFloat(lat) : null;
+    const userLng = lng ? parseFloat(lng) : null;
+
+    console.log('📍 Position utilisateur pour calcul distance:', 
+      userLat && userLng ? `${userLat}, ${userLng}` : 'Non fournie'
+    );
+
     // Transformer les résultats Mapbox au format SmartCabb
     const results = (data.features || []).map((feature: any) => {
-      const [lng, lat] = feature.center;
+      const [placeLng, placeLat] = feature.center; // 🎯 RENOMMÉ : coordinates du LIEU trouvé
       
       // Déterminer le type de lieu pour l'icône
       const placeType = getPlaceType(feature);
@@ -78,19 +86,20 @@ export async function searchPlaces(c: Context) {
       // Construire la description
       const description = buildDescription(feature);
       
-      // Calculer la distance si position actuelle fournie
+      // 🎯 CALCULER LA DISTANCE CORRECTEMENT
       let distance: number | undefined;
-      if (lat && lng) {
-        const userLat = parseFloat(lat);
-        const userLng = parseFloat(lng);
-        distance = calculateDistance(userLat, userLng, lat, lng);
+      if (userLat !== null && userLng !== null) {
+        distance = calculateDistance(userLat, userLng, placeLat, placeLng);
+        console.log(`   📏 Distance pour ${feature.text}: ${distance.toFixed(2)} km`);
+      } else {
+        console.log('   ⚠️ Position utilisateur non fournie, distance non calculée');
       }
 
       return {
         id: feature.id || `mapbox-${Date.now()}-${Math.random()}`,
         name: feature.text || feature.place_name,
         description,
-        coordinates: { lat, lng },
+        coordinates: { lat: placeLat, lng: placeLng }, // 🎯 Coordonnées du LIEU
         placeId: feature.id,
         type: 'place',
         placeType,
