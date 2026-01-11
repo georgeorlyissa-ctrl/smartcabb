@@ -46,6 +46,8 @@ export function PhoneInput({
       setDisplayValue(value);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionnellement vide - exécuter une seule fois au montage
 
   const formatPhoneNumber = (input: string) => {
