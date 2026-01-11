@@ -190,29 +190,34 @@ geocodingApp.get('/autocomplete', async (c) => {
         message: 'La clé API Google Places n\'est pas définie. Utilisation de la recherche locale.',
         fallback: true,
         results: []
-      }, 200); // 200 pour ne pas bloquer le frontend
+      }, 200);
     }
 
-    console.log('🔍 Google Places Autocomplete - Query:', query);
-    console.log('🔍 Google Places Autocomplete - Location:', lat, lng);
+    // 🔍 DIAGNOSTIC POUR SMARTCABB.COM
+    const referer = c.req.header('referer') || c.req.header('origin') || 'unknown';
+    const host = c.req.header('host') || 'unknown';
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 REQUEST INFO (smartcabb.com)');
+    console.log('   Query:', query);
+    console.log('   Referer:', referer);
+    console.log('   Host:', host);
+    console.log('   Location:', lat && lng ? `${lat},${lng}` : 'none');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Construire l'URL Google Places Autocomplete
     const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
     url.searchParams.set('input', query);
     url.searchParams.set('key', GOOGLE_PLACES_API_KEY);
     url.searchParams.set('language', 'fr');
-    
-    // Limiter à Kinshasa, RDC
     url.searchParams.set('components', 'country:cd');
     
-    // Si position fournie, utiliser pour améliorer les résultats
     if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
       url.searchParams.set('location', `${lat},${lng}`);
-      url.searchParams.set('radius', '50000'); // 50km autour de la position
-      url.searchParams.set('strictbounds', 'false'); // Permettre résultats hors rayon si pertinents
+      url.searchParams.set('radius', '50000');
+      url.searchParams.set('strictbounds', 'false');
     }
 
-    console.log('🔗 Google Places URL:', url.toString().replace(GOOGLE_PLACES_API_KEY, 'HIDDEN'));
+    console.log('📡 Calling Google Places API...');
 
     const response = await fetch(url.toString());
     
@@ -226,41 +231,58 @@ geocodingApp.get('/autocomplete', async (c) => {
         status: response.status,
         fallback: true,
         results: []
-      }, 200); // 200 pour ne pas bloquer le frontend
+      }, 200);
     }
 
     const data: GooglePlacesAutocompleteResponse = await response.json();
     
     // Vérifier le statut de la réponse
     if (data.status === 'REQUEST_DENIED') {
-      console.error('❌ Google Places REQUEST_DENIED - Vérifiez:');
-      console.error('   1. La clé API est valide');
-      console.error('   2. L\'API Places est activée dans Google Cloud Console');
-      console.error('   3. Les restrictions de domaine incluent votre domaine');
-      console.error('   4. La facturation est activée sur le projet Google Cloud');
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('❌ GOOGLE PLACES REQUEST_DENIED sur smartcabb.com');
+      console.error('');
+      console.error('💡 CAUSE PROBABLE:');
+      console.error('   Les appels backend → Google Places nécessitent');
+      console.error('   une clé API SANS restrictions de domaine HTTP.');
+      console.error('');
+      console.error('🔧 SOLUTION (Google Cloud Console):');
+      console.error('   1. APIs & Services → Credentials');
+      console.error('   2. Cliquez sur votre clé API');
+      console.error('   3. Application restrictions → "None"');
+      console.error('   4. API restrictions → Gardez "Places API"');
+      console.error('   5. Sauvegardez et attendez 2-5 minutes');
+      console.error('');
+      console.error('🛡️ PROTECTION (recommandée):');
+      console.error('   - Configurez des quotas (ex: 1000 req/jour)');
+      console.error('   - Surveillez l\'usage dans Google Cloud Console');
+      console.error('');
+      console.error('📋 ERROR MESSAGE:', data.error_message);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       return c.json({ 
         error: 'REQUEST_DENIED',
-        message: 'Google Places API: Accès refusé. Vérifiez la configuration de votre clé API.',
-        hint: 'Sur smartcabb.com, vérifiez que le domaine est autorisé dans Google Cloud Console.',
+        message: 'Google Places API: Accès refusé. Les appels backend nécessitent une clé sans restriction de domaine.',
+        hint: 'Dans Google Cloud Console, changez "Application restrictions" à "None" pour cette clé.',
+        errorDetails: data.error_message,
+        referer: referer,
         fallback: true,
         results: []
-      }, 200); // 200 pour ne pas bloquer le frontend
+      }, 200);
     }
     
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error('❌ Google Places status:', data.status);
+      console.error('   Error message:', data.error_message);
       return c.json({ 
         error: `Google Places error: ${data.status}`,
         message: data.error_message || 'Erreur inconnue',
         fallback: true,
         results: []
-      }, 200); // 200 pour ne pas bloquer le frontend
+      }, 200);
     }
 
-    // Si ZERO_RESULTS, retourner tableau vide (pas une erreur)
     if (data.status === 'ZERO_RESULTS') {
-      console.log('ℹ️ Google Places: Aucun résultat');
+      console.log('ℹ️ Google Places: Aucun résultat pour:', query);
       return c.json({ 
         results: [],
         source: 'google_places_autocomplete',
@@ -279,7 +301,8 @@ geocodingApp.get('/autocomplete', async (c) => {
       source: 'google_places'
     }));
 
-    console.log(`✅ Google Places returned ${results.length} results`);
+    console.log(`✅ Google Places SUCCESS: ${results.length} results`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     
     return c.json({ 
       results,
@@ -294,7 +317,7 @@ geocodingApp.get('/autocomplete', async (c) => {
       message: error instanceof Error ? error.message : 'Unknown error',
       fallback: true,
       results: []
-    }, 200); // 200 pour ne pas bloquer le frontend
+    }, 200);
   }
 });
 
