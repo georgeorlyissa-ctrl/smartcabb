@@ -1,26 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
-import { 
-  ArrowLeft, 
-  Wallet, 
-  Plus, 
-  DollarSign, 
-  TrendingUp,
-  Gift,
-  Clock,
-  Check,
-  Bug,
-  RefreshCw,
-  CreditCard
-} from 'lucide-react';
-import { convertUSDtoCDF, formatCDF, CONSTANTS } from '../../lib/pricing';
-import { WalletTransaction } from '../../types';
-import { RechargeModal } from './RechargeModal';
-import { DebugPaymentModal } from '../DebugPaymentModal';
-import { walletService } from '../../lib/wallet-service';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { ArrowLeft, Wallet, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner@2.0.3';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function WalletScreen() {
   const { setCurrentScreen, state, updateUser } = useAppState();
@@ -195,10 +179,10 @@ export function WalletScreen() {
       console.log('🔄 Rafraîchissement des transactions depuis le backend...');
       
       const response = await fetch(
-        `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${publicAnonKey}`,
             'Content-Type': 'application/json'
           }
         }
@@ -244,11 +228,7 @@ export function WalletScreen() {
   }, [state.currentUser?.id]);
 
   return (
-    <motion.div 
-      initial={{ x: 300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -300, opacity: 0 }}
-      transition={{ duration: 0.3 }}
+    <div 
       className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col"
     >
       {/* Header */}
@@ -267,7 +247,7 @@ export function WalletScreen() {
 
       {/* Balance Card */}
       <div className="p-6">
-        <motion.div 
+        <Card 
           className="bg-gradient-to-br from-secondary to-primary rounded-3xl p-8 shadow-2xl relative overflow-hidden"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
@@ -335,7 +315,7 @@ export function WalletScreen() {
               Recharger mon portefeuille
             </Button>
           </div>
-        </motion.div>
+        </Card>
 
         {/* Benefits Card */}
         <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-border">
@@ -520,6 +500,6 @@ export function WalletScreen() {
       >
         <RefreshCw className={`w-6 h-6 ${refreshing ? 'animate-spin' : ''}`} />
       </motion.button>
-    </motion.div>
+    </div>
   );
 }
