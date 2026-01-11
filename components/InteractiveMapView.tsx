@@ -331,24 +331,19 @@ export function InteractiveMapView({
     };
 
     const handleError = (error: GeolocationPositionError) => {
-      console.error('❌ Erreur géolocalisation:', error.message);
+      // Ne pas afficher d'erreurs alarmantes si géolocalisation bloquée
+      if (error.message && (error.message.includes('permissions policy') || error.message.includes('disabled in this document'))) {
+        console.log('📍 Géolocalisation non disponible (environnement iframe), position par défaut utilisée');
+      } else {
+        console.log('⚠️ Erreur géolocalisation:', error.message);
+      }
     };
 
     // ✅ GÉOLOCALISATION STABLE : Mise à jour toutes les 3 secondes (au lieu de watchPosition continu)
-    if (navigator.geolocation) {
-      // Première localisation immédiate
-      navigator.geolocation.getCurrentPosition(
-        updateUserLocation,
-        handleError,
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-
-      // Puis mises à jour toutes les 3 secondes
-      const intervalId = setInterval(() => {
+    // Wrap dans try-catch pour attraper les erreurs synchrones de permissions policy
+    try {
+      if (navigator.geolocation) {
+        // Première localisation immédiate
         navigator.geolocation.getCurrentPosition(
           updateUserLocation,
           handleError,
@@ -358,11 +353,36 @@ export function InteractiveMapView({
             maximumAge: 0
           }
         );
-      }, 3000);
 
-      return () => {
-        clearInterval(intervalId);
-      };
+        // Puis mises à jour toutes les 3 secondes
+        const intervalId = setInterval(() => {
+          try {
+            navigator.geolocation.getCurrentPosition(
+              updateUserLocation,
+              handleError,
+              {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+              }
+            );
+          } catch (err: any) {
+            // Erreur synchrone de permissions policy
+            if (err.message && (err.message.includes('permissions policy') || err.message.includes('disabled in this document'))) {
+              console.log('📍 Géolocalisation bloquée par iframe');
+            }
+          }
+        }, 3000);
+
+        return () => {
+          clearInterval(intervalId);
+        };
+      }
+    } catch (syncError: any) {
+      // Erreur synchrone lors de l'accès initial à navigator.geolocation
+      if (syncError.message && (syncError.message.includes('permissions policy') || syncError.message.includes('disabled in this document'))) {
+        console.log('📍 Géolocalisation non disponible dans cet environnement');
+      }
     }
   }, [enableGeolocation, onLocationUpdate, smoothLocation]);
 
