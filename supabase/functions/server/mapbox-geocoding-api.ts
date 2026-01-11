@@ -52,6 +52,13 @@ export async function searchPlaces(c: Context) {
     
     // Types de lieux à rechercher (tous les types pertinents)
     url.searchParams.set('types', 'poi,address,place,locality,neighborhood');
+    
+    // 🎯 NOUVEAU : LIMITER LA RECHERCHE À KINSHASA (rayon 25km)
+    // Bbox format: minLng,minLat,maxLng,maxLat
+    // Kinshasa centre: -4.3276, 15.3136
+    // Rayon ~25km = ~0.225 degrés
+    const kinshasaBbox = '15.088,−4.553,15.539,−4.102'; // Zone Kinshasa élargie
+    url.searchParams.set('bbox', kinshasaBbox);
 
     // Faire la requête à Mapbox
     const response = await fetch(url.toString());
