@@ -35,6 +35,7 @@ export function YangoStyleSearch({
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
   const [searchSource, setSearchSource] = useState<'google_places' | 'local' | null>(null);
+  const [showSourceInfo, setShowSourceInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Charger l'historique au démarrage
@@ -103,6 +104,29 @@ export function YangoStyleSearch({
           } else {
             const errorData = await response.json();
             console.warn('⚠️ Google Places non disponible:', errorData.error);
+            
+            // 🎯 DIAGNOSTIC SPÉCIAL POUR REQUEST_DENIED sur smartcabb.com
+            if (errorData.error === 'REQUEST_DENIED') {
+              console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+              console.error('❌ GOOGLE PLACES REQUEST_DENIED');
+              console.error('');
+              console.error('🌐 Vous êtes sur:', window.location.hostname);
+              console.error('📋 Referer:', errorData.referer);
+              console.error('');
+              console.error('💡 CAUSE:');
+              console.error('   Les appels backend nécessitent une clé API');
+              console.error('   SANS restrictions HTTP Referrer.');
+              console.error('');
+              console.error('🔧 SOLUTION (5 minutes):');
+              console.error('   1. Google Cloud Console → APIs & Services');
+              console.error('   2. Credentials → Cliquez sur votre clé');
+              console.error('   3. Application restrictions → "None"');
+              console.error('   4. Sauvegardez, attendez 2-5 minutes');
+              console.error('');
+              console.error('✅ L\'app fonctionne avec la recherche locale en attendant');
+              console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            }
+            
             throw new Error('Google Places unavailable');
           }
         } catch (googleError) {
