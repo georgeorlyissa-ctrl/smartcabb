@@ -27,7 +27,7 @@ export function YangoStyleSearch({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
-  const [searchSource, setSearchSource] = useState<'smart_search' | 'local' | null>(null);
+  const [searchSource, setSearchSource] = useState<'mapbox' | 'smart_search' | 'local' | null>(null);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +43,7 @@ export function YangoStyleSearch({
     }
   }, []);
 
-  // Recherche en temps réel avec Google Places
+  // Recherche en temps réel avec Mapbox et fallback sur recherche locale
   useEffect(() => {
     if (query.length < 2) {
       // Afficher l'historique si le champ est vide ou < 2 caractères
@@ -58,13 +58,47 @@ export function YangoStyleSearch({
       console.log('🔍 Recherche:', query);
       
       try {
-        // 🎯 UTILISER LA RECHERCHE LOCALE INTELLIGENTE
-        // Google Places désactivé (facturation non activée)
+        // 🎯 PRIORITÉ 1: ESSAYER MAPBOX (Gratuit, pas de facturation nécessaire)
+        try {
+          const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/mapbox/search`);
+          url.searchParams.set('query', query);
+          
+          if (currentLocation) {
+            url.searchParams.set('lat', currentLocation.lat.toString());
+            url.searchParams.set('lng', currentLocation.lng.toString());
+          }
+          
+          const response = await fetch(url.toString(), {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.results && data.results.length > 0) {
+              console.log(`✅ Mapbox: ${data.results.length} résultats trouvés`);
+              setResults(data.results);
+              setSearchSource('mapbox');
+              setIsLoading(false);
+              return; // Succès avec Mapbox, on arrête là
+            } else {
+              console.log('ℹ️ Mapbox: Aucun résultat, fallback vers recherche locale');
+            }
+          } else {
+            console.warn('⚠️ Mapbox non disponible, fallback vers recherche locale');
+          }
+        } catch (mapboxError) {
+          console.warn('⚠️ Erreur Mapbox, fallback vers recherche locale:', mapboxError);
+        }
+        
+        // 🎯 FALLBACK: RECHERCHE LOCALE INTELLIGENTE
+        console.log('🔍 Utilisation de la recherche locale intelligente');
         const searchResults = await smartSearch(query, currentLocation);
         
-        console.log(`✅ ${searchResults.length} résultats trouvés`);
+        console.log(`✅ Recherche locale: ${searchResults.length} résultats trouvés`);
         setResults(searchResults);
-        setSearchSource('smart_search');
+        setSearchSource('local');
         
       } catch (error) {
         console.error('❌ Erreur recherche:', error);
