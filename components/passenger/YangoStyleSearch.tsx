@@ -27,7 +27,7 @@ export function YangoStyleSearch({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
-  const [searchSource, setSearchSource] = useState<'mapbox' | 'smart_search' | 'local' | null>(null);
+  const [searchSource, setSearchSource] = useState<'mapbox' | 'nominatim' | 'smart_search' | 'local' | null>(null);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -43,7 +43,7 @@ export function YangoStyleSearch({
     }
   }, []);
 
-  // Recherche en temps réel avec Mapbox et fallback sur recherche locale
+  // Recherche en temps réel avec système CASCADE multi-niveaux (comme Uber/Yango)
   useEffect(() => {
     if (query.length < 2) {
       // Afficher l'historique si le champ est vide ou < 2 caractères
@@ -58,51 +58,155 @@ export function YangoStyleSearch({
       console.log('🔍 Recherche:', query);
       
       try {
-        // 🎯 PRIORITÉ 1: ESSAYER MAPBOX (Gratuit, pas de facturation nécessaire)
+        let foundResults = false;
+        
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🥇 NIVEAU 1: MAPBOX (Priorité maximale - API professionnelle)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         try {
-          const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/mapbox/search`);
-          url.searchParams.set('query', query);
+          console.log('🥇 Tentative Mapbox...');
+          const mapboxUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/mapbox/search`);
+          mapboxUrl.searchParams.set('query', query);
           
           if (currentLocation) {
-            url.searchParams.set('lat', currentLocation.lat.toString());
-            url.searchParams.set('lng', currentLocation.lng.toString());
+            mapboxUrl.searchParams.set('lat', currentLocation.lat.toString());
+            mapboxUrl.searchParams.set('lng', currentLocation.lng.toString());
           }
           
-          const response = await fetch(url.toString(), {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`
-            }
+          const mapboxResponse = await fetch(mapboxUrl.toString(), {
+            headers: { 'Authorization': `Bearer ${publicAnonKey}` }
           });
           
-          if (response.ok) {
-            const data = await response.json();
+          if (mapboxResponse.ok) {
+            const data = await mapboxResponse.json();
             if (data.results && data.results.length > 0) {
-              console.log(`✅ Mapbox: ${data.results.length} résultats trouvés`);
+              console.log(`✅ Mapbox: ${data.results.length} résultats`);
               setResults(data.results);
               setSearchSource('mapbox');
-              setIsLoading(false);
-              return; // Succès avec Mapbox, on arrête là
-            } else {
-              console.log('ℹ️ Mapbox: Aucun résultat, fallback vers recherche locale');
+              foundResults = true;
             }
-          } else {
-            console.warn('⚠️ Mapbox non disponible, fallback vers recherche locale');
           }
-        } catch (mapboxError) {
-          console.warn('⚠️ Erreur Mapbox, fallback vers recherche locale:', mapboxError);
+        } catch (error) {
+          console.warn('⚠️ Mapbox non disponible:', error);
         }
         
-        // 🎯 FALLBACK: RECHERCHE LOCALE INTELLIGENTE
-        console.log('🔍 Utilisation de la recherche locale intelligente');
-        const searchResults = await smartSearch(query, currentLocation);
+        // Si Mapbox a trouvé, on arrête là
+        if (foundResults) {
+          setIsLoading(false);
+          return;
+        }
         
-        console.log(`✅ Recherche locale: ${searchResults.length} résultats trouvés`);
-        setResults(searchResults);
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🥈 NIVEAU 2: NOMINATIM/OpenStreetMap (Base de données MONDIALE)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        try {
+          console.log('🥈 Tentative Nominatim (OpenStreetMap)...');
+          const nominatimUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/nominatim/search`);
+          nominatimUrl.searchParams.set('query', query);
+          
+          if (currentLocation) {
+            nominatimUrl.searchParams.set('lat', currentLocation.lat.toString());
+            nominatimUrl.searchParams.set('lng', currentLocation.lng.toString());
+          }
+          
+          const nominatimResponse = await fetch(nominatimUrl.toString(), {
+            headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+          });
+          
+          if (nominatimResponse.ok) {
+            const data = await nominatimResponse.json();
+            if (data.results && data.results.length > 0) {
+              console.log(`✅ Nominatim: ${data.results.length} résultats`);
+              setResults(data.results);
+              setSearchSource('nominatim');
+              foundResults = true;
+            }
+          }
+        } catch (error) {
+          console.warn('⚠️ Nominatim non disponible:', error);
+        }
+        
+        // Si Nominatim a trouvé, on arrête là
+        if (foundResults) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🥉 NIVEAU 3: RECHERCHE LOCALE (40+ lieux de Kinshasa)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        console.log('🥉 Tentative recherche locale...');
+        const localResults = await smartSearch(query, currentLocation);
+        
+        if (localResults.length > 0) {
+          console.log(`✅ Recherche locale: ${localResults.length} résultats`);
+          setResults(localResults);
+          setSearchSource('local');
+          foundResults = true;
+        }
+        
+        // Si recherche locale a trouvé, on arrête là
+        if (foundResults) {
+          setIsLoading(false);
+          return;
+        }
+        
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 🏅 NIVEAU 4: RÉSULTATS GÉNÉRIQUES (TOUJOURS quelque chose)
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        console.log('🏅 Génération de résultats génériques...');
+        
+        // Créer des suggestions basées sur la requête
+        const genericResults: SearchResult[] = [];
+        
+        // Suggestion 1: Adresse exacte saisie
+        genericResults.push({
+          id: `generic-exact-${Date.now()}`,
+          name: query,
+          description: '📍 Adresse personnalisée • Kinshasa, RDC',
+          coordinates: currentLocation || { lat: -4.3276, lng: 15.3136 },
+          type: 'place',
+          placeType: 'address'
+        });
+        
+        // Suggestion 2: Variations communes
+        const variations = [
+          `Avenue ${query}`,
+          `Rue ${query}`,
+          `Quartier ${query}`,
+          `${query}, Kinshasa`
+        ];
+        
+        variations.forEach((variation, idx) => {
+          if (!variation.toLowerCase().includes(query.toLowerCase())) return;
+          
+          genericResults.push({
+            id: `generic-variation-${idx}-${Date.now()}`,
+            name: variation,
+            description: '📍 Suggestion • Kinshasa, RDC',
+            coordinates: currentLocation || { lat: -4.3276, lng: 15.3136 },
+            type: 'place',
+            placeType: 'address'
+          });
+        });
+        
+        console.log(`✅ Résultats génériques: ${genericResults.length} suggestions`);
+        setResults(genericResults.slice(0, 5));
         setSearchSource('local');
         
       } catch (error) {
         console.error('❌ Erreur recherche:', error);
-        setResults([]);
+        
+        // DERNIER FALLBACK: Au moins 1 résultat avec la saisie exacte
+        setResults([{
+          id: `fallback-${Date.now()}`,
+          name: query,
+          description: '📍 Utiliser cette adresse • Kinshasa, RDC',
+          coordinates: currentLocation || { lat: -4.3276, lng: 15.3136 },
+          type: 'place',
+          placeType: 'address'
+        }]);
+        setSearchSource('local');
       } finally {
         setIsLoading(false);
       }
