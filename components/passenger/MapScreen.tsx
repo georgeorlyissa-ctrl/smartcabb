@@ -20,6 +20,8 @@ export function MapScreen() {
   const [selectedMapPoint, setSelectedMapPoint] = useState<{ lat: number; lng: number } | null>(null); // 🆕
   
   // 🔍 Debug: Log quand destination change
+  // 🔍 Debug: Log quand destination change
+  // 🔍 Debug: Log quand destination change
   useEffect(() => {
     console.log('🎯 MapScreen - destination a changé:', destination);
   }, [destination]);
