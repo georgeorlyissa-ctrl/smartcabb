@@ -2,6 +2,16 @@ import { useAppState } from '../../hooks/useAppState';
 import { PhoneInput } from '../PhoneInput';
 import { validatePhoneNumberRDC } from '../../lib/phone-utils';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useNavigate } from '../../lib/simple-router';
+import { useState } from 'react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
+import { signIn } from '../../lib/auth-service';
+import * as profileService from '../../lib/profile-service';
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');
