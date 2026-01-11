@@ -23,6 +23,7 @@
 
 import { Hono } from 'npm:hono@4.6.14';
 import { searchPlaces, getPlaceDetails } from './mapbox-geocoding-api.ts';
+import { searchWithNominatim, reverseGeocodeNominatim } from './nominatim-geocoding-api.ts';
 
 const geocodingApp = new Hono();
 
@@ -47,6 +48,30 @@ geocodingApp.get('/mapbox/search', searchPlaces);
  * GET /geocoding/mapbox/place-details?lat=-4.3276&lng=15.3136
  */
 geocodingApp.get('/mapbox/place-details', getPlaceDetails);
+
+// ==================== NOMINATIM (OPENSTREETMAP) - FALLBACK UNIVERSEL ====================
+// Base de données mondiale COMPLÈTE - AUCUNE adresse ne peut échapper !
+
+/**
+ * 🌍 RECHERCHE AVEC NOMINATIM (OpenStreetMap)
+ * 
+ * GET /geocoding/nominatim/search?query=rue+du+port&lat=-4.3276&lng=15.3136
+ * 
+ * AVANTAGES:
+ * - 100% GRATUIT
+ * - Base de données MONDIALE COMPLÈTE
+ * - Toutes les rues, même les plus petites
+ * - Numéros de maison inclus
+ * - Utilisé quand Mapbox ne trouve rien
+ */
+geocodingApp.get('/nominatim/search', searchWithNominatim);
+
+/**
+ * 📍 REVERSE GEOCODING AVEC NOMINATIM
+ * 
+ * GET /geocoding/nominatim/reverse?lat=-4.3276&lng=15.3136
+ */
+geocodingApp.get('/nominatim/reverse', reverseGeocodeNominatim);
 
 // ==================== MAPBOX GEOCODING API (EXISTANT) ====================
 // Docs: https://docs.mapbox.com/api/search/geocoding/
