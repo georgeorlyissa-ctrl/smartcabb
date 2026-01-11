@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { getCurrentPosition, watchPosition, GracefulPosition } from '../lib/graceful-geolocation';
 
 interface Location {
   lat: number;
@@ -176,23 +177,29 @@ export function useStableLocation(
     };
 
     const errorCallback = (err: GeolocationPositionError) => {
-      console.error('❌ Erreur géolocalisation:', err.message);
-      
-      let errorMessage = 'Erreur de géolocalisation';
-      
-      switch (err.code) {
-        case err.PERMISSION_DENIED:
-          errorMessage = 'Permission de géolocalisation refusée';
-          break;
-        case err.POSITION_UNAVAILABLE:
-          errorMessage = 'Position non disponible';
-          break;
-        case err.TIMEOUT:
-          errorMessage = 'Délai de géolocalisation dépassé';
-          break;
+      // Ne pas afficher d'erreurs alarmantes si géolocalisation bloquée
+      if (err.message.includes('permissions policy')) {
+        console.log('📍 Géolocalisation non disponible, position par défaut utilisée');
+        setError('Géolocalisation non disponible');
+      } else {
+        console.log('⚠️ Erreur géolocalisation:', err.message);
+        
+        let errorMessage = 'Erreur de géolocalisation';
+        
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            errorMessage = 'Permission de géolocalisation refusée';
+            break;
+          case err.POSITION_UNAVAILABLE:
+            errorMessage = 'Position non disponible';
+            break;
+          case err.TIMEOUT:
+            errorMessage = 'Délai de géolocalisation dépassé';
+            break;
+        }
+        
+        setError(errorMessage);
       }
-      
-      setError(errorMessage);
       
       // Position par défaut : Kinshasa Centre
       const defaultPosition: Location = {
