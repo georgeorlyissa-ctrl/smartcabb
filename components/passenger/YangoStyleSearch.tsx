@@ -81,9 +81,21 @@ export function YangoStyleSearch({
             const data = await mapboxResponse.json();
             if (data.results && data.results.length > 0) {
               console.log(`✅ Mapbox: ${data.results.length} résultats`);
-              setResults(data.results);
-              setSearchSource('mapbox');
-              foundResults = true;
+              
+              // 🎯 FILTRER À 5KM MAX
+              const MAX_DISTANCE_KM = 5;
+              const filtered = data.results.filter((r: any) => {
+                if (!r.distance) return true; // Garder si pas de distance
+                return r.distance <= MAX_DISTANCE_KM;
+              });
+              
+              console.log(`🎯 Filtre 5km: ${data.results.length} → ${filtered.length} résultats`);
+              
+              if (filtered.length > 0) {
+                setResults(filtered);
+                setSearchSource('mapbox');
+                foundResults = true;
+              }
             }
           }
         } catch (error) {
