@@ -70,9 +70,12 @@ geocodingApp.get('/search', async (c) => {
       return c.json({ error: 'API Mapbox non configurée', fallback: true }, 503);
     }
 
+    console.log('🌍 Mapbox Geocoding - Query:', query);
+    console.log('🌍 Mapbox Geocoding - Proximity:', proximity || 'none');
+
     // Construire l'URL Mapbox Geocoding
     // Limiter la recherche à Kinshasa, RDC
-    const bbox = '15.1,4.5,15.6,-4.1'; // Bounding box de Kinshasa
+    const bbox = '15.1,-4.5,15.6,-4.1'; // Bounding box de Kinshasa (minLng,minLat,maxLng,maxLat)
     const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
     url.searchParams.set('access_token', MAPBOX_API_KEY);
     url.searchParams.set('bbox', bbox);
@@ -80,16 +83,23 @@ geocodingApp.get('/search', async (c) => {
     url.searchParams.set('limit', '10');
     url.searchParams.set('language', 'fr');
     
+    // ⚠️ IMPORTANT: Mapbox attend proximity au format "lng,lat" (pas "lat,lng")
     if (proximity) {
-      url.searchParams.set('proximity', proximity);
+      const [lat, lng] = proximity.split(',').map(Number);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        url.searchParams.set('proximity', `${lng},${lat}`); // Inverser pour Mapbox
+        console.log('📍 Proximity Mapbox format:', `${lng},${lat}`);
+      }
     }
 
-    console.log('🌍 Mapbox Geocoding request:', query);
+    console.log('🔗 Mapbox URL:', url.toString().replace(MAPBOX_API_KEY, 'HIDDEN'));
 
     const response = await fetch(url.toString());
     
     if (!response.ok) {
+      const errorText = await response.text();
       console.error('❌ Mapbox API error:', response.status, response.statusText);
+      console.error('❌ Mapbox response:', errorText);
       return c.json({ error: 'Erreur API Mapbox', fallback: true }, response.status);
     }
 
@@ -177,6 +187,11 @@ geocodingApp.get('/autocomplete', async (c) => {
       return c.json({ error: 'API Google Places non configurée', fallback: true }, 503);
     }
 
+    console.log('🌍 Google Places Autocomplete - Query:', query);
+    console.log('🌍 Google Places Autocomplete - Location:', lat && lng ? `${lat},${lng}` : 'Kinshasa default');
+    console.log('🔑 Google Places API Key présente:', !!GOOGLE_PLACES_API_KEY);
+    console.log('🔑 Google Places API Key length:', GOOGLE_PLACES_API_KEY.length);
+
     // Construire l'URL Google Places Autocomplete
     const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
     url.searchParams.set('input', query);
@@ -193,55 +208,90 @@ geocodingApp.get('/autocomplete', async (c) => {
       url.searchParams.set('radius', '50000');
     }
 
-    console.log('🌍 Google Places Autocomplete request:', query);
+    console.log('🔗 Google Places URL:', url.toString().replace(GOOGLE_PLACES_API_KEY, 'HIDDEN'));
 
     const response = await fetch(url.toString());
     
     if (!response.ok) {
-      console.error('❌ Google Places API error:', response.status, response.statusText);
+      const errorText = await response.text();
+      console.error('❌ Google Places API HTTP error:', response.status, response.statusText);
+      console.error('❌ Google Places response:', errorText);
       return c.json({ error: 'Erreur API Google Places', fallback: true }, response.status);
     }
 
     const data: GooglePlacesAutocompleteResponse = await response.json();
     
+    console.log('📊 Google Places API status:', data.status);
+    
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error('❌ Google Places API status:', data.status);
-      return c.json({ error: `Google Places error: ${data.status}`, fallback: true }, 500);
+      console.error('📋 Données complètes:', JSON.stringify(data, null, 2));
+      
+      // Messages d'erreur détaillés
+      let errorMessage = `Google Places error: ${data.status}`;
+      if (data.status === 'REQUEST_DENIED') {
+        errorMessage += ' - Vérifiez que Places API est activée dans Google Cloud Console et que les restrictions IP/HTTP sont correctes';
+      } else if (data.status === 'INVALID_REQUEST') {
+        errorMessage += ' - Requête invalide, vérifiez les paramètres';
+      } else if (data.status === 'OVER_QUERY_LIMIT') {
+        errorMessage += ' - Quota dépassé';
+      }
+      
+      return c.json({ 
+        error: errorMessage,
+        status: data.status,
+        fallback: true 
+      }, 500);
+    }
+
+    if (data.status === 'ZERO_RESULTS') {
+      console.log('⚠️ Google Places: Aucun résultat pour', query);
+      return c.json({ 
+        results: [],
+        source: 'google_places',
+        count: 0 
+      });
     }
 
     // Transformer les résultats
     const results = await Promise.all(
-      data.predictions.map(async (prediction) => {
-        // Obtenir les détails du lieu pour avoir les coordonnées
-        const detailsUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-        detailsUrl.searchParams.set('place_id', prediction.place_id);
-        detailsUrl.searchParams.set('key', GOOGLE_PLACES_API_KEY);
-        detailsUrl.searchParams.set('fields', 'geometry,name,formatted_address,types,rating,user_ratings_total');
-        
-        const detailsResponse = await fetch(detailsUrl.toString());
-        const detailsData = await detailsResponse.json();
-        
-        if (detailsData.status !== 'OK') {
+      data.predictions.slice(0, 5).map(async (prediction) => { // Limiter à 5 pour éviter trop d'appels
+        try {
+          // Obtenir les détails du lieu pour avoir les coordonnées
+          const detailsUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+          detailsUrl.searchParams.set('place_id', prediction.place_id);
+          detailsUrl.searchParams.set('key', GOOGLE_PLACES_API_KEY);
+          detailsUrl.searchParams.set('fields', 'geometry,name,formatted_address,types,rating,user_ratings_total');
+          
+          const detailsResponse = await fetch(detailsUrl.toString());
+          const detailsData = await detailsResponse.json();
+          
+          if (detailsData.status !== 'OK') {
+            console.warn('⚠️ Impossible de récupérer les détails pour', prediction.place_id);
+            return null;
+          }
+          
+          const place = detailsData.result;
+          const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
+          const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
+          
+          return {
+            id: prediction.place_id,
+            name: prediction.structured_formatting.main_text,
+            description: `${icon} ${typeLabel} • ${prediction.structured_formatting.secondary_text}`,
+            coordinates: {
+              lat: place.geometry.location.lat,
+              lng: place.geometry.location.lng
+            },
+            fullAddress: prediction.description,
+            rating: place.rating,
+            userRatingsTotal: place.user_ratings_total,
+            source: 'google_places'
+          };
+        } catch (err) {
+          console.error('❌ Erreur lors du traitement de', prediction.place_id, err);
           return null;
         }
-        
-        const place = detailsData.result;
-        const icon = getPlaceIcon(prediction.types[0] || 'point_of_interest');
-        const typeLabel = getPlaceTypeLabel(prediction.types[0] || 'point_of_interest');
-        
-        return {
-          id: prediction.place_id,
-          name: prediction.structured_formatting.main_text,
-          description: `${icon} ${typeLabel} • ${prediction.structured_formatting.secondary_text}`,
-          coordinates: {
-            lat: place.geometry.location.lat,
-            lng: place.geometry.location.lng
-          },
-          fullAddress: prediction.description,
-          rating: place.rating,
-          userRatingsTotal: place.user_ratings_total,
-          source: 'google_places'
-        };
       })
     );
 
