@@ -1,16 +1,7 @@
-import { EmailPhoneInput } from '../EmailPhoneInput';
-import { useNavigate } from '../../lib/simple-router';
-import { signIn } from '../../lib/auth-service';
-import { profileService } from '../../lib/supabase-services';
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, AlertCircle } from '../../lib/icons';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { syncUserProfile } from '../../lib/sync-service';
 import { useAppState } from '../../hooks/useAppState';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { useState } from 'react';
+import { PhoneInput } from '../PhoneInput';
+import { validatePhoneNumberRDC } from '../../lib/phone-utils';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');
@@ -144,10 +135,10 @@ export function LoginScreen() {
       try {
         console.log('💳 Chargement du solde du portefeuille...');
         const balanceResponse = await fetch(
-          `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Authorization': `Bearer ${publicAnonKey}`,
               'Content-Type': 'application/json'
             }
           }
@@ -266,7 +257,7 @@ export function LoginScreen() {
 
           <div className="space-y-6">
             <div>
-              <EmailPhoneInput
+              <PhoneInput
                 id="passenger-identifier"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
