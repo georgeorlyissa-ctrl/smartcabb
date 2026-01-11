@@ -1,23 +1,16 @@
 /**
- * 🎯 RECHERCHE YANGO-STYLE - AVEC GOOGLE PLACES API
+ * 🎯 RECHERCHE YANGO-STYLE - AVEC MOTEUR INTELLIGENT
  * 
- * Exactement comme les vraies apps : Google Places Autocomplete + historique local
+ * Exactement comme Yango : recherche riche avec lieux, marchés, hôtels, etc.
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, Clock, Star, X } from 'lucide-react';
+import { Search, MapPin, Clock, X } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-
-interface SearchResult {
-  id: string;
-  name: string;
-  description: string;
-  coordinates?: { lat: number; lng: number };
-  placeId?: string; // Pour Google Places
-  type: 'recent' | 'favorite' | 'place';
-}
+import { smartSearch, type SearchResult } from '../../lib/smart-search';
+import { PLACE_TYPE_ICONS } from '../../lib/kinshasa-places';
 
 interface YangoStyleSearchProps {
   placeholder?: string;
@@ -34,7 +27,7 @@ export function YangoStyleSearch({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
-  const [searchSource, setSearchSource] = useState<'google_places' | 'local' | null>(null);
+  const [searchSource, setSearchSource] = useState<'smart_search' | 'local' | null>(null);
   const [showSourceInfo, setShowSourceInfo] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,80 +58,13 @@ export function YangoStyleSearch({
       console.log('🔍 Recherche:', query);
       
       try {
-        // 🎯 STRATÉGIE : Essayer Google Places, fallback vers recherche locale
-        let searchResults: SearchResult[] = [];
-        let usedSource = 'local';
+        // 🎯 UTILISER LA RECHERCHE LOCALE INTELLIGENTE
+        // Google Places désactivé (facturation non activée)
+        const searchResults = await smartSearch(query, currentLocation);
         
-        // Tenter Google Places d'abord
-        try {
-          const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/autocomplete`);
-          url.searchParams.set('q', query);
-          
-          if (currentLocation) {
-            url.searchParams.set('lat', currentLocation.lat.toString());
-            url.searchParams.set('lng', currentLocation.lng.toString());
-          }
-          
-          const response = await fetch(url.toString(), {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            
-            if (data.results && data.results.length > 0) {
-              searchResults = data.results.map((r: any) => ({
-                id: r.placeId || r.id,
-                name: r.name,
-                description: r.description,
-                placeId: r.placeId,
-                type: 'place' as const
-              }));
-              usedSource = 'google_places';
-              console.log(`✅ ${searchResults.length} résultats Google Places`);
-            } else {
-              throw new Error('Aucun résultat Google Places');
-            }
-          } else {
-            const errorData = await response.json();
-            console.warn('⚠️ Google Places non disponible:', errorData.error);
-            
-            // 🎯 DIAGNOSTIC SPÉCIAL POUR REQUEST_DENIED sur smartcabb.com
-            if (errorData.error === 'REQUEST_DENIED') {
-              console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-              console.error('❌ GOOGLE PLACES REQUEST_DENIED');
-              console.error('');
-              console.error('🌐 Vous êtes sur:', window.location.hostname);
-              console.error('📋 Referer:', errorData.referer);
-              console.error('');
-              console.error('💡 CAUSE:');
-              console.error('   Les appels backend nécessitent une clé API');
-              console.error('   SANS restrictions HTTP Referrer.');
-              console.error('');
-              console.error('🔧 SOLUTION (5 minutes):');
-              console.error('   1. Google Cloud Console → APIs & Services');
-              console.error('   2. Credentials → Cliquez sur votre clé');
-              console.error('   3. Application restrictions → "None"');
-              console.error('   4. Sauvegardez, attendez 2-5 minutes');
-              console.error('');
-              console.error('✅ L\'app fonctionne avec la recherche locale en attendant');
-              console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            }
-            
-            throw new Error('Google Places unavailable');
-          }
-        } catch (googleError) {
-          // Fallback silencieux vers recherche locale
-          console.log('⏭️ Fallback vers recherche locale');
-          searchResults = await searchLocalDatabase(query, currentLocation);
-          usedSource = 'local';
-        }
-        
-        console.log(`✅ ${searchResults.length} résultats (source: ${usedSource})`);
+        console.log(`✅ ${searchResults.length} résultats trouvés`);
         setResults(searchResults);
-        setSearchSource(usedSource);
+        setSearchSource('smart_search');
         
       } catch (error) {
         console.error('❌ Erreur recherche:', error);
@@ -253,38 +179,77 @@ export function YangoStyleSearch({
           )}
 
           {/* Résultats */}
-          {results.map((result) => (
-            <button
-              key={result.id}
-              onClick={() => handleSelect(result)}
-              className="w-full px-4 py-4 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
-            >
-              {/* Icône */}
-              <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                result.type === 'recent' ? 'bg-gray-100' :
-                result.type === 'favorite' ? 'bg-yellow-100' :
-                'bg-blue-100'
-              }`}>
-                {result.type === 'recent' ? (
-                  <Clock className="w-5 h-5 text-gray-600" />
-                ) : result.type === 'favorite' ? (
-                  <Star className="w-5 h-5 text-yellow-600" />
-                ) : (
-                  <MapPin className="w-5 h-5 text-blue-600" />
-                )}
-              </div>
+          {results.map((result) => {
+            // Déterminer l'icône selon le type de lieu
+            const getIconElement = () => {
+              if (result.type === 'recent') {
+                return <Clock className="w-5 h-5 text-gray-600" />;
+              }
+              
+              // Icônes spécifiques selon placeType
+              switch (result.placeType) {
+                case 'terminal':
+                  return <span className="text-xl">🚌</span>;
+                case 'market':
+                  return <span className="text-xl">🛒</span>;
+                case 'mall':
+                  return <span className="text-xl">🏬</span>;
+                case 'hotel':
+                  return <span className="text-xl">🏨</span>;
+                case 'restaurant':
+                  return <span className="text-xl">🍽️</span>;
+                case 'hospital':
+                  return <span className="text-xl">🏥</span>;
+                case 'church':
+                  return <span className="text-xl">⛪</span>;
+                case 'school':
+                  return <span className="text-xl">🎓</span>;
+                case 'bank':
+                  return <span className="text-xl">🏦</span>;
+                case 'station':
+                  return <span className="text-xl">🚉</span>;
+                case 'office':
+                  return <span className="text-xl">🏢</span>;
+                case 'park':
+                  return <span className="text-xl">🌳</span>;
+                default:
+                  return <MapPin className="w-5 h-5 text-blue-600" />;
+              }
+            };
+            
+            const bgColor = result.type === 'recent' ? 'bg-gray-100' : 
+                           result.placeType ? 'bg-blue-50' : 'bg-blue-100';
+            
+            return (
+              <button
+                key={result.id}
+                onClick={() => handleSelect(result)}
+                className="w-full px-4 py-3.5 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
+              >
+                {/* Icône */}
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${bgColor}`}>
+                  {getIconElement()}
+                </div>
 
-              {/* Texte */}
-              <div className="flex-1 min-w-0">
-                <p className="text-base font-semibold text-gray-900 truncate">
-                  {result.name}
-                </p>
-                <p className="text-sm text-gray-600 truncate mt-0.5">
-                  {result.description}
-                </p>
-              </div>
-            </button>
-          ))}
+                {/* Texte */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-gray-900 truncate">
+                    {result.name}
+                  </p>
+                  <p className="text-sm text-gray-600 truncate mt-0.5">
+                    {result.description}
+                  </p>
+                </div>
+                
+                {/* Distance si disponible */}
+                {result.distance !== undefined && (
+                  <div className="flex-shrink-0 text-sm text-gray-500">
+                    {result.distance.toFixed(1)} km
+                  </div>
+                )}
+              </button>
+            );
+          })}
 
           {/* Loader */}
           {isLoading && (
@@ -308,91 +273,4 @@ export function YangoStyleSearch({
       )}
     </div>
   );
-}
-
-/**
- * 🗄️ RECHERCHE DANS LA BASE LOCALE - FALLBACK
- * 
- * Utilisé uniquement si Google Places API échoue
- */
-async function searchLocalDatabase(
-  query: string,
-  currentLocation?: { lat: number; lng: number }
-): Promise<SearchResult[]> {
-  // Import dynamique de la base de données
-  const { QUARTIERS_KINSHASA } = await import('../../lib/kinshasa-map-data');
-  
-  const queryLower = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const results: SearchResult[] = [];
-  
-  // Rechercher dans tous les quartiers
-  for (const quartier of QUARTIERS_KINSHASA) {
-    const nameLower = quartier.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    const communeLower = quartier.commune.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    
-    // Correspondance exacte ou partielle
-    if (nameLower.includes(queryLower) || communeLower.includes(queryLower)) {
-      results.push({
-        id: `quartier-${quartier.nom}`,
-        name: quartier.nom,
-        description: `Quartier • ${quartier.commune}, Kinshasa`,
-        coordinates: {
-          lat: quartier.lat,
-          lng: quartier.lng
-        },
-        type: 'place'
-      });
-    }
-  }
-  
-  // Trier par pertinence (correspondance exacte en premier)
-  results.sort((a, b) => {
-    const aName = a.name.toLowerCase();
-    const bName = b.name.toLowerCase();
-    const aStartsWith = aName.startsWith(queryLower);
-    const bStartsWith = bName.startsWith(queryLower);
-    
-    if (aStartsWith && !bStartsWith) return -1;
-    if (!aStartsWith && bStartsWith) return 1;
-    
-    return aName.localeCompare(bName);
-  });
-  
-  // Calculer les distances si position fournie
-  if (currentLocation) {
-    for (const result of results) {
-      if (result.coordinates) {
-        const distance = calculateDistance(
-          currentLocation.lat,
-          currentLocation.lng,
-          result.coordinates.lat,
-          result.coordinates.lng
-        );
-        result.description += ` • ${distance.toFixed(1)} km`;
-      }
-    }
-  }
-  
-  // Limiter à 20 résultats (comme Yango)
-  return results.slice(0, 20);
-}
-
-/**
- * 📍 CALCUL DE DISTANCE (Haversine)
- */
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function toRad(degrees: number): number {
-  return degrees * (Math.PI / 180);
 }
