@@ -53,39 +53,69 @@ export async function searchProfessionalPlaces(
     return [];
   }
 
-  console.log('🌍 Recherche professionnelle:', query);
+  console.log('🌍 ===== RECHERCHE INTELLIGENTE DÉMARRÉE =====');
+  console.log(`🔍 Query: "${query}"`);
+  console.log(`📍 Position:`, currentLocation);
+
+  const allResults: ProfessionalPlace[] = [];
 
   try {
     // 1️⃣ ESSAYER MAPBOX EN PRIORITÉ (comme Uber)
+    console.log('🔄 Étape 1/4 : Tentative Mapbox...');
     const mapboxResults = await searchWithMapbox(query, currentLocation);
     if (mapboxResults.length > 0) {
-      console.log(`✅ Mapbox: ${mapboxResults.length} résultats`);
-      return mapboxResults;
+      console.log(`✅ Mapbox: ${mapboxResults.length} résultats - SUCCÈS`);
+      allResults.push(...mapboxResults);
+    } else {
+      console.log('⚠️ Mapbox: 0 résultats ou indisponible');
     }
 
-    console.log('⚠️ Mapbox indisponible ou aucun résultat, essai Google Places...');
-
-    // 2️⃣ FALLBACK VERS GOOGLE PLACES (comme Yango)
+    // 2️⃣ ESSAYER GOOGLE PLACES EN PARALLÈLE (comme Yango)
+    console.log('🔄 Étape 2/4 : Tentative Google Places...');
     const googleResults = await searchWithGooglePlaces(query, currentLocation);
     if (googleResults.length > 0) {
-      console.log(`✅ Google Places: ${googleResults.length} résultats`);
-      return googleResults;
+      console.log(`✅ Google Places: ${googleResults.length} résultats - SUCCÈS`);
+      allResults.push(...googleResults);
+    } else {
+      console.log('⚠️ Google Places: 0 résultats ou indisponible');
     }
 
-    console.log('⚠️ Google Places indisponible ou aucun résultat, essai Nominatim...');
+    // 🎯 SI ON A DES RÉSULTATS D'API PROFESSIONNELLES, LES RETOURNER
+    if (allResults.length > 0) {
+      // Dédupliquer par nom (au cas où les deux API retournent les mêmes lieux)
+      const deduplicated = deduplicateResults(allResults);
+      console.log(`🎉 ${deduplicated.length} résultats professionnels (après déduplication)`);
+      console.log('🌍 ===== RECHERCHE TERMINÉE (API PRO) =====');
+      return deduplicated;
+    }
 
     // 3️⃣ FALLBACK VERS NOMINATIM (OpenStreetMap)
+    console.log('🔄 Étape 3/4 : Fallback Nominatim...');
     const nominatimResults = await searchWithNominatim(query, currentLocation);
     if (nominatimResults.length > 0) {
-      console.log(`✅ Nominatim: ${nominatimResults.length} résultats`);
-      return nominatimResults;
+      console.log(`✅ Nominatim: ${nominatimResults.length} résultats - SUCCÈS`);
+      allResults.push(...nominatimResults);
+    } else {
+      console.log('⚠️ Nominatim: 0 résultats ou indisponible');
     }
 
-    console.log('⚠️ Nominatim indisponible ou aucun résultat, utilisation base locale...');
+    // 🎯 SI NOMINATIM A DES RÉSULTATS, LES RETOURNER
+    if (allResults.length > 0) {
+      console.log(`🎉 ${allResults.length} résultats Nominatim`);
+      console.log('🌍 ===== RECHERCHE TERMINÉE (NOMINATIM) =====');
+      return allResults;
+    }
 
-    // 4️⃣ DERNIER FALLBACK : BASE LOCALE
-    const localResults = await searchWithLocalDatabase(query, currentLocation);
+    // 4️⃣ DERNIER FALLBACK : BASE LOCALE + RECHERCHE INTELLIGENTE
+    console.log('🔄 Étape 4/4 : Fallback base locale + recherche intelligente...');
+    const localResults = await searchWithLocalDatabaseIntelligent(query, currentLocation);
     console.log(`✅ Base locale: ${localResults.length} résultats`);
+    
+    if (localResults.length === 0) {
+      console.log('❌ Aucun résultat trouvé nulle part');
+    }
+    
+    console.log('🌍 ===== RECHERCHE TERMINÉE (LOCAL) =====');
     return localResults;
 
   } catch (error) {
@@ -93,7 +123,7 @@ export async function searchProfessionalPlaces(
     
     // En cas d'erreur complète, utiliser la base locale
     console.log('🔄 Fallback final vers base locale...');
-    return searchWithLocalDatabase(query, currentLocation);
+    return searchWithLocalDatabaseIntelligent(query, currentLocation);
   }
 }
 
@@ -232,18 +262,55 @@ async function searchWithNominatim(
 }
 
 /**
- * 🗄️ RECHERCHE AVEC BASE LOCALE (dernier fallback)
+ * 🗄️ RECHERCHE INTELLIGENTE AVEC BASE LOCALE (améliorée)
+ * 
+ * Recherche dans plusieurs champs et retourne les meilleurs résultats
  */
-async function searchWithLocalDatabase(
+async function searchWithLocalDatabaseIntelligent(
   query: string,
   currentLocation?: { lat: number; lng: number }
 ): Promise<ProfessionalPlace[]> {
   try {
+    console.log('🧠 Recherche intelligente dans base locale...');
+    
     // Importer la base de données locale
     const { searchLocationsByCommune, getLocationTypeLabel } = await import('./kinshasa-locations-database');
-    const results = searchLocationsByCommune(query);
     
-    return results.slice(0, 10).map((location, index) => ({
+    // Rechercher avec le query original
+    let results = searchLocationsByCommune(query);
+    
+    console.log(`📊 Résultats bruts: ${results.length}`);
+    
+    // Si peu de résultats, essayer des variations
+    if (results.length < 5) {
+      console.log('🔍 Peu de résultats, essai de variations...');
+      
+      // Essayer sans accents
+      const queryNormalized = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const resultsNormalized = searchLocationsByCommune(queryNormalized);
+      results = [...results, ...resultsNormalized];
+      
+      // Essayer des mots-clés individuels si le query contient plusieurs mots
+      if (query.includes(' ')) {
+        const keywords = query.split(' ').filter(k => k.length >= 3);
+        for (const keyword of keywords) {
+          const keywordResults = searchLocationsByCommune(keyword);
+          results = [...results, ...keywordResults];
+        }
+      }
+      
+      console.log(`📊 Après variations: ${results.length} résultats`);
+    }
+    
+    // Dédupliquer par nom et coordonnées
+    const uniqueResults = Array.from(
+      new Map(results.map(item => [`${item.nom}-${item.lat}-${item.lng}`, item])).values()
+    );
+    
+    console.log(`📊 Après déduplication: ${uniqueResults.length} résultats`);
+    
+    // Convertir et calculer distances
+    const placesWithDistance = uniqueResults.map((location, index) => ({
       id: `local-${index}`,
       name: location.nom,
       description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
@@ -259,11 +326,56 @@ async function searchWithLocalDatabase(
       ) : undefined,
       source: 'local' as const
     }));
+    
+    // Trier par distance si position fournie, sinon trier par pertinence (ordre de recherche)
+    if (currentLocation) {
+      placesWithDistance.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+      console.log('✅ Résultats triés par distance');
+    }
+    
+    // Limiter à 20 résultats (comme Yango)
+    const finalResults = placesWithDistance.slice(0, 20);
+    
+    console.log(`🎯 Retour de ${finalResults.length} résultats finaux`);
+    
+    return finalResults;
 
   } catch (error) {
     console.error('❌ Erreur base locale:', error);
     return [];
   }
+}
+
+/**
+ * 🔄 DÉDUPLIQUER LES RÉSULTATS PAR NOM ET PROXIMITÉ
+ */
+function deduplicateResults(results: ProfessionalPlace[]): ProfessionalPlace[] {
+  const seen = new Map<string, ProfessionalPlace>();
+  
+  for (const result of results) {
+    // Normaliser le nom pour comparer
+    const normalizedName = result.name.toLowerCase().trim();
+    
+    // Si on n'a pas encore vu ce nom, l'ajouter
+    if (!seen.has(normalizedName)) {
+      seen.set(normalizedName, result);
+    } else {
+      // Si on l'a déjà vu, garder celui avec la meilleure source (mapbox > google > nominatim > local)
+      const existing = seen.get(normalizedName)!;
+      const sourceRank: Record<string, number> = {
+        mapbox: 4,
+        google_places: 3,
+        nominatim: 2,
+        local: 1
+      };
+      
+      if (sourceRank[result.source] > sourceRank[existing.source]) {
+        seen.set(normalizedName, result);
+      }
+    }
+  }
+  
+  return Array.from(seen.values()).slice(0, 20); // Limiter à 20
 }
 
 /**
@@ -402,7 +514,7 @@ export async function testAPIsAvailability(): Promise<{
   const mapboxResults = await searchWithMapbox(testQuery);
   const googleResults = await searchWithGooglePlaces(testQuery);
   const nominatimResults = await searchWithNominatim(testQuery);
-  const localResults = await searchWithLocalDatabase(testQuery);
+  const localResults = await searchWithLocalDatabaseIntelligent(testQuery);
   
   return {
     mapbox: mapboxResults.length > 0,
