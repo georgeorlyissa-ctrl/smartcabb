@@ -101,19 +101,32 @@ export async function searchWithNominatim(c: Context) {
       };
     });
 
+    // 🎯 FILTRER : GARDER SEULEMENT LES RÉSULTATS À MOINS DE 5KM !
+    const MAX_DISTANCE_KM = 5;
+    let filteredResults = results;
+    
+    if (userLat !== null && userLng !== null) {
+      filteredResults = results.filter((result: any) => {
+        if (result.distance === undefined) return true; // Garder si pas de distance
+        return result.distance <= MAX_DISTANCE_KM;
+      });
+      
+      console.log(`🎯 Filtre 5km: ${results.length} → ${filteredResults.length} résultats`);
+    }
+
     // Trier par distance si disponible
     if (userLat !== null && userLng !== null) {
-      results.sort((a: any, b: any) => {
+      filteredResults.sort((a: any, b: any) => {
         return (a.distance || 999) - (b.distance || 999);
       });
     }
 
-    console.log(`✅ Returning ${results.length} Nominatim results`);
+    console.log(`✅ Returning ${filteredResults.length} Nominatim results (≤5km)`);
 
     return c.json({ 
-      results,
+      results: filteredResults,
       source: 'nominatim',
-      count: results.length 
+      count: filteredResults.length 
     });
 
   } catch (error) {
