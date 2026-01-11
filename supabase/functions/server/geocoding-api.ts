@@ -21,11 +21,34 @@
  * SÉCURITÉ : Les clés API sont stockées côté serveur, jamais exposées au frontend
  */
 
-import { Hono } from 'npm:hono';
+import { Hono } from 'npm:hono@4.6.14';
+import { searchPlaces, getPlaceDetails } from './mapbox-geocoding-api.ts';
 
 const geocodingApp = new Hono();
 
-// ==================== MAPBOX GEOCODING API ====================
+// ==================== MAPBOX PLACES API (NOUVEAU - PRIORITAIRE) ====================
+// Routes dédiées Mapbox pour la recherche de lieux riches
+
+/**
+ * 🔍 RECHERCHE DE LIEUX AVEC MAPBOX (Alternative à Google Places)
+ * 
+ * GET /geocoding/mapbox/search?query=lemba&lat=-4.3276&lng=15.3136
+ * 
+ * AVANTAGES:
+ * - Gratuit jusqu'à 100,000 requêtes/mois
+ * - Pas besoin de compte de facturation
+ * - Résultats riches avec catégories et icônes
+ */
+geocodingApp.get('/mapbox/search', searchPlaces);
+
+/**
+ * 📍 DÉTAILS D'UN LIEU MAPBOX (Reverse geocoding)
+ * 
+ * GET /geocoding/mapbox/place-details?lat=-4.3276&lng=15.3136
+ */
+geocodingApp.get('/mapbox/place-details', getPlaceDetails);
+
+// ==================== MAPBOX GEOCODING API (EXISTANT) ====================
 // Docs: https://docs.mapbox.com/api/search/geocoding/
 
 interface MapboxFeature {
