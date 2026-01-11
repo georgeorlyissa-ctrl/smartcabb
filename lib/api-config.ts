@@ -1,24 +1,16 @@
+import { projectId } from '../utils/supabase/info';
+
 /**
- * Configuration des API pour SmartCabb
- * 
- * Cette configuration permet de basculer facilement entre :
- * - Développement local (Figma Make)
- * - Production (smartcabb.com / Vercel)
+ * 🌍 Configuration des endpoints API
  */
-
-// ✅ Détecter l'environnement automatiquement
-const isProduction = typeof window !== 'undefined' && (
-  window.location.hostname === 'smartcabb.com' ||
-  window.location.hostname === 'www.smartcabb.com' ||
-  window.location.hostname.includes('vercel.app')
-);
-
-// ✅ Configuration des URLs de base
-export const API_CONFIG = {
+export const apiConfig = {
+  // Détection de l'environnement
+  isProduction: window.location.hostname === 'smartcabb.com' || window.location.hostname === 'www.smartcabb.com',
+  
   // URL de base pour les appels API Supabase Functions
   baseUrl: isProduction 
     ? 'https://smartcabb.supabase.co' // Production
-    : `https://${import.meta.env.VITE_SUPABASE_PROJECT_ID || 'placeholder'}.supabase.co`, // Dev
+    : `https://${projectId}.supabase.co`, // Dev
   
   // Préfixe de route pour le serveur Make
   serverPrefix: '/functions/v1/make-server-2eb02e52',
@@ -44,7 +36,7 @@ export function getApiUrl(route: string): string {
   // Nettoyer la route (enlever le slash initial si présent)
   const cleanRoute = route.startsWith('/') ? route : `/${route}`;
   
-  return `${API_CONFIG.baseUrl}${API_CONFIG.serverPrefix}${cleanRoute}`;
+  return `${apiConfig.baseUrl}${apiConfig.serverPrefix}${cleanRoute}`;
 }
 
 /**
@@ -71,13 +63,13 @@ export function getApiHeaders(accessToken?: string): HeadersInit {
  */
 export function logApiConfig() {
   console.log('🔧 Configuration API SmartCabb:');
-  console.log(`   Environnement: ${API_CONFIG.environment}`);
-  console.log(`   URL de base: ${API_CONFIG.baseUrl}`);
-  console.log(`   Préfixe serveur: ${API_CONFIG.serverPrefix}`);
+  console.log(`   Environnement: ${apiConfig.environment}`);
+  console.log(`   URL de base: ${apiConfig.baseUrl}`);
+  console.log(`   Préfixe serveur: ${apiConfig.serverPrefix}`);
   console.log(`   Exemple d'URL: ${getApiUrl('/drivers/online-drivers')}`);
 }
 
 // ✅ Log au démarrage en développement
-if (!isProduction) {
+if (!apiConfig.isProduction) {
   logApiConfig();
 }
