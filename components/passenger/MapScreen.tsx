@@ -78,9 +78,9 @@ export function MapScreen() {
 
   // Obtenir et suivre la position réelle de l'utilisateur au chargement
   useEffect(() => {
-    console.log('🚀 Démarrage du système GPS ultra-précis...');
+    console.log('🚀 Démarrage du système GPS rapide...');
     
-    // 🎯 NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+    // 🎯 NOUVEAU SYSTÈME GPS OPTIMISÉ POUR LA RAPIDITÉ
     gpsTracker.start({
       // Callback: Position mise à jour
       onPositionUpdate: async (position) => {
@@ -126,16 +126,11 @@ export function MapScreen() {
         });
         
         setPositionLocked(true);
-        
-        // 🆕 v517.92: RETIRER le toast - Uber n'en a pas non plus !
-        // toast.success('📍 Position GPS précise verrouillée !', {
-        //   duration: 3000
-        // });
       },
       
       // Callback: Erreur GPS
       onError: (error) => {
-        console.error('❌ Erreur GPS:', error);
+        console.log('⚠️ GPS:', error);
         setLoadingLocation(false);
         
         // Position par défaut Kinshasa
@@ -149,17 +144,16 @@ export function MapScreen() {
         localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
         
         toast.dismiss('gps-search');
+        
+        // Afficher un message discret SEULEMENT si vraiment bloqué
+        if (error.includes('permissions policy')) {
+          console.log('📍 Géolocalisation bloquée, position par défaut utilisée (Kinshasa)');
+        }
       },
       
-      // 🆕 v517.91: DÉSACTIVER verrouillage auto pour garder position GPS en temps réel
-      lockOnAccuracy: false,
-      
-      // 🆕 v517.92: MODE INSTANTANÉ (comme Uber/Yango)
-      instantMode: true
+      // ⚡ OPTIMISATION: Désactiver verrouillage auto pour garder position GPS en temps réel
+      lockOnAccuracy: undefined
     });
-    
-    // 🆕 v517.92: RETIRER le toast agaçant - Uber n'en a pas !
-    // toast.loading('🛰️ Recherche de votre position GPS...', { id: 'gps-search', duration: 10000 });
     
     // Cleanup: arrêter le tracking lors du démontage
     return () => {
