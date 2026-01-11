@@ -239,30 +239,47 @@ geocodingApp.get('/autocomplete', async (c) => {
     // Vérifier le statut de la réponse
     if (data.status === 'REQUEST_DENIED') {
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      console.error('❌ GOOGLE PLACES REQUEST_DENIED sur smartcabb.com');
-      console.error('');
-      console.error('💡 CAUSE PROBABLE:');
-      console.error('   Les appels backend → Google Places nécessitent');
-      console.error('   une clé API SANS restrictions de domaine HTTP.');
-      console.error('');
-      console.error('🔧 SOLUTION (Google Cloud Console):');
-      console.error('   1. APIs & Services → Credentials');
-      console.error('   2. Cliquez sur votre clé API');
-      console.error('   3. Application restrictions → "None"');
-      console.error('   4. API restrictions → Gardez "Places API"');
-      console.error('   5. Sauvegardez et attendez 2-5 minutes');
-      console.error('');
-      console.error('🛡️ PROTECTION (recommandée):');
-      console.error('   - Configurez des quotas (ex: 1000 req/jour)');
-      console.error('   - Surveillez l\'usage dans Google Cloud Console');
+      console.error('❌ GOOGLE PLACES REQUEST_DENIED');
       console.error('');
       console.error('📋 ERROR MESSAGE:', data.error_message);
+      console.error('');
+      
+      // Détecter le type d'erreur
+      if (data.error_message?.includes('Billing')) {
+        console.error('💡 PROBLÈME: FACTURATION GOOGLE CLOUD NON ACTIVÉE');
+        console.error('');
+        console.error('🔧 SOLUTION:');
+        console.error('   1. Allez sur: https://console.cloud.google.com/billing');
+        console.error('   2. Activez la facturation sur votre projet');
+        console.error('   3. Google offre 300$ de crédits gratuits');
+        console.error('   4. Places API: 40 000 requêtes/mois GRATUITES');
+        console.error('');
+        console.error('✅ ALTERNATIVE: La recherche locale fonctionne parfaitement');
+        console.error('   L\'app a 40+ lieux de Kinshasa sans Google Places');
+      } else if (data.error_message?.includes('API key')) {
+        console.error('💡 PROBLÈME: CLÉ API INVALIDE OU RESTRICTIONS');
+        console.error('');
+        console.error('🔧 SOLUTION:');
+        console.error('   1. Google Cloud Console → APIs & Services → Credentials');
+        console.error('   2. Vérifiez que la clé est valide');
+        console.error('   3. Application restrictions → "None" (pour backend)');
+        console.error('   4. API restrictions → "Places API" activée');
+      } else {
+        console.error('💡 PROBLÈME: ERREUR GOOGLE PLACES');
+        console.error('');
+        console.error('🔧 VÉRIFICATIONS:');
+        console.error('   1. La clé API est valide');
+        console.error('   2. L\'API Places est activée');
+        console.error('   3. La facturation est activée');
+        console.error('   4. Pas de restrictions bloquantes');
+      }
+      
       console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
       return c.json({ 
         error: 'REQUEST_DENIED',
-        message: 'Google Places API: Accès refusé. Les appels backend nécessitent une clé sans restriction de domaine.',
-        hint: 'Dans Google Cloud Console, changez "Application restrictions" à "None" pour cette clé.',
+        message: data.error_message || 'Google Places API: Accès refusé',
+        hint: 'Vérifiez la facturation Google Cloud ou utilisez la recherche locale (déjà active)',
         errorDetails: data.error_message,
         referer: referer,
         fallback: true,
