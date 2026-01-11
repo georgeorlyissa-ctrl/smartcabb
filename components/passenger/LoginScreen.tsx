@@ -270,7 +270,7 @@ export function LoginScreen() {
               <PhoneInput
                 id="passenger-identifier"
                 value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                onChange={(value) => setIdentifier(value)}
                 onKeyPress={handleKeyPress}
                 className="px-4 h-12 text-base"
                 disabled={loading}
