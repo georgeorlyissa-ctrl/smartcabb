@@ -73,19 +73,58 @@ export function useDriverLocation(isActive: boolean = true) {
       const errorMsg = 'La géolocalisation n\'est pas supportée par votre navigateur';
       setError(errorMsg);
       setLocation(null);
-      console.error('❌ Géolocalisation non supportée');
+      console.log('📍 Géolocalisation non supportée, position par défaut utilisée');
       return;
     }
 
     console.log('🔍 Demande d\'autorisation GPS ULTRA-PRÉCIS...');
 
+    // Wrapper try-catch pour attraper les erreurs synchrones de permissions policy
+    const safeGetCurrentPosition = (options: PositionOptions, onSuccess: PositionCallback, onError: PositionErrorCallback) => {
+      try {
+        navigator.geolocation.getCurrentPosition(onSuccess, (err) => {
+          // Ne pas afficher d'erreurs alarmantes pour permissions policy
+          if (err.message && (err.message.includes('permissions policy') || err.message.includes('disabled in this document'))) {
+            console.log('📍 Géolocalisation bloquée par iframe, position par défaut utilisée');
+            // Appeler onError avec message gracieux
+            const gracefulError: GeolocationPositionError = {
+              code: 1,
+              message: 'Géolocalisation non disponible',
+              PERMISSION_DENIED: 1,
+              POSITION_UNAVAILABLE: 2,
+              TIMEOUT: 3
+            };
+            onError(gracefulError);
+          } else {
+            onError(err);
+          }
+        }, options);
+      } catch (syncError: any) {
+        // Erreur synchrone de permissions policy
+        if (syncError.message && (syncError.message.includes('permissions policy') || syncError.message.includes('disabled in this document'))) {
+          console.log('📍 Géolocalisation non disponible dans cet environnement');
+        }
+        const gracefulError: GeolocationPositionError = {
+          code: 1,
+          message: 'Géolocalisation non disponible',
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3
+        };
+        onError(gracefulError);
+      }
+    };
+
     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
-     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
-     // ⚡ TENTATIVE 1: Position haute précision avec timeout court
     const attemptHighAccuracy = () => {
       console.log('⚡ Tentative haute précision (GPS/réseau)...');
       
-      navigator.geolocation.getCurrentPosition(
+      safeGetCurrentPosition(
+        {
+          enableHighAccuracy: true, // ✅ GPS + réseau
+          timeout: 5000, // ⚡ 5 secondes max
+          maximumAge: 0 // ✅ Jamais de cache
+        },
         (position) => {
           const newLocation = {
             lat: position.coords.latitude,
@@ -97,13 +136,8 @@ export function useDriverLocation(isActive: boolean = true) {
           console.log(`✅ Position GPS HAUTE PRÉCISION obtenue: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)} (±${position.coords.accuracy.toFixed(0)}m)`);
         },
         (err) => {
-          console.warn('⚠️ Haute précision échouée, tentative fallback...');
+          console.log('⚠️ Haute précision non disponible, tentative fallback...');
           attemptLowAccuracy(); // Fallback vers basse précision
-        },
-        {
-          enableHighAccuracy: true, // ✅ GPS + réseau
-          timeout: 5000, // ⚡ 5 secondes max
-          maximumAge: 0 // ✅ Jamais de cache
         }
       );
     };
@@ -112,7 +146,12 @@ export function useDriverLocation(isActive: boolean = true) {
     const attemptLowAccuracy = () => {
       console.log('🔄 Tentative basse précision (réseau uniquement)...');
       
-      navigator.geolocation.getCurrentPosition(
+      safeGetCurrentPosition(
+        {
+          enableHighAccuracy: false, // ❌ Réseau uniquement (plus rapide)
+          timeout: 10000, // 10 secondes max
+          maximumAge: 5000 // ✅ Cache de 5 secondes OK
+        },
         (position) => {
           const newLocation = {
             lat: position.coords.latitude,
@@ -126,11 +165,6 @@ export function useDriverLocation(isActive: boolean = true) {
         (err) => {
           // Toutes les tentatives ont échoué
           handleGPSError(err);
-        },
-        {
-          enableHighAccuracy: false, // ✅ Réseau uniquement
-          timeout: 3000, // ⚡ 3 secondes max
-          maximumAge: 10000 // Accepter un cache de 10 secondes
         }
       );
     };
@@ -237,29 +271,48 @@ export function usePassengerLocation(isActive: boolean = true) {
     setLoading(true);
 
     // ⚡ TENTATIVE RAPIDE pour les passagers (3 secondes max)
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const newLocation = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        };
-        setLocation(newLocation);
+    // Wrap dans try-catch pour attraper les erreurs synchrones
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setLocation(newLocation);
+          setError(null);
+          setLoading(false);
+          console.log(`✅ Position passager détectée: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
+        },
+        (err) => {
+          // Ne pas afficher d'erreurs alarmantes pour permissions policy
+          if (err.message && (err.message.includes('permissions policy') || err.message.includes('disabled in this document'))) {
+            console.log('📍 Géolocalisation non disponible (environnement iframe), position par défaut utilisée');
+            setError(null); // Pas d'erreur visible
+          } else {
+            console.log('⚠️ Erreur détection passager:', err.message);
+            setError('Impossible de détecter votre position');
+          }
+          setLoading(false);
+          setLocation(null);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 3000,
+          maximumAge: 5000
+        }
+      );
+    } catch (syncError: any) {
+      // Erreur synchrone de permissions policy
+      if (syncError.message && (syncError.message.includes('permissions policy') || syncError.message.includes('disabled in this document'))) {
+        console.log('📍 Géolocalisation non disponible dans cet environnement');
         setError(null);
-        setLoading(false);
-        console.log(`✅ Position passager détectée: ${newLocation.lat.toFixed(6)}, ${newLocation.lng.toFixed(6)}`);
-      },
-      (err) => {
-        console.error('❌ Erreur détection passager:', err.message);
+      } else {
         setError('Impossible de détecter votre position');
-        setLoading(false);
-        setLocation(null);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 3000,
-        maximumAge: 5000
       }
-    );
+      setLoading(false);
+      setLocation(null);
+    }
   }, [isActive]);
 
   return { location, error, loading };
