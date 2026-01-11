@@ -6,7 +6,7 @@ import { Button } from './ui/button';
 import { motion, AnimatePresence } from 'motion/react';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
-import { searchAddress, type GeocodedAddress } from '../lib/geocoding-service'; // 🆕 GÉOCODAGE RÉEL
+import { searchProfessionalPlaces, getPlaceCoordinates, type ProfessionalPlace } from '../lib/professional-geocoding'; // 🆕 API PROFESSIONNELLE (Mapbox + Google)
 
 interface Address {
   id: string;
@@ -14,6 +14,7 @@ interface Address {
   description: string;
   coordinates: { lat: number; lng: number };
   distance?: number; // 🆕 Distance en km depuis la position actuelle (comme Yango)
+  placeId?: string; // 🆕 Pour Google Places (obtenir coordonnées plus tard)
 }
 
 interface AddressSearchInputProps {
@@ -112,98 +113,57 @@ export function AddressSearchInput({
     setIsLoading(true);
     updateDropdownPosition();
     
-    // 🌍 SYSTÈME HYBRIDE : Base locale + Nominatim (comme Yango)
+    // 🌍 RECHERCHE PROFESSIONNELLE : Mapbox → Google Places → Nominatim → Base locale
     setTimeout(async () => {
       const queryLower = query.toLowerCase().trim();
       
-      // 1️⃣ RECHERCHE LOCALE RAPIDE (base de données 544+ lieux)
-      const localResults = searchLocationsByCommune(queryLower);
+      console.log('🌍 === RECHERCHE PROFESSIONNELLE DÉMARRÉE ===');
+      console.log(`🔍 Query: "${query}"`);
+      console.log(`📍 Position actuelle:`, currentLocation);
       
-      console.log(`🔍 Recherche locale \"${query}\":`, {
-        totalResults: localResults.length,
-        locations: localResults.slice(0, 3).map(l => `${l.nom} (${l.commune})`)
-      });
-      
-      // Convertir résultats locaux en format Address AVEC DISTANCE (comme Yango)
-      const localSuggestions: Address[] = localResults.slice(0, 5).map((location, index) => {
-        // Calculer la distance depuis la position actuelle
-        let distance: number | undefined;
-        if (currentLocation) {
-          const R = 6371; // Rayon de la Terre en km
-          const dLat = (location.lat - currentLocation.lat) * Math.PI / 180;
-          const dLng = (location.lng - currentLocation.lng) * Math.PI / 180;
-          const a = 
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(currentLocation.lat * Math.PI / 180) * Math.cos(location.lat * Math.PI / 180) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          distance = Math.round(R * c * 10) / 10; // Arrondir à 0.1 km
-        }
-        
-        return {
-          id: `local-${index}`,
-          name: location.nom,
-          description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
-          coordinates: { lat: location.lat, lng: location.lng },
-          distance // 🆕 DISTANCE COMME YANGO
-        };
-      });
-
-      // 2️⃣ RECHERCHE NOMINATIM (comme Yango) - EN PARALLÈLE
-      let nominatimSuggestions: Address[] = [];
       try {
-        const geocodedResults = await searchAddress(query);
-        nominatimSuggestions = geocodedResults.map((result, index) => ({
-          id: result.id,
-          name: result.name,
-          description: result.description,
-          coordinates: result.coordinates
+        // 🚀 RECHERCHE AVEC API PROFESSIONNELLES (Mapbox ou Google Places)
+        const professionalResults = await searchProfessionalPlaces(queryLower, currentLocation);
+        
+        console.log(`✅ Résultats professionnels: ${professionalResults.length}`);
+        professionalResults.forEach((result, i) => {
+          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance?.toFixed(1) || '?'} km`);
+        });
+        
+        // Convertir au format Address
+        const suggestions: Address[] = professionalResults.map((place, index) => ({
+          id: place.id,
+          name: place.name,
+          description: place.description,
+          coordinates: place.coordinates,
+          distance: place.distance,
+          placeId: place.placeId // 🆕 Pour Google Places
         }));
         
-        console.log(`🌍 Nominatim \"${query}\":`, {
-          totalResults: nominatimSuggestions.length,
-          locations: nominatimSuggestions.slice(0, 3).map(l => l.name)
-        });
-      } catch (error) {
-        console.warn('⚠️ Nominatim non disponible, utilisation base locale uniquement');
-      }
-
-      // 3️⃣ FUSIONNER LES RÉSULTATS (Nominatim en priorité)
-      const allSuggestions: Address[] = [];
-      
-      // D'abord les résultats Nominatim (plus précis)
-      allSuggestions.push(...nominatimSuggestions);
-      
-      // Puis les résultats locaux qui ne sont pas déjà présents
-      for (const local of localSuggestions) {
-        const alreadyExists = allSuggestions.some(nom => 
-          Math.abs(nom.coordinates.lat - local.coordinates.lat) < 0.001 &&
-          Math.abs(nom.coordinates.lng - local.coordinates.lng) < 0.001
-        );
+        console.log(`🎯 ${suggestions.length} résultats à afficher`);
+        console.log('🌍 === RECHERCHE PROFESSIONNELLE TERMINÉE ===');
         
-        if (!alreadyExists) {
-          allSuggestions.push(local);
-        }
+        setSuggestions(suggestions);
+        setIsOpen(suggestions.length > 0);
+        setIsLoading(false);
+        isUserTypingRef.current = false;
+        
+      } catch (error) {
+        console.error('❌ Erreur recherche professionnelle:', error);
+        setSuggestions([]);
+        setIsOpen(false);
+        setIsLoading(false);
+        isUserTypingRef.current = false;
       }
-      
-      // Limiter à 10 résultats max
-      const finalSuggestions = allSuggestions.slice(0, 10);
-      
-      console.log(`✅ Résultats finaux: ${finalSuggestions.length} (${nominatimSuggestions.length} Nominatim + ${localSuggestions.length} locaux)`);
-      
-      setSuggestions(finalSuggestions);
-      setIsOpen(finalSuggestions.length > 0);
-      setIsLoading(false);
-      isUserTypingRef.current = false;
-    }, 300); // Petit délai pour éviter trop de requêtes
+    }, 300); // Délai anti-spam
   };
 
-  const handleAddressSelect = (address: Address) => {
+  const handleAddressSelect = async (address: Address) => {
     console.log('==========================================');
     console.log('🔍 handleAddressSelect APPELÉ');
     console.log('📍 Adresse sélectionnée:', address.name);
-    console.log('📊 inputValue AVANT:', inputValue);
-    console.log('📊 isOpen AVANT:', isOpen);
+    console.log('📊 placeId:', address.placeId);
+    console.log('📊 coordinates:', address.coordinates);
     console.log('==========================================');
     
     // ✅ ÉTAPE 1: Mettre à jour inputValue IMMÉDIATEMENT
@@ -216,14 +176,50 @@ export function AddressSearchInput({
       console.log('✅ onChange(parent) appelé avec:', address.name);
     }
     
-    // ✅ ÉTAPE 3: Appeler onAddressSelect
-    onAddressSelect(address);
-    console.log('✅ onAddressSelect appelé');
-    
-    // ✅ ÉTAPE 4: Fermer le dropdown SANS setTimeout
+    // ✅ ÉTAPE 3: Fermer le dropdown immédiatement pour améliorer l'UX
     setIsOpen(false);
     setSuggestions([]);
     console.log('✅ Dropdown fermé');
+    
+    // ✅ ÉTAPE 4: Si c'est un Google Places sans coordonnées, les récupérer
+    if (address.placeId && (!address.coordinates || !address.coordinates.lat)) {
+      console.log('📍 Récupération des coordonnées pour Google Places...');
+      setIsLoading(true);
+      
+      try {
+        const details = await getPlaceCoordinates(address.placeId);
+        
+        if (details) {
+          console.log('✅ Coordonnées récupérées:', details.coordinates);
+          
+          // Créer un nouvel objet address avec les coordonnées
+          const completeAddress: Address = {
+            ...address,
+            coordinates: details.coordinates,
+            name: details.name || address.name,
+            description: address.description
+          };
+          
+          // ✅ ÉTAPE 5: Appeler onAddressSelect avec les coordonnées complètes
+          onAddressSelect(completeAddress);
+          console.log('✅ onAddressSelect appelé avec coordonnées complètes');
+        } else {
+          console.error('❌ Impossible de récupérer les coordonnées');
+          // Fallback: appeler quand même avec l'adresse originale
+          onAddressSelect(address);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la récupération des coordonnées:', error);
+        // Fallback: appeler quand même avec l'adresse originale
+        onAddressSelect(address);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // ✅ ÉTAPE 5: Coordonnées déjà présentes, appeler directement onAddressSelect
+      onAddressSelect(address);
+      console.log('✅ onAddressSelect appelé avec coordonnées existantes');
+    }
     
     console.log('==========================================');
     console.log('🎉 handleAddressSelect TERMINÉ');
