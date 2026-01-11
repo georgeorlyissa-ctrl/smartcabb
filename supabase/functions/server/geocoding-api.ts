@@ -163,6 +163,7 @@ interface GooglePlacePrediction {
 interface GooglePlacesAutocompleteResponse {
   predictions: GooglePlacePrediction[];
   status: string;
+  error_message?: string;
 }
 
 /**
@@ -183,11 +184,13 @@ geocodingApp.get('/autocomplete', async (c) => {
     const GOOGLE_PLACES_API_KEY = Deno.env.get('GOOGLE_PLACES_API_KEY') || '';
     
     if (!GOOGLE_PLACES_API_KEY) {
-      console.warn('⚠️ GOOGLE_PLACES_API_KEY non défini');
+      console.warn('⚠️ GOOGLE_PLACES_API_KEY non défini - Utilisez la recherche locale');
       return c.json({ 
         error: 'API Google Places non configurée',
-        fallback: true 
-      }, 503);
+        message: 'La clé API Google Places n\'est pas définie. Utilisation de la recherche locale.',
+        fallback: true,
+        results: []
+      }, 200); // 200 pour ne pas bloquer le frontend
     }
 
     console.log('🔍 Google Places Autocomplete - Query:', query);
@@ -219,20 +222,40 @@ geocodingApp.get('/autocomplete', async (c) => {
       console.error('❌ Response:', errorText);
       return c.json({ 
         error: 'Erreur HTTP Google Places',
+        message: `HTTP ${response.status}: ${response.statusText}`,
         status: response.status,
-        fallback: true 
-      }, response.status);
+        fallback: true,
+        results: []
+      }, 200); // 200 pour ne pas bloquer le frontend
     }
 
     const data: GooglePlacesAutocompleteResponse = await response.json();
     
     // Vérifier le statut de la réponse
+    if (data.status === 'REQUEST_DENIED') {
+      console.error('❌ Google Places REQUEST_DENIED - Vérifiez:');
+      console.error('   1. La clé API est valide');
+      console.error('   2. L\'API Places est activée dans Google Cloud Console');
+      console.error('   3. Les restrictions de domaine incluent votre domaine');
+      console.error('   4. La facturation est activée sur le projet Google Cloud');
+      
+      return c.json({ 
+        error: 'REQUEST_DENIED',
+        message: 'Google Places API: Accès refusé. Vérifiez la configuration de votre clé API.',
+        hint: 'Sur smartcabb.com, vérifiez que le domaine est autorisé dans Google Cloud Console.',
+        fallback: true,
+        results: []
+      }, 200); // 200 pour ne pas bloquer le frontend
+    }
+    
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
       console.error('❌ Google Places status:', data.status);
       return c.json({ 
         error: `Google Places error: ${data.status}`,
-        fallback: true 
-      }, 500);
+        message: data.error_message || 'Erreur inconnue',
+        fallback: true,
+        results: []
+      }, 200); // 200 pour ne pas bloquer le frontend
     }
 
     // Si ZERO_RESULTS, retourner tableau vide (pas une erreur)
@@ -269,8 +292,9 @@ geocodingApp.get('/autocomplete', async (c) => {
     return c.json({ 
       error: 'Erreur lors de la recherche',
       message: error instanceof Error ? error.message : 'Unknown error',
-      fallback: true 
-    }, 500);
+      fallback: true,
+      results: []
+    }, 200); // 200 pour ne pas bloquer le frontend
   }
 });
 
