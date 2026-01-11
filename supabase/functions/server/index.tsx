@@ -20,6 +20,7 @@ import emailRoutes from "./email-routes.tsx";
 import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
 import diagnosticRoute from "./diagnostic-driver-route.tsx";
+import geocodingApp from "./geocoding-api.ts";
 
 const app = new Hono();
 
@@ -1852,6 +1853,11 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 // TEST ROUTES
 // ============================================
 app.route('/make-server-2eb02e52/test', testRoutes);
+
+// ============================================
+// GEOCODING API ROUTES (Mapbox + Google Places)
+// ============================================
+app.route('/make-server-2eb02e52/geocoding', geocodingApp);
 
 // ============================================
 // DIAGNOSTIC ROUTES (Diagnostic conducteur)
