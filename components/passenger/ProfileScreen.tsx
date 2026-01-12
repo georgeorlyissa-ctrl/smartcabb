@@ -1,31 +1,6 @@
-import { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Card } from '../ui/card';
-import { motion } from 'motion/react';
-import { useAppState } from '../../hooks/useAppState';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  ArrowLeft, 
-  Edit, 
-  Edit3,
-  Save, 
-  X, 
-  Shield, 
-  Wallet, 
-  ChevronRight,
-  Calendar,
-  Smartphone,
-  CreditCard,
-  Banknote
-} from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
-import { formatCDF, CONSTANTS } from '../../lib/pricing';
+import { formatCDF, getExchangeRate } from '../../lib/pricing';
 import { syncUserProfile } from '../../lib/sync-service';
 import { sendSMS } from '../../lib/sms-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
@@ -163,7 +138,7 @@ export function ProfileScreen() {
     walletBalance: state.currentUser?.walletBalance,
     walletBalanceFormatted: formatCDF(state.currentUser?.walletBalance || 0),
     transactionCount: state.currentUser?.walletTransactions?.length || 0,
-    hasDiscount: (state.currentUser?.walletBalance || 0) >= CONSTANTS.EXCHANGE_RATE * 20
+    hasDiscount: (state.currentUser?.walletBalance || 0) >= getExchangeRate() * 20
   });
 
   const handleLogout = () => {
@@ -207,6 +182,22 @@ export function ProfileScreen() {
 
     setIsSaving(true);
     
+    // 🔥 DEBUG: Afficher ce qui va être envoyé
+    console.log('🔥🔥🔥 ========== SAUVEGARDE PROFIL ==========');
+    console.log('📤 Données à envoyer:', {
+      name: editData.name,
+      email: editData.email,
+      phone: editData.phone,
+      address: editData.address
+    });
+    console.log('📊 Utilisateur actuel:', {
+      id: state.currentUser.id,
+      currentName: state.currentUser.name,
+      currentEmail: state.currentUser.email,
+      currentPhone: state.currentUser.phone,
+      currentAddress: state.currentUser.address
+    });
+    
     // ✅ OPTIMISTIC UPDATE: Mettre à jour immédiatement l'interface
     const previousUser = { ...state.currentUser };
     const updatedUser = {
@@ -232,22 +223,28 @@ export function ProfileScreen() {
       });
       
       // 🔥 NOUVELLE MÉTHODE: Sauvegarder directement dans le backend KV store
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/update/${state.currentUser.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            name: editData.name,
-            email: editData.email,
-            phone: editData.phone,
-            address: editData.address
-          })
-        }
-      );
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/update/${state.currentUser.id}`;
+      console.log('📡 URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editData.name,
+          email: editData.email,
+          phone: editData.phone,
+          address: editData.address
+        })
+      });
+
+      console.log('📥 Réponse serveur:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -257,6 +254,7 @@ export function ProfileScreen() {
 
       const result = await response.json();
       console.log('✅ [PROFILE SAVE] Backend mis à jour:', result);
+      console.log('🔥🔥🔥 ========== FIN SAUVEGARDE (SUCCÈS) ==========');
       
       // 🔄 Mettre à jour localStorage
       const userKey = `smartcabb_user_${state.currentUser.id}`;
@@ -272,7 +270,7 @@ export function ProfileScreen() {
           address: editData.address
         };
         localStorage.setItem(userKey, JSON.stringify(updatedData));
-        console.log('✅ localStorage mis à jour');
+        console.log('✅ localStorage mis à jour:', updatedData);
       }
       
       toast.success('Profil mis à jour avec succès ✅');
@@ -425,9 +423,9 @@ export function ProfileScreen() {
                       {formatCDF(walletBalance)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      ≈ {((walletBalance) / CONSTANTS.EXCHANGE_RATE).toFixed(2)}$ USD
+                      ≈ {((walletBalance) / getExchangeRate()).toFixed(2)}$ USD
                     </p>
-                    {(walletBalance) >= CONSTANTS.EXCHANGE_RATE * 20 && (
+                    {(walletBalance) >= getExchangeRate() * 20 && (
                       <p className="text-xs text-secondary font-medium mt-1 flex items-center gap-1">
                         🎁 Réduction de 5% active
                       </p>
