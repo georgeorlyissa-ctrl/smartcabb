@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '../ui/button';
-import { useAppState } from '../../lib/state';
+import { useAppState } from '../../hooks/useAppState';
 import type { Passenger, WalletTransaction } from '../../types';
 import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
 import { RechargeModal } from './RechargeModal';
