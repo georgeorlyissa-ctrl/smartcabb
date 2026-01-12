@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { useAppState } from '../../lib/state';
 import type { Passenger, WalletTransaction } from '../../types';
 import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
@@ -253,7 +252,7 @@ export function WalletScreen() {
 
       {/* Balance Card */}
       <div className="p-6">
-        <Card 
+        <motion.div 
           className="bg-gradient-to-br from-secondary to-primary rounded-3xl p-8 shadow-2xl relative overflow-hidden"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
@@ -321,7 +320,7 @@ export function WalletScreen() {
               Recharger mon portefeuille
             </Button>
           </div>
-        </Card>
+        </motion.div>
 
         {/* Benefits Card */}
         <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-border">
