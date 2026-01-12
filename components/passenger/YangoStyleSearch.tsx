@@ -237,6 +237,8 @@ export function YangoStyleSearch({
               }
               
               // Icônes spécifiques selon placeType
+               // Icônes spécifiques selon placeType
+               // Icônes spécifiques selon placeType
               switch (result.placeType) {
                 case 'terminal':
                   return <span className="text-xl">🚌</span>;
