@@ -84,35 +84,42 @@ export function YangoStyleSearch({
         if (response.ok) {
           const data = await response.json();
           
+          console.log('📦 Réponse Mapbox complète:', data);
+          
           if (data.results && data.results.length > 0) {
             console.log(`✅ ${data.results.length} résultats trouvés`);
             
-            // Filtrer à 5km max
-            const MAX_DISTANCE_KM = 5;
-            const filtered = data.results.filter((r: any) => {
-              if (!r.distance) return true;
-              return r.distance <= MAX_DISTANCE_KM;
-            });
-            
-            console.log(`🎯 ${filtered.length} résultats après filtre 5km`);
+            // 🎯 PAS DE FILTRE STRICT - GARDER TOUS LES RÉSULTATS
+            // Si distance existe, on l'utilisera pour le ranking
+            console.log('📊 Résultats bruts:', data.results.map((r: any) => `${r.name} (${r.distance ? r.distance.toFixed(1) + 'km' : 'distance inconnue'})`));
             
             // 🧠 RANKING INTELLIGENT - COMME UBER/YANGO
-            const ranked = rankSearchResults(
-              filtered,
-              currentLocation,
-              recentSearches.map(r => r.id)
-            );
-            
-            console.log('🧠 Résultats triés par pertinence');
-            console.log('📊 Top 3:', ranked.slice(0, 3).map(r => `${r.name} (score: ${r.score?.toFixed(1)})`));
-            
-            setResults(ranked);
+            try {
+              const ranked = rankSearchResults(
+                data.results,
+                currentLocation,
+                recentSearches.map(r => r.id)
+              );
+              
+              console.log('🧠 Résultats triés par pertinence');
+              console.log('📊 Top 3:', ranked.slice(0, 3).map(r => `${r.name} (score: ${r.score?.toFixed(1)})`));
+              
+              // Limiter à 10 résultats max (comme Yango)
+              setResults(ranked.slice(0, 10));
+            } catch (rankError) {
+              console.error('❌ Erreur ranking:', rankError);
+              // Fallback : afficher résultats bruts
+              console.log('⚠️ Affichage sans ranking');
+              setResults(data.results.slice(0, 10));
+            }
           } else {
-            console.log('⚠️ Aucun résultat');
+            console.log('⚠️ Aucun résultat dans data.results');
+            console.log('📦 Data complète:', data);
             setResults([]);
           }
         } else {
-          console.error('❌ Erreur Mapbox:', response.status);
+          const errorText = await response.text();
+          console.error('❌ Erreur Mapbox:', response.status, errorText);
           setResults([]);
         }
         
@@ -237,8 +244,6 @@ export function YangoStyleSearch({
               }
               
               // Icônes spécifiques selon placeType
-               // Icônes spécifiques selon placeType
-               // Icônes spécifiques selon placeType
               switch (result.placeType) {
                 case 'terminal':
                   return <span className="text-xl">🚌</span>;
