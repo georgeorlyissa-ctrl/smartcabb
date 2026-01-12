@@ -45,12 +45,6 @@ const BACKEND_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2
  * Utilise Mapbox ou Google Places (selon disponibilité)
  * avec fallback automatique vers Nominatim et base locale
  */
-/**
- * 🔍 RECHERCHE D'ADRESSES PROFESSIONNELLE
- * 
- * Utilise Mapbox ou Google Places (selon disponibilité)
- * avec fallback automatique vers Nominatim et base locale
- */
 export async function searchProfessionalPlaces(
   query: string,
   currentLocation?: { lat: number; lng: number }
@@ -59,59 +53,63 @@ export async function searchProfessionalPlaces(
     return [];
   }
 
-  console.log('🌍 ===== RECHERCHE INTELLIGENTE DÉMARRÉE =====');
+  console.log('🌍 ===== RECHERCHE MAPBOX UNIQUEMENT =====');
   console.log(`🔍 Query: "${query}"`);
   console.log(`📍 Position:`, currentLocation);
 
-  const allResults: ProfessionalPlace[] = [];
-
   try {
-    // 1️⃣ ESSAYER MAPBOX EN PRIORITÉ (comme Uber)
-    console.log('🔄 Étape 1/4 : Tentative Mapbox...');
+    // ✅ JUSTE MAPBOX - COMME UBER/YANGO
+    console.log('🔄 Recherche Mapbox...');
     const mapboxResults = await searchWithMapbox(query, currentLocation);
-    if (mapboxResults.length > 0) {
-      console.log(`✅ Mapbox: ${mapboxResults.length} résultats - SUCCÈS`);
-      allResults.push(...mapboxResults);
-    } else {
-      console.log('⚠️ Mapbox: 0 résultats ou indisponible');
-    }
-
-    // 2️⃣ ESSAYER GOOGLE PLACES EN PARALLÈLE (comme Yango)
-    // ⚠️ DÉSACTIVÉ : Nouvelle approche utilise uniquement la base locale
-    console.log('⏭️  Étape 2/4 : Google Places DÉSACTIVÉ (utilisation de la base locale)');
-    /* DÉSACTIVÉ TEMPORAIREMENT
-    const googleResults = await searchWithGooglePlaces(query, currentLocation);
-    if (googleResults.length > 0) {
-      console.log(`✅ Google Places: ${googleResults.length} résultats - SUCCÈS`);
-      allResults.push(...googleResults);
-    } else {
-      console.log('⚠️ Google Places: 0 résultats ou indisponible');
-    }
-    */
-
-    // 🎯 SI ON A DES RÉSULTATS D'API PROFESSIONNELLES, LES RETOURNER
-    if (allResults.length > 0) {
-      // Dédupliquer par nom (au cas où les deux API retournent les mêmes lieux)
-      const deduplicated = deduplicateResults(allResults);
-      console.log(`🎉 ${deduplicated.length} résultats professionnels (après déduplication)`);
-      console.log('🌍 ===== RECHERCHE TERMINÉE (API PRO) =====');
-      return deduplicated;
-    }
-
-    // 3️⃣ NOMINATIM DÉSACTIVÉ - JUSTE MAPBOX !
-    console.log('⏭️  Étape 3/4 : Nominatim DÉSACTIVÉ');
     
-    // 4️⃣ PAS DE RÉSULTATS : RETOURNER VIDE
-    console.log('⚠️ Aucun résultat trouvé');
+    if (mapboxResults.length > 0) {
+      console.log(`✅ Mapbox: ${mapboxResults.length} résultats`);
+      
+      // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
+      // - Jusqu'à 10 km : tous les résultats
+      // - 10-20 km : seulement si très pertinents (terminaux, aéroport, etc.)
+      // - Plus de 20 km : on ignore (trop loin)
+      const MAX_DISTANCE_NORMAL = 10; // km
+      const MAX_DISTANCE_IMPORTANT = 20; // km (seulement lieux importants)
+      
+      const filtered = mapboxResults.filter((result) => {
+        // Pas de position = on garde (mais peu probable avec Mapbox)
+        if (!result.distance) return true;
+        
+        // Moins de 10 km = on garde toujours
+        if (result.distance <= MAX_DISTANCE_NORMAL) return true;
+        
+        // 10-20 km = seulement si c'est un lieu important
+        if (result.distance <= MAX_DISTANCE_IMPORTANT) {
+          const isImportant = 
+            result.name.toLowerCase().includes('aéroport') ||
+            result.name.toLowerCase().includes('terminus') ||
+            result.name.toLowerCase().includes('gare') ||
+            result.description.toLowerCase().includes('terminal') ||
+            result.description.toLowerCase().includes('🚌');
+          
+          console.log(`⚖️ ${result.name} (${result.distance.toFixed(1)}km) - Important: ${isImportant}`);
+          return isImportant;
+        }
+        
+        // Plus de 20 km = on ignore
+        console.log(`❌ ${result.name} ignoré (${result.distance.toFixed(1)}km - trop loin)`);
+        return false;
+      });
+      
+      console.log(`🎯 ${filtered.length} résultats après filtre distance`);
+      console.log('🌍 ===== RECHERCHE TERMINÉE =====');
+      return filtered;
+    }
+    
+    console.log('⚠️ Mapbox: 0 résultats');
     console.log('🌍 ===== RECHERCHE TERMINÉE (AUCUN RÉSULTAT) =====');
     return [];
 
   } catch (error) {
-    console.error('❌ Erreur recherche professionnelle:', error);
-    
-    // En cas d'erreur complète, utiliser la base locale
-    console.log('🔄 Fallback final vers base locale...');
-    return searchWithLocalDatabaseIntelligent(query, currentLocation);
+    console.error('❌ Erreur recherche Mapbox:', error);
+    console.log('🌍 ===== RECHERCHE TERMINÉE (ERREUR) =====');
+    return [];
   }
 }
 
