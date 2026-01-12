@@ -129,7 +129,9 @@ export function YangoStyleSearch({
               const ranked = rankSearchResults(
                 filtered,
                 currentLocation,
-                recentSearches.map(r => r.id)
+                recentSearches.map(r => r.id),
+                undefined, // favoriteLocations
+                query // ← NOUVEAU ! Passer la requête pour pertinence
               );
               
               console.log('🧠 Résultats triés par pertinence');
