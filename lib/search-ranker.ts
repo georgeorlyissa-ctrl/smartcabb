@@ -2,11 +2,11 @@
  * 🧠 ALGORITHME DE RANKING INTELLIGENT - COMME UBER/YANGO
  * 
  * Classe les suggestions selon plusieurs critères :
- * - Distance (plus proche = meilleur)
- * - Popularité (terminaux, marchés = boost)
- * - Contexte temporel (heure de la journée)
- * - Historique utilisateur (récent/fréquent)
- * - Usage global (lieux populaires)
+ * - **PERTINENCE DU NOM (50%)** ← PRIORITAIRE !
+ * - Distance (25%)
+ * - Popularité (15%)
+ * - Contexte temporel (5%)
+ * - Historique utilisateur (5%)
  */
 
 export interface SearchResult {
@@ -20,52 +20,46 @@ export interface SearchResult {
   
   // Métadonnées de ranking
   score?: number;
+  relevanceScore?: number;
+  distanceScore?: number;
   popularityScore?: number;
   contextScore?: number;
   historyScore?: number;
-  usageScore?: number;
 }
 
 export interface RankingContext {
   userLocation?: { lat: number; lng: number };
-  currentHour?: number; // 0-23
-  recentSearches?: string[]; // IDs des recherches récentes
-  favoriteLocations?: string[]; // IDs des favoris
-  globalUsage?: Record<string, number>; // placeId → nombre d'utilisations
+  currentHour?: number;
+  recentSearches?: string[];
+  favoriteLocations?: string[];
+  query?: string; // ← ESSENTIEL pour la pertinence !
 }
 
 /**
  * 🎯 RANKER PRINCIPAL
- * 
- * Classe les résultats selon un scoring multi-critères
  */
 export class SearchRanker {
   
-  /**
-   * 🏆 RANK - Fonction principale
-   * 
-   * Calcule un score pour chaque résultat et les trie
-   */
   static rank(
     results: SearchResult[],
     context: RankingContext = {}
   ): SearchResult[] {
     
-    // 1. Calculer les scores pour chaque résultat
     const scored = results.map(result => {
       const score = this.calculateScore(result, context);
       
       return {
         ...result,
         score,
+        relevanceScore: this.getRelevanceScore(result, context.query),
+        distanceScore: this.getDistanceScore(result.distance),
         popularityScore: this.getPopularityScore(result),
         contextScore: this.getContextScore(result, context.currentHour),
-        historyScore: this.getHistoryScore(result, context),
-        usageScore: this.getUsageScore(result, context.globalUsage)
+        historyScore: this.getHistoryScore(result, context)
       };
     });
     
-    // 2. Trier par score décroissant (meilleur en premier)
+    // Trier par score décroissant
     scored.sort((a, b) => (b.score || 0) - (a.score || 0));
     
     return scored;
@@ -74,7 +68,12 @@ export class SearchRanker {
   /**
    * 🧮 CALCULER LE SCORE TOTAL
    * 
-   * Combine tous les critères avec des pondérations
+   * NOUVELLE PONDÉRATION :
+   * - Pertinence nom : 50% (PRIORITAIRE!)
+   * - Distance : 25%
+   * - Popularité : 15%
+   * - Contexte : 5%
+   * - Historique : 5%
    */
   private static calculateScore(
     result: SearchResult,
@@ -83,174 +82,254 @@ export class SearchRanker {
     let score = 0;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📏 DISTANCE (40% du score) - CRITÈRE LE PLUS IMPORTANT
+    // 🔍 PERTINENCE DU NOM (50% du score) - PRIORITAIRE !
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const relevanceScore = this.getRelevanceScore(result, context.query);
+    score += relevanceScore * 0.50;
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📏 DISTANCE (25% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const distanceScore = this.getDistanceScore(result.distance);
-    score += distanceScore * 0.40;
+    score += distanceScore * 0.25;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ⭐ POPULARITÉ (25% du score)
-    // Terminaux, marchés, hôtels = boost
+    // ⭐ POPULARITÉ (15% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const popularityScore = this.getPopularityScore(result);
-    score += popularityScore * 0.25;
+    score += popularityScore * 0.15;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🕐 CONTEXTE TEMPOREL (15% du score)
-    // Heure de la journée influence les suggestions
+    // 🕐 CONTEXTE TEMPOREL (5% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const contextScore = this.getContextScore(result, context.currentHour);
-    score += contextScore * 0.15;
+    score += contextScore * 0.05;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📚 HISTORIQUE UTILISATEUR (10% du score)
-    // Lieux récemment visités ou favoris
+    // 📚 HISTORIQUE UTILISATEUR (5% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const historyScore = this.getHistoryScore(result, context);
-    score += historyScore * 0.10;
-    
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌍 USAGE GLOBAL (10% du score)
-    // Lieux populaires auprès de tous les utilisateurs
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const usageScore = this.getUsageScore(result, context.globalUsage);
-    score += usageScore * 0.10;
+    score += historyScore * 0.05;
     
     return score;
   }
   
   /**
-   * 📏 SCORE DE DISTANCE
+   * 🔍 SCORE DE PERTINENCE DU NOM - ALGORITHME AMÉLIORÉ
    * 
-   * Plus proche = meilleur score
-   * 0-1km    = 100 points
-   * 1-2km    = 80 points
-   * 2-3km    = 60 points
-   * 3-5km    = 40 points
-   * 5km+     = 20 points
+   * Compare le nom du lieu avec la requête de recherche
+   */
+  private static getRelevanceScore(
+    result: SearchResult,
+    query?: string
+  ): number {
+    if (!query || query.trim().length === 0) {
+      return 50; // Score neutre si pas de requête
+    }
+    
+    const name = result.name.toLowerCase().trim();
+    const description = result.description.toLowerCase().trim();
+    const queryLower = query.toLowerCase().trim();
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 1️⃣ CORRESPONDANCE EXACTE DU NOM = 100 points
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (name === queryLower) {
+      console.log(`🎯 Correspondance exacte: "${result.name}"`);
+      return 100;
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 2️⃣ NOM COMMENCE PAR LA REQUÊTE = 95 points
+    // Exemple: "UPN" → "UPN Kinshasa"
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (name.startsWith(queryLower)) {
+      console.log(`🎯 Nom commence par: "${result.name}"`);
+      return 95;
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 3️⃣ NOM CONTIENT LA REQUÊTE = 85 points
+    // Exemple: "UPN" → "Université Pédagogique Nationale (UPN)"
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (name.includes(queryLower)) {
+      console.log(`🎯 Nom contient: "${result.name}"`);
+      return 85;
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 4️⃣ MOT DU NOM COMMENCE PAR LA REQUÊTE = 80 points
+    // Exemple: "université" → "Université Pédagogique"
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const nameWords = name.split(/\\s+/);
+    for (const word of nameWords) {
+      if (word.startsWith(queryLower)) {
+        console.log(`🎯 Mot commence par: "${result.name}" (mot: "${word}")`);
+        return 80;
+      }
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 5️⃣ ACRONYME MATCH = 75 points
+    // Exemple: "UPN" → "Université Pédagogique Nationale"
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const acronym = nameWords
+      .filter(word => word.length > 2) // Ignorer les petits mots (de, la, etc.)
+      .map(word => word[0])
+      .join('');
+    
+    if (acronym.toLowerCase() === queryLower) {
+      console.log(`🎯 Acronyme match: "${result.name}" (${acronym})`);
+      return 75;
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 6️⃣ DESCRIPTION CONTIENT LA REQUÊTE = 40 points
+    // Exemple: "UPN" dans "Avenue de Binza UPN"
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (description.includes(queryLower)) {
+      console.log(`⚠️ Description contient: "${result.name}" (${result.description})`);
+      return 40;
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 7️⃣ SIMILARITÉ PARTIELLE = 20-30 points
+    // Utilise la distance de Levenshtein
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const similarity = this.calculateSimilarity(name, queryLower);
+    if (similarity > 0.7) {
+      console.log(`⚠️ Similarité partielle: "${result.name}" (${(similarity * 100).toFixed(0)}%)`);
+      return 20 + (similarity * 10);
+    }
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 8️⃣ PAS DE CORRESPONDANCE = 10 points
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    console.log(`❌ Pas de correspondance: "${result.name}"`);
+    return 10;
+  }
+  
+  /**
+   * 📏 CALCULER LA SIMILARITÉ ENTRE DEUX CHAÎNES
+   * Utilise la distance de Levenshtein
+   */
+  private static calculateSimilarity(str1: string, str2: string): number {
+    const distance = this.levenshteinDistance(str1, str2);
+    const maxLength = Math.max(str1.length, str2.length);
+    
+    if (maxLength === 0) return 1;
+    
+    return 1 - (distance / maxLength);
+  }
+  
+  /**
+   * 📐 DISTANCE DE LEVENSHTEIN
+   */
+  private static levenshteinDistance(str1: string, str2: string): number {
+    const m = str1.length;
+    const n = str2.length;
+    const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        if (str1[i - 1] === str2[j - 1]) {
+          dp[i][j] = dp[i - 1][j - 1];
+        } else {
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + 1
+          );
+        }
+      }
+    }
+
+    return dp[m][n];
+  }
+  
+  /**
+   * 📏 SCORE DE DISTANCE
    */
   private static getDistanceScore(distance?: number): number {
-    if (!distance) return 50; // Score moyen si pas de distance
+    if (!distance) return 50;
     
-    if (distance <= 1) return 100;
-    if (distance <= 2) return 80;
+    if (distance <= 0.5) return 100;
+    if (distance <= 1) return 90;
+    if (distance <= 2) return 75;
     if (distance <= 3) return 60;
-    if (distance <= 5) return 40;
-    return 20;
+    if (distance <= 5) return 45;
+    if (distance <= 10) return 30;
+    return 15;
   }
   
   /**
    * ⭐ SCORE DE POPULARITÉ
-   * 
-   * Certains types de lieux sont plus importants
    */
   private static getPopularityScore(result: SearchResult): number {
     const type = result.placeType?.toLowerCase() || '';
     const name = result.name.toLowerCase();
     
-    // Lieux TRÈS populaires (score max)
-    if (type === 'terminal') return 100;
-    if (type === 'station') return 95;
-    if (type === 'airport') return 95;
-    if (name.includes('terminus')) return 100;
-    if (name.includes('terminal')) return 100;
-    if (name.includes('aéroport')) return 95;
-    if (name.includes('gare')) return 90;
-    
-    // Lieux populaires
-    if (type === 'market') return 85;
-    if (type === 'mall') return 80;
-    if (type === 'hospital') return 80;
-    if (type === 'school') return 75;
-    if (type === 'hotel') return 75;
+    if (type === 'terminal' || name.includes('terminus')) return 100;
+    if (type === 'airport' || name.includes('aéroport')) return 95;
+    if (type === 'station' || name.includes('gare')) return 90;
+    if (type === 'market' || name.includes('marché')) return 85;
+    if (type === 'mall' || name.includes('centre commercial')) return 80;
+    if (type === 'hospital' || name.includes('hôpital')) return 80;
+    if (type === 'school' || name.includes('école') || name.includes('université')) return 75;
+    if (type === 'hotel' || name.includes('hôtel')) return 75;
     if (type === 'restaurant') return 70;
-    if (type === 'bank') return 70;
-    if (type === 'church') return 65;
+    if (type === 'bank' || name.includes('banque')) return 70;
+    if (type === 'church' || name.includes('église')) return 65;
     
-    // Lieux moyennement populaires
-    if (type === 'office') return 60;
-    if (type === 'park') return 55;
-    if (type === 'neighborhood') return 50;
-    
-    // Lieux standards
-    if (type === 'address') return 40;
-    
-    // Défaut
     return 50;
   }
   
   /**
-   * 🕐 SCORE CONTEXTUEL (HEURE DE LA JOURNÉE)
-   * 
-   * Les suggestions changent selon l'heure
+   * 🕐 SCORE CONTEXTUEL
    */
   private static getContextScore(
     result: SearchResult,
     currentHour?: number
   ): number {
-    if (currentHour === undefined) return 50; // Score neutre
+    if (currentHour === undefined) return 50;
     
     const type = result.placeType?.toLowerCase() || '';
     const name = result.name.toLowerCase();
     
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌅 MATIN (6h - 9h) - Travail, école
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Matin (6h-9h)
     if (currentHour >= 6 && currentHour < 9) {
+      if (type === 'school' || name.includes('école')) return 90;
       if (type === 'office') return 90;
-      if (type === 'school') return 90;
-      if (name.includes('bureau')) return 90;
-      if (name.includes('école')) return 90;
-      if (name.includes('lycée')) return 90;
-      if (type === 'restaurant') return 40; // Moins pertinent
-      if (type === 'hotel') return 30;
+      if (type === 'restaurant') return 40;
     }
     
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ☀️ MIDI (12h - 14h) - Déjeuner
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Midi (12h-14h)
     if (currentHour >= 12 && currentHour < 14) {
-      if (type === 'restaurant') return 95;
-      if (name.includes('restaurant')) return 95;
+      if (type === 'restaurant' || name.includes('restaurant')) return 95;
       if (name.includes('café')) return 90;
-      if (type === 'market') return 80;
-      if (type === 'mall') return 75;
     }
     
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌆 SOIR (17h - 20h) - Retour maison
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Soir (17h-20h)
     if (currentHour >= 17 && currentHour < 20) {
-      if (type === 'neighborhood') return 85;
-      if (type === 'address') return 85;
-      if (name.includes('quartier')) return 85;
-      if (type === 'terminal') return 90; // Retour en bus
-      if (type === 'station') return 90;
-      if (type === 'market') return 80; // Courses
-      if (type === 'office') return 30; // Moins pertinent
+      if (type === 'terminal' || name.includes('terminus')) return 90;
+      if (type === 'market' || name.includes('marché')) return 80;
     }
     
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🌙 NUIT (21h - 5h) - Sortie, hôtel
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // Nuit (21h-5h)
     if (currentHour >= 21 || currentHour < 6) {
-      if (type === 'hotel') return 95;
-      if (type === 'restaurant') return 80; // Bars/restaurants
-      if (name.includes('bar')) return 90;
-      if (name.includes('hôtel')) return 95;
-      if (type === 'hospital') return 85; // Urgences
-      if (type === 'school') return 20; // Pas pertinent
-      if (type === 'office') return 20;
+      if (type === 'hotel' || name.includes('hôtel')) return 95;
+      if (type === 'hospital' || name.includes('hôpital')) return 85;
+      if (type === 'school') return 20;
     }
     
-    // Neutre pour le reste
     return 50;
   }
   
   /**
    * 📚 SCORE D'HISTORIQUE
-   * 
-   * Lieux récemment cherchés ou favoris = boost
    */
   private static getHistoryScore(
     result: SearchResult,
@@ -258,64 +337,27 @@ export class SearchRanker {
   ): number {
     let score = 0;
     
-    // Favoris = gros boost
     if (context.favoriteLocations?.includes(result.id)) {
       score += 100;
     }
     
-    // Récemment cherché = boost moyen
     if (context.recentSearches?.includes(result.id)) {
       score += 70;
     }
     
-    // Nom similaire aux recherches récentes
-    if (context.recentSearches) {
-      for (const recentId of context.recentSearches) {
-        if (result.name.toLowerCase().includes(recentId.toLowerCase())) {
-          score += 30;
-          break;
-        }
-      }
-    }
-    
-    return Math.min(score, 100); // Max 100
-  }
-  
-  /**
-   * 🌍 SCORE D'USAGE GLOBAL
-   * 
-   * Lieux populaires auprès de tous les utilisateurs
-   */
-  private static getUsageScore(
-    result: SearchResult,
-    globalUsage?: Record<string, number>
-  ): number {
-    if (!globalUsage || !result.id) return 50;
-    
-    const usage = globalUsage[result.id] || 0;
-    
-    // Convertir le nombre d'utilisations en score
-    if (usage >= 100) return 100; // Très populaire
-    if (usage >= 50) return 90;
-    if (usage >= 20) return 80;
-    if (usage >= 10) return 70;
-    if (usage >= 5) return 60;
-    if (usage >= 1) return 55;
-    
-    return 50; // Jamais utilisé = score neutre
+    return Math.min(score, 100);
   }
 }
 
 /**
  * 🎯 HELPER : RANK RAPIDE
- * 
- * Fonction pratique pour ranking simple
  */
 export function rankSearchResults(
   results: SearchResult[],
   userLocation?: { lat: number; lng: number },
   recentSearches?: string[],
-  favoriteLocations?: string[]
+  favoriteLocations?: string[],
+  query?: string
 ): SearchResult[] {
   
   const currentHour = new Date().getHours();
@@ -324,6 +366,7 @@ export function rankSearchResults(
     userLocation,
     currentHour,
     recentSearches,
-    favoriteLocations
+    favoriteLocations,
+    query // ← ESSENTIEL !
   });
 }
