@@ -1,9 +1,43 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Edit2,
+  Save,
+  X,
+  ChevronRight,
+  Wallet,
+  History,
+  HelpCircle,
+  LogOut,
+  MessageCircle,
+  Star,
+  TrendingUp,
+  Award,
+  Gift,
+  Shield,
+  Settings,
+  Bell,
+  ArrowLeft,
+  Calendar,
+  Smartphone,
+  CreditCard,
+  Banknote
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { formatCDF, getExchangeRate } from '../../lib/pricing';
 import { syncUserProfile } from '../../lib/sync-service';
 import { sendSMS } from '../../lib/sms-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 
 export function ProfileScreen() {
   const { setCurrentScreen, state, passengers, setCurrentUser, setCurrentView } = useAppState();
@@ -344,7 +378,7 @@ export function ProfileScreen() {
               </>
             ) : (
               <>
-                <Edit3 className="w-4 h-4 mr-2" />
+                <Edit2 className="w-4 h-4 mr-2" />
                 Modifier
               </>
             )}
@@ -579,7 +613,7 @@ export function ProfileScreen() {
                 className="w-full justify-start"
                 onClick={() => setCurrentScreen('ride-history')}
               >
-                <Calendar className="w-5 h-5 mr-3" />
+                <History className="w-5 h-5 mr-3" />
                 Voir l'historique des courses
               </Button>
               
@@ -588,7 +622,7 @@ export function ProfileScreen() {
                 className="w-full justify-start"
                 onClick={() => setCurrentScreen('support')}
               >
-                <Phone className="w-5 h-5 mr-3" />
+                <HelpCircle className="w-5 h-5 mr-3" />
                 Contacter le support
               </Button>
               
@@ -597,7 +631,7 @@ export function ProfileScreen() {
                 className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
                 onClick={handleLogout}
               >
-                <ArrowLeft className="w-5 h-5 mr-3" />
+                <LogOut className="w-5 h-5 mr-3" />
                 Se déconnecter
               </Button>
             </div>
