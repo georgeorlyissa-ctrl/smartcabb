@@ -111,6 +111,160 @@ nominatimApp.get('/search', async (c) => {
 });
 
 /**
+ * 🎯 ROUTE : RECHERCHE INTELLIGENTE - NOMINATIM UNIQUEMENT
+ * GET /nominatim/smart-search?query=upn&lat=-4.3&lng=15.3
+ * 
+ * ✅ Utilise UNIQUEMENT OpenStreetMap/Nominatim
+ * ✅ Ranking intelligent (pertinence 50%, distance 25%, popularité 15%)
+ * ✅ Calcul distance utilisateur → destination
+ * ✅ Filtre intelligent par distance
+ * ✅ Format compatible avec YangoStyleSearch
+ */
+nominatimApp.get('/smart-search', async (c) => {
+  try {
+    const query = c.req.query('query');
+    const lat = c.req.query('lat');
+    const lng = c.req.query('lng');
+    const city = c.req.query('city') || 'kinshasa';
+
+    if (!query) {
+      return c.json({ error: 'Query parameter required' }, 400);
+    }
+
+    console.log(`\n🎯 ========== RECHERCHE INTELLIGENTE NOMINATIM ==========`);
+    console.log(`🔍 Requête: "${query}"`);
+    console.log(`📍 Position: ${lat ? `${lat}, ${lng}` : `Ville ${city}`}`);
+
+    // Déterminer le centre de recherche
+    const cityData = RDC_CITIES[city as keyof typeof RDC_CITIES] || RDC_CITIES.kinshasa;
+    const searchCenter = (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng)))
+      ? { lat: Number(lat), lng: Number(lng) }
+      : cityData;
+
+    console.log(`📍 Centre recherche: ${searchCenter.lat}, ${searchCenter.lng}`);
+
+    // Construire viewbox pour la ville
+    const viewbox = getViewboxForCity(city as keyof typeof RDC_CITIES);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 1️⃣ APPELER NOMINATIM
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
+      q: query,
+      format: 'json',
+      addressdetails: '1',
+      extratags: '1',
+      namedetails: '1',
+      limit: '100', // Plus de résultats pour meilleur ranking
+      viewbox: viewbox,
+      bounded: '1',
+      countrycodes: 'cd',
+      'accept-language': 'fr'
+    });
+
+    const response = await fetch(nominatimUrl, {
+      headers: {
+        'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nominatim API error: ${response.status}`);
+    }
+
+    const nominatimResults: any[] = await response.json();
+    console.log(`✅ Nominatim: ${nominatimResults.length} résultats bruts`);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 2️⃣ ENRICHIR LES RÉSULTATS
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const enrichedPlaces = nominatimResults
+      .map(place => {
+        const enriched = enrichPlaceForSmartSearch(place, searchCenter, query);
+        if (enriched) {
+          console.log(`📌 ${enriched.name} (${enriched.placeType}) - ${enriched.distance?.toFixed(1)}km - Score: ${enriched.score?.toFixed(1)}`);
+        }
+        return enriched;
+      })
+      .filter(place => place !== null);
+
+    console.log(`✅ ${enrichedPlaces.length} lieux enrichis`);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 3️⃣ FILTRE INTELLIGENT PAR DISTANCE
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const MAX_DISTANCE_NORMAL = 20; // km
+    const MAX_DISTANCE_IMPORTANT = 50; // km
+
+    const filtered = enrichedPlaces.filter(place => {
+      if (!place.distance) return true;
+
+      // Moins de 20 km = on garde toujours
+      if (place.distance <= MAX_DISTANCE_NORMAL) return true;
+
+      // 20-50 km = seulement si important
+      if (place.distance <= MAX_DISTANCE_IMPORTANT) {
+        const isImportant = 
+          place.placeType === 'airport' ||
+          place.placeType === 'terminal' ||
+          place.placeType === 'station' ||
+          place.name.toLowerCase().includes('aéroport') ||
+          place.name.toLowerCase().includes('terminus') ||
+          place.name.toLowerCase().includes('gare');
+
+        if (!isImportant) {
+          console.log(`❌ ${place.name} ignoré (${place.distance.toFixed(1)}km - non important)`);
+          return false;
+        }
+      }
+
+      // Plus de 50 km = on ignore
+      if (place.distance > MAX_DISTANCE_IMPORTANT) {
+        console.log(`❌ ${place.name} ignoré (${place.distance.toFixed(1)}km - trop loin)`);
+        return false;
+      }
+
+      return true;
+    });
+
+    console.log(`🎯 ${filtered.length} résultats après filtre distance`);
+
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 4️⃣ TRIER PAR SCORE (déjà calculé dans enrichPlaceForSmartSearch)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const sorted = filtered.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    // Limiter à 10 résultats max
+    const topResults = sorted.slice(0, 10);
+
+    console.log(`\n🏆 TOP ${topResults.length} RÉSULTATS:`);
+    topResults.forEach((place, index) => {
+      console.log(`  ${index + 1}. ${place.name} - Score: ${place.score?.toFixed(1)} (${place.distance?.toFixed(1)}km)`);
+    });
+    console.log(`========== FIN RECHERCHE ==========\n`);
+
+    return c.json({
+      success: true,
+      count: topResults.length,
+      results: topResults,
+      sources: ['nominatim'],
+      source: 'nominatim_smart',
+      query: query,
+      searchCenter: searchCenter
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur Nominatim smart-search:', error);
+    return c.json({
+      error: 'Smart search failed',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      success: false,
+      results: []
+    }, 500);
+  }
+});
+
+/**
  * 🔄 ROUTE : REVERSE GEOCODING
  * GET /nominatim/reverse?lat=-4.3&lng=15.3
  */
@@ -313,6 +467,71 @@ function enrichPlace(place: any, searchCenter: { lat: number; lng: number }): an
 }
 
 /**
+ * 🎨 ENRICHIR UN LIEU POUR RECHERCHE INTELLIGENTE
+ */
+function enrichPlaceForSmartSearch(place: any, searchCenter: { lat: number; lng: number }, query: string): any | null {
+  try {
+    const lat = parseFloat(place.lat);
+    const lng = parseFloat(place.lon);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return null;
+    }
+
+    // Calculer distance
+    const distance = calculateDistance(searchCenter.lat, searchCenter.lng, lat, lng);
+
+    // Nom du lieu
+    const name = place.name ||
+                 place.address?.amenity ||
+                 place.address?.shop ||
+                 place.display_name.split(',')[0];
+
+    // Description
+    const description = buildDescription(place);
+
+    // Catégorie
+    const category = categorizePlace(place);
+
+    // Type de lieu
+    const placeType = getPlaceType(place);
+
+    // Score intelligent
+    const score = calculateSmartScore(place, query, distance);
+
+    return {
+      id: `nominatim-${place.place_id}`,
+      name,
+      description,
+      category,
+      coordinates: { lat, lng },
+      address: {
+        street: place.address?.road,
+        neighborhood: place.address?.neighbourhood || place.address?.suburb,
+        city: place.address?.city || place.address?.state,
+        country: place.address?.country
+      },
+      type: place.type,
+      importance: place.importance,
+      distance,
+      metadata: {
+        cuisine: place.extratags?.cuisine,
+        hours: place.extratags?.opening_hours,
+        phone: place.extratags?.phone,
+        website: place.extratags?.website
+      },
+      source: 'nominatim',
+      placeType,
+      score
+    };
+
+  } catch (error) {
+    console.error('❌ Erreur enrichissement:', error);
+    return null;
+  }
+}
+
+/**
  * 📝 CONSTRUIRE LA DESCRIPTION
  */
 function buildDescription(place: any): string {
@@ -350,6 +569,18 @@ function categorizePlace(place: any): string {
 }
 
 /**
+ * 🏷️ TYPE DE LIEU
+ */
+function getPlaceType(place: any): string {
+  const type = (place.type || '').toLowerCase();
+
+  if (['airport', 'terminal', 'station'].includes(type)) return type;
+  if (['aéroport', 'terminus', 'gare'].some(keyword => place.name.toLowerCase().includes(keyword))) return 'station';
+
+  return 'lieu';
+}
+
+/**
  * 📏 CALCULER LA DISTANCE (HAVERSINE)
  */
 function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
@@ -370,6 +601,95 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 
 function toRad(degrees: number): number {
   return degrees * (Math.PI / 180);
+}
+
+/**
+ * 📈 CALCULER LE SCORE INTELLIGENT
+ */
+function calculateSmartScore(place: any, query: string, distance: number): number {
+  const pertinence = calculatePertinence(place, query);
+  const distanceScore = calculateDistanceScore(distance);
+  const popularity = calculatePopularity(place);
+
+  const score = (pertinence * 0.5) + (distanceScore * 0.25) + (popularity * 0.15);
+  return score;
+}
+
+/**
+ * 📈 CALCULER LA PERTINENCE
+ */
+function calculatePertinence(place: any, query: string): number {
+  const name = place.name || place.display_name;
+  const address = place.address || {};
+  const tags = place.extratags || {};
+  const namedetails = place.namedetails || {};
+
+  const keywords = query.toLowerCase().split(/\s+/);
+  let score = 0;
+
+  // Nom du lieu
+  if (name.toLowerCase().includes(query.toLowerCase())) {
+    score += 1;
+  }
+
+  // Tags
+  for (const key in tags) {
+    if (tags[key].toLowerCase().includes(query.toLowerCase())) {
+      score += 0.5;
+    }
+  }
+
+  // Namedetails
+  for (const key in namedetails) {
+    if (namedetails[key].toLowerCase().includes(query.toLowerCase())) {
+      score += 0.5;
+    }
+  }
+
+  // Address
+  for (const key in address) {
+    if (address[key].toLowerCase().includes(query.toLowerCase())) {
+      score += 0.5;
+    }
+  }
+
+  return score;
+}
+
+/**
+ * 📈 CALCULER LE SCORE DE DISTANCE
+ */
+function calculateDistanceScore(distance: number): number {
+  if (distance <= 5) return 1;
+  if (distance <= 10) return 0.8;
+  if (distance <= 20) return 0.6;
+  if (distance <= 50) return 0.4;
+  return 0;
+}
+
+/**
+ * 📈 CALCULER LA POPULARITÉ
+ */
+function calculatePopularity(place: any): number {
+  const importance = place.importance || 0;
+  const tags = place.extratags || {};
+  const namedetails = place.namedetails || {};
+
+  let score = importance;
+
+  // Tags
+  if (tags['amenity'] === 'restaurant') score += 0.5;
+  if (tags['amenity'] === 'hospital') score += 0.5;
+  if (tags['amenity'] === 'school') score += 0.5;
+  if (tags['amenity'] === 'bank') score += 0.5;
+  if (tags['amenity'] === 'fuel') score += 0.5;
+  if (tags['amenity'] === 'parking') score += 0.5;
+  if (tags['amenity'] === 'taxi') score += 0.5;
+
+  // Namedetails
+  if (namedetails['name:fr']) score += 0.5;
+
+  return score;
 }
 
 export default nominatimApp;
