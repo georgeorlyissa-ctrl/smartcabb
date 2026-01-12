@@ -10,6 +10,8 @@ import { Input } from '../ui/input';
 import { Search, MapPin, Clock, Star, TrendingUp, X } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { rankSearchResults } from '../../lib/search-ranker';
+import { searchPlacesIntelligent, type EnrichedPlace } from '../../lib/nominatim-enriched-service';
+import { poiCache, createSearchHash } from '../../lib/poi-cache-manager';
 
 interface SearchResult {
   id: string;
@@ -53,7 +55,7 @@ export function YangoStyleSearch({
     }
   }, []);
 
-  // Recherche en temps réel - JUSTE MAPBOX (SIMPLE)
+  // Recherche en temps réel - RECHERCHE INTELLIGENTE MULTI-SOURCES
   useEffect(() => {
     if (query.length < 2) {
       // Afficher l'historique si le champ est vide ou < 2 caractères
@@ -66,38 +68,37 @@ export function YangoStyleSearch({
     
     // Délai anti-spam
     const timer = setTimeout(async () => {
-      console.log('🔍 Recherche Mapbox:', query);
+      console.log('🔍 Recherche intelligente multi-sources:', query);
       
       try {
-        const mapboxUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/mapbox/search`);
-        mapboxUrl.searchParams.set('query', query);
+        // ✅ NOUVELLE ROUTE : Combine Google Places + Mapbox + Base locale
+        const smartUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/smart-search`);
+        smartUrl.searchParams.set('query', query);
         
         if (currentLocation) {
-          mapboxUrl.searchParams.set('lat', currentLocation.lat.toString());
-          mapboxUrl.searchParams.set('lng', currentLocation.lng.toString());
+          smartUrl.searchParams.set('lat', currentLocation.lat.toString());
+          smartUrl.searchParams.set('lng', currentLocation.lng.toString());
         }
         
-        const response = await fetch(mapboxUrl.toString(), {
+        const response = await fetch(smartUrl.toString(), {
           headers: { 'Authorization': `Bearer ${publicAnonKey}` }
         });
         
         if (response.ok) {
           const data = await response.json();
           
-          console.log('📦 Réponse Mapbox complète:', data);
+          console.log('📦 Réponse smart-search complète:', data);
           
           if (data.results && data.results.length > 0) {
-            console.log(`✅ ${data.results.length} résultats trouvés`);
+            console.log(`✅ ${data.results.length} résultats combinés`);
+            console.log(`📊 Sources: ${data.sources?.join(', ') || 'inconnues'}`);
             
             // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
-            // - Jusqu'à 10 km : tous les résultats
-            // - 10-20 km : seulement si très pertinents (terminaux, aéroport, etc.)
-            // - Plus de 20 km : on ignore (trop loin)
             const MAX_DISTANCE_NORMAL = 10; // km
             const MAX_DISTANCE_IMPORTANT = 20; // km
             
             const filtered = data.results.filter((r: any) => {
-              // Pas de distance = on garde
+              // Pas de distance = on garde (ex: résultats Google Places)
               if (!r.distance) return true;
               
               // Moins de 10 km = on garde toujours
@@ -110,7 +111,7 @@ export function YangoStyleSearch({
                   r.name.toLowerCase().includes('terminus') ||
                   r.name.toLowerCase().includes('gare') ||
                   r.description.toLowerCase().includes('terminal') ||
-                  r.description.toLowerCase().includes('🚌');
+                  r.description.toLowerCase().includes('✈️');
                 
                 console.log(`⚖️ ${r.name} (${r.distance.toFixed(1)}km) - Important: ${isImportant}`);
                 return isImportant;
@@ -122,7 +123,6 @@ export function YangoStyleSearch({
             });
             
             console.log(`🎯 ${filtered.length} résultats après filtre distance`);
-            console.log('📊 Résultats filtrés:', filtered.map((r: any) => `${r.name} (${r.distance ? r.distance.toFixed(1) + 'km' : 'distance inconnue'})`));
             
             // 🧠 RANKING INTELLIGENT - COMME UBER/YANGO
             try {
@@ -150,7 +150,7 @@ export function YangoStyleSearch({
           }
         } else {
           const errorText = await response.text();
-          console.error('❌ Erreur Mapbox:', response.status, errorText);
+          console.error('❌ Erreur smart-search:', response.status, errorText);
           setResults([]);
         }
         
