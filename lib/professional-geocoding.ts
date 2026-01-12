@@ -71,7 +71,9 @@ export async function searchProfessionalPlaces(
     }
 
     // 2️⃣ ESSAYER GOOGLE PLACES EN PARALLÈLE (comme Yango)
-    console.log('🔄 Étape 2/4 : Tentative Google Places...');
+    // ⚠️ DÉSACTIVÉ : Nouvelle approche utilise uniquement la base locale
+    console.log('⏭️  Étape 2/4 : Google Places DÉSACTIVÉ (utilisation de la base locale)');
+    /* DÉSACTIVÉ TEMPORAIREMENT
     const googleResults = await searchWithGooglePlaces(query, currentLocation);
     if (googleResults.length > 0) {
       console.log(`✅ Google Places: ${googleResults.length} résultats - SUCCÈS`);
@@ -79,6 +81,7 @@ export async function searchProfessionalPlaces(
     } else {
       console.log('⚠️ Google Places: 0 résultats ou indisponible');
     }
+    */
 
     // 🎯 SI ON A DES RÉSULTATS D'API PROFESSIONNELLES, LES RETOURNER
     if (allResults.length > 0) {
@@ -89,34 +92,13 @@ export async function searchProfessionalPlaces(
       return deduplicated;
     }
 
-    // 3️⃣ FALLBACK VERS NOMINATIM (OpenStreetMap)
-    console.log('🔄 Étape 3/4 : Fallback Nominatim...');
-    const nominatimResults = await searchWithNominatim(query, currentLocation);
-    if (nominatimResults.length > 0) {
-      console.log(`✅ Nominatim: ${nominatimResults.length} résultats - SUCCÈS`);
-      allResults.push(...nominatimResults);
-    } else {
-      console.log('⚠️ Nominatim: 0 résultats ou indisponible');
-    }
-
-    // 🎯 SI NOMINATIM A DES RÉSULTATS, LES RETOURNER
-    if (allResults.length > 0) {
-      console.log(`🎉 ${allResults.length} résultats Nominatim`);
-      console.log('🌍 ===== RECHERCHE TERMINÉE (NOMINATIM) =====');
-      return allResults;
-    }
-
-    // 4️⃣ DERNIER FALLBACK : BASE LOCALE + RECHERCHE INTELLIGENTE
-    console.log('🔄 Étape 4/4 : Fallback base locale + recherche intelligente...');
-    const localResults = await searchWithLocalDatabaseIntelligent(query, currentLocation);
-    console.log(`✅ Base locale: ${localResults.length} résultats`);
+    // 3️⃣ NOMINATIM DÉSACTIVÉ - JUSTE MAPBOX !
+    console.log('⏭️  Étape 3/4 : Nominatim DÉSACTIVÉ');
     
-    if (localResults.length === 0) {
-      console.log('❌ Aucun résultat trouvé nulle part');
-    }
-    
-    console.log('🌍 ===== RECHERCHE TERMINÉE (LOCAL) =====');
-    return localResults;
+    // 4️⃣ PAS DE RÉSULTATS : RETOURNER VIDE
+    console.log('⚠️ Aucun résultat trouvé');
+    console.log('🌍 ===== RECHERCHE TERMINÉE (AUCUN RÉSULTAT) =====');
+    return [];
 
   } catch (error) {
     console.error('❌ Erreur recherche professionnelle:', error);
@@ -179,53 +161,15 @@ async function searchWithMapbox(
 
 /**
  * 🔍 RECHERCHE AVEC GOOGLE PLACES (comme Yango)
+ * ⚠️ DÉSACTIVÉ : Retourne immédiatement un tableau vide
  */
 async function searchWithGooglePlaces(
   query: string,
   currentLocation?: { lat: number; lng: number }
 ): Promise<ProfessionalPlace[]> {
-  try {
-    const url = new URL(`${BACKEND_URL}/geocoding/autocomplete`);
-    url.searchParams.set('q', query);
-    
-    if (currentLocation) {
-      url.searchParams.set('lat', currentLocation.lat.toString());
-      url.searchParams.set('lng', currentLocation.lng.toString());
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      if (error.fallback) {
-        return []; // Fallback vers la prochaine API
-      }
-      throw new Error(`Google Places error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Calculer les distances si position actuelle fournie
-    return data.results.map((place: ProfessionalPlace) => {
-      if (currentLocation && place.coordinates && place.coordinates.lat) {
-        place.distance = calculateDistance(
-          currentLocation.lat,
-          currentLocation.lng,
-          place.coordinates.lat,
-          place.coordinates.lng
-        );
-      }
-      return place;
-    });
-
-  } catch (error) {
-    console.warn('⚠️ Google Places indisponible:', error);
-    return [];
-  }
+  // ⚠️ DÉSACTIVÉ : Ne plus appeler Google Places API
+  console.log('⏭️  searchWithGooglePlaces DÉSACTIVÉ (utilisation base locale uniquement)');
+  return [];
 }
 
 /**
