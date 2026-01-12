@@ -147,38 +147,116 @@ nominatimApp.get('/smart-search', async (c) => {
     const viewbox = getViewboxForCity(city as keyof typeof RDC_CITIES);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 1️⃣ APPELER NOMINATIM
+    // 1️⃣ APPELER NOMINATIM AVEC STRATÉGIE MULTI-TENTATIVES
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const nominatimUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
+    
+    let allNominatimResults: any[] = [];
+    
+    // TENTATIVE 1 : Recherche stricte avec ville + pays
+    console.log('🔍 Tentative 1 : Recherche stricte avec ville + pays');
+    const strictUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
+      q: `${query}, ${city}, RDC`,
+      format: 'json',
+      addressdetails: '1',
+      extratags: '1',
+      namedetails: '1',
+      limit: '50',
+      viewbox: viewbox,
+      bounded: '0',
+      countrycodes: 'cd',
+      'accept-language': 'fr',
+      dedupe: '0'
+    });
+    
+    try {
+      const response1 = await fetch(strictUrl, {
+        headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
+      });
+      
+      if (response1.ok) {
+        const results1 = await response1.json();
+        console.log(`  ✅ Tentative 1 : ${results1.length} résultats`);
+        allNominatimResults.push(...results1);
+      }
+    } catch (e) {
+      console.error('  ❌ Tentative 1 échouée:', e);
+    }
+    
+    // TENTATIVE 2 : Recherche simple (sans ville)
+    console.log('🔍 Tentative 2 : Recherche simple (sans ville)');
+    const simpleUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
       q: query,
       format: 'json',
       addressdetails: '1',
       extratags: '1',
       namedetails: '1',
-      limit: '100', // Plus de résultats pour meilleur ranking
+      limit: '30',
       viewbox: viewbox,
-      bounded: '1',
+      bounded: '0',
       countrycodes: 'cd',
       'accept-language': 'fr'
     });
-
-    const response = await fetch(nominatimUrl, {
-      headers: {
-        'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
+    
+    try {
+      const response2 = await fetch(simpleUrl, {
+        headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
+      });
+      
+      if (response2.ok) {
+        const results2 = await response2.json();
+        console.log(`  ✅ Tentative 2 : ${results2.length} résultats`);
+        allNominatimResults.push(...results2);
       }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Nominatim API error: ${response.status}`);
+    } catch (e) {
+      console.error('  ❌ Tentative 2 échouée:', e);
     }
-
-    const nominatimResults: any[] = await response.json();
-    console.log(`✅ Nominatim: ${nominatimResults.length} résultats bruts`);
+    
+    // TENTATIVE 3 : Recherche par catégorie si peu de résultats
+    if (allNominatimResults.length < 5) {
+      console.log('🔍 Tentative 3 : Recherche par catégorie');
+      const categories = ['amenity', 'shop', 'place', 'highway', 'building'];
+      
+      for (const cat of categories) {
+        const catUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
+          q: `${cat}=${query}`,
+          format: 'json',
+          addressdetails: '1',
+          extratags: '1',
+          limit: '10',
+          viewbox: viewbox,
+          countrycodes: 'cd',
+          'accept-language': 'fr'
+        });
+        
+        try {
+          const catResponse = await fetch(catUrl, {
+            headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
+          });
+          
+          if (catResponse.ok) {
+            const catResults = await catResponse.json();
+            if (catResults.length > 0) {
+              console.log(`  ✅ Catégorie ${cat} : ${catResults.length} résultats`);
+              allNominatimResults.push(...catResults);
+            }
+          }
+        } catch (e) {
+          console.error(`  ❌ Catégorie ${cat} échouée:`, e);
+        }
+      }
+    }
+    
+    // Dédoublonner par place_id
+    const uniqueResults = Array.from(
+      new Map(allNominatimResults.map(place => [place.place_id, place])).values()
+    );
+    
+    console.log(`✅ Nominatim: ${uniqueResults.length} résultats uniques (${allNominatimResults.length} total)`);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 2️⃣ ENRICHIR LES RÉSULTATS
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const enrichedPlaces = nominatimResults
+    const enrichedPlaces = uniqueResults
       .map(place => {
         const enriched = enrichPlaceForSmartSearch(place, searchCenter, query);
         if (enriched) {
