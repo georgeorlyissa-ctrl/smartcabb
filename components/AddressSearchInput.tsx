@@ -113,7 +113,7 @@ export function AddressSearchInput({
     setIsLoading(true);
     updateDropdownPosition();
     
-    // 🌍 RECHERCHE PROFESSIONNELLE : Mapbox → Google Places → Nominatim → Base locale
+    // 🌍 RECHERCHE SIMPLE : JUSTE MAPBOX (comme Uber/Yango)
     setTimeout(async () => {
       const queryLower = query.toLowerCase().trim();
       
