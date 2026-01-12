@@ -54,6 +54,8 @@ export function AddressSearchInput({
   }, [value]);
 
   // Calculer la position du dropdown
+   // Calculer la position du dropdown
+   // Calculer la position du dropdown
   const updateDropdownPosition = () => {
     if (searchRef.current) {
       const rect = searchRef.current.getBoundingClientRect();
