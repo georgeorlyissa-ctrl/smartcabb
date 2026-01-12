@@ -1,8 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useAppState } from '../../hooks/useAppState';
+import { motion } from 'motion/react';
+import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { ArrowLeft, Wallet, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw } from 'lucide-react';
+import { useAppState } from '../../lib/state';
+import type { Passenger, WalletTransaction } from '../../types';
+import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
+import { RechargeModal } from './RechargeModal';
+import { DebugPaymentModal } from '../DebugPaymentModal';
+import { walletService } from '../../lib/wallet-service';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
@@ -13,7 +19,7 @@ export function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const walletBalance = state.currentUser?.walletBalance || 0;
-  const walletBalanceUSD = walletBalance / CONSTANTS.EXCHANGE_RATE;
+  const walletBalanceUSD = walletBalance / getExchangeRate();
   const transactions = state.currentUser?.walletTransactions || [];
 
   // 🎁 Vérifier si le client bénéficie de la réduction de 5%
@@ -25,7 +31,7 @@ export function WalletScreen() {
 
     // Pour les paiements en espèces, créer une transaction "pending"
     if (method === 'cash') {
-      const amountUSD = amountCDF / CONSTANTS.EXCHANGE_RATE;
+      const amountUSD = amountCDF / getExchangeRate();
 
       // Créer la transaction avec statut "pending"
       const transaction: WalletTransaction = {
@@ -67,7 +73,7 @@ export function WalletScreen() {
 
     // Pour Mobile Money, traiter normalement (paiement immédiat)
     const newBalance = walletBalance + amountCDF;
-    const amountUSD = amountCDF / CONSTANTS.EXCHANGE_RATE;
+    const amountUSD = amountCDF / getExchangeRate();
 
     // Créer la transaction
     const transaction: WalletTransaction = {
