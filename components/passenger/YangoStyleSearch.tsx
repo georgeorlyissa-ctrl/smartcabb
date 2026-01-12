@@ -68,11 +68,11 @@ export function YangoStyleSearch({
     
     // Délai anti-spam
     const timer = setTimeout(async () => {
-      console.log('🔍 Recherche intelligente multi-sources:', query);
+      console.log('🔍 Recherche intelligente NOMINATIM UNIQUEMENT:', query);
       
       try {
-        // ✅ NOUVELLE ROUTE : Combine Google Places + Mapbox + Base locale
-        const smartUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/smart-search`);
+        // ✅ NOUVELLE ROUTE : NOMINATIM UNIQUEMENT avec ranking intelligent
+        const smartUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/nominatim/smart-search`);
         smartUrl.searchParams.set('query', query);
         
         if (currentLocation) {
