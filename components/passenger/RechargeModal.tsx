@@ -16,7 +16,7 @@ import {
   Bug,
   Clock
 } from 'lucide-react';
-import { convertUSDtoCDF, formatCDF, CONSTANTS } from '../../lib/pricing';
+import { convertUSDtoCDF, formatCDF, getExchangeRate } from '../../lib/pricing';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
 import { DebugPaymentModal } from '../DebugPaymentModal';
