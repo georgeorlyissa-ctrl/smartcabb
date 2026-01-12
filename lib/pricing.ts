@@ -42,6 +42,11 @@ export {
  */
 export function getExchangeRate(): number {
   try {
+    // Vérifier que localStorage est disponible (évite erreurs SSR)
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return 2000; // Fallback pour SSR
+    }
+    
     const settingsStr = localStorage.getItem('smartcab_system_settings');
     if (settingsStr) {
       const settings = JSON.parse(settingsStr);
@@ -61,6 +66,11 @@ export function getExchangeRate(): number {
  */
 export function getPostpaidInterestRate(): number {
   try {
+    // Vérifier que localStorage est disponible (évite erreurs SSR)
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return 15; // Fallback pour SSR
+    }
+    
     const settingsStr = localStorage.getItem('smartcab_system_settings');
     if (settingsStr) {
       const settings = JSON.parse(settingsStr);
