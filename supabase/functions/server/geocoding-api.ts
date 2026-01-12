@@ -22,7 +22,8 @@
  */
 
 import { Hono } from 'npm:hono@4.6.14';
-import { searchPlaces, getPlaceDetails } from './mapbox-geocoding-api.ts';
+// Importations supprimées - les fonctions Mapbox et Nominatim sont définies dans ce fichier
+// import { searchPlaces, getPlaceDetails } from './mapbox-geocoding-api.ts';
 import { searchWithNominatim, reverseGeocodeNominatim } from './nominatim-geocoding-api.ts';
 
 const geocodingApp = new Hono();
@@ -40,14 +41,176 @@ const geocodingApp = new Hono();
  * - Pas besoin de compte de facturation
  * - Résultats riches avec catégories et icônes
  */
-geocodingApp.get('/mapbox/search', searchPlaces);
+geocodingApp.get('/mapbox/search', async (c) => {
+  try {
+    const query = c.req.query('query');
+    const lat = c.req.query('lat');
+    const lng = c.req.query('lng');
+    
+    if (!query || query.trim().length < 2) {
+      return c.json({ error: 'Query trop court (minimum 2 caractères)' }, 400);
+    }
+
+    const MAPBOX_API_KEY = Deno.env.get('MAPBOX_API_KEY') || '';
+    
+    if (!MAPBOX_API_KEY) {
+      console.warn('⚠️ MAPBOX_API_KEY non défini');
+      return c.json({ 
+        error: 'Mapbox API key not configured',
+        results: [],
+        source: 'mapbox',
+        count: 0 
+      }, 200);
+    }
+
+    console.log('🔍 Mapbox Search - Query:', query);
+    console.log('📍 Location:', lat && lng ? `${lat},${lng}` : 'none');
+
+    // Construire l'URL Mapbox Geocoding
+    const bbox = '15.1,-4.5,15.6,-4.1'; // Bounding box de Kinshasa
+    const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json`);
+    url.searchParams.set('access_token', MAPBOX_API_KEY);
+    url.searchParams.set('bbox', bbox);
+    url.searchParams.set('country', 'CD');
+    url.searchParams.set('limit', '10');
+    url.searchParams.set('language', 'fr');
+    
+    if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+      url.searchParams.set('proximity', `${lng},${lat}`);
+    }
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Mapbox API error:', response.status, errorText);
+      return c.json({ 
+        error: 'Mapbox API error',
+        results: [],
+        source: 'mapbox',
+        count: 0
+      }, 200);
+    }
+
+    const data: MapboxGeocodingResponse = await response.json();
+    
+    // Transformer les résultats au format SmartCabb
+    const results = data.features.map((feature) => {
+      const commune = feature.context?.find(ctx => ctx.id.startsWith('place.'))?.text || 'Kinshasa';
+      const neighborhood = feature.context?.find(ctx => ctx.id.startsWith('neighborhood.'))?.text;
+      const category = feature.properties?.category || feature.properties?.maki || 'autre';
+      const icon = getPlaceIcon(category);
+      const typeLabel = getPlaceTypeLabel(category);
+      
+      // Calculer la distance si position fournie
+      let distance: number | undefined;
+      if (lat && lng) {
+        const userLat = Number(lat);
+        const userLng = Number(lng);
+        const placeLat = feature.center[1];
+        const placeLng = feature.center[0];
+        const R = 6371; // Rayon de la Terre en km
+        const dLat = (placeLat - userLat) * Math.PI / 180;
+        const dLng = (placeLng - userLng) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(userLat * Math.PI / 180) * Math.cos(placeLat * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        distance = R * c;
+      }
+      
+      return {
+        id: feature.id,
+        name: feature.place_name.split(',')[0],
+        description: `${icon} ${typeLabel} • ${neighborhood || commune}, Kinshasa`,
+        coordinates: {
+          lat: feature.center[1],
+          lng: feature.center[0]
+        },
+        fullAddress: feature.place_name,
+        distance: distance,
+        source: 'mapbox'
+      };
+    });
+
+    console.log(`✅ Mapbox returned ${results.length} results`);
+    
+    return c.json({ 
+      results,
+      source: 'mapbox',
+      count: results.length 
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur Mapbox Search:', error);
+    return c.json({ 
+      error: 'Erreur lors de la recherche',
+      results: [],
+      source: 'mapbox',
+      count: 0
+    }, 200);
+  }
+});
 
 /**
  * 📍 DÉTAILS D'UN LIEU MAPBOX (Reverse geocoding)
  * 
  * GET /geocoding/mapbox/place-details?lat=-4.3276&lng=15.3136
  */
-geocodingApp.get('/mapbox/place-details', getPlaceDetails);
+geocodingApp.get('/mapbox/place-details', async (c) => {
+  try {
+    const lat = c.req.query('lat');
+    const lng = c.req.query('lng');
+    
+    if (!lat || !lng) {
+      return c.json({ error: 'Coordonnées lat et lng requises' }, 400);
+    }
+
+    const MAPBOX_API_KEY = Deno.env.get('MAPBOX_API_KEY') || '';
+    
+    if (!MAPBOX_API_KEY) {
+      console.warn('⚠️ MAPBOX_API_KEY non défini');
+      return c.json({ error: 'API Mapbox non configurée' }, 503);
+    }
+
+    const url = new URL(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`);
+    url.searchParams.set('access_token', MAPBOX_API_KEY);
+    url.searchParams.set('language', 'fr');
+
+    const response = await fetch(url.toString());
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Mapbox reverse geocoding error:', response.status, errorText);
+      return c.json({ error: 'Erreur API Mapbox' }, response.status);
+    }
+
+    const data: MapboxGeocodingResponse = await response.json();
+    
+    if (data.features.length === 0) {
+      return c.json({ error: 'Aucun lieu trouvé' }, 404);
+    }
+
+    const feature = data.features[0];
+    
+    return c.json({
+      name: feature.place_name.split(',')[0],
+      fullAddress: feature.place_name,
+      coordinates: {
+        lat: feature.center[1],
+        lng: feature.center[0]
+      },
+      source: 'mapbox'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur Mapbox reverse geocoding:', error);
+    return c.json({ 
+      error: 'Erreur lors de la récupération des détails',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, 500);
+  }
+});
 
 // ==================== NOMINATIM (OPENSTREETMAP) - FALLBACK UNIVERSEL ====================
 // Base de données mondiale COMPLÈTE - AUCUNE adresse ne peut échapper !
