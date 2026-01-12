@@ -89,14 +89,45 @@ export function YangoStyleSearch({
           if (data.results && data.results.length > 0) {
             console.log(`✅ ${data.results.length} résultats trouvés`);
             
-            // 🎯 PAS DE FILTRE STRICT - GARDER TOUS LES RÉSULTATS
-            // Si distance existe, on l'utilisera pour le ranking
-            console.log('📊 Résultats bruts:', data.results.map((r: any) => `${r.name} (${r.distance ? r.distance.toFixed(1) + 'km' : 'distance inconnue'})`));
+            // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
+            // - Jusqu'à 10 km : tous les résultats
+            // - 10-20 km : seulement si très pertinents (terminaux, aéroport, etc.)
+            // - Plus de 20 km : on ignore (trop loin)
+            const MAX_DISTANCE_NORMAL = 10; // km
+            const MAX_DISTANCE_IMPORTANT = 20; // km
+            
+            const filtered = data.results.filter((r: any) => {
+              // Pas de distance = on garde
+              if (!r.distance) return true;
+              
+              // Moins de 10 km = on garde toujours
+              if (r.distance <= MAX_DISTANCE_NORMAL) return true;
+              
+              // 10-20 km = seulement si c'est un lieu important
+              if (r.distance <= MAX_DISTANCE_IMPORTANT) {
+                const isImportant = 
+                  r.name.toLowerCase().includes('aéroport') ||
+                  r.name.toLowerCase().includes('terminus') ||
+                  r.name.toLowerCase().includes('gare') ||
+                  r.description.toLowerCase().includes('terminal') ||
+                  r.description.toLowerCase().includes('🚌');
+                
+                console.log(`⚖️ ${r.name} (${r.distance.toFixed(1)}km) - Important: ${isImportant}`);
+                return isImportant;
+              }
+              
+              // Plus de 20 km = on ignore
+              console.log(`❌ ${r.name} ignoré (${r.distance.toFixed(1)}km - trop loin)`);
+              return false;
+            });
+            
+            console.log(`🎯 ${filtered.length} résultats après filtre distance`);
+            console.log('📊 Résultats filtrés:', filtered.map((r: any) => `${r.name} (${r.distance ? r.distance.toFixed(1) + 'km' : 'distance inconnue'})`));
             
             // 🧠 RANKING INTELLIGENT - COMME UBER/YANGO
             try {
               const ranked = rankSearchResults(
-                data.results,
+                filtered,
                 currentLocation,
                 recentSearches.map(r => r.id)
               );
@@ -108,9 +139,9 @@ export function YangoStyleSearch({
               setResults(ranked.slice(0, 10));
             } catch (rankError) {
               console.error('❌ Erreur ranking:', rankError);
-              // Fallback : afficher résultats bruts
+              // Fallback : afficher résultats filtrés
               console.log('⚠️ Affichage sans ranking');
-              setResults(data.results.slice(0, 10));
+              setResults(filtered.slice(0, 10));
             }
           } else {
             console.log('⚠️ Aucun résultat dans data.results');
