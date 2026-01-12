@@ -45,6 +45,12 @@ const BACKEND_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2
  * Utilise Mapbox ou Google Places (selon disponibilité)
  * avec fallback automatique vers Nominatim et base locale
  */
+/**
+ * 🔍 RECHERCHE D'ADRESSES PROFESSIONNELLE
+ * 
+ * Utilise Mapbox ou Google Places (selon disponibilité)
+ * avec fallback automatique vers Nominatim et base locale
+ */
 export async function searchProfessionalPlaces(
   query: string,
   currentLocation?: { lat: number; lng: number }
