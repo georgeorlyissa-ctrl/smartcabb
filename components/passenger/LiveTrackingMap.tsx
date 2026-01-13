@@ -4,12 +4,7 @@ import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
 import { toast } from '../../lib/toast';
 import { motion } from '../../lib/motion';
-
-interface Location {
-  lat: number;
-  lng: number;
-  address?: string;
-}
+import type { Location } from '../../types/location';
 
 interface LiveTrackingMapProps {
   driverId: string;
