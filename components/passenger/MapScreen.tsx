@@ -28,6 +28,8 @@ export function MapScreen() {
   const [gpsTracker] = useState(() => new PreciseGPSTracker());
   
   // États pour la géolocalisation
+  // États pour la géolocalisation
+  // États pour la géolocalisation
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; address: string; accuracy?: number }>({
     lat: -4.3276,
     lng: 15.3136,
