@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Loader2, MapPin } from '../lib/icons';
+import { useEffect, useState } from 'react';
+import { Loader2 } from '../lib/icons';
 
 interface Location {
   lat: number;
