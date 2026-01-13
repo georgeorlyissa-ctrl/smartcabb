@@ -1,0 +1,32 @@
+v517.161.14 - FIX BUILD - Types partagés pour résoudre conflits TypeScript
+Timestamp: 2026-01-13T14:00:00Z
+
+Ce fichier force Vercel à invalider son cache et reconstruire complètement l'application.
+
+Corrections appliquées:
+✅ Création de /types/location.ts:
+   - Types Location, Driver, Position, NavigationStep centralisés
+   - Évite les conflits de types entre fichiers
+   - Résout les erreurs Rollup de résolution de modules
+
+✅ InteractiveMapView.tsx:
+   - Import types depuis /types/location.ts
+   - Suppression interface Location locale (conflit résolu)
+   - Suppression interface Driver locale (conflit résolu)
+
+✅ GPSNavigationScreen.tsx:
+   - Import types depuis /types/location.ts
+   - Suppression interfaces Location, Position, NavigationStep locales
+   - Code TypeScript strict compatible
+
+✅ MapScreen.tsx:
+   - Import InteractiveMapView ✓
+   - Import FavoriteLocations ✓
+
+PROBLÈME RÉSOLU:
+- 6 définitions différentes de "interface Location" créaient des conflits
+- Rollup ne pouvait pas résoudre correctement les types
+- Centralisation des types dans /types/location.ts résout tous les conflits
+
+REBUILD FORCÉ - Cache invalidé - Build TypeScript DOIT réussir
+Cette version résout les erreurs Rollup de résolution de modules
