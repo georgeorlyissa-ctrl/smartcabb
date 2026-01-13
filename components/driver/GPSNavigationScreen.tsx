@@ -15,29 +15,7 @@ import {
 import { motion } from '../../lib/motion';
 import { toast } from '../../lib/toast';
 import { InteractiveMapView } from '../InteractiveMapView';
-
-// Types
-// Types
-// Types
-interface Position {
-  lat: number;
-  lng: number;
-  accuracy: number;
-  speed: number | null;
-  heading: number | null;
-}
-
-interface NavigationStep {
-  instruction: string;
-  distance: string;
-  duration: string;
-}
-
-interface Location {
-  lat: number;
-  lng: number;
-  address: string;
-}
+import type { Location, Position, NavigationStep } from '../../types/location';
 
 interface GPSNavigationScreenProps {
   pickup: Location;
