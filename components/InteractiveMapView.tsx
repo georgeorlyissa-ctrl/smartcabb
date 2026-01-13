@@ -114,8 +114,6 @@ export function InteractiveMapView({
         height="100%"
         frameBorder="0"
         scrolling="no"
-        marginHeight={0}
-        marginWidth={0}
         src={mapUrl}
         style={{ 
           border: 0, 
@@ -257,8 +255,6 @@ export function KinshasaMapFallback({ className = "w-full h-full" }: { className
         height="100%"
         frameBorder="0"
         scrolling="no"
-        marginHeight={0}
-        marginWidth={0}
         src="https://www.openstreetmap.org/export/embed.html?bbox=15.2136,-4.4276,15.4136,-4.2276&layer=mapnik"
         style={{ border: 0, minHeight: '400px' }}
         className="w-full h-full"
