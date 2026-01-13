@@ -3,12 +3,7 @@ import { Navigation, MapPin, Clock, TrendingUp, AlertCircle, Navigation2, Zap } 
 import { motion, AnimatePresence } from '../lib/motion';
 import { formatDuration, getCurrentTrafficConditions } from '../lib/duration-calculator';
 import { InteractiveMapView } from './InteractiveMapView';
-
-interface Location {
-  lat: number;
-  lng: number;
-  address: string;
-}
+import type { Location } from '../types/location';
 
 interface RouteMapPreviewProps {
   pickup: Location;
