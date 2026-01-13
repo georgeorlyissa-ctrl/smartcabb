@@ -3,11 +3,13 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { GooglePlacesSearch } from './GooglePlacesSearch';
+import { FavoriteLocations } from './FavoriteLocations';
 import { useAppState } from '../../hooks/useAppState';
 import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from '../../lib/icons';
 import { toast } from '../../lib/toast';
 import { motion } from '../../lib/motion';
 import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/precise-gps';
+import { InteractiveMapView } from '../InteractiveMapView';
 
 export function MapScreen() {
   const { state, setCurrentScreen, setCurrentUser, setCurrentView, setPickup, setDestination: setGlobalDestination, setPickupInstructions, drivers } = useAppState();
