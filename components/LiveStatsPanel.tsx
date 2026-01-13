@@ -1,5 +1,5 @@
-import { motion } from '../lib/motion';
-import { Car, Users, DollarSign, TrendingUp, MapPin, Clock, RefreshCw } from '../lib/icons';
+import { motion } from 'motion/react';
+import { Car, Users, DollarSign, TrendingUp, MapPin, Clock, RefreshCw } from 'lucide-react';
 import { Card } from './ui/card';
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';

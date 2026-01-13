@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from '../lib/toast';
+import { toast } from 'sonner';
 
 const SERVER_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52`;
 

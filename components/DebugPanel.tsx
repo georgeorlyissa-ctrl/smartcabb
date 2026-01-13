@@ -1,23 +1,18 @@
 import { useState } from 'react';
-import {
-  Bug,
-  X,
-  Copy,
-  CheckCircle,
-  Database,
-  Globe,
-  Smartphone,
-  Code,
-  Settings,
-  MapPin,
-  User,
-  CreditCard
-} from '../lib/icons';
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { useAppState } from '../hooks/useAppState';
+import { 
+  Bug, 
+  X, 
+  RefreshCw, 
+  MapPin, 
+  User,
+  Car,
+  CreditCard
+} from 'lucide-react';
 
 export function DebugPanel() {
   const { state, setCurrentScreen, clearCurrentRide } = useAppState();

@@ -1,28 +1,8 @@
-import { useState, useEffect } from 'react';
-import {
-  Settings,
-  User,
-  Bell,
-  Lock,
-  Globe,
-  Moon,
-  Sun,
-  Save,
-  ArrowLeft,
-  Mail,
-  Phone,
-  MapPin,
-  Shield,
-  CreditCard,
-  FileText,
-  LogOut,
-  ChevronRight,
-  HelpCircle
-} from '../../lib/icons';
 import { useTranslation } from '../../hooks/useTranslation';
 import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
-import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion'; // ✅ FIX: Import manquant
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { motion } from 'motion/react'; // ✅ FIX: Import manquant
 import { Button } from '../ui/button'; // ✅ FIX: Import manquant
 import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
 import { Switch } from '../ui/switch'; // ✅ FIX: Import manquant
@@ -33,6 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'; // ✅ FIX: Import manquant
+import { 
+  ArrowLeft, 
+  Globe, 
+  Bell, 
+  Shield, 
+  CreditCard,
+  User,
+  HelpCircle,
+  LogOut,
+  Settings,
+  ChevronRight
+} from 'lucide-react';
 
 export function SettingsScreen() {
   const { t, language } = useTranslation();

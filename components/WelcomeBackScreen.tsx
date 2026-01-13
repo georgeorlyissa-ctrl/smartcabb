@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { motion } from '../lib/motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion } from 'motion/react';
+import { useAppState } from '../hooks/useAppState';
+import { SmartCabbLogo } from './SmartCabbLogo';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { User, Car, Sparkles, ArrowRight } from '../lib/icons';
+import { User, Car, Sparkles, ArrowRight } from 'lucide-react';
+import { Button } from './ui/button';
 
 interface WelcomeBackScreenProps {
   userName?: string;

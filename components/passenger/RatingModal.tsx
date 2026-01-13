@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
+import { Star, X } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Star, X } from '../../lib/icons';
+import { Card } from '../ui/card';
 
 interface RatingModalProps {
   isOpen: boolean;
@@ -24,7 +26,7 @@ export function RatingModal({ isOpen, driverName, onSubmit, onSkip }: RatingModa
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div
+      <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
@@ -120,7 +122,7 @@ export function RatingModal({ isOpen, driverName, onSubmit, onSkip }: RatingModa
             </div>
           </div>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

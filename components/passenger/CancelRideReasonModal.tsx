@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Label } from '../ui/label';
+import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { X, AlertTriangle, CheckCircle2 } from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CancelRideReasonModalProps {
   isOpen: boolean;
@@ -76,11 +75,23 @@ export function CancelRideReasonModal({
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <DialogHeader className="flex items-center justify-between mb-4">
-          <DialogTitle className="text-xl font-semibold">Annuler la course</DialogTitle>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Annuler la course</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -89,7 +100,7 @@ export function CancelRideReasonModal({
           >
             <X className="w-5 h-5" />
           </Button>
-        </DialogHeader>
+        </div>
 
         {/* Warning if penalty applies */}
         {hasPenalty && (
@@ -149,9 +160,9 @@ export function CancelRideReasonModal({
             exit={{ opacity: 0, height: 0 }}
             className="mb-6"
           >
-            <Label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Précisez la raison
-            </Label>
+            </label>
             <Textarea
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}
@@ -186,7 +197,7 @@ export function CancelRideReasonModal({
             Confirmer l'annulation
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </motion.div>
+    </motion.div>
   );
 }

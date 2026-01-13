@@ -1,18 +1,19 @@
-import { useEffect, useState } from 'react';
-import {
-  Phone,
-  MessageCircle,
-  MapPin,
-  Clock,
-  Star,
-  Navigation,
-  X,
-  User,
-  Car
-} from '../../lib/icons';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  Phone, 
+  MessageCircle, 
+  Navigation,
+  User,
+  Car,
+  Clock,
+  MapPin,
+  Star
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { formatCDF } from '../../lib/pricing';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { reverseGeocodeWithCache } from '../../lib/geocoding';

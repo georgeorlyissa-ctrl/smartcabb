@@ -53,43 +53,27 @@ export async function searchProfessionalPlaces(
     return [];
   }
 
-  console.log('🔍 ===== RECHERCHE INTELLIGENTE MULTI-SOURCES =====');
-  console.log(`📝 Query: "${query}"`);
+  console.log('🌍 ===== RECHERCHE MAPBOX UNIQUEMENT =====');
+  console.log(`🔍 Query: "${query}"`);
   console.log(`📍 Position:`, currentLocation);
 
   try {
-    // ✅ NOUVELLE ROUTE SMART-SEARCH : Combine Google Places + Mapbox + Base locale
-    const url = new URL(`${BACKEND_URL}/geocoding/smart-search`);
-    url.searchParams.set('query', query);
+    // ✅ JUSTE MAPBOX - COMME UBER/YANGO
+    console.log('🔄 Recherche Mapbox...');
+    const mapboxResults = await searchWithMapbox(query, currentLocation);
     
-    if (currentLocation) {
-      url.searchParams.set('lat', currentLocation.lat.toString());
-      url.searchParams.set('lng', currentLocation.lng.toString());
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      console.error('❌ Erreur smart-search:', response.status);
-      return [];
-    }
-
-    const data = await response.json();
-    
-    if (data.results && data.results.length > 0) {
-      console.log(`✅ ${data.results.length} résultats combinés`);
-      console.log(`📊 Sources utilisées: ${data.sources?.join(', ') || 'inconnues'}`);
+    if (mapboxResults.length > 0) {
+      console.log(`✅ Mapbox: ${mapboxResults.length} résultats`);
       
       // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
+      // - Jusqu'à 10 km : tous les résultats
+      // - 10-20 km : seulement si très pertinents (terminaux, aéroport, etc.)
+      // - Plus de 20 km : on ignore (trop loin)
       const MAX_DISTANCE_NORMAL = 10; // km
-      const MAX_DISTANCE_IMPORTANT = 20; // km
+      const MAX_DISTANCE_IMPORTANT = 20; // km (seulement lieux importants)
       
-      const filtered = data.results.filter((result: any) => {
-        // Pas de distance = on garde (ex: résultats Google Places)
+      const filtered = mapboxResults.filter((result) => {
+        // Pas de position = on garde (mais peu probable avec Mapbox)
         if (!result.distance) return true;
         
         // Moins de 10 km = on garde toujours
@@ -102,7 +86,7 @@ export async function searchProfessionalPlaces(
             result.name.toLowerCase().includes('terminus') ||
             result.name.toLowerCase().includes('gare') ||
             result.description.toLowerCase().includes('terminal') ||
-            result.description.toLowerCase().includes('✈️');
+            result.description.toLowerCase().includes('🚌');
           
           console.log(`⚖️ ${result.name} (${result.distance.toFixed(1)}km) - Important: ${isImportant}`);
           return isImportant;
@@ -114,18 +98,17 @@ export async function searchProfessionalPlaces(
       });
       
       console.log(`🎯 ${filtered.length} résultats après filtre distance`);
-      console.log('🔍 ===== RECHERCHE TERMINÉE =====');
-      
+      console.log('🌍 ===== RECHERCHE TERMINÉE =====');
       return filtered;
     }
     
-    console.log('⚠️ Aucun résultat trouvé');
-    console.log('🔍 ===== RECHERCHE TERMINÉE =====');
+    console.log('⚠️ Mapbox: 0 résultats');
+    console.log('🌍 ===== RECHERCHE TERMINÉE (AUCUN RÉSULTAT) =====');
     return [];
 
   } catch (error) {
-    console.error('❌ Erreur recherche intelligente:', error);
-    console.log('🔍 ===== RECHERCHE TERMINÉE (ERREUR) =====');
+    console.error('❌ Erreur recherche Mapbox:', error);
+    console.log('🌍 ===== RECHERCHE TERMINÉE (ERREUR) =====');
     return [];
   }
 }

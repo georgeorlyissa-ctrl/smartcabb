@@ -1,14 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Input } from '../ui/input';
-import { Lock, Mail, Phone, User, Check, AlertCircle, ArrowLeft } from '../../lib/icons';
+import { Card } from '../ui/card';
+import { Lock, Mail, Phone, User, Check, AlertCircle, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from '../../lib/toast';
-import { useNavigate } from '../../lib/simple-router';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
 
 /**
  * Page pour créer un compte auth.users à partir d'un profil existant

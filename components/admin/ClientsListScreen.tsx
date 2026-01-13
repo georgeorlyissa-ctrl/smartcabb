@@ -1,28 +1,5 @@
-import {
-  Search,
-  Filter,
-  Download,
-  Eye,
-  Edit,
-  Trash2,
-  CheckCircle,
-  XCircle,
-  Clock,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  DollarSign,
-  TrendingUp,
-  Star,
-  UserCircle,
-  RefreshCw,
-  Plus,
-  ArrowLeft,
-  Wallet
-} from '../../lib/icons';
-import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -30,10 +7,30 @@ import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { PassengerDetailModal } from './PassengerDetailModal';
+import { 
+  ArrowLeft, 
+  Search, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin,
+  Calendar,
+  Car,
+  Star,
+  CreditCard,
+  Smartphone,
+  Banknote,
+  Download,
+  Filter,
+  Eye,
+  RefreshCw,
+  Wallet
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import type { Profile } from '../../lib/supabase';
 import { formatCDF } from '../../lib/pricing';
 import { User as UserType } from '../../types';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { syncAllUsersFromSupabase, listenToProfileChanges } from '../../lib/sync-service';
 
 interface ClientsListScreenProps {

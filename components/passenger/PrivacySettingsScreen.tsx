@@ -1,27 +1,23 @@
-import { useState, useEffect } from 'react';
-import {
-  Shield,
-  Eye,
-  EyeOff,
-  Lock,
-  MapPin,
-  Bell,
-  Mail,
-  Phone,
-  Share2,
-  ArrowLeft,
-  Database,
-  Trash2,
-  Download,
-  Info,
-  Users
-} from '../../lib/icons';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion';
-import { Button } from '../ui/button';
-import { Card, CardContent } from '../ui/card';
-import { Switch } from '../ui/switch';
+import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { motion } from 'motion/react'; // ✅ FIX: Import manquant
+import { Button } from '../ui/button'; // ✅ FIX: Import manquant
+import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
+import { Switch } from '../ui/switch'; // ✅ FIX: Import manquant
+import { 
+  ArrowLeft, 
+  Shield, 
+  Eye, 
+  EyeOff,
+  MapPin,
+  Share2,
+  Lock,
+  Smartphone,
+  Users,
+  FileText,
+  AlertCircle
+} from 'lucide-react';
 
 export function PrivacySettingsScreen() {
   const { setCurrentScreen } = useAppState();

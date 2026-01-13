@@ -964,48 +964,12 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
       if (profileData && profileData.phone) {
         // Vérifier si le téléphone correspond
         if (phoneFormats.includes(profileData.phone)) {
-          console.log('✅ Profil trouvé (KV) avec phone:', profileData.phone);
-          
-          // 🔥 CRITIQUE : Récupérer l'email Auth RÉEL depuis Supabase (pas l'email du profil)
-          console.log('🔍 Récupération de l\'email Auth depuis Supabase...');
-          try {
-            const { createClient } = await import('npm:@supabase/supabase-js@2');
-            const supabase = createClient(
-              Deno.env.get('SUPABASE_URL') ?? '',
-              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            );
-            
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profileData.id);
-            
-            if (authError || !authUser || !authUser.user || !authUser.user.email) {
-              console.error('❌ Erreur récupération Auth user:', authError);
-              console.log('⚠️ Fallback : utilisation de l\'email du profil');
-              return c.json({
-                success: true,
-                email: profileData.email,
-                userId: profileData.id
-              });
-            }
-            
-            const authEmail = authUser.user.email;
-            console.log(`✅ Email Auth trouvé: ${authEmail} (email profil: ${profileData.email})`);
-            
-            // ✅ RETOURNER L'EMAIL AUTH (pas l'email du profil)
-            return c.json({
-              success: true,
-              email: authEmail,  // Email réel dans Supabase Auth
-              profileEmail: profileData.email,  // Email dans le profil (peut être différent)
-              userId: profileData.id
-            });
-          } catch (error) {
-            console.error('❌ Erreur accès Supabase Auth:', error);
-            // Fallback : utiliser l'email du profil
-            return c.json({
-              success: true,
-              email: profileData.email,
-              userId: profileData.id
-            });
-          }
+          console.log('✅ Email trouvé (KV):', profileData.email);
+          return c.json({
+            success: true,
+            email: profileData.email,
+            userId: profileData.id
+          });
         }
       }
     }
@@ -1018,41 +982,12 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const userData of allUsers) {
       if (userData && userData.phone) {
         if (phoneFormats.includes(userData.phone)) {
-          console.log('✅ User trouvé (user:) avec phone:', userData.phone);
-          
-          try {
-            const { createClient } = await import('npm:@supabase/supabase-js@2');
-            const supabase = createClient(
-              Deno.env.get('SUPABASE_URL') ?? '',
-              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            );
-            
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
-            
-            if (authError || !authUser || !authUser.user || !authUser.user.email) {
-              return c.json({
-                success: true,
-                email: userData.email,
-                userId: userData.id
-              });
-            }
-            
-            const authEmail = authUser.user.email;
-            console.log(`✅ Email Auth trouvé: ${authEmail}`);
-            
-            return c.json({
-              success: true,
-              email: authEmail,
-              profileEmail: userData.email,
-              userId: userData.id
-            });
-          } catch (error) {
-            return c.json({
-              success: true,
-              email: userData.email,
-              userId: userData.id
-            });
-          }
+          console.log('✅ Email trouvé (user:):', userData.email);
+          return c.json({
+            success: true,
+            email: userData.email,
+            userId: userData.id
+          });
         }
       }
     }
@@ -1064,41 +999,12 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const passengerData of allPassengers) {
       if (passengerData && passengerData.phone) {
         if (phoneFormats.includes(passengerData.phone)) {
-          console.log('✅ Passenger trouvé (passenger:) avec phone:', passengerData.phone);
-          
-          try {
-            const { createClient } = await import('npm:@supabase/supabase-js@2');
-            const supabase = createClient(
-              Deno.env.get('SUPABASE_URL') ?? '',
-              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            );
-            
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(passengerData.id);
-            
-            if (authError || !authUser || !authUser.user || !authUser.user.email) {
-              return c.json({
-                success: true,
-                email: passengerData.email,
-                userId: passengerData.id
-              });
-            }
-            
-            const authEmail = authUser.user.email;
-            console.log(`✅ Email Auth trouvé: ${authEmail}`);
-            
-            return c.json({
-              success: true,
-              email: authEmail,
-              profileEmail: passengerData.email,
-              userId: passengerData.id
-            });
-          } catch (error) {
-            return c.json({
-              success: true,
-              email: passengerData.email,
-              userId: passengerData.id
-            });
-          }
+          console.log('✅ Email trouvé (passenger:):', passengerData.email);
+          return c.json({
+            success: true,
+            email: passengerData.email,
+            userId: passengerData.id
+          });
         }
       }
     }
@@ -1110,41 +1016,12 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const driverData of allDrivers) {
       if (driverData && driverData.phone) {
         if (phoneFormats.includes(driverData.phone)) {
-          console.log('✅ Driver trouvé (driver:) avec phone:', driverData.phone);
-          
-          try {
-            const { createClient } = await import('npm:@supabase/supabase-js@2');
-            const supabase = createClient(
-              Deno.env.get('SUPABASE_URL') ?? '',
-              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-            );
-            
-            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(driverData.id);
-            
-            if (authError || !authUser || !authUser.user || !authUser.user.email) {
-              return c.json({
-                success: true,
-                email: driverData.email,
-                userId: driverData.id
-              });
-            }
-            
-            const authEmail = authUser.user.email;
-            console.log(`✅ Email Auth trouvé: ${authEmail}`);
-            
-            return c.json({
-              success: true,
-              email: authEmail,
-              profileEmail: driverData.email,
-              userId: driverData.id
-            });
-          } catch (error) {
-            return c.json({
-              success: true,
-              email: driverData.email,
-              userId: driverData.id
-            });
-          }
+          console.log('✅ Email trouvé (driver:):', driverData.email);
+          return c.json({
+            success: true,
+            email: driverData.email,
+            userId: driverData.id
+          });
         }
       }
     }

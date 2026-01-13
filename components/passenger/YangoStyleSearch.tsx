@@ -5,13 +5,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from '../../lib/motion';
-import { Input } from '../ui/input';
-import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Separator } from '../ui/separator';
-import { Search, MapPin, Clock, Star, TrendingUp, X } from '../../lib/icons';
+import { Input } from '../ui/input';
+import { Search, MapPin, Clock, Star, TrendingUp, X } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { rankSearchResults } from '../../lib/search-ranker';
 import { searchPlacesIntelligent, type EnrichedPlace } from '../../lib/nominatim-enriched-service';
@@ -98,17 +94,17 @@ export function YangoStyleSearch({
             console.log(`📊 Sources: ${data.sources?.join(', ') || 'inconnues'}`);
             
             // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
-            const MAX_DISTANCE_NORMAL = 50; // ✅ Élargi à 50 km (au lieu de 10)
-            const MAX_DISTANCE_IMPORTANT = 100; // ✅ 100 km pour lieux importants
+            const MAX_DISTANCE_NORMAL = 10; // km
+            const MAX_DISTANCE_IMPORTANT = 20; // km
             
             const filtered = data.results.filter((r: any) => {
               // Pas de distance = on garde (ex: résultats Google Places)
               if (!r.distance) return true;
               
-              // Moins de 50 km = on garde toujours
+              // Moins de 10 km = on garde toujours
               if (r.distance <= MAX_DISTANCE_NORMAL) return true;
               
-              // 50-100 km = seulement si c'est un lieu important
+              // 10-20 km = seulement si c'est un lieu important
               if (r.distance <= MAX_DISTANCE_IMPORTANT) {
                 const isImportant = 
                   r.name.toLowerCase().includes('aéroport') ||
@@ -121,7 +117,7 @@ export function YangoStyleSearch({
                 return isImportant;
               }
               
-              // Plus de 100 km = on ignore
+              // Plus de 20 km = on ignore
               console.log(`❌ ${r.name} ignoré (${r.distance.toFixed(1)}km - trop loin)`);
               return false;
             });

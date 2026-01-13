@@ -1,7 +1,7 @@
-import { forwardRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Phone } from '../lib/icons';
+import { Phone } from 'lucide-react';
 
 interface PhoneInputProps {
   value: string;
@@ -46,6 +46,8 @@ export function PhoneInput({
       setDisplayValue(value);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionnellement vide - exécuter une seule fois au montage
 
   const formatPhoneNumber = (input: string) => {

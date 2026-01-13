@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
@@ -15,8 +15,8 @@ import {
   AlertCircle,
   Loader2,
   TrendingDown
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export function EarningsScreen() {
   const { state, setCurrentScreen } = useAppState();

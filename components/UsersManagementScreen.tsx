@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw } from '../lib/icons';
+import React, { useEffect, useState } from 'react';
+import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from "../lib/toast";
+import { toast } from "sonner";
 
 interface User {
   id: string;

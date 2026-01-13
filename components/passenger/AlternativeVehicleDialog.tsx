@@ -1,6 +1,6 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
-import { Car, X, Clock, DollarSign } from '../../lib/icons';
+import { Car, X, Clock, DollarSign } from 'lucide-react';
 import { VEHICLE_PRICING, VehicleCategory, formatCDF, convertUSDtoCDF } from '../../lib/pricing';
 
 interface AlternativeVehicleDialogProps {

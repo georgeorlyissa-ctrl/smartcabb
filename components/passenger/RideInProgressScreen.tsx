@@ -1,32 +1,26 @@
-import { useEffect, useState } from 'react';
-import {
-  Phone,
-  MessageCircle,
-  MapPin,
-  Clock,
-  Navigation,
-  Star,
-  User,
-  Car,
-  AlertTriangle
-} from '../../lib/icons';
-import { motion, AnimatePresence } from '../../lib/motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { 
+  MapPin, 
+  Clock, 
   DollarSign,
+  User,
+  Phone,
+  Car,
   AlertCircle,
   Sun,
   Moon,
   Zap,
   Timer
-} from '../../lib/icons';
+} from 'lucide-react';
 import { convertUSDtoCDF, convertCDFtoUSD, getExchangeRate } from '../../lib/pricing';
 import { PRICING_CONFIG } from '../../lib/pricing-data';
 import { RatingDialog } from './RatingDialog';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 const FREE_WAITING_TIME = 10 * 60; // 10 minutes en secondes
 

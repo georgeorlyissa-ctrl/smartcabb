@@ -1,23 +1,22 @@
 import { useState, useEffect } from 'react';
-import {
-  DollarSign,
-  TrendingUp,
-  Calendar,
-  Download,
-  Filter,
-  RefreshCw,
-  ArrowLeft,
-  Clock,
-  MapPin,
-  User,
-  Star
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { 
+  ArrowLeft, 
+  DollarSign, 
+  TrendingUp, 
+  Calendar,
+  Clock,
+  MapPin,
+  Star,
+  AlertCircle,
+  Loader2,
+  TrendingDown
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export function EarningsScreen() {
   const { state, setCurrentScreen } = useAppState();

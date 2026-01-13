@@ -1,25 +1,34 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
+import { useAppState } from '../../hooks/useAppState';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
+  ArrowLeft,
+  Database,
   Download,
   Upload,
-  RefreshCw,
-  Database,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Clock,
-  Calendar,
-  ArrowLeft,
-  Save,
-  Trash2,
   Shield,
-  Server,
+  Calendar,
+  Clock,
   HardDrive,
-  Archive,
   FileJson,
+  Users,
+  Car,
+  MapPin,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  Trash2,
+  Archive,
   FileText
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface BackupItem {
   id: string;

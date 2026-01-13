@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { Card } from '../ui/card';
-import { DollarSign, Save, RefreshCw, Database } from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { DollarSign, Save, RefreshCw, Database } from 'lucide-react';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface DriverBalanceManagerProps {

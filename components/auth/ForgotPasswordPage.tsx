@@ -1,12 +1,5 @@
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { useNavigate } from '../../lib/simple-router';
-import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Mail, ArrowLeft, Check, AlertCircle } from '../../lib/icons';
-import { supabase } from '../../lib/supabase';
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');

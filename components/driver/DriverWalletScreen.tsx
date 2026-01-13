@@ -1,85 +1,27 @@
 import { useState, useEffect } from 'react';
-import {
-  DollarSign,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  Calendar,
-  Download,
-  Upload,
-  RefreshCw,
-  ArrowLeft,
-  CreditCard,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Activity,
-  BarChart3
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { usePayment } from '../../hooks/usePayment';
-import { supabase } from '../../lib/supabase';
-import { sendSMS } from '../../lib/sms-service';
-// Removed duplicate imports - using imports from line 2-17
 import { 
+  ArrowLeft, 
+  Wallet, 
+  CreditCard, 
+  Calendar,
+  CheckCircle,
   AlertCircle,
   Loader2,
   Smartphone,
+  TrendingUp,
+  Clock,
   Gift,
-  FileText
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
-
-// Types
-interface WalletPackage {
-  id: string;
-  name: string;
-  description: string;
-  amount: number;
-  days: number;
-  popular?: boolean;
-  discount?: number;
-}
-
-// Forfaits de recharge
-const WALLET_PACKAGES: WalletPackage[] = [
-  {
-    id: '1week',
-    name: 'Forfait Semaine',
-    description: 'Idéal pour démarrer',
-    amount: 10000,
-    days: 7
-  },
-  {
-    id: '2weeks',
-    name: 'Forfait 2 Semaines',
-    description: 'Le plus populaire',
-    amount: 18000,
-    days: 14,
-    popular: true,
-    discount: 10
-  },
-  {
-    id: '1month',
-    name: 'Forfait Mensuel',
-    description: 'Meilleur rapport qualité/prix',
-    amount: 30000,
-    days: 30,
-    discount: 20
-  },
-  {
-    id: '3months',
-    name: 'Forfait 3 Mois',
-    description: 'Maximum d\'économies',
-    amount: 75000,
-    days: 90,
-    discount: 30
-  }
-];
+  DollarSign,
+  FileText,
+  Download
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {

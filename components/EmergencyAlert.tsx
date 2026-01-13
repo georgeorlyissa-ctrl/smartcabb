@@ -1,24 +1,19 @@
 import { useState, useEffect } from 'react';
-import {
-  AlertTriangle,
-  MapPin,
-  Phone,
-  Shield,
-  User,
-  Car,
-  Navigation,
-  Bell,
-  Activity,
-  CheckCircle,
-  Clock,
-  Send,
-  X
-} from '../lib/icons';
-import { toast } from '../lib/toast';
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { Alert, AlertDescription } from './ui/alert';
 import { useAppState } from '../hooks/useAppState';
+import { 
+  AlertTriangle, 
+  Phone, 
+  MapPin, 
+  Clock,
+  Shield,
+  Users,
+  X
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { sendEmergencyAlert } from '../lib/sms-service';
 
 interface EmergencyAlertProps {

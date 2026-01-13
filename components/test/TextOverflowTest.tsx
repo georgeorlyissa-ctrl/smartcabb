@@ -3,11 +3,8 @@
  * Ce composant démontre les bonnes pratiques pour éviter les superpositions
  */
 
-import React from 'react';
+import { User, Mail, Phone, MapPin } from 'lucide-react';
 import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { Button } from '../ui/button';
-import { User, Mail, Phone, MapPin } from '../../lib/icons';
 
 export function TextOverflowTest() {
   return (

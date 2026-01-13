@@ -49,7 +49,29 @@
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:site_name" content="SmartCabb" />
     
-    <script type="module" src="/main.tsx?v=517.138"></script>
+    <!-- 🐦 Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://smartcabb.com/" />
+    <meta property="twitter:title" content="SmartCabb - Transport à Kinshasa" />
+    <meta property="twitter:description" content="Réservez votre chauffeur à Kinshasa en quelques clics" />
+    
+    <script type="module" src="/main.tsx?v=517.113"></script>
+    
+    <!-- Supprimer le preloader une fois React chargé -->
+    <script>
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const preloader = document.getElementById('preloader');
+          if (preloader) {
+            preloader.style.opacity = '0';
+            preloader.style.transition = 'opacity 0.3s ease-out';
+            setTimeout(function() {
+              preloader.remove();
+            }, 300);
+          }
+        }, 500);
+      });
+    </script>
   </head>
   <body>
     <div id="root">
@@ -84,5 +106,53 @@
         }
       </style>
     </div>
+    
+    <!-- ✅ PROTECTION SSR: Polyfill pour éviter "Illegal constructor" -->
+    <script>
+      // Protection 1: S'assurer que nous sommes côté client
+      if (typeof window === 'undefined') {
+        throw new Error('❌ Ce code ne devrait jamais s\'exécuter côté serveur');
+      }
+      
+      // Protection 2: Créer des stubs pour les APIs manquantes
+      window.__SMARTCABB_CLIENT_READY__ = false;
+      
+      // Protection 3: Wrapper sécurisé pour localStorage/sessionStorage
+      (function() {
+        try {
+          const test = '__test__';
+          localStorage.setItem(test, test);
+          localStorage.removeItem(test);
+          console.log('✅ localStorage disponible');
+        } catch (e) {
+          console.warn('⚠️ localStorage non disponible, création d\'un fallback');
+          
+          // Créer un fallback en mémoire
+          const memoryStorage = new Map();
+          
+          Object.defineProperty(window, 'localStorage', {
+            value: {
+              getItem: (key) => memoryStorage.get(key) || null,
+              setItem: (key, value) => memoryStorage.set(key, value),
+              removeItem: (key) => memoryStorage.delete(key),
+              clear: () => memoryStorage.clear(),
+              key: (index) => {
+                const keys = Array.from(memoryStorage.keys());
+                return keys[index] || null;
+              },
+              get length() {
+                return memoryStorage.size;
+              }
+            },
+            writable: false,
+            configurable: false
+          });
+        }
+        
+        // Marquer comme prêt
+        window.__SMARTCABB_CLIENT_READY__ = true;
+        console.log('✅ Environnement client initialisé');
+      })();
+    </script>
   </body>
 </html>

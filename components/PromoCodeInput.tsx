@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Tag, Check, X } from '../lib/icons';
+import { Tag, Check, X } from 'lucide-react';
 import { useAppState } from '../hooks/useAppState';
 import { useTranslation } from '../hooks/useTranslation';
 import { PromoCode } from '../types';

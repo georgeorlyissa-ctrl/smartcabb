@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
-import { MapPin, Navigation, Car, AlertCircle, Phone, MessageCircle } from '../../lib/icons';
+import { useState, useEffect, useRef } from 'react';
+import { MapPin, Navigation, Car, AlertCircle, Phone, MessageCircle } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
 
 interface Location {
   lat: number;

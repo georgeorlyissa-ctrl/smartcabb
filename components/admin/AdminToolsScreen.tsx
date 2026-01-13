@@ -1,21 +1,17 @@
 import { useState } from 'react';
-import {
-  RefreshCw,
-  Trash2,
-  Database,
-  AlertTriangle,
-  ArrowLeft,
-  Download,
-  Upload,
-  Settings,
-  CheckCircle
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { 
+  ArrowLeft,
+  Trash2, 
+  RefreshCw, 
+  AlertTriangle,
+  CheckCircle
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export function AdminToolsScreen() {
   const { setCurrentScreen } = useAppState();

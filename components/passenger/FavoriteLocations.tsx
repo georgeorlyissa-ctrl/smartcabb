@@ -1,8 +1,14 @@
+import { useAppState } from '../../hooks/useAppState';
+import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
+// Import des icônes Lucide React
+import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from 'lucide-react';
 import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
-import { Card } from '../ui/card';
-import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from '../../lib/icons';
+import { Label } from '../ui/label';
+import { motion, AnimatePresence } from 'motion/react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface FavoriteLocation {
   id?: string;
@@ -29,6 +35,7 @@ const iconOptions = [
 ];
 
 export function FavoriteLocations({ onSelectLocation, currentLocation, className = "" }: FavoriteLocationsProps) {
+  const { state } = useAppState();
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteLocation | null>(null);
@@ -50,7 +57,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   // 🆕 Charger les favoris depuis le backend KV store
   useEffect(() => {
     loadFavorites();
-  }, []);
+  }, [state.currentUser]);
 
   const loadFavorites = async () => {
     if (!state.currentUser?.id) {

@@ -1,4 +1,4 @@
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { useAppState } from '../hooks/useAppState';
 import { Car, Star } from '../lib/icons';
 import { ImageWithFallback } from './figma/ImageWithFallback';

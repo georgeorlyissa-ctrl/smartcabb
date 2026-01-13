@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { RefreshCw } from '../../lib/icons';
+import { Badge } from '../ui/badge';
+import { toast } from 'sonner';
+import { RefreshCw } from 'lucide-react';
 
 interface CachedRide {
   id: string;

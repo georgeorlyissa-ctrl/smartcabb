@@ -1,18 +1,20 @@
+import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Plus,
-  Trash2,
-  Edit,
-  CheckCircle,
-  ArrowLeft,
-  Smartphone,
-  Banknote,
-  Wallet,
-  Star
-} from '../../lib/icons';
+import { toast } from 'sonner';
 import { Button } from '../ui/button'; // ✅ FIX: Import manquant
 import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
+import { 
+  ArrowLeft, 
+  CreditCard,
+  Smartphone,
+  Plus,
+  Trash2,
+  Check,
+  Star,
+  Wallet,
+  Shield,
+  AlertCircle
+} from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -27,6 +29,7 @@ interface SavedPaymentMethod {
 }
 
 export function PaymentSettingsScreen() {
+  const { setCurrentScreen, state } = useAppState();
   const [paymentMethods, setPaymentMethods] = useState<SavedPaymentMethod[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newMethodType, setNewMethodType] = useState<'card' | 'mobile_money'>('mobile_money');

@@ -3,32 +3,29 @@
  * Interface admin pour nettoyer les données de test avant les tests avec vraies données
  */
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../lib/motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import {
-  Trash2,
-  RefreshCw,
-  Database,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Clock,
-  Calendar,
-  Activity,
-  TrendingDown,
-  Shield,
-  Archive,
-  Download,
-  Upload,
-  Filter,
-  Search,
+import { 
+  Trash2, 
+  Database, 
+  AlertTriangle, 
+  CheckCircle, 
+  Loader2,
   BarChart3,
-  Zap,
-  HardDrive
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
+  Users,
+  Car,
+  MapPin,
+  Tag,
+  Megaphone,
+  Wallet,
+  Bell,
+  MessageCircle,
+  Phone,
+  ArrowLeft
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
 
@@ -49,7 +46,7 @@ interface DataStats {
 }
 
 export function DataCleanupPanel() {
-  const { setCurrentScreen } from useAppState();
+  const { setCurrentScreen } = useAppState();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<DataStats | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);

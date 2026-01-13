@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, CheckCircle, XCircle, Clock, Filter, Search, AlertCircle } from '../../lib/icons';
+import { ArrowLeft, DollarSign, CheckCircle, XCircle, Clock, Filter, Search, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 
 // Fonction de formatage de date simple
 const formatDate = (dateString: string) => {

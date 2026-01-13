@@ -1,24 +1,23 @@
-import { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Smartphone,
-  Banknote,
-  DollarSign,
-  CheckCircle,
-  ArrowLeft,
-  Wallet,
-  Clock,
-  AlertCircle,
-  Calculator,
-  Shield
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { CurrencySelector } from '../CurrencySelector';
 import { MixedPaymentSelector } from '../MixedPaymentSelector';
-import { toast } from '../../lib/toast';
+import { 
+  ArrowLeft, 
+  Smartphone, 
+  Banknote,
+  Check,
+  Shield,
+  Clock,
+  CreditCard,
+  Calculator,
+  Building2,
+  Wallet
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export function PaymentMethodScreen() {
   const { setCurrentScreen, updateRide, state, createRide } = useAppState();
@@ -304,7 +303,7 @@ export function PaymentMethodScreen() {
                         </div>
                         {isSelected && !isWalletDisabled && (
                           <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-4 h-4 text-white" />
+                            <Check className="w-4 h-4 text-white" />
                           </div>
                         )}
                       </div>

@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { VEHICLE_PRICING, VehicleCategory } from '../../lib/pricing';
+import { notifyRideStarted } from '../../lib/sms-service';
+import { updateDriverBalance } from '../../hooks/useDriverBalance';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
+import { useState, useEffect } from 'react';
+import { toast } from '../../lib/toast';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from 'lucide-react';
+import { TimerControl } from './TimerControl';
+import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
 
 interface NavigationScreenProps {
   onBack: () => void;

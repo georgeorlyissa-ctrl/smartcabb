@@ -1,22 +1,18 @@
-import { useState, useEffect } from 'react';
-import {
-  Star,
-  ArrowLeft,
-  User,
-  Car,
-  MapPin,
-  Clock,
-  DollarSign,
-  Loader2,
-  Send,
-  Home
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  Star,
+  Send,
+  Home,
+  ThumbsUp,
+  ThumbsDown,
+  Loader2
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 export function RatingScreen() {
   const { state, setCurrentScreen } = useAppState();
@@ -139,12 +135,12 @@ export function RatingScreen() {
   };
 
   const quickComments = [
-    { icon: Star, text: 'Excellent conducteur', emoji: '👍' },
-    { icon: Star, text: 'Véhicule propre', emoji: '✨' },
-    { icon: Star, text: 'Conduite sécuritaire', emoji: '🛡️' },
-    { icon: Star, text: 'Très ponctuel', emoji: '⏰' },
-    { icon: Star, text: 'Très sympathique', emoji: '😊' },
-    { icon: Star, text: 'Pourrait être amélioré', emoji: '⚠️' }
+    { icon: ThumbsUp, text: 'Excellent conducteur', emoji: '👍' },
+    { icon: ThumbsUp, text: 'Véhicule propre', emoji: '✨' },
+    { icon: ThumbsUp, text: 'Conduite sécuritaire', emoji: '🛡️' },
+    { icon: ThumbsUp, text: 'Très ponctuel', emoji: '⏰' },
+    { icon: ThumbsUp, text: 'Très sympathique', emoji: '😊' },
+    { icon: ThumbsDown, text: 'Pourrait être amélioré', emoji: '⚠️' }
   ];
 
   return (

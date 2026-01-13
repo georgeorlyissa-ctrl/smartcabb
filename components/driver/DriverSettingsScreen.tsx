@@ -1,27 +1,26 @@
-import { useState, useEffect } from 'react';
-import {
-  Settings,
-  Bell,
-  Shield,
-  Globe,
-  DollarSign,
-  Navigation,
-  Save,
-  RefreshCw,
-  ArrowLeft,
-  Moon,
-  Sun,
-  Volume2,
-  VolumeX,
-  MapPin,
-  Clock
-} from '../../lib/icons';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
-// Removed duplicate imports - using imports from line 2-17
+import { 
+  ArrowLeft, 
+  Bell, 
+  MapPin, 
+  Car, 
+  DollarSign,
+  Shield,
+  Moon,
+  Volume2,
+  Smartphone,
+  Navigation,
+  Settings,
+  HelpCircle,
+  LogOut,
+  User
+} from 'lucide-react';
+import { useState } from 'react';
 
 export function DriverSettingsScreen() {
   const { setCurrentScreen, state, setCurrentDriver, setCurrentView } = useAppState();

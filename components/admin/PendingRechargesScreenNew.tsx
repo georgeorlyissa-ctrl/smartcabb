@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { useAppState } from '../../hooks/useAppState';
+import { formatCDF } from '../../lib/pricing';
+import { toast } from 'sonner';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
-import { toast } from '../../lib/toast';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone, RefreshCw, Calendar, History as HistoryIcon } from '../../lib/icons';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone, RefreshCw, Calendar, History as HistoryIcon } from 'lucide-react';
 
 interface Recharge {
   id: string;
@@ -224,7 +226,9 @@ export function PendingRechargesScreenNew() {
   };
 
   const RechargeCard = ({ transaction, isPending }: { transaction: Recharge, isPending: boolean }) => (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl p-6 shadow-sm border border-border hover:shadow-md transition-shadow"
     >
       <div className="flex items-start justify-between mb-4">
@@ -338,7 +342,7 @@ export function PendingRechargesScreenNew() {
           <strong>ℹ️ Note:</strong> {transaction.description}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 
   return (
@@ -462,7 +466,9 @@ export function PendingRechargesScreenNew() {
       {/* Rejection Modal */}
       {showRejectionModal && selectedTransaction && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
             className="bg-white rounded-2xl p-6 max-w-md w-full"
           >
             <div className="flex items-start gap-3 mb-6">
@@ -513,7 +519,7 @@ export function PendingRechargesScreenNew() {
                 Confirmer le rejet
               </Button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </div>

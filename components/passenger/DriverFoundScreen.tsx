@@ -1,24 +1,23 @@
-import { useEffect, useState } from 'react';
-import {
-  Phone,
-  MessageCircle,
-  MapPin,
-  Clock,
-  Star,
-  Navigation,
-  X,
-  User,
-  Car,
-  AlertTriangle,
-  Award,
-  Shield
-} from '../../lib/icons';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { motion } from '../../lib/motion';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
+import { 
+  ArrowLeft, 
+  Phone, 
+  MessageCircle, 
+  Star,
+  Car,
+  User,
+  MapPin,
+  Clock,
+  Shield,
+  Award,
+  Navigation
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 interface DriverFoundScreenProps {
   driverData: {
@@ -178,7 +177,7 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
             onClick={() => setCurrentScreen('map')}
             className="w-10 h-10 hover:bg-muted"
           >
-            <X className="w-5 h-5 text-primary" />
+            <ArrowLeft className="w-5 h-5 text-primary" />
           </Button>
           <h1 className="text-primary">Chauffeur trouvé !</h1>
           <div className="w-10" />

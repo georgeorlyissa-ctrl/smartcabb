@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useNavigate } from '../../lib/simple-router';
 import { useAppState } from '../../hooks/useAppState';

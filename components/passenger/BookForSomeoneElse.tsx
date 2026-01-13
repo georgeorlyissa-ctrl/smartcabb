@@ -17,16 +17,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../lib/motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '../ui/card';
-import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
-import { toast } from '../../lib/toast';
+import { User, Phone, AlertCircle, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
-import { isValidPhoneNumber } from '../../lib/phone-utils';
-import { User, Phone, AlertCircle, Users } from '../../lib/icons';
 
 interface BookForSomeoneElseProps {
   showForm: boolean;
@@ -47,7 +45,9 @@ export function BookForSomeoneElse({ showForm, onToggleForm, onBeneficiaryChange
    * Valider le numéro de téléphone RDC
    */
   const validatePhone = (phone: string): boolean => {
-    return isValidPhoneNumber(phone);
+    // Format accepté : +243XXXXXXXXX (12 chiffres) ou 0XXXXXXXXX (10 chiffres)
+    const phoneRegex = /^(\+243|0)[0-9]{9}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
   };
 
   /**

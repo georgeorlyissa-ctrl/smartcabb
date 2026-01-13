@@ -1,6 +1,6 @@
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { DollarSign, TrendingUp, CreditCard, Smartphone, Globe, Mail, ArrowLeft } from '../../lib/icons';
+import { DollarSign, TrendingUp, CreditCard, Smartphone, Globe, Mail, ArrowLeft } from 'lucide-react';
 import { useAppState } from '../../hooks/useAppState';
 
 export function BudgetDashboard() {

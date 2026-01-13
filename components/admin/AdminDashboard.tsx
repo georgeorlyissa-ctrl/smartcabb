@@ -1,46 +1,11 @@
-import { useEffect, useState } from 'react';
-import {
-  Users,
-  Car,
-  MapPin,
-  DollarSign,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Activity,
-  Navigation,
-  Calendar,
-  Star,
-  MessageCircle,
-  Shield,
-  Settings,
-  BarChart3,
-  FileText,
-  Bell,
-  UserCircle,
-  Menu,
-  X,
-  Home,
-  List,
-  Zap,
-  CreditCard,
-  Database,
-  Mail,
-  LogOut,
-  RefreshCw,
-  Download,
-  Upload,
-  Eye,
-  Edit,
-  Trash2,
-  Plus,
-  Filter,
-  Search
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { motion } from 'motion/react';
 import { useNavigate } from '../../lib/simple-router';
+import { useState, useEffect } from 'react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
 import { LiveStatsPanel } from '../LiveStatsPanel';
@@ -54,6 +19,33 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { logError, isNetworkError } from '../../lib/error-utils';
+import { 
+  Users, 
+  Car, 
+  DollarSign, 
+  TrendingUp,
+  Star,
+  Settings,
+  Shield,
+  ChevronRight,
+  RefreshCw,
+  AlertCircle,
+  UserPlus,
+  Mail,
+  Lock,
+  User,
+  Bell,
+  CheckCircle,
+  Wallet,
+  Database,
+  MessageSquare,
+  Trash2,
+  Wrench,
+  MessageCircle,
+  Receipt,
+  Search
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { createAdminUser } from '../../lib/auth-service';
 
 export function AdminDashboard() {
@@ -435,7 +427,7 @@ export function AdminDashboard() {
       id: 'action-contact-messages',
       title: 'Messages de contact',
       description: 'Messages du site web',
-      icon: MessageCircle,
+      icon: MessageSquare,
       action: () => setCurrentScreen('contact-messages'),
       count: null,
       highlight: true,

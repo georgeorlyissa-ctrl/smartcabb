@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
+import { LiveTrackingMap } from './LiveTrackingMap';
 import { useAppState } from '../../hooks/useAppState';
-import { Share2, AlertTriangle, Clock } from '../../lib/icons';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
+import { Share2, AlertTriangle, Clock } from 'lucide-react';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 
 export function LiveTrackingScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();

@@ -41,15 +41,6 @@ Ce fichier vous dit EXACTEMENT quoi faire en 2 minutes de lecture.
       Je ne sais pas  → Lire 📖_COMMENCER_ICI_v2224.md
 
 
-  ÉTAPE 1.5 : ⚠️ IMPORTANT - LE DOSSIER .git
-
-    Le dossier .git n'est PAS dans le téléchargement Figma Make.
-    C'est NORMAL !
-    
-    Lire : ❓_POURQUOI_PAS_DE_GIT.txt (2 minutes)
-    Puis : 🔧_RECUPERER_GIT_v2224.md (pour récupérer votre .git)
-
-
   ÉTAPE 2 : SUIVRE LE GUIDE
 
     Le guide vous dit exactement quoi faire, étape par étape.

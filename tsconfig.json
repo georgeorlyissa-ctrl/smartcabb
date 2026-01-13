@@ -14,35 +14,16 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Linting - Relax pour éviter erreurs dans Figma Make */
-    "strict": false,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
 
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "lucide-react": ["./lib/icons.tsx"],
-      "sonner": ["./sonner.ts"],
-      "motion/react": ["./motion/react.ts", "./lib/motion.tsx"],
-      "framer-motion": ["./lib/motion.tsx"],
-      "@radix-ui/react-accordion": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-aspect-ratio": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-avatar": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-checkbox": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-collapsible": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-label": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-progress": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-radio-group": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-scroll-area": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-separator": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-slider": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-switch": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-tabs": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-toggle": ["./lib/radix-stubs.tsx"],
-      "@radix-ui/react-toggle-group": ["./lib/radix-stubs.tsx"]
+      "@/*": ["./*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

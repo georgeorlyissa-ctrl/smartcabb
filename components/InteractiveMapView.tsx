@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { reverseGeocode } from '../lib/precise-gps';
-import { Loader2, Plus, Minus, Maximize2 } from '../lib/icons';
+import { Loader2, Plus, Minus, Maximize2 } from 'lucide-react';
 
 // ✅ IMPORT STATIQUE : Importer Leaflet au niveau du module (pas dynamiquement)
 let L: any = null;

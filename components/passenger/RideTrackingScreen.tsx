@@ -1,23 +1,21 @@
-import { useEffect, useState } from 'react';
-import {
-  Phone,
-  MessageCircle,
-  MapPin,
-  Clock,
-  Star,
-  Navigation,
-  User,
-  Share2,
-  AlertTriangle
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { InteractiveMapView } from '../InteractiveMapView';
+import { 
+  Navigation,
+  MapPin,
+  Clock,
+  Phone,
+  MessageCircle,
+  Share2,
+  AlertTriangle
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 interface Location {
   lat: number;

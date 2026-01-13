@@ -1,10 +1,10 @@
-import React, { Component, ReactNode } from 'react';
+import * as React from 'react';
 import { Button } from './ui/button';
-import { AlertCircle, Home, WifiOff } from '../lib/icons';
+import { AlertCircle, Home, WifiOff } from 'lucide-react';
 
 interface Props {
-  children: ReactNode;
-  fallback?: ReactNode;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface State {
@@ -14,7 +14,7 @@ interface State {
   isOfflineError: boolean;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
+export class ErrorBoundary extends React.Component<Props, State> {
   private mounted = false;
 
   constructor(props: Props) {

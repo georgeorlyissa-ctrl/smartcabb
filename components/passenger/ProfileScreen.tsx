@@ -1,37 +1,33 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   User,
   Mail,
   Phone,
   MapPin,
-  Calendar,
-  Edit,
+  Edit2,
   Save,
   X,
-  Camera,
+  ChevronRight,
+  Wallet,
+  History,
+  HelpCircle,
+  LogOut,
+  MessageCircle,
   Star,
   TrendingUp,
-  DollarSign,
   Award,
+  Gift,
   Shield,
-  LogOut,
-  ArrowLeft,
-  CreditCard,
   Settings,
   Bell,
-  Lock,
-  FileText,
-  Download,
-  Share2,
-  Wallet,
+  ArrowLeft,
+  Calendar,
   Smartphone,
-  Banknote,
-  ChevronRight,
-  History,
-  HelpCircle
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
-import { toast } from '../../lib/toast';
+  CreditCard,
+  Banknote
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { formatCDF, getExchangeRate } from '../../lib/pricing';
 import { syncUserProfile } from '../../lib/sync-service';
@@ -382,7 +378,7 @@ export function ProfileScreen() {
               </>
             ) : (
               <>
-                <Edit className="w-4 h-4 mr-2" />
+                <Edit2 className="w-4 h-4 mr-2" />
                 Modifier
               </>
             )}

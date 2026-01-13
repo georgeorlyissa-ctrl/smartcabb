@@ -1,18 +1,23 @@
-import { useEffect, useState } from 'react';
-import {
-  Calculator,
+import { useState } from 'react';
+import { motion } from 'motion/react';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { Alert, AlertDescription } from './ui/alert';
+import { useAppState } from '../hooks/useAppState';
+import { 
+  AlertTriangle, 
+  MapPin, 
+  Clock, 
   DollarSign,
-  Info,
-  Clock,
-  AlertTriangle,
-  User,
-  Car,
   CheckCircle,
-  TrendingDown,
-  ArrowRight,
+  XCircle,
+  Navigation,
+  User,
   Phone
-} from '../lib/icons';
-import { toast } from '../lib/toast';
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CancellationCompensationProps {
   rideId: string;

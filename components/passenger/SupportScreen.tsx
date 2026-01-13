@@ -1,21 +1,22 @@
-import { useState } from 'react';
-import {
-  MessageCircle,
-  Phone,
-  Mail,
-  HelpCircle,
-  FileText,
-  Send,
-  ArrowLeft,
-  CheckCircle,
-  Clock
-} from '../../lib/icons';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  Phone, 
+  MessageCircle, 
+  Mail,
+  Clock,
+  HelpCircle,
+  AlertCircle,
+  CheckCircle,
+  Send
+} from 'lucide-react';
+import { useState } from 'react';
 
 export function SupportScreen() {
   const { setCurrentScreen } = useAppState();

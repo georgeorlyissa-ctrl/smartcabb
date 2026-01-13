@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw } from '../../lib/icons';
+import { Card } from '../ui/card';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function TestSMSConfigScreen() {
   const [loading, setLoading] = useState(false);

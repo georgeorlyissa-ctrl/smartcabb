@@ -1,15 +1,25 @@
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { useTranslation } from '../../hooks/useTranslation';
 import { useAppState } from '../../hooks/useAppState';
-import { calculatePricing, VEHICLE_CATEGORIES } from '../../lib/enhanced-pricing';
-import { estimateRouteDistance } from '../../lib/route-estimation';
-import { reverseGeocode } from '../../lib/precise-gps';
+import { PassengerCountSelector } from '../PassengerCountSelector';
+import { PromoCodeInput } from '../PromoCodeInput';
 import { BookForSomeoneElse } from './BookForSomeoneElse';
-import { toast } from '../../lib/toast';
-import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from '../../lib/icons';
+import { RouteMapPreview } from '../RouteMapPreview';
+import { PromoCode } from '../../types';
+import { VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
+import { 
+  calculateEstimatedDuration, 
+  calculateDetailedDuration, 
+  calculateDurationRange,
+  formatDuration,
+  getCurrentTrafficConditions
+} from '../../lib/duration-calculator';
+import { calculateRoute, getCurrentTrafficCondition } from '../../lib/distance-calculator';
+import { Button } from '../ui/button';
+import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
 
 // 🚗 CHEMINS DES IMAGES DE VÉHICULES (pour GitHub/Vercel)
 // ⚠️ Ces chemins pointent vers /public/vehicles/
@@ -37,6 +47,7 @@ const businessVehicle5 = '/vehicles/smartcabb_business/Bussiness_5.png';
 const businessVehicle6 = '/vehicles/smartcabb_business/Business_6.png';
 
 export function EstimateScreen() {
+  const { t } = useTranslation();
   const { setCurrentScreen, createRide, state, calculateDistance } = useAppState();
   const [selectedVehicle, setSelectedVehicle] = useState<VehicleCategory>('smart_standard');
   const [passengerCount, setPassengerCount] = useState(1);
@@ -111,7 +122,7 @@ export function EstimateScreen() {
   const vehicles = [
     {
       id: 'smart_standard' as VehicleCategory,
-      name: 'Standard',
+      name: t('smart_standard'),
       description: `${VEHICLE_PRICING.smart_standard.capacity} places · ${VEHICLE_PRICING.smart_standard.features.join(', ')}`,
       capacity: VEHICLE_PRICING.smart_standard.capacity,
       icon: Car,
@@ -124,7 +135,7 @@ export function EstimateScreen() {
     },
     {
       id: 'smart_confort' as VehicleCategory,
-      name: 'Confort',
+      name: t('smart_confort'),
       description: `${VEHICLE_PRICING.smart_confort.capacity} places · ${VEHICLE_PRICING.smart_confort.features.join(', ')}`,
       capacity: VEHICLE_PRICING.smart_confort.capacity,
       icon: Car,
@@ -137,7 +148,7 @@ export function EstimateScreen() {
     },
     {
       id: 'smart_plus' as VehicleCategory,
-      name: 'Plus',
+      name: t('smart_plus'),
       description: `${VEHICLE_PRICING.smart_plus.capacity} places · ${VEHICLE_PRICING.smart_plus.features.join(', ')}`,
       capacity: VEHICLE_PRICING.smart_plus.capacity,
       icon: Users,
@@ -150,7 +161,7 @@ export function EstimateScreen() {
     },
     {
       id: 'smart_business' as VehicleCategory,
-      name: 'Business',
+      name: t('smart_business'),
       description: `${VEHICLE_PRICING.smart_business.capacity} places · ${VEHICLE_PRICING.smart_business.features.join(', ')}`,
       capacity: VEHICLE_PRICING.smart_business.capacity,
       icon: Users,
@@ -501,7 +512,7 @@ export function EstimateScreen() {
             <div className="flex items-start space-x-2">
               <div className="w-2.5 h-2.5 bg-secondary rounded-full mt-1.5 shadow-lg shadow-secondary/30" />
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Départ</p>
+                <p className="text-xs text-muted-foreground">{t('pickup_location')}</p>
                 <p className="text-sm text-foreground">{pickup.address}</p>
                 {pickupInstructions && (
                   <div className="flex items-start gap-1.5 mt-1.5 px-2 py-1.5 bg-green-50 rounded-lg border border-green-100">
@@ -520,7 +531,7 @@ export function EstimateScreen() {
             <div className="flex items-start space-x-2">
               <div className="w-2.5 h-2.5 bg-accent rounded-full mt-1.5 shadow-lg shadow-accent/30" />
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Destination</p>
+                <p className="text-xs text-muted-foreground">{t('destination')}</p>
                 <p className="text-sm text-foreground">{destination.address}</p>
               </div>
             </div>
@@ -530,7 +541,7 @@ export function EstimateScreen() {
         {/* Vehicle Options - HORIZONTAL SCROLLABLE */}
         <div className="space-y-4">
           <div className="px-4">
-            <h2 className="text-base font-semibold mb-3">Choisissez votre véhicule</h2>
+            <h2 className="text-base font-semibold mb-3">{t('choose_vehicle')}</h2>
           </div>
           
           {/* Wallet Discount Badge */}
@@ -636,7 +647,7 @@ export function EstimateScreen() {
                           <span className={`text-lg font-bold ${isSelected ? 'text-secondary' : 'text-primary'}`}>
                             {vehiclePrice.toLocaleString()}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">CDF</span>
+                          <span className="text-[10px] text-muted-foreground">{t('cdf')}</span>
                         </div>
                         <div className="text-[10px] text-muted-foreground">
                           ≈ {vehicle.id === 'smart_business' 
@@ -724,7 +735,7 @@ export function EstimateScreen() {
           <div className="bg-gradient-to-br from-muted/50 to-white rounded-2xl p-5 space-y-3 border border-border shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Prix de base</span>
-              <span className="font-medium text-foreground">{basePrice.toLocaleString()} CDF</span>
+              <span className="font-medium text-foreground">{basePrice.toLocaleString()} {t('cdf')}</span>
             </div>
             
             {appliedPromo && (
@@ -734,14 +745,14 @@ export function EstimateScreen() {
                 className="flex items-center justify-between text-secondary"
               >
                 <span>Réduction ({appliedPromo.code})</span>
-                <span className="font-medium">-{(basePrice - finalPrice).toLocaleString()} CDF</span>
+                <span className="font-medium">-{(basePrice - finalPrice).toLocaleString()} {t('cdf')}</span>
               </motion.div>
             )}
             
             <div className="border-t border-border pt-3 flex items-center justify-between">
               <span className="font-semibold text-foreground">Prix total</span>
               <span className="text-2xl font-bold bg-gradient-to-r from-secondary to-primary bg-clip-text text-transparent">
-                {finalPrice.toLocaleString()} CDF
+                {finalPrice.toLocaleString()} {t('cdf')}
               </span>
             </div>
           </div>
@@ -757,7 +768,7 @@ export function EstimateScreen() {
             </div>
             <div className="bg-white rounded-xl p-3 text-center border border-border shadow-sm">
               <p className="text-xs text-muted-foreground mb-1">Distance</p>
-              <span className="font-semibold text-primary">{distanceKm.toFixed(1)} km</span>
+              <span className="font-semibold text-primary">{distanceKm.toFixed(1)} {t('km')}</span>
             </div>
             <div className="bg-white rounded-xl p-3 text-center border border-border shadow-sm">
               <p className="text-xs text-muted-foreground mb-1">Passagers</p>
@@ -773,7 +784,7 @@ export function EstimateScreen() {
           onClick={handleBookRide}
           className="w-full h-14 bg-gradient-to-r from-secondary to-primary hover:from-secondary/90 hover:to-primary/90 text-white rounded-xl shadow-lg shadow-secondary/30 transition-all duration-300 hover:shadow-xl"
         >
-          Confirmer la réservation
+          {t('confirm_booking')}
         </Button>
       </motion.div>
     </motion.div>

@@ -1,22 +1,19 @@
-import { useEffect, useState } from 'react';
-import {
-  Activity,
-  Wifi,
-  WifiOff,
-  Database,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
-  Clock,
-  Zap,
-  Server,
-  Globe,
-  Shield
-} from '../lib/icons';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from './ui/alert';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { 
+  Wifi, 
+  WifiOff, 
+  MapPin, 
+  MapPinOff, 
+  Database, 
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Shield
+} from 'lucide-react';
 import {
   runFullDiagnostic,
   getErrorMessage,
@@ -125,7 +122,7 @@ export function ConnectionDiagnostic() {
                 ) : (
                   <XCircle className="w-4 h-4 text-red-500" />
                 )}
-                <Globe className="w-4 h-4" />
+                <MapPin className="w-4 h-4" />
                 <span>
                   {diagnostic.geolocation.available 
                     ? 'Géolocalisation OK' 

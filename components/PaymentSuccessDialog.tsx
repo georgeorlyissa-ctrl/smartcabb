@@ -1,6 +1,6 @@
-import { motion } from '../lib/motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { CheckCircle, Clock, Star } from '../lib/icons';
+import { CheckCircle, Clock, Star } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
 
@@ -32,20 +32,17 @@ export function PaymentSuccessDialog({
   const totalPaid = (ride.actualPrice || 0) + (ride.tip || 0) - (ride.promoDiscount || 0);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 20 }}
-      className="fixed top-0 left-0 right-0 bottom-0 bg-black bg-opacity-50 flex items-center justify-center"
-    >
-      <div className="max-w-md mx-auto bg-white rounded-lg p-6">
-        <div className="flex items-center gap-2 text-green-600 text-center justify-center">
-          <CheckCircle className="w-6 h-6" />
-          {t('payment_successful')}
-        </div>
-        <p className="text-gray-500 text-sm mt-2">
-          Confirmation de votre paiement et récapitulatif de la course.
-        </p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md mx-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-green-600 text-center justify-center">
+            <CheckCircle className="w-6 h-6" />
+            {t('payment_successful')}
+          </DialogTitle>
+          <DialogDescription>
+            Confirmation de votre paiement et récapitulatif de la course.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="text-center space-y-4">
           {/* Success message */}
@@ -117,7 +114,7 @@ export function PaymentSuccessDialog({
             )}
           </div>
         </div>
-      </div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }

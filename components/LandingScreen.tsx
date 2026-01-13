@@ -1,15 +1,13 @@
+import { useNavigate } from '../lib/simple-router';
+import { useAppState } from '../hooks/useAppState';
 import { SmartCabbLogo } from './SmartCabbLogo';
 import { Button } from './ui/button';
-import {
-  Car,
+import { 
+  ArrowLeft,
   Shield,
-  Clock,
-  Star,
-  MapPin,
-  Zap,
-  Users,
+  UserPlus,
   LogIn
-} from '../lib/icons';
+} from 'lucide-react';
 
 export function LandingScreen() {
   console.log('🏠 LandingScreen - Composant monté - VERSION SIMPLE - BUILD:', Date.now());

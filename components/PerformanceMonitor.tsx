@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { Card } from './ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Activity, Wifi, Download, Package } from '../lib/icons';
+import { Activity, Wifi, Download, Package } from 'lucide-react';
 import { useOnlineStatus } from '../hooks/usePWA';
 
 interface PerformanceMetrics {

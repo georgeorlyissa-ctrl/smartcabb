@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import React, { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Input } from '../ui/input';
-import { Phone, Lock, ArrowLeft, Check, AlertCircle, Eye, EyeOff, MessageSquare } from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { Card } from '../ui/card';
+import { Phone, Lock, ArrowLeft, Check, AlertCircle, Eye, EyeOff, MessageSquare } from 'lucide-react';
+import { toast } from 'sonner';
 import { useNavigate } from '../../lib/simple-router';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { supabase } from '../../lib/supabase';

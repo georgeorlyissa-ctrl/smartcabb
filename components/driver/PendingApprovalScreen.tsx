@@ -1,4 +1,4 @@
-import { Clock, AlertCircle, Phone, Mail } from '../../lib/icons';
+import { Clock, AlertCircle, Phone, Mail } from 'lucide-react';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { safeFormatDate } from '../../utils/dateHelpers'; // 🔥 IMPORT

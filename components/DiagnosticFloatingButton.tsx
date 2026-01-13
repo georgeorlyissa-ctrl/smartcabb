@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../lib/motion';
-import { HelpCircle, X, Wrench, Search, Trash2, Home } from '../lib/icons';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { HelpCircle, X, Wrench, Search, Trash2, Home } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 

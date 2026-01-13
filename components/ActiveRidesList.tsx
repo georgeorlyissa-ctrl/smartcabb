@@ -1,4 +1,4 @@
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { useAppState } from '../hooks/useAppState';
 import { MapPin, Clock, DollarSign, User } from '../lib/icons';
 import { Card } from './ui/card';

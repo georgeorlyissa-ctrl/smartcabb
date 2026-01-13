@@ -1,4 +1,4 @@
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { Link } from '../lib/simple-router';
 import { useState } from 'react';
 

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
+import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from 'lucide-react';
 import { Button } from '../ui/button';
-import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from '../../lib/icons';
 import { useAppState } from '../../hooks/useAppState';
 import type { Passenger, WalletTransaction } from '../../types';
 import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
 import { RechargeModal } from './RechargeModal';
 import { DebugPaymentModal } from '../DebugPaymentModal';
 import { walletService } from '../../lib/wallet-service';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function WalletScreen() {

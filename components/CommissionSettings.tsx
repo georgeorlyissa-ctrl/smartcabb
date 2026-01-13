@@ -1,25 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Card } from './ui/card';
+import { Switch } from './ui/switch';
+import { Label } from './ui/label';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import { Separator } from './ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useAppState } from '../hooks/useAppState';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 import {
   Percent,
   DollarSign,
-  Save,
-  RotateCcw,
   TrendingUp,
+  Clock,
+  Settings as SettingsIcon,
   AlertCircle,
   CheckCircle,
+  Receipt,
   Info
-} from '../lib/icons';
-import { toast } from '../lib/toast';
-import { Badge } from './ui/badge';
-import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Switch } from './ui/switch';
-import { Separator } from './ui/separator';
-import { useAppState } from '../hooks/useAppState';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { Clock, Receipt, Settings as SettingsIcon } from '../lib/icons';
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CommissionSettingsProps {
   userType: 'admin' | 'driver';

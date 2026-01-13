@@ -5,7 +5,7 @@
 
 import { paymentService } from '../lib/payment-service';
 import type { PaymentInitData, PaymentResult, PaymentMethod } from '../lib/payment-providers/base-provider';
-import { toast } from '../lib/toast';
+import { toast } from 'sonner';
 
 export function usePayment() {
 }

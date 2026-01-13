@@ -1,8 +1,8 @@
 import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
-import { Input } from './ui/input';
 import { EmailPhoneInput } from './EmailPhoneInput';
-import { ArrowLeft, Mail, CheckCircle, Phone } from '../lib/icons';
+import { ArrowLeft, Mail, CheckCircle, Phone } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAppState } from '../hooks/useAppState';
@@ -199,7 +199,9 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
   if (emailSent) {
     return (
-      <div
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         className={`min-h-screen bg-gradient-to-br ${theme.gradient} flex flex-col`}
       >
         {/* Header */}
@@ -218,13 +220,19 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
         {/* Success Message */}
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <div
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', delay: 0.2 }}
             className={`w-20 h-20 ${theme.icon} rounded-full flex items-center justify-center mb-6`}
           >
             <CheckCircle className="w-10 h-10 text-white" />
-          </div>
+          </motion.div>
 
-          <div
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3 }}
             className="text-center"
           >
             <h2 className="text-2xl mb-4">Email envoyé !</h2>
@@ -248,14 +256,18 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
             >
               Retour à la connexion
             </Button>
-          </div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ x: 300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: -300, opacity: 0 }}
+      transition={{ type: 'spring', damping: 25 }}
       className={`min-h-screen bg-gradient-to-br ${theme.gradient} flex flex-col`}
     >
       {/* Header */}
@@ -274,7 +286,10 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
       {/* Form */}
       <div className="flex-1 px-6 py-8">
-        <div
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
           className="text-center mb-8"
         >
           <div className={`w-16 h-16 ${theme.icon} rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -284,9 +299,12 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
           <p className="text-gray-600">
             Entrez votre email ou numéro de téléphone pour recevoir un lien de réinitialisation.
           </p>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
           className="space-y-6"
         >
           <EmailPhoneInput
@@ -303,11 +321,14 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
               Si vous avez utilisé un numéro de téléphone, un SMS avec un code sera envoyé (délai : 5-60 secondes).
             </p>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Actions */}
-      <div
+      <motion.div
+        initial={{ y: 50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.4 }}
         className="px-6 pb-8 space-y-4"
       >
         <Button
@@ -325,7 +346,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
         >
           Annuler
         </Button>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

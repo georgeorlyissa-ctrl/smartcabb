@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react';
-import {
-  CheckCircle,
-  DollarSign,
-  Banknote,
-  CreditCard,
-  User,
-  Clock,
-  XCircle
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  CheckCircle,
+  XCircle,
+  Clock,
+  DollarSign
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 export function PaymentConfirmationScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();

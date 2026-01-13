@@ -1,12 +1,14 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
-import { GooglePlacesSearch } from './GooglePlacesSearch';
+import { useState, useEffect } from 'react';
 import { useAppState } from '../../hooks/useAppState';
-import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from '../../lib/icons';
-import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion';
+import { FavoriteLocations } from './FavoriteLocations';
+import { InteractiveMapView } from '../InteractiveMapView';
+import { AddressSearchInput } from '../AddressSearchInput';
+import { YangoStyleSearch } from './YangoStyleSearch'; // 🆕 Nouveau composant Yango-style
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/precise-gps';
 
 export function MapScreen() {
@@ -17,6 +19,8 @@ export function MapScreen() {
   const [isSelectingOnMap, setIsSelectingOnMap] = useState(false); // 🆕 Mode sélection sur carte
   const [selectedMapPoint, setSelectedMapPoint] = useState<{ lat: number; lng: number } | null>(null); // 🆕
   
+  // 🔍 Debug: Log quand destination change
+  // 🔍 Debug: Log quand destination change
   // 🔍 Debug: Log quand destination change
   useEffect(() => {
     console.log('🎯 MapScreen - destination a changé:', destination);
@@ -407,7 +411,7 @@ export function MapScreen() {
               </div>
               <div className="flex-1 min-w-0">
                 {/* 🆕 NOUVEAU : Composant de recherche Yango-style (SIMPLE ET EFFICACE) */}
-                <GooglePlacesSearch
+                <YangoStyleSearch
                   placeholder="Où allez-vous ?"
                   currentLocation={currentLocation}
                   onSelect={(result) => {
@@ -442,7 +446,7 @@ export function MapScreen() {
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <GooglePlacesSearch
+                <YangoStyleSearch
                   placeholder="Point de repère (ex: Arrêt Armée, Marché Central...)"
                   currentLocation={currentLocation}
                   onSelect={(result) => {

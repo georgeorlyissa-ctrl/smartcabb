@@ -1,19 +1,12 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line
-} from 'recharts';
-import { TrendingUp, Calendar, DollarSign } from '../../lib/icons';
+// 🔥 v311.5 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
+import { useMemo } from 'react';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { TrendingUp, Calendar, DollarSign } from 'lucide-react';
 
 export function StatsCharts() {
   const { rides, drivers } = useSupabaseData();

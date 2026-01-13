@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Card } from '../ui/card';
-import { MessageSquare, User, CheckCheck, Check, Send } from '../../lib/icons';
+import { Badge } from '../ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { toast } from 'sonner';
+import { supabase } from '../../lib/supabase';
+import { MessageSquare, User, CheckCheck, Check, Send } from 'lucide-react';
 
 interface Message {
   id: string;

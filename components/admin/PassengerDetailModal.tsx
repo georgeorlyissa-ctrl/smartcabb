@@ -1,32 +1,4 @@
-import { useState, useEffect } from 'react';
-import {
-  X,
-  Star,
-  MapPin,
-  Phone,
-  Mail,
-  Calendar,
-  CreditCard,
-  TrendingUp,
-  CheckCircle,
-  XCircle,
-  Clock,
-  Activity,
-  User,
-  Save,
-  Shield,
-  Ban,
-  Trash2,
-  AlertCircle,
-  DollarSign,
-  Navigation,
-  Award,
-  Heart,
-  MessageCircle,
-  FileText,
-  Edit,
-  RefreshCw
-} from '../../lib/icons';
+import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -34,6 +6,28 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Calendar,
+  Car,
+  Star,
+  CreditCard,
+  Ban,
+  Check,
+  Trash2,
+  Save,
+  X,
+  Wallet,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
+import { toast } from '../../lib/toast';
 import type { Profile } from '../../lib/supabase';
 import type { EnrichedRide } from '../../hooks/useSupabaseData';
 import { profileService } from '../../lib/supabase-services';
@@ -203,7 +197,7 @@ export function PassengerDetailModal({
   const getTransactionStatusIcon = (status?: string) => {
     switch (status) {
       case 'approved':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
       case 'pending':
         return <Clock className="w-4 h-4 text-orange-600" />;
       case 'rejected':

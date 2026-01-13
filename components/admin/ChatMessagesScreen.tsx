@@ -1,22 +1,29 @@
-import { useState, useEffect } from 'react';
-import {
-  MessageCircle,
-  Search,
-  Filter,
-  Download,
-  RefreshCw,
+import { useState, useEffect, useRef } from 'react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Textarea } from '../ui/textarea';
+import { Badge } from '../ui/badge';
+import { 
+  MessageCircle, 
+  Send, 
+  Check, 
+  Clock, 
+  User, 
+  Mail, 
+  Phone,
   Calendar,
-  User,
-  Car,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Eye,
-  Trash2,
+  Search,
+  X,
+  CheckCircle2,
+  Bell,
+  BellOff,
+  RefreshCw,
+  Volume2,
   ArrowLeft  // Added ArrowLeft import
-} from '../../lib/icons';
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';  // Added useAppState import
 

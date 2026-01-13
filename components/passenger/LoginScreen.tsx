@@ -1,27 +1,17 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { useAppState } from '../../hooks/useAppState';
+import { PhoneInput } from '../PhoneInput';
+import { validatePhoneNumberRDC } from '../../lib/phone-utils';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useNavigate } from '../../lib/simple-router';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Card } from '../ui/card';
-import { EmailPhoneInput } from '../EmailPhoneInput';
-import { PhoneInput } from '../PhoneInput';
-import { OTPVerification } from '../OTPVerification';
-import { useAppState } from '../../hooks/useAppState';
-import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { signIn } from '../../lib/auth-service';
 import * as profileService from '../../lib/profile-service';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-
-// Hook de navigation simple
-function useNavigate() {
-  return (path: string) => {
-    // Pour l'instant, on ne fait rien car la navigation est gérée par setCurrentScreen
-    console.log('Navigate to:', path);
-  };
-}
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');

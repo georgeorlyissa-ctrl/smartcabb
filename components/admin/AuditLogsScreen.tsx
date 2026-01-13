@@ -1,37 +1,19 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
-import { ArrowLeft, Shield, Download, Search, User, Calendar as CalendarIcon, FileText } from '../../lib/icons';
+import { motion } from 'motion/react';
+import { ArrowLeft } from '../../lib/icons';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Calendar } from '../ui/calendar';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
 import { supabase } from '../../lib/supabase';
 import { Badge } from '../ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-
-// ✅ Utiliser des fonctions natives au lieu de date-fns
-const formatDate = (date: Date, formatStr: string = 'dd/MM/yyyy HH:mm:ss') => {
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
-  
-  if (formatStr === 'dd/MM/yyyy HH:mm:ss') {
-    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
-  }
-  if (formatStr === 'yyyy-MM-dd HH:mm:ss') {
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  }
-  if (formatStr === 'yyyy-MM-dd-HHmm') {
-    return `${year}-${month}-${day}-${hours}${minutes}`;
-  }
-  return `${day}/${month}/${year}`;
-};
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { FileText } from 'lucide-react';
 
 interface AuditLog {
   id: string;
@@ -118,6 +100,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       const { data, error, count } = await query;
 
       if (error) {
+        // Si la table n'existe pas, afficher un message informatif
         if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
           console.log('ℹ️ Table audit_logs non trouvée - retour tableau vide');
           setLogs([]);
@@ -132,12 +115,13 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       setTotalPages(Math.ceil((count || 0) / pageSize));
 
     } catch (error: any) {
+      // Vérifier si c'est une erreur réseau
       const isNetworkError = error.message?.includes('Failed to fetch') || 
                             error.message?.includes('Network request failed') ||
                             error.message?.includes('Connection timeout');
       
       if (isNetworkError) {
-        console.warn('⚠️ Impossible de charger les logs (mode prévisualisation)');
+        console.warn('⚠️ Impossible de charger les logs (mode prévisualisation ou connexion limitée)');
       } else {
         console.error('Error loading audit logs:', error);
         toast.error('Erreur de chargement des logs');
@@ -160,8 +144,9 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
         .order('created_at', { ascending: false });
 
       if (error) {
+        // Si la table n'existe pas, afficher un message informatif
         if (error.code === 'PGRST205' || error.code === '42P01' || error.message?.includes('does not exist')) {
-          toast.error('Table audit_logs non trouvée');
+          toast.error('Table audit_logs non trouvée. Veuillez exécuter le script SQL : ⚡-CRÉER-TABLE-AUDIT-LOGS.sql');
           return;
         }
         throw error;
@@ -177,7 +162,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `audit-logs-${formatDate(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      link.download = `audit-logs-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
       link.click();
 
       toast.success('Logs exportés');
@@ -186,6 +171,9 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       if (!isNetworkError) {
         console.error('Error exporting logs:', error);
         toast.error('Erreur lors de l\'exportation');
+      } else {
+        console.warn('⚠️ Export impossible (mode prévisualisation)');
+        toast.warning('Export non disponible en mode prévisualisation');
       }
     }
   };
@@ -193,7 +181,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
   const convertToCSV = (logs: AuditLog[]) => {
     const headers = ['Date', 'Utilisateur', 'Rôle', 'Action', 'Type', 'Détails', 'IP'];
     const rows = logs.map(log => [
-      formatDate(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
       log.user?.name || 'N/A',
       log.user?.role || 'N/A',
       ACTION_LABELS[log.action]?.label || log.action,
@@ -276,6 +264,8 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
               <SelectItem value="login">Connexions</SelectItem>
               <SelectItem value="create_ride">Créations course</SelectItem>
               <SelectItem value="approve_driver">Approbations</SelectItem>
+              <SelectItem value="approve_refund">Remboursements</SelectItem>
+              <SelectItem value="update_settings">Modifications</SelectItem>
             </SelectContent>
           </Select>
 
@@ -287,6 +277,9 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
               <SelectItem value="all">Toutes les entités</SelectItem>
               <SelectItem value="ride">Courses</SelectItem>
               <SelectItem value="driver">Conducteurs</SelectItem>
+              <SelectItem value="refund">Remboursements</SelectItem>
+              <SelectItem value="settings">Paramètres</SelectItem>
+              <SelectItem value="promo">Promotions</SelectItem>
             </SelectContent>
           </Select>
 
@@ -302,12 +295,17 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                   mode="single"
                   selected={startDate}
                   onSelect={setStartDate}
+                  locale={fr}
                 />
               </PopoverContent>
             </Popover>
 
             {startDate && (
-              <Button variant="ghost" size="sm" onClick={() => setStartDate(undefined)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setStartDate(undefined)}
+              >
                 ×
               </Button>
             )}
@@ -325,6 +323,19 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
           <div className="text-center py-12 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p className="text-lg font-medium mb-2">Aucun log d'audit trouvé</p>
+            <p className="text-sm text-gray-400 mb-4">
+              Les actions administratives seront enregistrées ici automatiquement.
+            </p>
+            {logs.length === 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4 max-w-md mx-auto">
+                <p className="text-xs text-orange-700">
+                  💡 <strong>Table audit_logs non trouvée</strong>
+                </p>
+                <p className="text-xs text-orange-600 mt-2">
+                  Exécutez le script SQL <code className="bg-orange-100 px-2 py-1 rounded font-mono">⚡-CRÉER-TABLE-AUDIT-LOGS.sql</code> dans Supabase, puis rechargez cette page.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -340,7 +351,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-sm text-gray-600">
-                        {formatDate(new Date(log.created_at))}
+                        {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}
                       </span>
                       {getActionBadge(log.action)}
                       <Badge variant="outline">{log.entity_type}</Badge>
@@ -352,6 +363,23 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                         <span className="font-medium">{log.user?.name || 'Utilisateur inconnu'}</span>
                         <span className="text-gray-600">({log.user?.role})</span>
                       </div>
+
+                      {log.details && (
+                        <div className="pl-6 text-gray-600">
+                          <details className="cursor-pointer">
+                            <summary>Détails</summary>
+                            <pre className="mt-2 p-3 bg-gray-100 rounded text-xs overflow-x-auto">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          </details>
+                        </div>
+                      )}
+
+                      {log.ip_address && (
+                        <div className="pl-6 text-xs text-gray-500">
+                          IP: {log.ip_address}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -385,6 +413,36 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
           </div>
         )}
       </Card>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="p-4">
+          <div className="text-sm text-gray-600 mb-1">Total d'actions</div>
+          <div className="text-2xl">{logs.length}</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-gray-600 mb-1">Aujourd'hui</div>
+          <div className="text-2xl">
+            {logs.filter(l => {
+              const today = new Date();
+              const logDate = new Date(l.created_at);
+              return logDate.toDateString() === today.toDateString();
+            }).length}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-gray-600 mb-1">Utilisateurs actifs</div>
+          <div className="text-2xl">
+            {new Set(logs.map(l => l.user_id)).size}
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-gray-600 mb-1">Actions critiques</div>
+          <div className="text-2xl text-red-600">
+            {logs.filter(l => ['delete_user', 'reject_driver', 'reject_refund'].includes(l.action)).length}
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

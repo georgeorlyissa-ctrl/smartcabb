@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Input } from '../ui/input';
-import { AlertCircle, Lock, Eye, EyeOff, Check } from '../../lib/icons';
+import { AlertCircle } from 'lucide-react';
 import { useNavigate } from '../../lib/simple-router';
 import { supabase } from '../../lib/supabase';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 export function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState('');

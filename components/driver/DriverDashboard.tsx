@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { Card } from '../ui/card';
@@ -36,8 +36,8 @@ import {
   MapPin,
   Phone,
   MessageSquare
-} from '../../lib/icons';
-import { toast } from '../../lib/toast';
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { 
   notifyRideConfirmed,

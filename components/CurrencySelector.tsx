@@ -1,4 +1,4 @@
-import { motion } from '../lib/motion';
+import { motion } from 'motion/react';
 import { Card } from './ui/card';
 import { DollarSign, Banknote } from '../lib/icons';
 

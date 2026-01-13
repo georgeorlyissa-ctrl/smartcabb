@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Slot } from "../../lib/slot";
+import { Slot } from "@radix-ui/react-slot";
 import { Loader2 } from "../../lib/icons";
-import { cva, type VariantProps } from "../../lib/cva";
+import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "./utils";
 

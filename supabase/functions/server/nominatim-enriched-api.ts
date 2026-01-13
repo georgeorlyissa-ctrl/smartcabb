@@ -9,36 +9,6 @@ import { Hono } from 'npm:hono@4.6.14';
 
 const nominatimApp = new Hono();
 
-// 🔄 HELPER: Fetch avec retry et timeout
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2, timeout = 5000): Promise<Response | null> {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-      
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (response.ok) {
-        return response;
-      }
-    } catch (e) {
-      if (i === retries) {
-        console.error(`❌ Fetch échoué après ${retries + 1} tentatives:`, e instanceof Error ? e.message : String(e));
-        return null;
-      }
-      // Délai exponentiel : 500ms, 1000ms, 2000ms
-      const delay = 500 * Math.pow(2, i);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  return null;
-}
-
 // 🗺️ COORDONNÉES DES GRANDES VILLES DE RDC
 const RDC_CITIES = {
   kinshasa: { lat: -4.3276, lng: 15.3136, name: 'Kinshasa' },
@@ -92,14 +62,14 @@ nominatimApp.get('/search', async (c) => {
       'accept-language': 'fr'
     });
 
-    const response = await fetchWithRetry(nominatimUrl, {
+    const response = await fetch(nominatimUrl, {
       headers: {
         'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
       }
     });
 
-    if (!response) {
-      throw new Error('Nominatim API error');
+    if (!response.ok) {
+      throw new Error(`Nominatim API error: ${response.status}`);
     }
 
     const nominatimResults: any[] = await response.json();
@@ -199,11 +169,11 @@ nominatimApp.get('/smart-search', async (c) => {
     });
     
     try {
-      const response1 = await fetchWithRetry(strictUrl, {
+      const response1 = await fetch(strictUrl, {
         headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
       });
       
-      if (response1) {
+      if (response1.ok) {
         const results1 = await response1.json();
         console.log(`  ✅ Tentative 1 : ${results1.length} résultats`);
         allNominatimResults.push(...results1);
@@ -228,11 +198,11 @@ nominatimApp.get('/smart-search', async (c) => {
     });
     
     try {
-      const response2 = await fetchWithRetry(simpleUrl, {
+      const response2 = await fetch(simpleUrl, {
         headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
       });
       
-      if (response2) {
+      if (response2.ok) {
         const results2 = await response2.json();
         console.log(`  ✅ Tentative 2 : ${results2.length} résultats`);
         allNominatimResults.push(...results2);
@@ -259,11 +229,11 @@ nominatimApp.get('/smart-search', async (c) => {
         });
         
         try {
-          const catResponse = await fetchWithRetry(catUrl, {
+          const catResponse = await fetch(catUrl, {
             headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
           });
           
-          if (catResponse) {
+          if (catResponse.ok) {
             const catResults = await catResponse.json();
             if (catResults.length > 0) {
               console.log(`  ✅ Catégorie ${cat} : ${catResults.length} résultats`);
@@ -403,14 +373,14 @@ nominatimApp.get('/reverse', async (c) => {
       'accept-language': 'fr'
     });
 
-    const response = await fetchWithRetry(nominatimUrl, {
+    const response = await fetch(nominatimUrl, {
       headers: {
         'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
       }
     });
 
-    if (!response) {
-      throw new Error('Nominatim reverse API error');
+    if (!response.ok) {
+      throw new Error(`Nominatim reverse API error: ${response.status}`);
     }
 
     const result: any = await response.json();
@@ -462,13 +432,13 @@ nominatimApp.get('/popular', async (c) => {
       });
 
       try {
-        const response = await fetchWithRetry(nominatimUrl, {
+        const response = await fetch(nominatimUrl, {
           headers: {
             'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
           }
         });
 
-        if (response) {
+        if (response.ok) {
           const results: any[] = await response.json();
           const enriched = results
             .map(place => enrichPlace(place, cityData))

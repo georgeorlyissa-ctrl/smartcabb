@@ -1,8 +1,13 @@
+import { VEHICLE_PRICING, VehicleCategory } from '../../lib/pricing';
+import { notifyRideStarted } from '../../lib/sms-service';
+import { updateDriverBalance } from '../../hooks/useDriverBalance';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
 import { toast } from '../../lib/toast';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from 'lucide-react';
 import { TimerControl } from './TimerControl';
 import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
 

@@ -1,21 +1,20 @@
-import { useState, useEffect } from 'react';
-import {
-  MapPin,
-  Navigation,
-  Phone,
-  MessageCircle,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  User,
-  ArrowLeft
-} from '../../lib/icons';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  User, 
+  Phone, 
+  MapPin,
+  Navigation,
+  MessageCircle,
+  CheckCircle,
+  X
+} from 'lucide-react';
+import { useState } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 export function ActiveRideScreen() {
   const { setCurrentScreen, state, updateRide } = useAppState();

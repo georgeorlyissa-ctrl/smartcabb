@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { useAppState } from '../../hooks/useAppState';
+import { ArrowLeft, Tag, Check, X, Gift, Percent } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { ArrowLeft, Tag, Check, X, Gift, Percent } from '../../lib/icons';
+import { Card } from '../ui/card';
+import { formatCDF } from '../../lib/pricing';
+import { supabase } from '../../lib/supabase';
 
 interface PromoCode {
   code: string;

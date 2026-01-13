@@ -1,19 +1,18 @@
 import { useState } from 'react';
-import {
-  Shield,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Copy,
-  ExternalLink,
-  Database,
-  Lock,
-  Unlock,
+import { motion, AnimatePresence } from 'motion/react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
+import { Button } from './ui/button';
+import { Alert, AlertDescription } from './ui/alert';
+import { 
+  AlertCircle, 
+  Copy, 
+  ExternalLink, 
   RefreshCw,
+  CheckCircle,
   XCircle
-} from '../lib/icons';
+} from 'lucide-react';
 import { MANUAL_SQL_SCRIPT } from '../lib/disable-rls';
-import { toast } from '../lib/toast';
+import { toast } from 'sonner';
 
 interface RLSFixModalProps {
   isOpen: boolean;
@@ -45,7 +44,7 @@ export function RLSFixModal({ isOpen, onClose }: RLSFixModalProps) {
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            <AlertTriangle className="w-6 h-6 text-red-500" />
+            <AlertCircle className="w-6 h-6 text-red-500" />
             <span>Erreur de récursion infinie détectée</span>
           </DialogTitle>
           <DialogDescription>
@@ -57,7 +56,7 @@ export function RLSFixModal({ isOpen, onClose }: RLSFixModalProps) {
         <div className="space-y-6">
           {/* Alert explicatif */}
           <Alert>
-            <AlertTriangle className="w-4 h-4" />
+            <AlertCircle className="w-4 h-4" />
             <AlertDescription>
               <strong>Problème :</strong> Les politiques de sécurité (RLS) sur la table "profiles" 
               créent une récursion infinie. Vous devez les désactiver dans Supabase.
@@ -191,7 +190,7 @@ export function RLSFixModal({ isOpen, onClose }: RLSFixModalProps) {
 
           {/* Aide */}
           <Alert>
-            <AlertTriangle className="w-4 h-4" />
+            <AlertCircle className="w-4 h-4" />
             <AlertDescription className="text-sm">
               <strong>Besoin d'aide ?</strong> Si vous ne voyez pas où aller dans Supabase :
               <br />

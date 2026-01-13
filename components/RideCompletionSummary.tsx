@@ -1,6 +1,6 @@
-import { motion } from '../lib/motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { CheckCircle, Clock, MapPin, CreditCard } from '../lib/icons';
+import { CheckCircle, Clock, MapPin, CreditCard } from 'lucide-react';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
 

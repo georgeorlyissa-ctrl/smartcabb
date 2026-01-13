@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
-import {
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  AlertCircle,
-  Lock
-} from '../../lib/icons';
+import { useState } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { useTranslation } from '../../hooks/useTranslation';
+import { 
+  ArrowLeft, 
+  Lock,
+  AlertCircle,
+  CheckCircle,
+  Smartphone
+} from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
 interface ConfirmationCodeScreenProps {
   rideId: string;
@@ -153,7 +154,7 @@ export function ConfirmationCodeScreen({
             disabled={isVerifying}
             className="w-10 h-10 hover:bg-muted"
           >
-            <XCircle className="w-5 h-5 text-primary" />
+            <ArrowLeft className="w-5 h-5 text-primary" />
           </Button>
           <h1 className="text-primary">Code de confirmation</h1>
           <div className="w-10" />

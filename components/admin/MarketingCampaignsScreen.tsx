@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Edit2, Trash2, Megaphone, Calendar, Users, Eye } from '../../lib/icons';
+import { useState } from 'react';
+import { ArrowLeft, Plus, Edit2, Trash2, Megaphone, Calendar, Users, Eye } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';

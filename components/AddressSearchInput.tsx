@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, X, Loader2 } from '../lib/icons';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Search, MapPin, X } from '../lib/icons';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { motion, AnimatePresence } from '../lib/motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
 import { searchProfessionalPlaces, getPlaceCoordinates, type ProfessionalPlace } from '../lib/professional-geocoding'; // 🆕 API PROFESSIONNELLE (Mapbox + Google)
@@ -53,6 +54,8 @@ export function AddressSearchInput({
   }, [value]);
 
   // Calculer la position du dropdown
+   // Calculer la position du dropdown
+   // Calculer la position du dropdown
   const updateDropdownPosition = () => {
     if (searchRef.current) {
       const rect = searchRef.current.getBoundingClientRect();
@@ -251,7 +254,7 @@ export function AddressSearchInput({
     >
       {isLoading ? (
         <div className="p-4 text-center">
-          <Loader2 className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></Loader2>
+          <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></div>
           <p className="text-sm text-gray-600 mt-2">Recherche...</p>
         </div>
       ) : (

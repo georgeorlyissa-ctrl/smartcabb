@@ -1,16 +1,20 @@
-import { useState } from 'react';
-import {
-  User,
-  Phone,
-  Star,
-  MapPin,
-  Navigation,
-  MessageCircle,
-  AlertTriangle,
-  ArrowLeft
-} from '../../lib/icons';
+import { motion } from 'motion/react';
+import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  ArrowLeft, 
+  User, 
+  Phone, 
+  Mail, 
+  Star,
+  MapPin,
+  Calendar,
+  MessageCircle,
+  Shield,
+  ChevronDown
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function ClientInfoScreen() {

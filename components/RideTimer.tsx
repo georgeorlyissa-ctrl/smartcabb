@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Play, Pause } from '../lib/icons';
+import { Clock, Play, Pause } from 'lucide-react';
 import { Card } from './ui/card';
 
 // ✅ v517.76 - Protection toLocaleString ajoutée

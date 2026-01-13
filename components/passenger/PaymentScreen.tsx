@@ -1,24 +1,22 @@
-import { useState, useEffect } from 'react';
-import {
-  CreditCard,
-  Smartphone,
-  Banknote,
-  DollarSign,
-  CheckCircle,
-  ArrowLeft,
-  AlertCircle,
-  Loader2,
-  Phone,
-  Wallet,
-  Split,
-  X
-} from '../../lib/icons';
-import { motion, AnimatePresence } from '../../lib/motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { 
+  CreditCard,
+  Smartphone,
+  Banknote,
+  CheckCircle,
+  Loader2,
+  Wallet,
+  AlertCircle,
+  X,
+  Phone,
+  Split
+} from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
 import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';

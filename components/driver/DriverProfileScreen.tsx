@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
-import { ArrowLeft, Edit3, Save, X, User, Mail, Phone, Car, MapPin, Star, DollarSign, TrendingUp, Shield, Camera, Upload } from '../../lib/icons';
-import { toast } from '../../lib/toast';
+import { useState, useEffect, useRef } from 'react';
+import { useAppState } from '../../hooks/useAppState';
+import { ArrowLeft, Edit3, Save, X, User, Mail, Phone, Car, MapPin, Star, DollarSign, TrendingUp, Shield, Camera, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, type VehicleCategory } from '../../lib/pricing';
 import { notifyVehicleUpdated, notifyProfileUpdated } from '../../lib/sms-service';
+import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 // Helper functions

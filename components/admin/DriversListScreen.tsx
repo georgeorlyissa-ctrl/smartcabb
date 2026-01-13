@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -7,6 +7,23 @@ import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData, type EnrichedDriver } from '../../hooks/useSupabaseData';
 import { DriverDetailModal } from './DriverDetailModal';
+import { 
+  ArrowLeft, 
+  Search, 
+  Users, 
+  Star,
+  Car,
+  Phone,
+  Mail,
+  CheckCircle,
+  XCircle,
+  Filter,
+  FileText,
+  Eye,
+  RefreshCw,
+  Download
+} from 'lucide-react';
+import { toast } from 'sonner';
 import type { Vehicle } from '../../lib/supabase';
 
 interface DriversListScreenProps {

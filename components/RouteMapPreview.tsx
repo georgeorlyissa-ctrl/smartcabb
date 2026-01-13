@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Navigation, MapPin, Clock, TrendingUp, AlertCircle, Navigation2, Zap } from '../lib/icons';
-import { motion, AnimatePresence } from '../lib/motion';
+import { useEffect, useRef, useState } from 'react';
+import { Navigation, MapPin, Clock, TrendingUp, AlertCircle, Navigation2, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { formatDuration, getCurrentTrafficConditions } from '../lib/duration-calculator';
 import { InteractiveMapView } from './InteractiveMapView';
 

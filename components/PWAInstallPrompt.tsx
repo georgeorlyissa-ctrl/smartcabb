@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Download, Smartphone, WifiOff, Wifi } from '../lib/icons';
+import { X, Download, Smartphone, WifiOff, Wifi } from 'lucide-react';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;

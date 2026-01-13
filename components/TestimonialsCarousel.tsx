@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../lib/motion';
-import { Star, Quote } from '../lib/icons';
+import { motion, AnimatePresence } from 'motion/react';
+import { Star, Quote } from 'lucide-react';
 
 interface Testimonial {
   id: number;

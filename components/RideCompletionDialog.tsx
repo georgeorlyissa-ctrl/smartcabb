@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
-import { CheckCircle, Star } from '../lib/icons';
+import { CheckCircle, Star } from 'lucide-react';
 
 interface RideCompletionDialogProps {
   isOpen: boolean;

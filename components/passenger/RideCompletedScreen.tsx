@@ -1,19 +1,19 @@
-import { useState } from 'react';
-import {
-  CheckCircle,
-  Star,
-  DollarSign,
-  Clock,
-  MapPin,
-  User,
-  Car,
-  Download,
-  Share2
-} from '../../lib/icons';
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
-import { motion } from '../../lib/motion';
+import { 
+  CheckCircle,
+  MapPin,
+  Clock,
+  DollarSign,
+  Route,
+  Car,
+  Star,
+  User,
+  CreditCard
+} from 'lucide-react';
 
 export function RideCompletedScreen() {
   const { state, setCurrentScreen, drivers } = useAppState();

@@ -8,15 +8,30 @@
  */
 
 import { useState, useEffect } from 'react';
-import { motion } from '../../lib/motion';
+import { motion } from 'motion/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 // ✅ IMPORT CORRECT POUR PRODUCTION
-import { toast } from '../../lib/toast';
+import { toast } from 'sonner';
 
+import { 
+  Mail, 
+  Send, 
+  Settings, 
+  CheckCircle2, 
+  XCircle, 
+  Loader2,
+  Key,
+  Server,
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowLeft
+} from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
   Select,
@@ -26,35 +41,6 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Switch } from '../ui/switch';
-
-import {
-  Mail,
-  Save,
-  RefreshCw,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Send,
-  Key,
-  Server,
-  Lock,
-  Globe,
-  Settings,
-  TestTube,
-  Copy,
-  Eye,
-  EyeOff,
-  ArrowLeft,
-  Shield,
-  Upload,
-  Download,
-  Database,
-  Activity,
-  Bell,
-  Users,
-  Calendar,
-  FileText
-} from '../../lib/icons';
 
 interface EmailConfig {
   provider: 'resend' | 'sendgrid' | 'smtp';
@@ -292,7 +278,7 @@ export function EmailSettingsScreen({ onBack }: EmailSettingsScreenProps) {
               <div className="flex items-center gap-3">
                 {config.isConfigured && config.isEnabled ? (
                   <>
-                    <CheckCircle className="w-6 h-6 text-green-500" />
+                    <CheckCircle2 className="w-6 h-6 text-green-500" />
                     <div>
                       <p className="font-semibold text-green-700">Emails activés</p>
                       <p className="text-sm text-gray-600">
@@ -324,7 +310,7 @@ export function EmailSettingsScreen({ onBack }: EmailSettingsScreenProps) {
         <Card className="border-2 border-green-300 bg-gradient-to-br from-green-50 to-cyan-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+              <CheckCircle2 className="w-6 h-6 text-green-600" />
               🎉 Test Rapide SendGrid
             </CardTitle>
             <CardDescription>

@@ -1,85 +1,43 @@
 "use client";
 
 import * as React from "react";
+import * as HoverCardPrimitive from "@radix-ui/react-hover-card";
+
 import { cn } from "./utils";
 
-// Simplified hover card without @radix-ui dependencies
-interface HoverCardProps {
-  children: React.ReactNode;
-  openDelay?: number;
-  closeDelay?: number;
+function HoverCard({
+  ...props
+}: React.ComponentProps<typeof HoverCardPrimitive.Root>) {
+  return <HoverCardPrimitive.Root data-slot="hover-card" {...props} />;
 }
 
-const HoverCardContext = React.createContext<{
-  open: boolean;
-  setOpen: (open: boolean) => void;
-}>({
-  open: false,
-  setOpen: () => {},
-});
-
-function HoverCard({ children }: HoverCardProps) {
-  const [open, setOpen] = React.useState(false);
-
+function HoverCardTrigger({
+  ...props
+}: React.ComponentProps<typeof HoverCardPrimitive.Trigger>) {
   return (
-    <HoverCardContext.Provider value={{ open, setOpen }}>
-      <div className="relative inline-block">{children}</div>
-    </HoverCardContext.Provider>
-  );
-}
-
-function HoverCardTrigger({ children, asChild }: { children: React.ReactNode; asChild?: boolean }) {
-  const { setOpen } = React.useContext(HoverCardContext);
-
-  const handleMouseEnter = () => setOpen(true);
-  const handleMouseLeave = () => setOpen(false);
-
-  if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children as React.ReactElement<any>, {
-      onMouseEnter: handleMouseEnter,
-      onMouseLeave: handleMouseLeave,
-    });
-  }
-
-  return (
-    <span onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
-      {children}
-    </span>
+    <HoverCardPrimitive.Trigger data-slot="hover-card-trigger" {...props} />
   );
 }
 
 function HoverCardContent({
   className,
-  children,
   align = "center",
   sideOffset = 4,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & {
-  align?: "start" | "center" | "end";
-  sideOffset?: number;
-}) {
-  const { open } = React.useContext(HoverCardContext);
-
-  if (!open) return null;
-
-  const alignClass = {
-    start: "left-0",
-    center: "left-1/2 -translate-x-1/2",
-    end: "right-0",
-  }[align];
-
+}: React.ComponentProps<typeof HoverCardPrimitive.Content>) {
   return (
-    <div
-      className={cn(
-        "absolute z-50 w-64 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none animate-in fade-in-0 zoom-in-95",
-        alignClass,
-        className
-      )}
-      style={{ top: `calc(100% + ${sideOffset}px)` }}
-      {...props}
-    >
-      {children}
-    </div>
+    <HoverCardPrimitive.Portal data-slot="hover-card-portal">
+      <HoverCardPrimitive.Content
+        data-slot="hover-card-content"
+        align={align}
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-64 origin-(--radix-hover-card-content-transform-origin) rounded-md border p-4 shadow-md outline-hidden",
+          className,
+        )}
+        {...props}
+      />
+    </HoverCardPrimitive.Portal>
   );
 }
 
