@@ -1,6 +1,20 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '../ui/button';
-import { Navigation as NavigationIcon } from '../../lib/icons';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { 
+  Navigation as NavigationIcon, 
+  ArrowLeft, 
+  Phone, 
+  MessageSquare, 
+  Minimize2, 
+  Maximize2, 
+  MapPin, 
+  AlertTriangle 
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
+import { toast } from '../../lib/toast';
+import { InteractiveMapView } from '../InteractiveMapView';
 
 export function GPSNavigationScreen() {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
