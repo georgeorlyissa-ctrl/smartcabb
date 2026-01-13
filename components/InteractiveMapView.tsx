@@ -41,6 +41,11 @@ interface InteractiveMapViewProps {
  * 
  * Utilise OpenStreetMap en iframe pour éviter les problèmes de build
  */
+/**
+ * 🗺️ CARTE INTERACTIVE - VERSION SIMPLIFIÉE TEMPORAIRE
+ * 
+ * Utilise OpenStreetMap en iframe pour éviter les problèmes de build
+ */
 export function InteractiveMapView({
   center,
   markers = [],
