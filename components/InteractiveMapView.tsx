@@ -1,23 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from '../lib/icons';
-
-interface Location {
-  lat: number;
-  lng: number;
-  address?: string;
-  accuracy?: number;
-}
-
-interface Driver {
-  id: string;
-  name: string;
-  location: Location;
-  vehicleInfo?: {
-    make: string;
-    color: string;
-  };
-  rating?: number;
-}
+import type { Location, Driver } from '../types/location';
 
 interface InteractiveMapViewProps {
   center?: Location;
