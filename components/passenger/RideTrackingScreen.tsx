@@ -18,12 +18,7 @@ import { InteractiveMapView } from '../InteractiveMapView';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { toast } from '../../lib/toast';
-
-interface Location {
-  lat: number;
-  lng: number;
-  address: string;
-}
+import type { Location } from '../../types/location';
 
 export function RideTrackingScreen() {
   const { state, setCurrentScreen } = useAppState();
