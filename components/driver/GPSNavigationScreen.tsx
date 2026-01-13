@@ -16,7 +16,48 @@ import { motion } from '../../lib/motion';
 import { toast } from '../../lib/toast';
 import { InteractiveMapView } from '../InteractiveMapView';
 
-export function GPSNavigationScreen() {
+// Types
+// Types
+// Types
+interface Position {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  speed: number | null;
+  heading: number | null;
+}
+
+interface NavigationStep {
+  instruction: string;
+  distance: string;
+  duration: string;
+}
+
+interface Location {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+interface GPSNavigationScreenProps {
+  pickup: Location;
+  dropoff: Location;
+  passengerName: string;
+  onBack: () => void;
+  onCallPassenger: () => void;
+  onOpenChat: () => void;
+  onEmergency: () => void;
+}
+
+export function GPSNavigationScreen({
+  pickup,
+  dropoff,
+  passengerName,
+  onBack,
+  onCallPassenger,
+  onOpenChat,
+  onEmergency
+}: GPSNavigationScreenProps) {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
   const [isTracking, setIsTracking] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
