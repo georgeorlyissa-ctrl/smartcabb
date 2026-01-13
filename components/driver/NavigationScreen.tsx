@@ -1,821 +1,406 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import mapboxgl from 'mapbox-gl';
-import { useAppState } from '../../hooks/useAppState';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
+import { Badge } from '../ui/badge';
+import { 
+  Navigation as NavigationIcon, 
+  ArrowLeft, 
+  Phone, 
+  MessageSquare, 
+  Minimize2, 
+  Maximize2, 
+  MapPin, 
+  AlertTriangle 
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
+import { toast } from '../../lib/toast';
+import { InteractiveMapView } from '../InteractiveMapView';
 
-interface NavigationScreenProps {
-  onBack: () => void;
+// Types
+interface Position {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  speed: number | null;
+  heading: number | null;
 }
 
-export function NavigationScreen({ onBack }: NavigationScreenProps) {
-  const { state, setCurrentScreen, updateRide, updateDriver } = useAppState();
-  const [phase, setPhase] = useState<'pickup' | 'destination'>('pickup');
-  const [elapsedTime, setElapsedTime] = useState(0);
-  const [currentCost, setCurrentCost] = useState(0);
-  const [isTimerDisabled, setIsTimerDisabled] = useState(false);
-  const [waitingTime, setWaitingTime] = useState(0);
-  const [freeWaitingDisabled, setFreeWaitingDisabled] = useState(false);
-  const [waitingTimeFrozen, setWaitingTimeFrozen] = useState<number | null>(null);
-  const [showCompletionDialog, setShowCompletionDialog] = useState(false);
-  const [billingStartTime, setBillingStartTime] = useState<number | null>(null);
-  const [billingElapsedTime, setBillingElapsedTime] = useState(0);
-  const [passengerPaid, setPassengerPaid] = useState(false);
-  const [isLoadingRideData, setIsLoadingRideData] = useState(false);
-  
-  // ✅ NOUVEAU : CHARGER LES VRAIES DONNÉES DU BACKEND AU DÉMARRAGE
+interface NavigationStep {
+  instruction: string;
+  distance: string;
+  duration: string;
+}
+
+interface Location {
+  lat: number;
+  lng: number;
+  address: string;
+}
+
+interface GPSNavigationScreenProps {
+  pickup: Location;
+  dropoff: Location;
+  passengerName: string;
+  onBack: () => void;
+  onCallPassenger: () => void;
+  onOpenChat: () => void;
+  onEmergency: () => void;
+}
+
+export function GPSNavigationScreen({
+  pickup,
+  dropoff,
+  passengerName,
+  onBack,
+  onCallPassenger,
+  onOpenChat,
+  onEmergency
+}: GPSNavigationScreenProps) {
+  const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
+  const [isTracking, setIsTracking] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [eta, setEta] = useState<string>('Calcul...');
+  const [distanceRemaining, setDistanceRemaining] = useState<string>('--');
+  const [currentStep, setCurrentStep] = useState<NavigationStep | null>(null);
+  const [watchId, setWatchId] = useState<number | null>(null);
+  const [heading, setHeading] = useState<number>(0);
+
+  // Démarrer le suivi GPS
   useEffect(() => {
-    const loadRideFromBackend = async () => {
-      if (!state.currentRide?.id || isLoadingRideData) {
-        console.warn('⚠️ Pas de currentRide ou déjà en chargement');
-        return;
-      }
+    if (!isTracking) return;
 
-      setIsLoadingRideData(true);
-      
-      try {
-        console.log('🔄 Chargement des données de la course depuis le backend...', state.currentRide.id);
-        
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${state.currentRide.id}`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.ride) {
-            console.log('✅ Données chargées depuis le backend:', {
-              vehicleType: result.ride.vehicleType,
-              estimatedPrice: result.ride.estimatedPrice,
-              pickup: result.ride.pickup,
-              destination: result.ride.destination,
-              pickupAddress: result.ride.pickupAddress,
-              dropoffAddress: result.ride.dropoffAddress
-            });
-            
-            // ✅ FIX : Normaliser les données pickup/destination
-            // Le backend peut avoir soit pickup.address, soit pickupAddress
-            const normalizedPickup = result.ride.pickup || {};
-            if (!normalizedPickup.address && result.ride.pickupAddress) {
-              normalizedPickup.address = result.ride.pickupAddress;
-            }
-            if (!normalizedPickup.lat && result.ride.pickupLat) {
-              normalizedPickup.lat = result.ride.pickupLat;
-            }
-            if (!normalizedPickup.lng && result.ride.pickupLng) {
-              normalizedPickup.lng = result.ride.pickupLng;
-            }
-            
-            const normalizedDestination = result.ride.destination || {};
-            if (!normalizedDestination.address && result.ride.dropoffAddress) {
-              normalizedDestination.address = result.ride.dropoffAddress;
-            }
-            if (!normalizedDestination.lat && result.ride.dropoffLat) {
-              normalizedDestination.lat = result.ride.dropoffLat;
-            }
-            if (!normalizedDestination.lng && result.ride.dropoffLng) {
-              normalizedDestination.lng = result.ride.dropoffLng;
-            }
-            
-            console.log('✅ Données normalisées:', {
-              pickup: normalizedPickup,
-              destination: normalizedDestination
-            });
-            
-            // ✅ METTRE À JOUR LE STATE LOCAL AVEC LES VRAIES DONNÉES
-            if (updateRide) {
-              updateRide(state.currentRide.id, {
-                vehicleType: result.ride.vehicleType,
-                estimatedPrice: result.ride.estimatedPrice,
-                pickup: normalizedPickup,
-                destination: normalizedDestination,
-                distance: result.ride.distance || result.ride.distanceKm,
-                passengerName: result.ride.passengerName,
-                passengerPhone: result.ride.passengerPhone
-              });
-            }
-          } else {
-            console.warn('⚠️ Course non trouvée dans le backend, utilisation des données locales');
-          }
-        } else {
-          console.warn('⚠️ Erreur lors du chargement:', response.status);
-        }
-      } catch (error) {
-        console.error('❌ Erreur chargement données backend:', error);
-      } finally {
-        setIsLoadingRideData(false);
-      }
-    };
-
-    // Charger au démarrage uniquement
-    loadRideFromBackend();
-  }, []); // ✅ Pas de dépendances - charger UNE SEULE FOIS au mount
-  
-  // ✅ PRODUCTION : Pas de simulation automatique - Le driver confirme manuellement
-  const handleArriveAtPickup = () => {
-    setPhase('destination');
-    toast.success('Arrivé au point de départ !', {
-      description: 'Vous pouvez maintenant commencer la course'
-    });
-  };
-
-  // ✅ Timer d'attente (compte jusqu'à 10 minutes = 600 secondes)
-  useEffect(() => {
-    if (phase === 'destination' && !freeWaitingDisabled && waitingTime < 600) {
-      const interval = setInterval(() => {
-        setWaitingTime(prev => prev + 1);
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [phase, freeWaitingDisabled, waitingTime]);
-
-  // ✅ NOUVEAU : Auto-démarrage du chrono de facturation après 10 minutes d'attente
-  useEffect(() => {
-    if (phase === 'destination' && waitingTime >= 600 && !freeWaitingDisabled && !billingStartTime) {
-      setFreeWaitingDisabled(true);
-      const startTime = Date.now();
-      setBillingStartTime(startTime);
-      if (updateRide && state.currentRide?.id) {
-        updateRide(state.currentRide.id, {
-          billingStartTime: startTime,
-          billingElapsedTime: 0
-        });
-      }
-      console.log('🚀 Chrono de facturation démarré automatiquement (10 minutes atteintes)');
-    }
-    
-    if (phase === 'destination' && isBillingActive && !isTimerDisabled && billingStartTime) {
-      const interval = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - billingStartTime) / 1000);
-        setBillingElapsedTime(elapsed);
-        
-        // Synchroniser avec le state global
-        if (updateRide && state.currentRide?.id) {
-          updateRide(state.currentRide.id, {
-            billingElapsedTime: elapsed
-          });
-        }
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [phase, freeWaitingDisabled, waitingTime, billingStartTime, isTimerDisabled, updateRide, state.currentRide?.id]);
-
-  // Timer logic for billing - NOUVEAU : Calcul basé sur billingElapsedTime
-  useEffect(() => {
-    if (phase === 'destination' && !isTimerDisabled) {
-      const interval = setInterval(() => {
-        setElapsedTime(prev => prev + 1);
-      }, 1000);
-
-      return () => clearInterval(interval);
-    }
-  }, [phase, isTimerDisabled]);
-
-  // Calcul du coût en temps réel basé sur billingElapsedTime - NOUVEAU SYSTÈME PAR PALIERS
-  useEffect(() => {
-    // ✅ CORRECTION MAJEURE : Utiliser TOUJOURS estimatedPrice du backend
-    // Le calcul temps réel ne doit servir QUE d'affichage pendant la course
-    // À la clôture, on utilise l'estimatedPrice d'origine
-    
-    const backendEstimatedPrice = state.currentRide?.estimatedPrice;
-    
-    if (backendEstimatedPrice && backendEstimatedPrice > 0) {
-      // ✅ SI LE BACKEND A UN PRIX, ON L'UTILISE
-      setCurrentCost(backendEstimatedPrice);
-      console.log(`💰 Prix depuis le backend: ${backendEstimatedPrice.toLocaleString()} CDF`);
-      return; // Ne pas calculer avec le chrono
-    }
-    
-    // ⚠️ FALLBACK: Si pas de prix backend, calculer avec le chrono (ne devrait pas arriver)
-    // Récupérer la catégorie du véhicule depuis la course actuelle
-    const vehicleCategory = (state.currentRide?.vehicleType?.toLowerCase().replace(' ', '_') || 'smart_standard') as VehicleCategory;
-    
-    // 🎯 FACTURATION PAR TRANCHE D'HEURE COMPLÈTE
-    // 0-59min = 1h facturée, 1h00-1h59 = 2h facturées, etc.
-    const billedHours = Math.max(1, Math.ceil(billingElapsedTime / 3600));
-    
-    const currentHour = new Date().getHours();
-    const pricing = VEHICLE_PRICING[vehicleCategory];
-    
-    // ✅ CORRECTION : Utiliser la vraie structure de PRICING_CONFIG
-    // pricing.pricing.course_heure.jour.usd ou nuit.usd
-    const isDay = currentHour >= 6 && currentHour <= 20;
-    const hourlyRateUSD = isDay 
-      ? pricing.pricing.course_heure.jour.usd
-      : pricing.pricing.course_heure.nuit.usd;
-    
-    // Calcul du prix en USD
-    const priceUSD = hourlyRateUSD * billedHours;
-    
-    // ✅ CORRECTION : Utiliser systemSettings au lieu de adminSettings
-    const exchangeRate = state.systemSettings?.exchangeRate || 2850;
-    const totalCost = Math.round(priceUSD * exchangeRate);
-    
-    setCurrentCost(totalCost);
-    
-    console.log(`💰 CALCUL TARIFICATION PAR TRANCHE D'HEURE (FALLBACK):`);
-    console.log(`   Catégorie: ${pricing.name}`);
-    console.log(`   vehicleCategory KEY: "${vehicleCategory}"`);
-    console.log(`   state.currentRide?.vehicleType: "${state.currentRide?.vehicleType}"`);
-    console.log(`   Temps écoulé: ${billingElapsedTime}s (${Math.floor(billingElapsedTime / 60)}min ${billingElapsedTime % 60}s)`);
-    console.log(`   Tranches d'heures facturées: ${billedHours}h`);
-    console.log(`   Période: ${isDay ? 'Jour (6h-20h)' : 'Nuit (21h-5h)'}`);
-    console.log(`   Tarif horaire: $${hourlyRateUSD}/h`);
-    console.log(`   Prix USD: $${priceUSD}`);
-    console.log(`   Taux de change: ${exchangeRate}`);
-    console.log(`   💵 TOTAL CALCULÉ: ${totalCost.toLocaleString()} CDF ($${priceUSD.toFixed(2)})`);
-    
-    // ✅ DEBUG : Vérifier si le calcul est correct
-    if (totalCost === 0 || isNaN(totalCost)) {
-      console.error('❌ ERREUR : Le montant calculé est 0 ou NaN !');
-      console.error('   billingElapsedTime:', billingElapsedTime);
-      console.error('   billedHours:', billedHours);
-      console.error('   hourlyRateUSD:', hourlyRateUSD);
-      console.error('   priceUSD:', priceUSD);
-      console.error('   exchangeRate:', exchangeRate);
-      console.error('   VEHICLE_PRICING:', VEHICLE_PRICING);
-      console.error('   pricing structure:', pricing);
-    }
-  }, [billingElapsedTime, state.currentRide?.vehicleType, state.systemSettings?.exchangeRate]);
-
-  const handleCompleteRide = async () => {
-    // ARRÊTER TOUS LES TIMERS
-    // Le chrono et le prix doivent se figer à leur valeur actuelle
-    
-    // ✅ NOUVEAU : Si state.currentRide est null, charger depuis le backend
-    let rideData = state.currentRide;
-    
-    if (!rideData || !rideData.id) {
-      console.warn('⚠️ state.currentRide est null, tentative de chargement depuis le backend...');
-      
-      // Chercher le rideId dans localStorage en fallback
-      try {
-        const storedState = localStorage.getItem('smartcab_app_state');
-        if (storedState) {
-          const parsedState = JSON.parse(storedState);
-          if (parsedState.currentRide?.id) {
-            rideData = parsedState.currentRide;
-            console.log('✅ currentRide trouvé dans localStorage:', rideData.id);
-          }
-        }
-      } catch (error) {
-        console.warn('⚠️ Impossible de lire localStorage:', error);
-      }
-      
-      // Si toujours pas de rideData, chercher les courses actives du conducteur
-      if (!rideData || !rideData.id) {
-        console.log('🔍 Recherche de la course active du conducteur...');
-        
-        try {
-          const driverId = state.currentDriver?.id;
-          if (!driverId) {
-            toast.error('Erreur: Conducteur non identifié');
-            return;
-          }
-          
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/active-driver-ride/${driverId}`,
-            {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          
-          if (response.ok) {
-            const result = await response.json();
-            if (result.success && result.ride) {
-              rideData = result.ride;
-              console.log('✅ Course active trouvée:', rideData.id);
-            } else {
-              console.error('❌ Aucune course active trouvée pour ce conducteur');
-              toast.error('Erreur: Aucune course active trouvée');
-              return;
-            }
-          } else {
-            console.error('❌ Erreur API:', response.status);
-            toast.error('Erreur lors du chargement de la course');
-            return;
-          }
-        } catch (error) {
-          console.error('❌ Erreur réseau:', error);
-          toast.error('Erreur réseau. Veuillez réessayer.');
-          return;
-        }
-      }
-    }
-    
-    // ✅ À ce stade, rideData DOIT être valide
-    if (!rideData || !rideData.id) {
-      console.error('❌ Impossible de récupérer les données de la course');
-      toast.error('Erreur: Impossible de récupérer les données. Veuillez réessayer.');
+    if (!navigator.geolocation) {
+      toast.error('GPS non disponible sur cet appareil');
       return;
     }
 
-    // ✅ RÉCUPÉRER LE VRAI VEHICLETYPE DEPUIS LE BACKEND
-    let actualVehicleType = rideData.vehicleType;
-    let actualEstimatedPrice = rideData.estimatedPrice;
-    
     try {
-      // Charger les vraies données depuis le backend
-      const backendRideResponse = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${rideData.id}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
+      const id = navigator.geolocation.watchPosition(
+        (position) => {
+          const newPosition: Position = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            speed: position.coords.speed,
+            heading: position.coords.heading
+          };
+          
+          setCurrentPosition(newPosition);
+          
+          if (newPosition.heading !== null) {
+            setHeading(newPosition.heading);
           }
+
+          // Calculer ETA et distance
+          calculateETAAndDistance(newPosition, dropoff);
+          
+          // Log pour debug
+          console.log('📍 Position GPS:', newPosition);
+        },
+        (error) => {
+          console.warn('⚠️ Erreur GPS:', error);
+          
+          // Gestion améliorée des erreurs
+          let errorMessage = 'Impossible d\'obtenir votre position GPS';
+          
+          if (error?.message && (
+            error.message.includes('permissions policy') ||
+            error.message.includes('Permissions policy') ||
+            error.message.includes('disabled in this document')
+          )) {
+            errorMessage = 'GPS bloqué - Vérifiez les paramètres';
+            console.warn('⚠️ Permissions Policy détectée');
+          } else if (error.code === 1) {
+            errorMessage = 'Permission GPS refusée';
+          } else if (error.code === 2) {
+            errorMessage = 'Position GPS indisponible';
+          } else if (error.code === 3) {
+            errorMessage = 'Timeout GPS - réessai...';
+          }
+          
+          toast.warning(errorMessage);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
         }
       );
 
-      if (backendRideResponse.ok) {
-        const backendRideData = await backendRideResponse.json();
-        if (backendRideData.success && backendRideData.ride) {
-          actualVehicleType = backendRideData.ride.vehicleType || actualVehicleType;
-          actualEstimatedPrice = backendRideData.ride.estimatedPrice || actualEstimatedPrice;
-          console.log('✅ Données backend chargées:', {
-            vehicleType: actualVehicleType,
-            estimatedPrice: actualEstimatedPrice,
-            pickup: backendRideData.ride.pickup,
-            destination: backendRideData.ride.destination
-          });
-          
-          // Mettre à jour rideData avec les vraies données
-          rideData.vehicleType = actualVehicleType;
-          rideData.estimatedPrice = actualEstimatedPrice;
-          rideData.pickup = backendRideData.ride.pickup || rideData.pickup;
-          rideData.destination = backendRideData.ride.destination || rideData.destination;
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Impossible de charger depuis le backend, utilisation données locales');
-    }
+      setWatchId(id);
 
-    const vehicleCategory = (actualVehicleType?.toLowerCase().replace(' ', '_') || 'smart_standard') as VehicleCategory;
-    const pricing = VEHICLE_PRICING[vehicleCategory];
-    const pickupAddress = rideData.pickup?.address || 'Point de départ non spécifié';
-    const destinationAddress = rideData.destination?.address || 'Destination non spécifiée';
-    const distance = rideData.distance || rideData.distanceKm || 0;
+      return () => {
+        if (id !== null) {
+          navigator.geolocation.clearWatch(id);
+        }
+      };
+    } catch (syncError: any) {
+      // Erreur synchrone (Permissions Policy, etc.)
+      console.warn('⚠️ Erreur synchrone lors du démarrage GPS:', syncError);
+      
+      let errorMessage = 'GPS non disponible';
+      
+      if (syncError?.message && syncError.message.includes('permissions policy')) {
+        errorMessage = 'GPS bloqué par la sécurité du navigateur';
+      }
+      
+      toast.warning(errorMessage);
+    }
+  }, [isTracking, dropoff]);
+
+  // Calculer ETA et distance restante
+  const calculateETAAndDistance = useCallback((from: Position, to: { lat: number; lng: number }) => {
+    // Calcul simple de distance (formule Haversine)
+    const R = 6371; // Rayon de la Terre en km
+    const dLat = toRad(to.lat - from.lat);
+    const dLng = toRad(to.lng - from.lng);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    const safeDistance = distance || 0;
+    setDistanceRemaining(`${safeDistance.toFixed(1)} km`);
+
+    // Calcul ETA simple (vitesse moyenne 40 km/h en ville)
+    const avgSpeed = from.speed ? from.speed * 3.6 : 40; // m/s → km/h
+    const timeHours = distance / avgSpeed;
+    const timeMinutes = Math.round(timeHours * 60);
     
-    // ✅ UTILISER LE VRAI PRIX CALCULÉ AVEC LA BONNE CATÉGORIE
-    const finalCost = currentCost > 0 ? currentCost : actualEstimatedPrice;
+    setEta(`${timeMinutes} min`);
+
+    // Générer une instruction de navigation simple
+    const bearing = calculateBearing(from, to);
+    const direction = getDirectionFromBearing(bearing);
     
-    console.log('🏁 Fin de course - Données:', {
-      rideId: rideData.id,
-      vehicleType: actualVehicleType,
-      vehicleCategory: vehicleCategory,
-      pickup: pickupAddress,
-      destination: destinationAddress,
-      distance: distance,
-      prixCalculé: currentCost,
-      prixEstimé: actualEstimatedPrice,
-      prixFinal: finalCost,
-      driverId: state.currentDriver?.id
+    setCurrentStep({
+      instruction: `Continuez vers ${direction}`,
+      distance: `${safeDistance.toFixed(1)} km`,
+      duration: `${timeMinutes} min`
     });
-    
-    // ✅ Figer les états locaux
-    setIsTimerDisabled(true);
-    setBillingStartTime(null);
-    
-    // ✅ ENVOYER LA COURSE TERMINÉE AU BACKEND
-    try {
-      console.log('🔥 NavigationScreen - Envoi au backend:', {
-        rideId: rideData.id,
-        billingElapsedTime: billingElapsedTime,
-        finalCost: finalCost,
-        distance: distance
-      });
-      
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            rideId: rideData.id,
-            driverId: state.currentDriver?.id,
-            passengerId: rideData.passengerId,
-            finalPrice: finalCost,
-            duration: billingElapsedTime, // 🔥 DOIT ÊTRE > 0
-            rating: 0,
-            feedback: '',
-            paymentMethod: 'cash',
-            // ✅ DONNÉES COMPLÈTES DE LA COURSE
-            pickup: { address: pickupAddress },
-            destination: { address: destinationAddress },
-            distance: distance,
-            vehicleType: actualVehicleType,
-            completedAt: new Date().toISOString()
-          })
-        }
-      );
+  }, []);
 
-      const result = await response.json();
-      
-      if (!result.success) {
-        console.error('❌ Erreur backend:', result.error);
-        toast.error(`Erreur: ${result.error}`);
-        return;
-      }
+  const toRad = (deg: number) => deg * (Math.PI / 180);
 
-      console.log('✅ Course enregistrée dans le backend:', result);
-      
-      // ✅ Mettre à jour localement APRÈS la confirmation backend
-      if (updateRide) {
-        updateRide(rideData.id, {
-          actualPrice: finalCost,
-          timerDisabled: true,
-          freeWaitingDisabled: freeWaitingDisabled,
-          waitingTime: waitingTime,
-          waitingTimeFrozen: waitingTimeFrozen,
-          elapsedTime: elapsedTime,
-          billingElapsedTime: billingElapsedTime,
-          completedAt: new Date().toISOString(),
-          status: 'completed',
-          paymentStatus: 'paid',
-          // ✅ S'assurer que les données sont sauvegardées
-          pickup: { address: pickupAddress },
-          destination: { address: destinationAddress },
-          distance: distance,
-          vehicleType: actualVehicleType
-        });
-      }
-      
-      // ✅ AJOUTER LE MONTANT AU SOLDE DU CONDUCTEUR (locale ET backend)
-      if (state.currentDriver?.id && finalCost > 0) {
-        console.log(`💰 Ajout de ${finalCost.toLocaleString()} CDF au solde du conducteur...`);
-        
-        const newBalance = await updateDriverBalance(state.currentDriver.id, 'add', finalCost);
-        
-        if (newBalance !== null) {
-          toast.success('🎉 Course terminée avec succès !', {
-            description: `Vous avez gagné ${finalCost.toLocaleString()} CDF. Nouveau solde : ${newBalance.toLocaleString()} CDF`
-          });
-        } else {
-          toast.success('🎉 Course terminée avec succès !', {
-            description: `Montant gagné : ${finalCost.toLocaleString()} CDF`
-          });
-        }
-      }
-      
-      setShowCompletionDialog(true);
-      
-    } catch (error) {
-      console.error('❌ Erreur lors de la complétion de la course:', error);
-      toast.error('Erreur lors de l\'enregistrement de la course');
-    }
+  const calculateBearing = (from: Position, to: { lat: number; lng: number }) => {
+    const dLng = toRad(to.lng - from.lng);
+    const lat1 = toRad(from.lat);
+    const lat2 = toRad(to.lat);
+    
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+              Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+    
+    let bearing = Math.atan2(y, x) * (180 / Math.PI);
+    bearing = (bearing + 360) % 360;
+    
+    return bearing;
   };
 
-  const handleCallPassenger = () => {
-    toast.info('Appel du passager...');
+  const getDirectionFromBearing = (bearing: number): string => {
+    const directions = ['Nord', 'Nord-Est', 'Est', 'Sud-Est', 'Sud', 'Sud-Ouest', 'Ouest', 'Nord-Ouest'];
+    const index = Math.round(bearing / 45) % 8;
+    return directions[index];
   };
 
-  const handleMessagePassenger = () => {
-    toast.info('Envoi d\'un message...');
+  // Ouvrir dans Google Maps / Apple Maps
+  const openInMaps = () => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${dropoff.lat},${dropoff.lng}&travelmode=driving`;
+    window.open(url, '_blank');
+    toast.success('Google Maps ouvert dans un nouvel onglet');
   };
 
-  const handleTimerToggle = (disabled: boolean) => {
-    setIsTimerDisabled(disabled);
-    if (updateRide && state.currentRide?.id) {
-      updateRide(state.currentRide.id, {
-        timerDisabled: disabled
-      });
-    }
-  };
-
-  const handleDisableFreeWaiting = async () => {
-    const newState = !freeWaitingDisabled;
-    setFreeWaitingDisabled(newState);
-    
-    // Quand on désactive l'attente gratuite, on gèle le compteur de temps d'attente
-    if (newState && waitingTime < 600) {
-      setWaitingTimeFrozen(waitingTime);
-      // NOUVEAU : Démarrer le chrono de facturation
-      const billingStart = Date.now();
-      setBillingStartTime(billingStart);
-      setBillingElapsedTime(0);
-      console.log(`⏸️ Temps d'attente gelé à ${waitingTime}s (${Math.floor(waitingTime / 60)}min ${waitingTime % 60}s)`);
-      console.log(`🚀 Chrono de facturation démarré !`);
-      
-      // 🆕 SYNCHRONISER AVEC LE BACKEND pour que le passager reçoive l'info
-      if (state.currentRide?.id) {
-        try {
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/update-billing/${state.currentRide.id}`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                billingStartTime: billingStart,
-                freeWaitingDisabled: true,
-                billingElapsedTime: 0
-              })
-            }
-          );
-          
-          if (response.ok) {
-            console.log('✅ Temps de facturation synchronisé avec le backend');
-          } else {
-            console.error('❌ Erreur synchronisation backend:', await response.text());
-          }
-        } catch (error) {
-          console.error('❌ Erreur réseau synchronisation billing:', error);
-        }
-      }
-      
-      // 📱 SMS: Notification de démarrage de course au passager
-      if (state.currentRide && state.currentDriver) {
-        try {
-          await notifyRideStarted(
-            state.currentUser?.phone || '+243999999999', // Téléphone du passager
-            state.currentDriver.phone || '+243999999999', // Téléphone du conducteur
-            state.currentUser?.name || 'Passager',
-            state.currentDriver.name || 'Conducteur',
-            state.currentRide.vehicleType || 'Smart Standard',
-            state.currentRide.pickup?.address || 'Point de départ',
-            state.currentRide.destination?.address || 'Destination'
-          );
-          console.log('✅ SMS démarrage de course envoyé au passager (attente gratuite désactivée)');
-        } catch (error) {
-          console.error('❌ Erreur envoi SMS démarrage:', error);
-        }
-      }
-    } else if (!newState) {
-      // Quand on réactive, on dégèle le compteur
-      setWaitingTimeFrozen(null);
-      // NOUVEAU : Arrêter le chrono de facturation
-      setBillingStartTime(null);
-      setBillingElapsedTime(0);
-      console.log("▶️ Temps d'attente dégelé - Compteur reprend");
-      console.log('⏹️ Chrono de facturation arrêté');
-      
-      // 🆕 SYNCHRONISER L'ARRÊT AVEC LE BACKEND
-      if (state.currentRide?.id) {
-        try {
-          await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/update-billing/${state.currentRide.id}`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({
-                billingStartTime: null,
-                freeWaitingDisabled: false,
-                billingElapsedTime: 0
-              })
-            }
-          );
-        } catch (error) {
-          console.error('❌ Erreur synchronisation backend:', error);
-        }
-      }
-    }
-    
-    if (updateRide && state.currentRide?.id) {
-      updateRide(state.currentRide.id, {
-        freeWaitingDisabled: newState,
-        waitingTimeFrozen: newState ? waitingTime : null,
-        billingStartTime: newState ? Date.now() : null,
-        billingElapsedTime: 0
-      });
-    }
-    
-    // Message de confirmation
-    if (newState) {
-      toast.warning('Attente gratuite désactivée', {
-        description: `Compteur bloqué à ${Math.floor(waitingTime / 60)}min ${waitingTime % 60}s - Facturation commence maintenant`
-      });
-    } else {
-      toast.success('Attente gratuite réactivée', {
-        description: 'Les 10 minutes gratuites recommencent à compter'
-      });
-    }
-  };
-
-  const handleOfferPostpaid = () => {
-    toast.info('Option post-payé proposée au passager');
-  };
-
-  const isBillingActive = waitingTime >= 600 || freeWaitingDisabled;
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  // Toggle fullscreen
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      className="min-h-screen bg-gray-50 p-4"
-    >
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
-          <Button
-            variant="outline"
-            onClick={onBack}
-            className="flex items-center space-x-2"
-          >
-            ← Retour
-          </Button>
-          
-          <div className="flex items-center space-x-2">
-            <div className={`w-3 h-3 rounded-full ${phase === 'pickup' ? 'bg-yellow-500' : 'bg-green-500'}`} />
-            <span className="font-medium">
-              {phase === 'pickup' ? 'En route vers le client' : 'Course en cours'}
-            </span>
-          </div>
-        </div>
-
-        {/* Passenger Info */}
-        <div className="bg-blue-50 rounded-lg p-4 mb-4">
-          <h3 className="font-semibold mb-2">Informations passager</h3>
-          <p className="text-sm">{state.currentRide?.passengerName || 'Grace-Divine Kambamba'}</p>
-          <div className="flex items-center space-x-2 mt-2">
+    <div className={`min-h-screen bg-gray-50 ${isFullscreen ? 'fixed inset-0 z-50' : ''}`}>
+      {/* Header avec infos passager */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between mb-3">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCallPassenger}
-              className="flex items-center space-x-1"
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="hover:bg-gray-100"
             >
-              <Phone className="w-4 h-4" />
-              <span>Appeler</span>
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleMessagePassenger}
-              className="flex items-center space-x-1"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Message</span>
-            </Button>
-          </div>
-        </div>
 
-        {/* Locations */}
-        <div className="space-y-3">
-          <div className="flex items-start space-x-3">
-            <div className="w-3 h-3 bg-green-500 rounded-full mt-2" />
-            <div>
-              <p className="text-sm text-gray-600">Point de départ</p>
-              <p className="font-medium">{state.currentRide?.pickup?.address || 'Point de départ non spécifié'}</p>
+            <div className="flex items-center gap-2">
+              <Badge variant="default" className="bg-green-600">
+                Navigation active
+              </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleFullscreen}
+              >
+                {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+              </Button>
             </div>
           </div>
-          
-          <div className="flex items-start space-x-3">
-            <div className="w-3 h-3 bg-red-500 rounded-full mt-2" />
+
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Destination</p>
-              <p className="font-medium">{state.currentRide?.destination?.address || 'Destination non spécifiée'}</p>
+              <p className="text-sm text-gray-500">Passager</p>
+              <p className="text-base">{passengerName}</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onCallPassenger}
+                className="gap-1"
+              >
+                <Phone className="w-4 h-4" />
+                Appeler
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onOpenChat}
+                className="gap-1"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Chat
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Timer and Cost Display */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-white rounded-lg shadow-md p-6 mb-4"
-      >
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-blue-50 rounded-lg p-4 text-center">
-            <Clock className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Temps écoulé</p>
-            <p className="text-xl font-bold">{formatTime(elapsedTime)}</p>
+      {/* ETA et Distance */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs opacity-80">Temps restant</p>
+            <p className="text-3xl">{eta}</p>
           </div>
-          
-          <div className="bg-green-50 rounded-lg p-4 text-center">
-            <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Coût actuel</p>
-            <p className="text-xl font-bold">{(currentCost || 0).toLocaleString()} CDF</p>
+          <div className="text-right">
+            <p className="text-xs opacity-80">Distance</p>
+            <p className="text-3xl">{distanceRemaining}</p>
           </div>
         </div>
+      </div>
 
-        {/* Timer Controls - Afficher uniquement si en destination */}
-        {phase === 'destination' && (
-          <TimerControl
-            isTimerActive={!isTimerDisabled}
-            isTimerDisabled={isTimerDisabled}
-            onTimerToggle={handleTimerToggle}
-            onOfferPostpaid={handleOfferPostpaid}
-            onDisableFreeWaiting={handleDisableFreeWaiting}
-            currentCost={currentCost}
-            elapsedTime={elapsedTime}
-            freeWaitingDisabled={freeWaitingDisabled}
-            waitingTime={waitingTime}
-            billingElapsedTime={billingElapsedTime}
-          />
-        )}
-      </motion.div>
+      {/* Carte + Instructions */}
+      <div className="relative" style={{ height: isFullscreen ? 'calc(100vh - 280px)' : '400px' }}>
+        <InteractiveMapView
+          center={currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : pickup}
+          markers={[pickup, dropoff]}
+          zoom={15}
+          className="w-full h-full"
+          showUserLocation={true}
+          enableGeolocation={true}
+          onLocationUpdate={(location) => {
+            setCurrentPosition({
+              lat: location.lat,
+              lng: location.lng,
+              accuracy: 10,
+              speed: null,
+              heading: null
+            });
+          }}
+        />
 
-      {/* Action Button */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="bg-white rounded-lg shadow-md p-4"
-      >
-        {phase === 'pickup' ? (
-          <Button
-            onClick={handleArriveAtPickup}
-            className="w-full h-14 bg-green-500 hover:bg-green-600 text-white rounded-xl"
-          >
-            <CheckCircle className="w-5 h-5 mr-2" />
-            Arrivé au point de départ
-          </Button>
-        ) : (
-          <div className="space-y-3">
-            {!passengerPaid ? (
-              <Button
-                onClick={() => {
-                  setPassengerPaid(true);
-                  toast.success('Paiement confirmé', {
-                    description: 'Vous pouvez maintenant clôturer la course'
-                  });
-                }}
-                className="w-full h-14 bg-yellow-500 hover:bg-yellow-600 text-white rounded-xl"
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Confirmer le paiement du passager
-              </Button>
-            ) : (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                <p className="text-green-800 font-semibold">✅ Paiement confirmé</p>
-                <p className="text-xs text-green-600 mt-1">Vous pouvez maintenant terminer la course</p>
-              </div>
-            )}
-            
-            {/* Bouton de clôture de course */}
-            <Button
-              onClick={handleCompleteRide}
-              disabled={!passengerPaid}
-              className={`w-full h-14 rounded-xl ${
-                passengerPaid 
-                  ? 'bg-green-500 hover:bg-green-600' 
-                  : 'bg-gray-300 cursor-not-allowed'
-              } text-white`}
+        {/* Boussole (rotation basée sur le cap) */}
+        {currentPosition?.heading !== null && (
+          <div className="absolute top-4 right-4 z-10">
+            <div 
+              className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center"
+              style={{ transform: `rotate(${heading}deg)` }}
             >
-              <CheckCircle className="w-5 h-5 mr-2" />
-              {passengerPaid ? 'Clôturer la course' : 'Confirmer le paiement d\'abord'}
-            </Button>
+              <div className="w-0 h-0 border-l-8 border-l-transparent border-r-8 border-r-transparent border-b-12 border-b-red-600" />
+            </div>
           </div>
         )}
-      </motion.div>
 
-      {/* Ride Completion Dialog */}
-      <RideCompletionSummaryDialog
-        isOpen={showCompletionDialog}
-        onClose={() => {
-          setShowCompletionDialog(false);
-          toast.success('Retour au tableau de bord');
-          // ✅ Rediriger vers le dashboard conducteur après la clôture
-          setCurrentScreen('driver-dashboard');
-        }}
-        userType="driver"
-        rideData={{
-          duration: elapsedTime,
-          distance: state.currentRide?.distance || 0,
-          baseCost: 0, // ✅ CORRECTION : Ne pas calculer baseCost/waitingCost séparément
-          waitingTime: waitingTime,
-          waitingCost: 0, // ✅ CORRECTION : Tout est dans totalCost
-          totalCost: currentCost, // ✅ C'est le montant RÉEL calculé
-          freeWaitingDisabled: freeWaitingDisabled,
-          billingElapsedTime: billingElapsedTime,
-          passengerName: state.currentUser?.name || state.currentRide?.passengerName || 'Passager',
-          vehicleType: (state.currentRide?.vehicleType || 'Smart Confort') as 'Smart Standard' | 'Smart Confort' | 'Smart Plus',
-          startLocation: state.currentRide?.pickup?.address || state.currentRide?.pickupAddress || 'Point de départ',
-          endLocation: state.currentRide?.destination?.address || state.currentRide?.destinationAddress || 'Destination'
-        }}
-      />
-    </motion.div>
+        {/* Vitesse actuelle */}
+        {currentPosition?.speed !== null && (
+          <div className="absolute bottom-4 right-4 z-10 bg-white px-4 py-2 rounded-full shadow-lg">
+            <p className="text-xs text-gray-500">Vitesse</p>
+            <p className="text-lg">
+              {currentPosition.speed ? (currentPosition.speed * 3.6).toFixed(0) : 0} km/h
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Instruction de navigation */}
+      {currentStep && (
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="mx-4 -mt-6 mb-4 z-10 relative"
+        >
+          <Card className="p-4 shadow-xl border-2 border-blue-500">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <NavigationIcon className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <p className="text-base mb-1">{currentStep.instruction}</p>
+                <p className="text-xs text-gray-500">
+                  {currentStep.distance} • {currentStep.duration}
+                </p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Actions rapides */}
+      <div className="px-4 pb-4 space-y-3">
+        {/* Ouvrir dans Maps externe */}
+        <Button
+          onClick={openInMaps}
+          className="w-full bg-green-600 hover:bg-green-700 gap-2"
+        >
+          <MapPin className="w-5 h-5" />
+          Ouvrir dans Google Maps
+        </Button>
+
+        {/* Bouton SOS */}
+        <Button
+          onClick={onEmergency}
+          variant="destructive"
+          className="w-full gap-2"
+        >
+          <AlertTriangle className="w-5 h-5" />
+          SOS Urgence
+        </Button>
+      </div>
+
+      {/* Destination */}
+      <div className="px-4 pb-6">
+        <Card className="p-4 bg-gray-50">
+          <div className="flex items-start gap-3">
+            <div className="w-3 h-3 bg-red-600 rounded-full mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs text-gray-500 mb-1">Destination</p>
+              <p className="text-sm">{dropoff.address}</p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Toggle tracking */}
+      <div className="px-4 pb-4">
+        <Button
+          variant="outline"
+          onClick={() => setIsTracking(!isTracking)}
+          className={`w-full ${isTracking ? 'border-green-600 text-green-600' : ''}`}
+        >
+          {isTracking ? '🟢 Suivi GPS actif' : '⚫ Suivi GPS désactivé'}
+        </Button>
+      </div>
+    </div>
   );
 }
