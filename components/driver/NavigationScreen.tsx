@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
 import { useAppState } from '../../hooks/useAppState';
 import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
 
