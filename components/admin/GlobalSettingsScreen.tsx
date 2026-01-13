@@ -1,9 +1,27 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Settings, DollarSign, Clock, MapPin, Percent, Globe, Bell } from 'lucide-react';
+import {
+  Settings,
+  Save,
+  RefreshCw,
+  DollarSign,
+  Percent,
+  Clock,
+  MapPin,
+  Shield,
+  Bell,
+  Globe,
+  Database,
+  ArrowLeft
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
 import { useSettings } from '../../hooks/useSettings';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function GlobalSettingsScreen() {
   const { setCurrentScreen } = useAppState();

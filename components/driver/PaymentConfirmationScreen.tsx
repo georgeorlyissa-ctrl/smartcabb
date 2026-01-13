@@ -1,6 +1,19 @@
+import { useState, useEffect } from 'react';
+import {
+  CheckCircle,
+  DollarSign,
+  Banknote,
+  CreditCard,
+  User,
+  Clock,
+  XCircle
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function PaymentConfirmationScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();

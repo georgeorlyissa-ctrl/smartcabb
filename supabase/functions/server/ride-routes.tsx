@@ -212,112 +212,6 @@ app.post('/create', async (c) => {
 
     console.log('✅ Demande de course créée avec succès:', rideId);
 
-    // 🆕 v517.97: MATCHING INTELLIGENT - Trouver le driver le plus proche
-    try {
-      console.log('🎯 v517.97 - Démarrage du matching intelligent...');
-      
-      // Fonction pour calculer la distance (Haversine formula)
-      const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-        const R = 6371; // Rayon de la Terre en km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-          Math.sin(dLat/2) * Math.sin(dLat/2) +
-          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-          Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c; // Distance en km
-      };
-      
-      // Récupérer tous les drivers du KV store
-      const allDriversData = await kv.getByPrefix('driver:');
-      console.log(`📊 ${allDriversData.length} drivers trouvés dans le KV store`);
-      
-      // Filtrer les drivers online de la bonne catégorie
-      const onlineDrivers = [];
-      
-      for (const driver of allDriversData) {
-        // Vérifier si c'est bien un driver (pas un status ou balance)
-        if (!driver.id || !driver.name) continue;
-        
-        // Vérifier le statut online
-        const statusKey = `driver:${driver.id}:status`;
-        const statusData = await kv.get(statusKey);
-        const isOnline = statusData?.isOnline || false;
-        
-        if (!isOnline) continue;
-        
-        // Vérifier la catégorie du véhicule
-        const driverVehicleType = driver.vehicle?.category || driver.vehicle_category || 'standard';
-        const normalizedDriverType = driverVehicleType.replace('smart_', '');
-        const normalizedRequestType = (vehicleType || 'standard').replace('smart_', '');
-        
-        if (normalizedDriverType !== normalizedRequestType) {
-          console.log(`⏭️ Driver ${driver.name} ignoré: catégorie ${normalizedDriverType} ≠ ${normalizedRequestType}`);
-          continue;
-        }
-        
-        // Récupérer la position du driver
-        const locationKey = `driver_location_${driver.id}`;
-        const locationData = await kv.get(locationKey);
-        
-        // Position par défaut si pas de tracking GPS actif
-        const driverLat = locationData?.lat || driver.location?.lat || -4.3276;
-        const driverLng = locationData?.lng || driver.location?.lng || 15.3136;
-        
-        // Calculer distance entre pickup et driver
-        const distance = calculateDistance(
-          pickup.lat,
-          pickup.lng,
-          driverLat,
-          driverLng
-        );
-        
-        onlineDrivers.push({
-          id: driver.id,
-          name: driver.name,
-          phone: driver.phone,
-          location: { lat: driverLat, lng: driverLng },
-          distanceToPickup: distance
-        });
-        
-        console.log(`✅ Driver ${driver.name} ajouté: ${distance.toFixed(2)} km du pickup`);
-      }
-      
-      console.log(`🚗 ${onlineDrivers.length} drivers online pour catégorie ${vehicleType}`);
-      
-      if (onlineDrivers.length > 0) {
-        // Trier par distance (le plus proche en premier)
-        onlineDrivers.sort((a, b) => a.distanceToPickup - b.distanceToPickup);
-        
-        console.log('📊 v517.97 - Drivers triés par distance:');
-        onlineDrivers.forEach((d, index) => {
-          console.log(`  ${index + 1}. ${d.name} - ${d.distanceToPickup.toFixed(2)} km`);
-        });
-        
-        // Sauvegarder la liste des drivers notifiés
-        await kv.set(`ride_notified_drivers_${rideId}`, {
-          rideId,
-          drivers: onlineDrivers.map(d => ({
-            id: d.id,
-            name: d.name,
-            distance: d.distanceToPickup
-          })),
-          closestDriverId: onlineDrivers[0].id,
-          createdAt: new Date().toISOString()
-        });
-        
-        console.log(`✅ Liste des ${onlineDrivers.length} drivers notifiés sauvegardée`);
-        console.log(`🏆 Driver le plus proche: ${onlineDrivers[0].name} (${onlineDrivers[0].distanceToPickup.toFixed(2)} km)`);
-      } else {
-        console.log('⚠️ Aucun driver online disponible pour cette catégorie');
-      }
-      
-    } catch (matchingError) {
-      console.error('❌ Erreur matching intelligent:', matchingError);
-      // Ne pas bloquer la création de la course si le matching échoue
-    }
-
     return c.json({
       success: true,
       rideId,
@@ -480,10 +374,64 @@ app.get('/pending/:driverId', async (c) => {
       });
     }
 
-    // Prendre la première demande correspondante et abordable
-    const rideRequest = matchingRequests[0];
+    // 🔥 NOUVELLE LOGIQUE : TRI PAR DISTANCE (conducteur le plus proche)
+    // Calculer la distance entre le conducteur et le point de départ de chaque course
+    const driverLocation = driver.currentLocation;
     
-    console.log('✅ Demande trouvée pour catégorie', driverVehicleCategory, ':', rideRequest.id);
+    if (!driverLocation || !driverLocation.latitude || !driverLocation.longitude) {
+      console.log('⚠️ Position GPS du conducteur non disponible, retour première demande');
+      const rideRequest = matchingRequests[0];
+      return c.json({
+        success: true,
+        ride: rideRequest
+      });
+    }
+
+    // Fonction pour calculer la distance (formule de Haversine)
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371; // Rayon de la Terre en km
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    // Ajouter la distance à chaque demande
+    const requestsWithDistance = matchingRequests.map(req => {
+      const pickupLat = req.pickup?.latitude || req.pickup?.lat;
+      const pickupLon = req.pickup?.longitude || req.pickup?.lng;
+      
+      if (!pickupLat || !pickupLon) {
+        console.log('⚠️ Course sans coordonnées de départ:', req.id);
+        return { ...req, distanceToDriver: 999999 }; // Distance infinie si pas de coordonnées
+      }
+      
+      const distance = calculateDistance(
+        driverLocation.latitude,
+        driverLocation.longitude,
+        pickupLat,
+        pickupLon
+      );
+      
+      return { ...req, distanceToDriver: distance };
+    });
+
+    // Trier par distance (le plus proche en premier)
+    requestsWithDistance.sort((a, b) => a.distanceToDriver - b.distanceToDriver);
+
+    // Prendre la demande la plus proche
+    const rideRequest = requestsWithDistance[0];
+    
+    console.log('✅ Demande la plus proche trouvée:', {
+      rideId: rideRequest.id,
+      category: driverVehicleCategory,
+      distanceToDriver: `${rideRequest.distanceToDriver.toFixed(2)} km`,
+      totalMatching: matchingRequests.length
+    });
 
     return c.json({
       success: true,
@@ -562,17 +510,6 @@ app.post('/accept', async (c) => {
     }
 
     if (rideRequest.status !== 'pending') {
-      // 🆕 v517.97: Vérifier si déjà acceptée par un autre driver
-      if (rideRequest.status === 'accepted' && rideRequest.driverId && rideRequest.driverId !== driverId) {
-        console.log(`⚠️ v517.97 - Course ${rideId} déjà acceptée par ${rideRequest.driverId}`);
-        return c.json({ 
-          success: false, 
-          error: 'already_taken',
-          message: 'Cette course a été acceptée par un autre conducteur',
-          takenBy: rideRequest.driverName || 'un autre conducteur'
-        }, 409);
-      }
-      
       return c.json({ 
         success: false, 
         error: 'Cette course a déjà été acceptée' 
@@ -602,33 +539,6 @@ app.post('/accept', async (c) => {
     await kv.del(`ride_pending_${rideId}`);
 
     console.log('✅ Course acceptée par le conducteur:', driverId);
-
-    // 🆕 v517.97: NOTIFIER LES AUTRES DRIVERS
-    try {
-      const notifiedDrivers = await kv.get(`ride_notified_drivers_${rideId}`);
-      
-      if (notifiedDrivers && notifiedDrivers.drivers) {
-        const otherDrivers = notifiedDrivers.drivers.filter(
-          (d: any) => d.id !== driverId
-        );
-
-        console.log(`📢 v517.97 - Notification de ${otherDrivers.length} autres drivers que la course est prise`);
-
-        // Marquer pour chaque autre driver que cette course est prise
-        for (const driver of otherDrivers) {
-          await kv.set(`driver_${driver.id}_ride_${rideId}_status`, {
-            status: 'taken_by_other',
-            takenBy: driverName || 'Conducteur',
-            takenAt: new Date().toISOString()
-          });
-        }
-
-        console.log(`✅ ${otherDrivers.length} drivers notifiés que la course est prise`);
-      }
-    } catch (notifError) {
-      console.error('❌ Erreur notification autres drivers:', notifError);
-      // Ne pas bloquer l'acceptation si la notification échoue
-    }
 
     // Envoyer le code de confirmation par SMS
     await sendConfirmationSMS(rideRequest.passengerPhone, confirmationCode, driverName);
@@ -781,7 +691,6 @@ app.post('/complete', async (c) => {
       driverId,
       finalPrice, 
       duration, 
-      billingElapsedTime, // ✅ v517.96: Temps de facturation (après temps gratuit)
       rating, 
       feedback, 
       paymentMethod,
@@ -790,13 +699,12 @@ app.post('/complete', async (c) => {
       destination,
       distance,
       vehicleType,
-      completedAt,
-      // ✅ v517.94: Accepter startTime pour calcul uniforme de la durée
-      startTime
+      completedAt
     } = body;
 
     console.log('🏁 Fin de course:', rideId, 'Payment:', paymentMethod);
     console.log('📍 Données de course:', { pickup, destination, distance, vehicleType });
+    console.log('⏱️  DURÉE REÇUE:', duration, 'secondes (type:', typeof duration, ')');
 
     let ride = await kv.get(`ride_request_${rideId}`);
     
@@ -825,8 +733,6 @@ app.post('/complete', async (c) => {
     if (distance) ride.distance = distance;
     if (vehicleType) ride.vehicleType = vehicleType;
     if (driverId) ride.driverId = driverId;
-    // ✅ v517.94: Enregistrer startTime pour calcul uniforme
-    if (startTime) ride.startTime = startTime;
 
     // ✅ CALCUL AUTOMATIQUE DE LA COMMISSION
     const rideFinalPrice = finalPrice || ride.estimatedPrice;
@@ -923,12 +829,14 @@ app.post('/complete', async (c) => {
       driverEarnings: driverEarnings,
       commissionPercentage: commissionPercentage,
       duration: duration || 0,
-      billingElapsedTime: billingElapsedTime ?? duration ?? 0, // ✅ v517.96: Temps facturable
+      billingElapsedTime: duration || 0, // 🔥 AJOUTER AUSSI billingElapsedTime pour compatibilité
       rating: rating || 0,
       feedback: feedback || '',
       completedAt: completedAt || new Date().toISOString()
     };
 
+    console.log('💾 Course sauvegardée avec duration:', completedRide.duration, 'et billingElapsedTime:', completedRide.billingElapsedTime);
+    
     await kv.set(`ride_request_${rideId}`, completedRide);
     await kv.set(`ride_completed_${rideId}`, completedRide);
     await kv.del(`ride_active_${rideId}`);
@@ -949,9 +857,6 @@ app.post('/complete', async (c) => {
         totalRides: (currentStats.totalRides || 0) + 1,
         totalEarnings: (currentStats.totalEarnings || 0) + rideFinalPrice,
         totalCommissions: (currentStats.totalCommissions || 0) + commissionAmount,
-        // ✅ FIX v517.93: Préserver le tableau des ratings existants
-        ratings: currentStats.ratings || [],
-        averageRating: currentStats.averageRating || 0,
         // Note: le rating sera mis à jour par la route /rate
         lastRideAt: new Date().toISOString()
       };
@@ -1116,15 +1021,21 @@ app.post('/cancel', async (c) => {
     
     if (!ride) {
       console.warn(`⚠️ Course non trouvée dans ride_pending_${rideId}, vérification dans ride_active...`);
-      ride = await kv.get(`ride_active_${rideId}`);
+      ride = await kv.get(`ride_active_${rideId}`)
     }
     
     if (!ride) {
-      console.error('❌ Course introuvable dans TOUS les emplacements:', rideId);
-      return c.json({ 
-        success: false, 
-        error: 'Course introuvable' 
-      }, 404);
+      // ✅ NOUVELLE LOGIQUE: Si la course n'existe pas dans le backend,
+      // c'est qu'elle a été créée localement uniquement (ou déjà nettoyée)
+      // On accepte l'annulation sans erreur
+      console.warn(`⚠️ Course ${rideId} non trouvée dans le backend (création locale uniquement)`);
+      console.log('✅ Annulation acceptée (course locale)');
+      
+      return c.json({
+        success: true,
+        message: 'Course annulée (locale uniquement)',
+        localOnly: true
+      });
     }
     
     console.log('✅ Course trouvée, statut actuel:', ride.status);
@@ -1623,6 +1534,111 @@ app.post('/start', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur démarrage course:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔥 VÉRIFIER LE STATUT D'UNE COURSE
+// Utilisé par les conducteurs pour détecter les annulations
+// ou si un autre conducteur a accepté
+// ============================================
+app.get('/:rideId/status', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    
+    if (!rideId) {
+      return c.json({
+        success: false,
+        error: 'rideId requis'
+      }, 400);
+    }
+
+    console.log('🔍 Vérification statut de la course:', rideId);
+
+    // Récupérer la course depuis le KV store
+    const ride = await kv.get(`ride_request_${rideId}`);
+
+    if (!ride) {
+      return c.json({
+        success: false,
+        error: 'Course introuvable'
+      }, 404);
+    }
+
+    console.log('✅ Statut de la course:', {
+      id: ride.id,
+      status: ride.status,
+      assignedDriverId: ride.assignedDriverId
+    });
+
+    return c.json({
+      success: true,
+      ride: {
+        id: ride.id,
+        status: ride.status,
+        assignedDriverId: ride.assignedDriverId,
+        passengerId: ride.passengerId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur vérification statut course:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur serveur'
+    }, 500);
+  }
+});
+
+// ============================================
+// 🆕 METTRE À JOUR LE TEMPS DE FACTURATION
+// Permet au conducteur de synchroniser billingStartTime avec le passager
+// ============================================
+app.post('/update-billing/:rideId', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    const { billingStartTime, freeWaitingDisabled, billingElapsedTime } = await c.req.json();
+    
+    console.log('💰 Mise à jour facturation pour course:', rideId, {
+      billingStartTime,
+      freeWaitingDisabled,
+      billingElapsedTime
+    });
+
+    // Récupérer la course existante
+    const ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      return c.json({
+        success: false,
+        error: 'Course introuvable'
+      }, 404);
+    }
+
+    // Mettre à jour les champs de facturation
+    const updatedRide = {
+      ...ride,
+      billingStartTime: billingStartTime || ride.billingStartTime,
+      freeWaitingDisabled: freeWaitingDisabled !== undefined ? freeWaitingDisabled : ride.freeWaitingDisabled,
+      billingElapsedTime: billingElapsedTime || ride.billingElapsedTime
+    };
+
+    // Sauvegarder
+    await kv.set(`ride_request_${rideId}`, updatedRide);
+
+    console.log('✅ Facturation mise à jour avec succès');
+
+    return c.json({
+      success: true,
+      ride: updatedRide
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur mise à jour facturation:', error);
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur' 

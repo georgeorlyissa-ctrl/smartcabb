@@ -1,5 +1,7 @@
-import { motion } from '../framer-motion';
-import { X, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Card } from './ui/card';
+import { Shield, X } from '../lib/icons';
 import { UnifiedPolicyModal } from './shared/UnifiedPolicyModal';
 import { memo } from 'react';
 

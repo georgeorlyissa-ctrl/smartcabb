@@ -1,20 +1,16 @@
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
-import { 
-  ArrowLeft, 
-  User, 
-  Phone, 
-  Mail, 
+import { useState } from 'react';
+import {
+  User,
+  Phone,
   Star,
   MapPin,
-  Calendar,
+  Navigation,
   MessageCircle,
-  Shield,
-  ChevronDown
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
+  AlertTriangle,
+  ArrowLeft
+} from '../../lib/icons';
+import { Card } from '../ui/card';
+import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function ClientInfoScreen() {

@@ -1,0 +1,370 @@
+/**
+ * 🎯 RECHERCHE YANGO-STYLE - VERSION SIMPLE MAPBOX
+ * 
+ * Exactement comme Yango : recherche riche avec lieux, marchés, hôtels, etc.
+ */
+
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from '../../lib/motion';
+import { Input } from '../ui/input';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Separator } from '../ui/separator';
+import { Search, MapPin, Clock, Star, TrendingUp, X } from '../../lib/icons';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { rankSearchResults } from '../../lib/search-ranker';
+import { searchPlacesIntelligent, type EnrichedPlace } from '../../lib/nominatim-enriched-service';
+import { poiCache, createSearchHash } from '../../lib/poi-cache-manager';
+
+interface SearchResult {
+  id: string;
+  name: string;
+  description: string;
+  coordinates?: { lat: number; lng: number };
+  placeId?: string;
+  type?: 'place' | 'recent' | 'favorite';
+  placeType?: string;
+  distance?: number;
+}
+
+interface YangoStyleSearchProps {
+  placeholder?: string;
+  onSelect: (result: SearchResult) => void;
+  currentLocation?: { lat: number; lng: number };
+}
+
+export function YangoStyleSearch({ 
+  placeholder = "Où allez-vous ?", 
+  onSelect,
+  currentLocation 
+}: YangoStyleSearchProps) {
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<SearchResult[]>([]);
+  const [searchSource, setSearchSource] = useState<'mapbox' | 'nominatim' | 'smart_search' | 'local' | null>(null);
+  const [showSourceInfo, setShowSourceInfo] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Charger l'historique au démarrage
+  useEffect(() => {
+    const saved = localStorage.getItem('smartcabb_recent_searches');
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error('Erreur chargement historique:', e);
+      }
+    }
+  }, []);
+
+  // Recherche en temps réel - RECHERCHE INTELLIGENTE MULTI-SOURCES
+  useEffect(() => {
+    if (query.length < 2) {
+      // Afficher l'historique si le champ est vide ou < 2 caractères
+      setResults(recentSearches.slice(0, 5));
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    
+    // Délai anti-spam
+    const timer = setTimeout(async () => {
+      console.log('🔍 Recherche intelligente NOMINATIM UNIQUEMENT:', query);
+      
+      try {
+        // ✅ NOUVELLE ROUTE : NOMINATIM UNIQUEMENT avec ranking intelligent
+        const smartUrl = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/nominatim/smart-search`);
+        smartUrl.searchParams.set('query', query);
+        
+        if (currentLocation) {
+          smartUrl.searchParams.set('lat', currentLocation.lat.toString());
+          smartUrl.searchParams.set('lng', currentLocation.lng.toString());
+        }
+        
+        const response = await fetch(smartUrl.toString(), {
+          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          console.log('📦 Réponse smart-search complète:', data);
+          
+          if (data.results && data.results.length > 0) {
+            console.log(`✅ ${data.results.length} résultats combinés`);
+            console.log(`📊 Sources: ${data.sources?.join(', ') || 'inconnues'}`);
+            
+            // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
+            const MAX_DISTANCE_NORMAL = 50; // ✅ Élargi à 50 km (au lieu de 10)
+            const MAX_DISTANCE_IMPORTANT = 100; // ✅ 100 km pour lieux importants
+            
+            const filtered = data.results.filter((r: any) => {
+              // Pas de distance = on garde (ex: résultats Google Places)
+              if (!r.distance) return true;
+              
+              // Moins de 50 km = on garde toujours
+              if (r.distance <= MAX_DISTANCE_NORMAL) return true;
+              
+              // 50-100 km = seulement si c'est un lieu important
+              if (r.distance <= MAX_DISTANCE_IMPORTANT) {
+                const isImportant = 
+                  r.name.toLowerCase().includes('aéroport') ||
+                  r.name.toLowerCase().includes('terminus') ||
+                  r.name.toLowerCase().includes('gare') ||
+                  r.description.toLowerCase().includes('terminal') ||
+                  r.description.toLowerCase().includes('✈️');
+                
+                console.log(`⚖️ ${r.name} (${r.distance.toFixed(1)}km) - Important: ${isImportant}`);
+                return isImportant;
+              }
+              
+              // Plus de 100 km = on ignore
+              console.log(`❌ ${r.name} ignoré (${r.distance.toFixed(1)}km - trop loin)`);
+              return false;
+            });
+            
+            console.log(`🎯 ${filtered.length} résultats après filtre distance`);
+            
+            // 🧠 RANKING INTELLIGENT - COMME UBER/YANGO
+            try {
+              const ranked = rankSearchResults(
+                filtered,
+                currentLocation,
+                recentSearches.map(r => r.id),
+                undefined, // favoriteLocations
+                query // ← NOUVEAU ! Passer la requête pour pertinence
+              );
+              
+              console.log('🧠 Résultats triés par pertinence');
+              console.log('📊 Top 3:', ranked.slice(0, 3).map(r => `${r.name} (score: ${r.score?.toFixed(1)})`));
+              
+              // Limiter à 10 résultats max (comme Yango)
+              setResults(ranked.slice(0, 10));
+            } catch (rankError) {
+              console.error('❌ Erreur ranking:', rankError);
+              // Fallback : afficher résultats filtrés
+              console.log('⚠️ Affichage sans ranking');
+              setResults(filtered.slice(0, 10));
+            }
+          } else {
+            console.log('⚠️ Aucun résultat dans data.results');
+            console.log('📦 Data complète:', data);
+            setResults([]);
+          }
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Erreur smart-search:', response.status, errorText);
+          setResults([]);
+        }
+        
+      } catch (error) {
+        console.error('❌ Erreur:', error);
+        setResults([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, currentLocation, recentSearches]);
+
+  const handleSelect = async (result: SearchResult) => {
+    console.log('✅ Lieu sélectionné:', result.name);
+    
+    // Si c'est un résultat Google Places, récupérer les coordonnées
+    if (result.placeId && !result.coordinates) {
+      try {
+        console.log('📍 Récupération des coordonnées pour:', result.placeId);
+        
+        const url = new URL(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/geocoding/place-details`);
+        url.searchParams.set('place_id', result.placeId);
+        
+        const response = await fetch(url.toString(), {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          result.coordinates = data.coordinates;
+          console.log('✅ Coordonnées récupérées:', data.coordinates);
+        } else {
+          console.error('❌ Erreur récupération coordonnées');
+          // Ne pas bloquer, utiliser un fallback si nécessaire
+        }
+      } catch (error) {
+        console.error('❌ Erreur place details:', error);
+      }
+    }
+    
+    // Sauvegarder dans l'historique (sauf si déjà présent)
+    if (result.type === 'place') {
+      const newRecent = [
+        { ...result, type: 'recent' as const },
+        ...recentSearches.filter(r => r.id !== result.id)
+      ].slice(0, 10); // Garder les 10 dernières
+      
+      setRecentSearches(newRecent);
+      localStorage.setItem('smartcabb_recent_searches', JSON.stringify(newRecent));
+    }
+    
+    // Notifier le parent
+    onSelect(result);
+    
+    // Réinitialiser
+    setQuery('');
+    setResults([]);
+  };
+
+  const clearRecent = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('smartcabb_recent_searches');
+    setResults([]);
+  };
+
+  return (
+    <div className="relative w-full">
+      {/* Input de recherche */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Input
+          ref={inputRef}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={placeholder}
+          className="pl-11 pr-10 h-12 text-base border-2 border-gray-200 rounded-xl focus:border-blue-500 transition-colors"
+          autoComplete="off"
+        />
+        {query && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setQuery('')}
+            className="absolute right-1 top-1/2 transform -translate-y-1/2 w-8 h-8 hover:bg-gray-100"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* Liste de suggestions */}
+      {results.length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 max-h-96 overflow-y-auto z-50">
+          {/* En-tête si historique */}
+          {query.length < 2 && recentSearches.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span className="text-sm font-medium text-gray-600">Recherches récentes</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearRecent}
+                className="text-xs text-blue-600 hover:text-blue-700 h-auto p-1"
+              >
+                Effacer
+              </Button>
+            </div>
+          )}
+
+          {/* Résultats */}
+          {results.map((result) => {
+            // Déterminer l'icône selon le type de lieu
+            const getIconElement = () => {
+              if (result.type === 'recent') {
+                return <Clock className="w-5 h-5 text-gray-600" />;
+              }
+              
+              // Icônes spécifiques selon placeType
+              switch (result.placeType) {
+                case 'terminal':
+                  return <span className="text-xl">🚌</span>;
+                case 'market':
+                  return <span className="text-xl">🛒</span>;
+                case 'mall':
+                  return <span className="text-xl">🏬</span>;
+                case 'hotel':
+                  return <span className="text-xl">🏨</span>;
+                case 'restaurant':
+                  return <span className="text-xl">🍽️</span>;
+                case 'hospital':
+                  return <span className="text-xl">🏥</span>;
+                case 'church':
+                  return <span className="text-xl">⛪</span>;
+                case 'school':
+                  return <span className="text-xl">🎓</span>;
+                case 'bank':
+                  return <span className="text-xl">🏦</span>;
+                case 'station':
+                  return <span className="text-xl">🚉</span>;
+                case 'office':
+                  return <span className="text-xl">🏢</span>;
+                case 'park':
+                  return <span className="text-xl">🌳</span>;
+                default:
+                  return <MapPin className="w-5 h-5 text-blue-600" />;
+              }
+            };
+            
+            const bgColor = result.type === 'recent' ? 'bg-gray-100' : 
+                           result.placeType ? 'bg-blue-50' : 'bg-blue-100';
+            
+            return (
+              <button
+                key={result.id}
+                onClick={() => handleSelect(result)}
+                className="w-full px-4 py-3.5 text-left hover:bg-gray-50 active:bg-gray-100 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
+              >
+                {/* Icône */}
+                <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${bgColor}`}>
+                  {getIconElement()}
+                </div>
+
+                {/* Texte */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-semibold text-gray-900 truncate">
+                    {result.name}
+                  </p>
+                  <p className="text-sm text-gray-600 truncate mt-0.5">
+                    {result.description}
+                  </p>
+                </div>
+                
+                {/* Distance si disponible */}
+                {result.distance !== undefined && (
+                  <div className="flex-shrink-0 text-sm text-gray-500">
+                    {result.distance.toFixed(1)} km
+                  </div>
+                )}
+              </button>
+            );
+          })}
+
+          {/* Loader */}
+          {isLoading && (
+            <div className="px-4 py-6 text-center">
+              <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+              <p className="text-sm text-gray-600 mt-2">Recherche...</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Message "Aucun résultat" */}
+      {!isLoading && query.length >= 2 && results.length === 0 && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center z-50">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+            <MapPin className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-base font-semibold text-gray-900 mb-1">Aucun résultat</p>
+          <p className="text-sm text-gray-600">Essayez un autre lieu ou quartier</p>
+        </div>
+      )}
+    </div>
+  );
+}

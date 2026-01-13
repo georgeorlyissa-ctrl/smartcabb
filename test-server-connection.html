@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Connexion Serveur</title>
+  <style>
+    body {
+      font-family: monospace;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #00ff00;
+    }
+    .box {
+      background: #000;
+      border: 2px solid #00ff00;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 8px;
+    }
+    h1 {
+      color: #00ff00;
+      text-align: center;
+    }
+    .status {
+      padding: 10px;
+      margin: 10px 0;
+      border-left: 4px solid #00ff00;
+    }
+    .error {
+      border-left-color: #ff0000;
+      color: #ff0000;
+    }
+    .success {
+      border-left-color: #00ff00;
+      color: #00ff00;
+    }
+    .warning {
+      border-left-color: #ffff00;
+      color: #ffff00;
+    }
+    button {
+      width: 100%;
+      padding: 15px;
+      background: #00ff00;
+      color: #000;
+      border: none;
+      font-family: monospace;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    button:hover {
+      background: #00cc00;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔧 TEST CONNEXION SERVEUR</h1>
+  
+  <div class="box">
+    <div id="output">Chargement...</div>
+  </div>
+
+  <button onclick="runTests()">🔄 Relancer les tests</button>
+
+  <script type="module">
+    const output = document.getElementById('output');
+    
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `status ${type}`;
+      div.textContent = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+
+    function clear() {
+      output.innerHTML = '';
+    }
+
+    async function runTests() {
+      clear();
+      log('========================================', 'info');
+      log('DÉBUT DES TESTS', 'info');
+      log('========================================', 'info');
+      log('');
+
+      try {
+        // TEST 1: Chargement des infos Supabase
+        log('[1/5] Chargement des infos Supabase...', 'info');
+        
+        try {
+          const info = await import('./utils/supabase/info.js');
+          log(`✅ Project ID: ${info.projectId}`, 'success');
+          log(`✅ Anon Key: ${info.publicAnonKey.substring(0, 20)}...`, 'success');
+          
+          window.projectId = info.projectId;
+          window.publicAnonKey = info.publicAnonKey;
+        } catch (error) {
+          log(`❌ ERREUR: ${error.message}`, 'error');
+          log('Le fichier /utils/supabase/info.js est introuvable ou invalide', 'error');
+          return;
+        }
+
+        log('');
+
+        // TEST 2: Test de l'URL du serveur
+        log('[2/5] Construction de l\'URL du serveur...', 'info');
+        const serverUrl = `https://${window.projectId}.supabase.co/functions/v1/make-server-2eb02e52`;
+        log(`URL: ${serverUrl}`, 'info');
+        log('');
+
+        // TEST 3: Health check
+        log('[3/5] Test health check...', 'info');
+        try {
+          const healthResponse = await fetch(`${serverUrl}/health`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${window.publicAnonKey}`
+            }
+          });
+
+          if (healthResponse.ok) {
+            const healthData = await healthResponse.json();
+            log(`✅ Serveur répond: ${JSON.stringify(healthData)}`, 'success');
+          } else {
+            log(`⚠️ Serveur répond mais avec erreur: ${healthResponse.status}`, 'warning');
+            const text = await healthResponse.text();
+            log(`Réponse: ${text}`, 'warning');
+          }
+        } catch (error) {
+          log(`❌ SERVEUR INACCESSIBLE: ${error.message}`, 'error');
+          log('', 'error');
+          log('CAUSES POSSIBLES:', 'error');
+          log('1. Le serveur backend n\'est pas déployé', 'error');
+          log('2. CORS bloque la requête', 'error');
+          log('3. L\'URL est incorrecte', 'error');
+          log('4. Problème réseau', 'error');
+          return;
+        }
+
+        log('');
+
+        // TEST 4: Test de l'API auth/get-email-by-phone
+        log('[4/5] Test de l\'API auth/get-email-by-phone...', 'info');
+        try {
+          const authResponse = await fetch(`${serverUrl}/auth/get-email-by-phone`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${window.publicAnonKey}`
+            },
+            body: JSON.stringify({ phoneNumber: '243999999999' }) // Numéro de test
+          });
+
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            log(`✅ API auth répond: ${JSON.stringify(authData)}`, 'success');
+          } else {
+            log(`⚠️ API auth répond avec erreur: ${authResponse.status}`, 'warning');
+            const text = await authResponse.text();
+            log(`Réponse: ${text}`, 'warning');
+          }
+        } catch (error) {
+          log(`❌ API auth inaccessible: ${error.message}`, 'error');
+        }
+
+        log('');
+
+        // TEST 5: Test de l'API diagnostic-driver
+        log('[5/5] Test de l\'API diagnostic-driver...', 'info');
+        try {
+          const diagResponse = await fetch(`${serverUrl}/diagnostic-driver`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${window.publicAnonKey}`
+            },
+            body: JSON.stringify({ identifier: '243999999999' }) // Numéro de test
+          });
+
+          if (diagResponse.ok) {
+            const diagData = await diagResponse.json();
+            log(`✅ API diagnostic répond: ${JSON.stringify(diagData, null, 2)}`, 'success');
+          } else {
+            log(`⚠️ API diagnostic répond avec erreur: ${diagResponse.status}`, 'warning');
+            const text = await diagResponse.text();
+            log(`Réponse: ${text}`, 'warning');
+          }
+        } catch (error) {
+          log(`❌ API diagnostic inaccessible: ${error.message}`, 'error');
+        }
+
+        log('');
+        log('========================================', 'info');
+        log('TESTS TERMINÉS', 'info');
+        log('========================================', 'info');
+        log('');
+        log('📊 RÉSUMÉ:', 'info');
+        log('Si tous les tests sont ✅ : Le serveur fonctionne correctement', 'success');
+        log('Si des tests sont ❌ : Voir les erreurs ci-dessus', 'error');
+        log('', 'info');
+        log('💡 NEXT STEP:', 'info');
+        log('Essayez maintenant /diagnostic-driver-v2.html avec VOTRE numéro', 'info');
+
+      } catch (error) {
+        log('❌ ERREUR INATTENDUE:', 'error');
+        log(error.message, 'error');
+        log(error.stack, 'error');
+      }
+    }
+
+    // Lancer automatiquement au chargement
+    runTests();
+    window.runTests = runTests;
+  </script>
+</body>
+</html>

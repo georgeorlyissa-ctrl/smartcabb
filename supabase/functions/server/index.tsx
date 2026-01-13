@@ -17,15 +17,20 @@ import rideRoutes from "./ride-routes.tsx";
 import adminRoutes from "./admin-routes.tsx";
 import settingsRoutes from "./settings-routes.tsx";
 import emailRoutes from "./email-routes.tsx";
+import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
+import diagnosticRoute from "./diagnostic-driver-route.tsx";
+import geocodingApp from "./geocoding-api.ts";
+import analyticsApp from "./analytics-api.ts";
+import nominatimApp from "./nominatim-enriched-api.ts";
 
 const app = new Hono();
 
-// 🔄 REDÉPLOIEMENT FORCÉ V3 - 23/11/2025 - Système de recharge en espèces avec KV store
-// ✅ Routes wallet ajoutées pour gérer les recharges en espèces
-// ✅ Historique des recharges conservé
-// ✅ Synchronisation du solde entre admin et passager
-console.log('🔄 Serveur SmartCabb V3 - Système de recharge en espèces - 23/11/2025');
+// 🔄 REDÉPLOIEMENT FORCÉ V4 - NOMINATIM ENRICHI - 12/01/2026
+// ✅ Intégration OpenStreetMap/Nominatim pour 50 000+ POI en RDC
+// ✅ Cache intelligent pour performances optimales
+// ✅ Fallback automatique pour recherche de lieux
+console.log('🔄 Serveur SmartCabb V4 - Nominatim Enrichi 50K+ POI - 12/01/2026');
 
 // 🚀 Démarrage immédiat du serveur (pas d'attente bloquante)
 console.log('🚀 Démarrage du serveur SmartCabb...');
@@ -1849,7 +1854,27 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 // ============================================
 // TEST ROUTES
 // ============================================
-app.route('/make-server-2eb02e52/test-sms', testRoutes);
+app.route('/make-server-2eb02e52/test', testRoutes);
+
+// ============================================
+// GEOCODING API ROUTES (Mapbox + Nominatim)
+// ============================================
+app.route('/make-server-2eb02e52/geocoding', geocodingApp);
+
+// ============================================
+// NOMINATIM ENRICHED API - 50 000+ POI EN RDC
+// ============================================
+app.route('/make-server-2eb02e52/nominatim', nominatimApp);
+
+// ============================================
+// ANALYTICS API ROUTES (Tracking pour ranking intelligent)
+// ============================================
+app.route('/make-server-2eb02e52/analytics', analyticsApp);
+
+// ============================================
+// DIAGNOSTIC ROUTES (Diagnostic conducteur)
+// ============================================
+app.route('/make-server-2eb02e52', diagnosticRoute);
 
 // ============================================
 // BACKUP ROUTES
@@ -1938,6 +1963,11 @@ app.get('/make-server-2eb02e52/settings-test', async (c) => {
 // EMAIL ROUTES (Email Management)
 // ============================================
 app.route('/make-server-2eb02e52', emailRoutes);
+
+// ============================================
+// EMERGENCY ROUTES (SOS & Alerts)
+// ============================================
+app.route('/make-server-2eb02e52/emergency', emergencyRoutes);
 
 // ============================================
 // CONTACT FORM ROUTE

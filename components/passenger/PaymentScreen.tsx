@@ -1,15 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { useAppState } from '../../hooks/useAppState';
-import { CreditCard, Smartphone, Banknote, CheckCircle, Loader2, Wallet, AlertCircle, X, Phone, Split } from 'lucide-react';
-import { PaymentProofUploader } from '../PaymentProofUploader';
+import { useState, useEffect } from 'react';
+import {
+  CreditCard,
+  Smartphone,
+  Banknote,
+  DollarSign,
+  CheckCircle,
+  ArrowLeft,
+  AlertCircle,
+  Loader2,
+  Phone,
+  Wallet,
+  Split,
+  X
+} from '../../lib/icons';
+import { motion, AnimatePresence } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { toast } from 'sonner';
+import { useAppState } from '../../hooks/useAppState';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from '../../lib/toast';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
 
 // Configuration des réseaux Mobile Money RDC
 const MOBILE_MONEY_NETWORKS = [
@@ -69,75 +81,19 @@ export function PaymentScreen() {
   const [showMobileMoneyModal, setShowMobileMoneyModal] = useState(false);
   const [showMixedPaymentModal, setShowMixedPaymentModal] = useState(false);
   
+  // 🆕 État pour polling de la durée si elle est à 0
+  const [isLoadingDuration, setIsLoadingDuration] = useState(false);
+  
   const currentRide = state.currentRide;
   const currentUser = state.currentUser;
-
-  // 🆕 RECHARGER LA COURSE DEPUIS LE BACKEND AU MONTAGE
-  useEffect(() => {
-    const refreshRideFromBackend = async () => {
-      if (!currentRide?.id) return;
-      
-      console.log('🔄 Rechargement des détails de la course depuis le backend...');
-      
-      try {
-        const response = await fetch(
-          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/details/${currentRide.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.ride) {
-            console.log('✅ Détails de course rechargés depuis le backend:', {
-              duration: data.ride.duration,
-              finalPrice: data.ride.finalPrice,
-              distance: data.ride.distance
-            });
-            // Mettre à jour le state avec les vraies données du backend
-            if (state.setCurrentRide) {
-              state.setCurrentRide({
-                ...currentRide,
-                duration: data.ride.duration, // ✅ Durée en SECONDES depuis le backend
-                finalPrice: data.ride.finalPrice || data.ride.estimatedPrice,
-                distance: data.ride.distance
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erreur rechargement course:', error);
-      }
-    };
-    
-    refreshRideFromBackend();
-  }, [currentRide?.id]);
 
   // ✅ Calculer la distance et durée depuis les données de la course
   const distance = currentRide?.distanceKm || currentRide?.distance || 0;
   
-  // ✅ v517.97: CORRECTION - Utiliser billingElapsedTime en priorité (temps facturable)
-  // billingElapsedTime = temps facturé après les 10 minutes gratuites
-  // duration = durée totale de la course
-  let durationInSeconds = currentRide?.billingElapsedTime ?? currentRide?.duration ?? 0;
-  
-  // Si duration est 0, essayer de calculer depuis startTime si disponible
-  if (durationInSeconds === 0 && currentRide?.startTime) {
-    const startTime = new Date(currentRide.startTime);
-    const endTime = currentRide?.completedAt ? new Date(currentRide.completedAt) : new Date();
-    durationInSeconds = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-    console.log('⏱️ v517.97 - Durée calculée localement:', {
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      duration: durationInSeconds
-    });
-  }
-  
-  const durationInMinutes = Math.round(durationInSeconds / 60); // Convertir en minutes pour l'affichage
+  // 🔥 CORRECTION MAJEURE : Prioriser billingElapsedTime qui est la vraie durée
+  // duration peut être à 0 si pas encore sauvegardé, mais billingElapsedTime devrait être là
+  const durationInSeconds = currentRide?.duration || currentRide?.billingElapsedTime || 0;
+  const durationInMinutes = Math.round(durationInSeconds / 60);
   
   // ✅ FONCTION POUR FORMATER LA DURÉE (cohérente avec le driver)
   const formatDuration = (seconds: number): string => {
@@ -152,18 +108,93 @@ export function PaymentScreen() {
     return `${minutes}min`;
   };
   
-  console.log('⏱️ v517.97 - PaymentScreen - Durée:', {
-    billingElapsedTime: currentRide?.billingElapsedTime,
-    duration: currentRide?.duration,
-    durationInSeconds,
-    durationInMinutes,
-    formatted: formatDuration(durationInSeconds),
-    source: currentRide?.billingElapsedTime !== undefined ? 'billingElapsedTime' : (currentRide?.duration ? 'duration' : 'calculated')
+  // 🔥 NOUVEAU: Polling pour récupérer la durée si elle est à 0
+  useEffect(() => {
+    if (!currentRide?.id || durationInSeconds > 0) {
+      return; // Pas besoin de polling si la durée existe déjà
+    }
+    
+    console.log('⚠️ PaymentScreen - Durée à 0, démarrage du polling...');
+    setIsLoadingDuration(true);
+    
+    const fetchDuration = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${currentRide.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          
+          console.log('🔍 Données récupérées du backend:', {
+            duration: data.ride?.duration,
+            billingElapsedTime: data.ride?.billingElapsedTime,
+            distance: data.ride?.distance
+          });
+          
+          // 🔥 Vérifier SOIT duration SOIT billingElapsedTime
+          const retrievedDuration = data.ride?.duration || data.ride?.billingElapsedTime || 0;
+          
+          if (data.ride && retrievedDuration > 0) {
+            console.log('✅ PaymentScreen - Durée récupérée:', retrievedDuration);
+            
+            // Mettre à jour la course avec la durée
+            if (state.updateRide) {
+              state.updateRide(currentRide.id, {
+                duration: retrievedDuration,
+                billingElapsedTime: retrievedDuration, // Mettre à jour les deux
+                distance: data.ride.distance || currentRide.distance,
+                finalPrice: data.ride.finalPrice || currentRide.estimatedPrice
+              });
+            }
+            
+            setIsLoadingDuration(false);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur récupération durée:', error);
+      }
+    };
+    
+    // Vérifier immédiatement
+    fetchDuration();
+    
+    // Puis toutes les 2 secondes pendant 30 secondes max
+    const interval = setInterval(fetchDuration, 2000);
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      setIsLoadingDuration(false);
+      console.warn('⚠️ Timeout polling durée - durée reste à 0');
+    }, 30000);
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [currentRide?.id, durationInSeconds, state.updateRide]);
+  
+  console.log('🔥🔥🔥 PaymentScreen - ÉTAT ACTUEL:', {
+    'currentRide.id': currentRide?.id,
+    'currentRide.duration': currentRide?.duration,
+    'currentRide.billingElapsedTime': currentRide?.billingElapsedTime,
+    'durationInSeconds (calculé)': durationInSeconds,
+    'durationInMinutes': durationInMinutes,
+    'formatted': formatDuration(durationInSeconds),
+    'distance': distance,
+    'isLoadingDuration': isLoadingDuration,
+    'currentRide.status': currentRide?.status,
+    'OBJET COMPLET currentRide': currentRide
   });
     
   const ridePrice = currentRide?.estimatedPrice || 0;
-  // ✅ FIX v517.93: Utiliser ?? au lieu de || pour éviter que 0 soit considéré comme falsy
-  const userBalance = currentUser?.walletBalance ?? currentUser?.balance ?? 0;
+  // ✅ FIX: Utiliser walletBalance au lieu de balance
+  const userBalance = currentUser?.walletBalance || currentUser?.balance || 0;
   
   // Calculer le montant Mobile Money pour paiement mixte
   const cashAmountNum = parseFloat(cashAmount) || 0;
@@ -264,7 +295,7 @@ export function PaymentScreen() {
             console.error('❌ Erreur rechargement solde:', balanceResponse.status);
           }
         } catch (error) {
-          console.error('❌ Erreur rechargement solde:', error);
+          console.error(' Erreur rechargement solde:', error);
         }
       }
 

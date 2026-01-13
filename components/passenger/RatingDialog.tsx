@@ -1,6 +1,12 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Star, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Star, MapPin, Clock, DollarSign, Sun, Moon } from '../../lib/icons';
+import { convertCDFtoUSD, getExchangeRate } from '../../lib/pricing';
+import { PRICING_CONFIG } from '../../lib/pricing-data';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface RatingDialogProps {
   ride: any;
@@ -98,16 +104,8 @@ export function RatingDialog({ ride, onClose }: RatingDialogProps) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-    >
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-      >
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 space-y-4">
           {/* Header */}
           <div className="text-center">
@@ -314,7 +312,7 @@ export function RatingDialog({ ride, onClose }: RatingDialogProps) {
             {submitting ? 'Envoi...' : 'Terminer'}
           </Button>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }

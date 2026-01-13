@@ -42,7 +42,7 @@ export class FlutterwaveProvider implements PaymentProvider {
    */
   private getPublicKey(): string {
     // Essayer d'abord la variable d'environnement (PRODUCTION)
-    const envKey = typeof import.meta !== 'undefined' && import.meta.env?.VITE_FLUTTERWAVE_PUBLIC_KEY;
+    const envKey = import.meta.env.VITE_FLUTTERWAVE_PUBLIC_KEY;
     if (envKey) {
       console.log('🔑 Flutterwave: Utilisation clé depuis .env.local');
       return envKey;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, X, Loader2 } from 'lucide-react';
+import { Search, MapPin, X, Loader2 } from '../../lib/icons';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 

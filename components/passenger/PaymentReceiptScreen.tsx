@@ -1,28 +1,29 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { useState, useEffect } from 'react';
+import {
+  CheckCircle,
+  Download,
+  Share2,
+  Mail,
+  ArrowLeft,
+  MapPin,
+  Clock,
+  User,
+  Car,
+  CreditCard,
+  DollarSign,
+  Star,
+  FileText,
+  Calendar,
+  Navigation
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
 import { useAppState } from '../../hooks/useAppState';
 import { TipSelector } from '../TipSelector';
-import { 
-  CheckCircle,
-  Clock,
-  MapPin,
-  Star,
-  User,
-  Car,
-  Receipt,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  Download,
-  Share,
-  ArrowLeft,
-  X
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function PaymentReceiptScreen() {
   const { state, setCurrentScreen, updateRide, drivers } = useAppState();
@@ -81,11 +82,11 @@ export function PaymentReceiptScreen() {
   const getPaymentMethodIcon = () => {
     switch (currentRide?.paymentMethod) {
       case 'mobile_money':
-        return <Smartphone className="w-5 h-5" />;
+        return <CreditCard className="w-5 h-5" />;
       case 'card':
         return <CreditCard className="w-5 h-5" />;
       case 'cash':
-        return <Banknote className="w-5 h-5" />;
+        return <CreditCard className="w-5 h-5" />;
       default:
         return <CreditCard className="w-5 h-5" />;
     }
@@ -338,7 +339,7 @@ export function PaymentReceiptScreen() {
               className="flex-1 h-12"
               onClick={() => toast.info('Fonctionnalité bientôt disponible')}
             >
-              <Share className="w-4 h-4 mr-2" />
+              <Share2 className="w-4 h-4 mr-2" />
               Partager
             </Button>
           </motion.div>

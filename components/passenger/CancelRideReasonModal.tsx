@@ -1,11 +1,11 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { X, AlertTriangle, CheckCircle2 } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 interface CancelRideReasonModalProps {
   isOpen: boolean;
@@ -79,11 +79,16 @@ export function CancelRideReasonModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <DialogHeader>
+        <DialogHeader className="flex items-center justify-between mb-4">
           <DialogTitle className="text-xl font-semibold">Annuler la course</DialogTitle>
-          <DialogDescription className="text-gray-600 mb-6">
-            Pourquoi souhaitez-vous annuler cette course ?
-          </DialogDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="w-8 h-8"
+          >
+            <X className="w-5 h-5" />
+          </Button>
         </DialogHeader>
 
         {/* Warning if penalty applies */}
@@ -104,6 +109,11 @@ export function CancelRideReasonModal({
             </div>
           </motion.div>
         )}
+
+        {/* Subtitle */}
+        <p className="text-gray-600 mb-6">
+          Pourquoi souhaitez-vous annuler cette course ?
+        </p>
 
         {/* Predefined reasons */}
         <div className="space-y-2 mb-6">
@@ -139,9 +149,9 @@ export function CancelRideReasonModal({
             exit={{ opacity: 0, height: 0 }}
             className="mb-6"
           >
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <Label className="block text-sm font-medium text-gray-700 mb-2">
               Précisez la raison
-            </label>
+            </Label>
             <Textarea
               value={customReason}
               onChange={(e) => setCustomReason(e.target.value)}

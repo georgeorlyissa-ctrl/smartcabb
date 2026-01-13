@@ -1,3 +1,5 @@
+import { isGeolocationAvailable } from './graceful-geolocation';
+
 /**
  * 🎯 SYSTÈME DE GÉOLOCALISATION ULTRA-PRÉCIS
  * 
@@ -159,101 +161,63 @@ export class PreciseGPSTracker {
   }
 
   /**
-   * 🚀 DÉMARRER LE TRACKING GPS (MODE UBER/YANGO)
+   * 🎯 DÉMARRER LA GÉOLOCALISATION PRÉCISE
    */
-  start(options: {
+  async start(options?: {
     onPositionUpdate?: (position: GPSCoordinates) => void;
     onAccuracyReached?: (position: GPSCoordinates) => void;
     onError?: (error: string) => void;
-    lockOnAccuracy?: boolean; // Verrouiller la position une fois la précision atteinte
-    instantMode?: boolean; // 🆕 Mode instantané (afficher immédiatement)
-  }): void {
-    this.onPositionUpdate = options.onPositionUpdate;
-    this.onAccuracyReached = options.onAccuracyReached;
-    this.onError = options.onError;
+    lockOnAccuracy?: number;
+  }) {
+    // Sauvegarder les callbacks
+    this.onPositionUpdate = options?.onPositionUpdate;
+    this.onAccuracyReached = options?.onAccuracyReached;
+    this.onError = options?.onError;
     
-    const lockOnAccuracy = options.lockOnAccuracy !== false; // true par défaut
-    const instantMode = options.instantMode !== false; // 🆕 true par défaut
+    const lockOnAccuracy = options?.lockOnAccuracy || 20;
     
-    console.log('🛰️ Démarrage GPS INSTANTANÉ (mode Uber)...');
-    console.log('⚙️ Paramètres:', {
-      mode: instantMode ? '⚡ INSTANTANÉ' : '🎯 Précis',
-      verrouillageAuto: lockOnAccuracy,
-      rejetSauts: `>${this.MAX_JUMP_DISTANCE}m`
-    });
-
+    // Vérifier si l'API de géolocalisation existe
     if (!navigator.geolocation) {
-      this.onError?.('Géolocalisation non disponible');
+      console.warn('⚠️ Géolocalisation non supportée par ce navigateur');
+      this.onError?.('Géolocalisation non supportée');
       return;
     }
 
-    // 🆕 OPTIONS GPS INSTANTANÉ (comme Uber)
+    console.log('🎯 Démarrage géolocalisation RAPIDE...');
+    
+    // ⚡ OPTIMISATION: Options RAPIDES pour la première position
     const quickGeoOptions: PositionOptions = {
-      enableHighAccuracy: false, // ✅ WiFi/Cell towers d'abord (RAPIDE)
-      timeout: 3000, // 3 secondes max
-      maximumAge: 10000 // Accepter cache de 10s
+      enableHighAccuracy: false, // ⚡ WiFi/cellulaire = RAPIDE
+      timeout: 3000, // ⚡ 3 secondes max
+      maximumAge: 60000 // ⚡ Accepter position de 1 minute
+    };
+
+    // 🎯 Première position RAPIDE immédiate
+    console.log('⚡ Obtention position rapide...');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('✅ Position rapide obtenue !');
+        this.handlePosition(position, lockOnAccuracy);
+      },
+      (error) => {
+        // Ne pas bloquer si la position rapide échoue
+        if (error.message.includes('permissions policy')) {
+          console.log('📍 Géolocalisation bloquée par permissions policy');
+          this.onError?.('Géolocalisation non disponible dans cet environnement');
+        } else {
+          console.log('⚠️ Position rapide échouée, passage en mode précis...');
+        }
+      },
+      quickGeoOptions
+    );
+
+    // 🔄 TRACKING CONTINU : watchPosition avec options équilibrées
+    const balancedGeoOptions: PositionOptions = {
+      enableHighAccuracy: isMobileDevice(), // Haute précision uniquement sur mobile
+      timeout: 8000, // 8 secondes (compromis)
+      maximumAge: 5000 // Accepter position de 5 secondes
     };
     
-    // Options GPS haute précision (pour affinage)
-    const preciseGeoOptions: PositionOptions = {
-      enableHighAccuracy: true, // ✅ GPS haute précision
-      timeout: 15000, // 15 secondes
-      maximumAge: 0 // Pas de cache
-    };
-
-    if (instantMode) {
-      // 🆕 STRATÉGIE UBER : Position rapide PUIS affinage
-      // 1️⃣ D'abord : Position WiFi/Cell (50-500m) en 1-2 secondes
-      console.log('⚡ Phase 1 : Position rapide (WiFi/Cell)...');
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          console.log('✅ Position rapide obtenue');
-          this.handlePosition(position, false); // Ne pas verrouiller encore
-          
-          // 2️⃣ Ensuite : Affinage GPS en arrière-plan
-          console.log('🎯 Phase 2 : Affinage GPS en arrière-plan...');
-          navigator.geolocation.getCurrentPosition(
-            (precisePosition) => {
-              console.log('✅ Position GPS précise obtenue');
-              this.handlePosition(precisePosition, lockOnAccuracy);
-            },
-            (error) => {
-              console.warn('⚠️ Affinage GPS échoué, position rapide conservée');
-            },
-            preciseGeoOptions
-          );
-        },
-        (error) => {
-          console.error('❌ Erreur position rapide, essai GPS direct...');
-          // Fallback : GPS direct
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              this.handlePosition(position, lockOnAccuracy);
-            },
-            (error) => {
-              console.error('❌ Erreur GPS:', error.message);
-              this.onError?.(error.message);
-            },
-            preciseGeoOptions
-          );
-        },
-        quickGeoOptions
-      );
-    } else {
-      // Mode classique (précis d'abord)
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          this.handlePosition(position, lockOnAccuracy);
-        },
-        (error) => {
-          console.error('❌ Erreur GPS initiale:', error.message);
-          this.onError?.(error.message);
-        },
-        preciseGeoOptions
-      );
-    }
-
-    // 🔄 TRACKING CONTINU : watchPosition pour affinage progressif
     this.watchId = navigator.geolocation.watchPosition(
       (position) => {
         // Si position verrouillée, ignorer les nouvelles mises à jour
@@ -265,10 +229,13 @@ export class PreciseGPSTracker {
         this.handlePosition(position, lockOnAccuracy);
       },
       (error) => {
-        console.error('❌ Erreur GPS tracking:', error.message);
-        this.onError?.(error.message);
+        // Ne pas afficher d'erreurs alarmantes
+        if (!error.message.includes('permissions policy')) {
+          console.log('⚠️ GPS tracking:', error.message);
+        }
+        // Ne pas appeler onError pour les erreurs de tracking continu
       },
-      preciseGeoOptions
+      balancedGeoOptions
     );
   }
 
@@ -321,7 +288,7 @@ export class PreciseGPSTracker {
   /**
    * 🎯 HANDLER PRIVÉ : Traiter une nouvelle position GPS
    */
-  private handlePosition(position: GeolocationPosition, lockOnAccuracy: boolean): void {
+  private handlePosition(position: GeolocationPosition, lockOnAccuracy: number): void {
     const rawCoords: GPSCoordinates = {
       lat: position.coords.latitude,
       lng: position.coords.longitude,

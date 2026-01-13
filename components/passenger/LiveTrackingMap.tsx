@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from '../../framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { MapPin, Navigation, Car, AlertCircle, Phone, MessageCircle } from '../../lib/icons';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
 
 interface Location {
   lat: number;
@@ -253,7 +255,7 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
 
       {/* Loader pendant le chargement */}
       {isLoading && (
-        <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+        <div className="absolute inset-0 bg-white/80 flex items-center justify-center z-[1000]">
           <div className="text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-sm text-gray-600">Chargement de la carte...</p>
@@ -267,25 +269,25 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
         animate={{ y: 0, opacity: 1 }}
         className="absolute top-4 left-4 right-4 z-[1000]"
       >
-        <div className="bg-white rounded-2xl shadow-lg border border-border p-4">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
               <Car className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <p className="text-sm text-muted-foreground">Votre chauffeur</p>
+              <p className="text-sm text-gray-600">Votre chauffeur</p>
               <p className="font-semibold text-lg">{driverName}</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleCallDriver}
-                className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg"
+                className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
               >
                 <Phone className="w-5 h-5 text-white" />
               </button>
               <button
                 onClick={handleWhatsApp}
-                className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg"
+                className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
               >
                 <MessageCircle className="w-5 h-5 text-white" />
               </button>
@@ -294,13 +296,13 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
 
           {/* Barre de progression si disponible */}
           {driverLocation && (
-            <div className="mt-3 pt-3 border-t border-border">
+            <div className="mt-3 pt-3 border-t border-gray-200">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-muted-foreground">En cours</span>
+                  <span className="text-gray-600">En cours</span>
                 </div>
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-blue-600">
                   {state.currentRide?.estimatedDuration || 15} min
                 </span>
               </div>
@@ -309,25 +311,26 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
         </div>
       </motion.div>
 
-      {/* Légende en bas */}
-      <div className="absolute bottom-4 left-4 right-4 z-[1000]">
-        <div className="bg-white rounded-xl shadow-lg border border-border p-3">
-          <div className="flex items-center justify-around text-xs">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded-full" />
-              <span>Départ</span>
+      {/* Indicateur de destination flottant */}
+      <motion.div
+        initial={{ x: 100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        className="absolute top-32 right-4 z-[1000]"
+      >
+        <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-2xl shadow-2xl p-4 max-w-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center flex-shrink-0">
+              <Navigation className="w-5 h-5 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-blue-500 rounded-full" />
-              <span>Chauffeur</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-red-500 rounded-full" />
-              <span>Arrivée</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white/80 uppercase tracking-wide mb-1">Destination</p>
+              <p className="font-bold text-sm leading-tight line-clamp-2">
+                {destination.address || 'Point d\'arrivée'}
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

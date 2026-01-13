@@ -8,11 +8,9 @@
  * - Pas de données en mémoire, tout vient du backend
  */
 
-import { useAppState } from './useAppState';
-import { supabase } from '../lib/supabase';
-import { syncRidesFromSupabase } from '../lib/sync-service';
+import { useState, useEffect, useCallback } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 
 const SERVER_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52`;
 

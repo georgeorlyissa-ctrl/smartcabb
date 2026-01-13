@@ -1,7 +1,7 @@
+import { useState } from 'react';
 import { Button } from '../ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { Share2, Check, Copy, MessageCircle, Mail, Facebook, Twitter } from 'lucide-react';
-import { toast } from 'sonner';
+import { Share2, Check, Copy, MessageCircle, Mail, Facebook, Twitter } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 interface ShareRideProps {
   rideDetails: {

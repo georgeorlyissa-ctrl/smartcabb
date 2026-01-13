@@ -1,7 +1,25 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Database, HardDrive, Download, Upload, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
+import {
+  Download,
+  Upload,
+  RefreshCw,
+  Database,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  Calendar,
+  ArrowLeft,
+  Save,
+  Trash2,
+  Shield,
+  Server,
+  HardDrive,
+  Archive,
+  FileJson,
+  FileText
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 interface BackupItem {
   id: string;
@@ -280,7 +298,7 @@ export function BackupAndRecoveryScreen() {
           </Card>
           <Card className="bg-white/10 backdrop-blur-sm border-white/20 p-4">
             <div className="text-center">
-              <CheckCircle2 className="w-6 h-6 mx-auto mb-2 text-green-300" />
+              <CheckCircle className="w-6 h-6 mx-auto mb-2 text-green-300" />
               <p className="text-2xl font-bold">
                 {backups.filter(b => b.status === 'completed').length}
               </p>
@@ -397,7 +415,7 @@ export function BackupAndRecoveryScreen() {
                       <p className="text-xs text-gray-500">{table.id}</p>
                     </div>
                     {isSelected && (
-                      <CheckCircle2 className="w-5 h-5 text-blue-600" />
+                      <CheckCircle className="w-5 h-5 text-blue-600" />
                     )}
                   </div>
                 </button>

@@ -1,6 +1,23 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../framer-motion';
-import { Terminal, Database, Users, Car, TrendingUp, MapPin, DollarSign } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Bug,
+  X,
+  Copy,
+  CheckCircle,
+  Database,
+  Globe,
+  Smartphone,
+  Code,
+  Settings,
+  MapPin,
+  User,
+  CreditCard
+} from '../lib/icons';
+import { motion } from '../lib/motion';
+import { Button } from './ui/button';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
+import { useAppState } from '../hooks/useAppState';
 
 export function DebugPanel() {
   const { state, setCurrentScreen, clearCurrentRide } = useAppState();
@@ -70,7 +87,7 @@ export function DebugPanel() {
               onClick={() => setIsOpen(false)}
               className="w-8 h-8"
             >
-              <XCircle className="w-4 h-4" />
+              <X className="w-4 h-4" />
             </Button>
           </div>
 

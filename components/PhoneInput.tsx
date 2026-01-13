@@ -1,5 +1,7 @@
-import React from 'react';
-import { Phone } from 'lucide-react';
+import { forwardRef } from 'react';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Phone } from '../lib/icons';
 
 interface PhoneInputProps {
   value: string;
@@ -8,6 +10,13 @@ interface PhoneInputProps {
   className?: string;
   id?: string;
   onSubmit?: () => void;
+  label?: string;
+  disabled?: boolean;
+  onKeyPress?: (e: React.KeyboardEvent) => void;
+  autoComplete?: string;
+  autoCorrect?: string;
+  autoCapitalize?: string;
+  spellCheck?: string | boolean;
 }
 
 export function PhoneInput({ 
@@ -16,7 +25,14 @@ export function PhoneInput({
   placeholder = "81 234 5678",
   className = "",
   id = "phone",
-  onSubmit
+  onSubmit,
+  label,
+  disabled = false,
+  onKeyPress,
+  autoComplete,
+  autoCorrect,
+  autoCapitalize,
+  spellCheck
 }: PhoneInputProps) {
   const [displayValue, setDisplayValue] = useState('');
   const PREFIX = '+243 ';
@@ -121,24 +137,29 @@ export function PhoneInput({
   };
 
   return (
-    <div className="relative">
-      <Input
-        id={id}
-        type="tel"
-        placeholder={PREFIX + placeholder}
-        value={displayValue}
-        onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onFocus={handleFocus}
-        onClick={handleClick}
-        className={`pl-4 pr-16 h-12 bg-gray-50 border-0 rounded-xl text-base ${className}`}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck="false"
-      />
-      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
-        {getDigitsCount()}/10
+    <div className="space-y-2">
+      {label && <Label htmlFor={id}>{label}</Label>}
+      <div className="relative">
+        <Input
+          id={id}
+          type="tel"
+          placeholder={PREFIX + placeholder}
+          value={displayValue}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          onClick={handleClick}
+          className={`pl-4 pr-16 h-12 bg-gray-50 border-0 rounded-xl text-base ${className}`}
+          autoComplete={autoComplete}
+          autoCorrect={autoCorrect}
+          autoCapitalize={autoCapitalize}
+          spellCheck={spellCheck}
+          disabled={disabled}
+          onKeyPress={onKeyPress}
+        />
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
+          {getDigitsCount()}/10
+        </div>
       </div>
     </div>
   );

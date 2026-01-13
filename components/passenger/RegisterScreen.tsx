@@ -10,7 +10,7 @@ import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import { PhoneInput } from '../PhoneInput';
 import { PolicyModal } from '../PolicyModal';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle } from '../../lib/icons';
 
 export function RegisterScreen() {
   const { setCurrentScreen, setCurrentUser, setCurrentView } = useAppState();

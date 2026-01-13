@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion } from './framer-motion';
-import { Button } from './components/ui/button';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
+import { Button } from '../ui/button';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
 import { TimerControl } from './TimerControl';
 import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
 

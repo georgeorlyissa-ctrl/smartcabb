@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from './ui/button';
+import { Card } from './ui/card';
 import { Input } from './ui/input';
-import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from '../lib/icons';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
@@ -309,9 +310,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
   // Écran de succès
   if (step === 'success') {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <Card
         className={`min-h-screen bg-gradient-to-br ${theme.gradient} flex flex-col`}
       >
         <div className="flex items-center justify-between p-6">
@@ -328,14 +327,14 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <motion.div
+          <Card
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', delay: 0.2 }}
             className={`w-20 h-20 ${theme.icon} rounded-full flex items-center justify-center mb-6`}
           >
             <CheckCircle className="w-10 h-10 text-white" />
-          </motion.div>
+          </Card>
 
           <h2 className="text-2xl mb-4">Mot de passe réinitialisé !</h2>
           <p className="text-gray-600 mb-6 text-center">
@@ -345,14 +344,14 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
             Retour automatique à la connexion...
           </p>
         </div>
-      </motion.div>
+      </Card>
     );
   }
 
   // Écran de vérification OTP
   if (step === 'otp') {
     return (
-      <motion.div
+      <Card
         initial={{ x: 300, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: -300, opacity: 0 }}
@@ -373,7 +372,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         </div>
 
         <div className="flex-1 px-6 py-8">
-          <motion.div
+          <Card
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -386,9 +385,9 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
             <p className="text-gray-600">
               Entrez le code à 6 chiffres reçu au {phoneNumber}
             </p>
-          </motion.div>
+          </Card>
 
-          <motion.div
+          <Card
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -415,7 +414,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
 
             {/* Panneau DEBUG si les credentials SMS ne sont pas configurés */}
             {debugCode && (
-              <motion.div
+              <Card
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4"
@@ -443,12 +442,12 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </Card>
             )}
-          </motion.div>
+          </Card>
         </div>
 
-        <motion.div
+        <Card
           initial={{ y: 50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -479,8 +478,8 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
           >
             Annuler
           </Button>
-        </motion.div>
-      </motion.div>
+        </Card>
+      </Card>
     );
   }
 
@@ -491,7 +490,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
   console.log('📝 loading:', loading);
   
   return (
-    <motion.div
+    <Card
       initial={{ x: 300, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -300, opacity: 0 }}
@@ -512,7 +511,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
       </div>
 
       <div className="flex-1 px-6 py-8">
-        <motion.div
+        <Card
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
@@ -525,9 +524,9 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
           <p className="text-gray-600">
             Choisissez un nouveau mot de passe sécurisé
           </p>
-        </motion.div>
+        </Card>
 
-        <motion.div
+        <Card
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
@@ -594,10 +593,10 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
               </div>
             </div>
           )}
-        </motion.div>
+        </Card>
       </div>
 
-      <motion.div
+      <Card
         initial={{ y: 50, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.4 }}
@@ -621,7 +620,7 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         >
           Retour
         </Button>
-      </motion.div>
-    </motion.div>
+      </Card>
+    </Card>
   );
 }

@@ -1,0 +1,10 @@
+{
+  "name": "motion",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./react.ts",
+  "exports": {
+    ".": "./react.ts",
+    "./react": "./react.ts"
+  }
+}

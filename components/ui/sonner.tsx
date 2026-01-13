@@ -1,6 +1,6 @@
 "use client";
 
-import { Toaster as Sonner, ToasterProps } from "sonner";
+import { Toaster as Sonner, ToasterProps } from "../../sonner";
 
 const Toaster = ({ ...props }: ToasterProps) => {
   // Pas besoin de next-themes pour SmartCabb

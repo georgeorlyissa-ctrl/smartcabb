@@ -4,31 +4,33 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Card } from '../ui/card';
+import { motion, AnimatePresence } from '../../lib/motion';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { 
-  Trash2, 
-  Database, 
-  AlertTriangle, 
-  CheckCircle, 
-  Loader2,
+import { Card } from '../ui/card';
+import {
+  Trash2,
+  RefreshCw,
+  Database,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  Calendar,
+  Activity,
+  TrendingDown,
+  Shield,
+  Archive,
+  Download,
+  Upload,
+  Filter,
+  Search,
   BarChart3,
-  Users,
-  Car,
-  MapPin,
-  Tag,
-  Megaphone,
-  Wallet,
-  Bell,
-  MessageCircle,
-  Phone
-} from 'lucide-react';
-import { toast } from 'sonner';
+  Zap,
+  HardDrive
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
 
 interface DataStats {
   rides: number;
@@ -47,6 +49,7 @@ interface DataStats {
 }
 
 export function DataCleanupPanel() {
+  const { setCurrentScreen } from useAppState();
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState<DataStats | null>(null);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -143,6 +146,17 @@ export function DataCleanupPanel() {
 
   return (
     <div className="space-y-6">
+      {/* Bouton retour */}
+      <Button
+        onClick={() => setCurrentScreen('admin-dashboard')}
+        variant="ghost"
+        size="sm"
+        className="text-muted-foreground hover:text-foreground -mb-2"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Retour au tableau de bord
+      </Button>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

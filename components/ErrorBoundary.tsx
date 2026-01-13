@@ -1,10 +1,10 @@
-import * as React from 'react';
+import React, { Component, ReactNode } from 'react';
 import { Button } from './ui/button';
-import { AlertCircle, Home, WifiOff } from 'lucide-react';
+import { AlertCircle, Home, WifiOff } from '../lib/icons';
 
 interface Props {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
 }
 
 interface State {
@@ -14,7 +14,7 @@ interface State {
   isOfflineError: boolean;
 }
 
-export class ErrorBoundary extends React.Component<Props, State> {
+export class ErrorBoundary extends Component<Props, State> {
   private mounted = false;
 
   constructor(props: Props) {
@@ -40,21 +40,35 @@ export class ErrorBoundary extends React.Component<Props, State> {
     console.error('❌ Error info:', errorInfo);
     console.error('❌ Component Stack:', errorInfo.componentStack);
     
-    // 🔍 Détecter si c'est une erreur de module dynamique hors ligne
-    const isOfflineModuleError = error.message?.includes('Failed to fetch dynamically imported module') ||
+    // 🔍 Détecter si c'est une erreur de module dynamique
+    const isDynamicImportError = error.message?.includes('Failed to fetch dynamically imported module') ||
                                  error.message?.includes('error loading dynamically imported module');
     
-    if (isOfflineModuleError) {
-      console.warn('⚠️ Erreur de chargement de module hors ligne détectée');
+    // 🌐 Vérifier l'état de la connexion de manière plus fiable
+    let isActuallyOffline = false;
+    
+    if (isDynamicImportError) {
+      console.warn('⚠️ Erreur de chargement de module dynamique détectée');
       
-      // Vérifier si on est hors ligne
-      if (typeof window !== 'undefined' && !window.navigator.onLine) {
-        console.warn('📡 Mode hors ligne confirmé - Affichage message approprié');
+      // Vérifier plusieurs indicateurs de connexion
+      if (typeof window !== 'undefined') {
+        const navigatorOffline = !window.navigator.onLine;
+        
+        // Test supplémentaire : tenter de charger une ressource depuis le serveur
+        // Si on est vraiment hors ligne, l'ErrorBoundary devrait seulement s'afficher
+        // quand navigator.onLine est false
+        if (navigatorOffline) {
+          console.warn('📡 Navigator.onLine = false - Mode hors ligne confirmé');
+          isActuallyOffline = true;
+        } else {
+          console.log('✅ Navigator.onLine = true - Connexion détectée');
+          console.log('⚠️ Erreur de module, mais connexion active - Probablement un problème de build/cache');
+        }
       }
     }
     
     if (this.mounted) {
-      this.setState({ errorInfo, isOfflineError: isOfflineModuleError });
+      this.setState({ errorInfo, isOfflineError: isActuallyOffline });
     }
   }
 
@@ -170,9 +184,9 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl p-8">
             <div className="text-center mb-6">
               <AlertCircle className="w-20 h-20 text-red-500 mx-auto mb-4" />
-              <h2 className="text-3xl mb-3 text-gray-900">Une erreur est survenue</h2>
+              <h2 className="text-3xl mb-3 text-gray-900">Erreur de chargement</h2>
               <p className="text-gray-600 mb-2">
-                Nous sommes désolés, quelque chose s'est mal passé.
+                Une erreur est survenue lors du chargement de cette page.
               </p>
             </div>
 
@@ -181,6 +195,19 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <p className="text-sm text-red-800 font-mono break-words">
                 {this.state.error?.message || 'Erreur inconnue'}
               </p>
+              
+              {/* Conseil pour problème de cache/build */}
+              {this.state.error?.message?.includes('Failed to fetch') && (
+                <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs text-yellow-800 font-bold">💡 Solution rapide :</p>
+                  <p className="text-xs text-yellow-700 mt-1">
+                    1. Videz le cache du navigateur (Ctrl+Shift+Delete)<br/>
+                    2. Actualisez la page (Ctrl+F5 ou Cmd+Shift+R)<br/>
+                    3. Si le problème persiste, attendez quelques minutes que le serveur se mette à jour
+                  </p>
+                </div>
+              )}
+              
               {process.env.NODE_ENV === 'development' && this.state.errorInfo && (
                 <details className="mt-3">
                   <summary className="text-xs text-red-600 cursor-pointer hover:text-red-800">

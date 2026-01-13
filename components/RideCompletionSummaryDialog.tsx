@@ -1,21 +1,27 @@
-import { useState } from 'react';
-import { motion } from '../framer-motion';
+import { useState, useEffect } from 'react';
+import {
+  CheckCircle,
+  Clock,
+  MapPin,
+  Star,
+  User,
+  Car,
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  Navigation,
+  Banknote
+} from '../lib/icons';
+import { motion } from '../lib/motion';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Badge } from './ui/badge';
 import { Separator } from './ui/separator';
 import { useAppState } from '../hooks/useAppState';
 import { 
-  CheckCircle, 
-  Star, 
-  Clock, 
-  MapPin, 
-  DollarSign,
   Receipt,
-  Route,
-  CreditCard,
-  Banknote
-} from 'lucide-react';
+  Route
+} from '../lib/icons';
 
 interface RideCompletionSummaryDialogProps {
   isOpen: boolean;

@@ -3,18 +3,18 @@
  * Pour configurer Africa's Talking ou Twilio
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Switch } from '../ui/switch';
-import { Label } from '../ui/label';
+import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { toast } from 'sonner';
-import { ArrowLeft, Send, CheckCircle, XCircle, Loader2, Info, RefreshCw } from 'lucide-react';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { ArrowLeft, Send, CheckCircle, XCircle, Loader2, Info, RefreshCw } from '../../lib/icons';
 import { supabase } from '../../lib/supabase';
 import { Alert, AlertDescription } from '../ui/alert';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface SMSSettings {
   sms_enabled: boolean;
@@ -275,24 +275,24 @@ export function SMSSettingsScreen({ onBack }: SMSSettingsScreenProps) {
     switch (status) {
       case 'sent':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-green-100 text-green-800">
+          <Badge variant="success">
             <CheckCircle className="w-3 h-3" />
             Envoyé
-          </span>
+          </Badge>
         );
       case 'failed':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-red-100 text-red-800">
+          <Badge variant="danger">
             <XCircle className="w-3 h-3" />
             Échoué
-          </span>
+          </Badge>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-yellow-100 text-yellow-800">
+          <Badge variant="warning">
             <Loader2 className="w-3 h-3 animate-spin" />
             En attente
-          </span>
+          </Badge>
         );
     }
   };

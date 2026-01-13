@@ -1,28 +1,38 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
+import {
+  DollarSign,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Calendar,
+  Download,
+  Upload,
+  RefreshCw,
+  ArrowLeft,
+  CreditCard,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Activity,
+  BarChart3
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
 import { usePayment } from '../../hooks/usePayment';
 import { supabase } from '../../lib/supabase';
 import { sendSMS } from '../../lib/sms-service';
-import {
-  Wallet,
-  Calendar,
-  CheckCircle,
+// Removed duplicate imports - using imports from line 2-17
+import { 
   AlertCircle,
-  Gift,
-  Clock,
-  TrendingUp,
   Loader2,
-  CreditCard,
   Smartphone,
-  ArrowLeft,
-  DollarSign,
+  Gift,
   FileText
-} from 'lucide-react';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 // Types
 interface WalletPackage {
@@ -35,40 +45,40 @@ interface WalletPackage {
   discount?: number;
 }
 
-// Forfaits de recharge disponibles
+// Forfaits de recharge
 const WALLET_PACKAGES: WalletPackage[] = [
   {
-    id: 'basic',
-    name: 'Forfait Basique',
+    id: '1week',
+    name: 'Forfait Semaine',
     description: 'Idéal pour démarrer',
-    amount: 5000,
-    days: 7,
+    amount: 10000,
+    days: 7
   },
   {
-    id: 'standard',
-    name: 'Forfait Standard',
+    id: '2weeks',
+    name: 'Forfait 2 Semaines',
     description: 'Le plus populaire',
-    amount: 15000,
-    days: 30,
+    amount: 18000,
+    days: 14,
     popular: true,
-    discount: 10,
+    discount: 10
   },
   {
-    id: 'premium',
-    name: 'Forfait Premium',
-    description: 'Meilleur rapport qualité-prix',
-    amount: 40000,
+    id: '1month',
+    name: 'Forfait Mensuel',
+    description: 'Meilleur rapport qualité/prix',
+    amount: 30000,
+    days: 30,
+    discount: 20
+  },
+  {
+    id: '3months',
+    name: 'Forfait 3 Mois',
+    description: 'Maximum d\'économies',
+    amount: 75000,
     days: 90,
-    discount: 20,
-  },
-  {
-    id: 'enterprise',
-    name: 'Forfait Professionnel',
-    description: 'Pour conducteurs actifs',
-    amount: 70000,
-    days: 180,
-    discount: 25,
-  },
+    discount: 30
+  }
 ];
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée

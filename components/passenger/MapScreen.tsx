@@ -1,13 +1,21 @@
-import { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
+import { GooglePlacesSearch } from './GooglePlacesSearch';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
+import { MapPin, Menu, User, Navigation, Loader2, Settings, History as HistoryIcon, Star, CreditCard, Search, X } from '../../lib/icons';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
 import { PreciseGPSTracker, reverseGeocode, isMobileDevice } from '../../lib/precise-gps';
 
 export function MapScreen() {
   const { state, setCurrentScreen, setCurrentUser, setCurrentView, setPickup, setDestination: setGlobalDestination, setPickupInstructions, drivers } = useAppState();
   const [destination, setDestination] = useState('');
-  const [pickupInstructions, setLocalPickupInstructions] = useState('');
+  const [pickupInstructionsValue, setPickupInstructionsValue] = useState(''); // Renommé pour clarté
   const [showMenu, setShowMenu] = useState(false);
+  const [isSelectingOnMap, setIsSelectingOnMap] = useState(false); // 🆕 Mode sélection sur carte
+  const [selectedMapPoint, setSelectedMapPoint] = useState<{ lat: number; lng: number } | null>(null); // 🆕
   
   // 🔍 Debug: Log quand destination change
   useEffect(() => {
@@ -21,7 +29,7 @@ export function MapScreen() {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number; address: string; accuracy?: number }>({
     lat: -4.3276,
     lng: 15.3136,
-    address: '📍 Détection de votre position GPS...',
+    address: 'Chargement de votre position...',
     accuracy: 1000
   });
   const [loadingLocation, setLoadingLocation] = useState(true);
@@ -37,34 +45,41 @@ export function MapScreen() {
 
   // Charger la dernière position connue du cache immédiatement
   useEffect(() => {
-    // ✅ v517.96: NE PLUS charger le cache au démarrage - toujours demander la vraie position GPS
-    // Le cache sera utilisé UNIQUEMENT si le GPS échoue dans le callback onError
-    console.log('🚀 v517.96: Démarrage sans cache - Position GPS réelle demandée');
-    
-    // Supprimer l'ancien cache pour forcer une nouvelle détection
     const cachedLocation = localStorage.getItem('smartcabb_last_location');
     if (cachedLocation) {
       try {
         const parsed = JSON.parse(cachedLocation);
-        const cacheAge = Date.now() - (parsed.timestamp || 0);
-        const isOldCache = cacheAge > 5 * 60 * 1000; // Plus de 5 minutes
         
-        if (isOldCache) {
-          console.log('🗑️ Cache trop ancien (>5min) - Suppression pour forcer GPS frais');
+        // ✅ CORRECTION : Si le cache contient des coordonnées GPS brutes, le supprimer
+        if (parsed.address && (
+          parsed.address.includes('°S') || 
+          parsed.address.includes('°E') ||
+          parsed.address.match(/-?\d+\.\d+°/)
+        )) {
+          console.log('🗑️ Ancien format de cache détecté - Suppression...');
           localStorage.removeItem('smartcabb_last_location');
+          // Utiliser la position par défaut
+          setCurrentLocation({
+            lat: -4.3276,
+            lng: 15.3136,
+            address: 'Boulevard du 30 Juin, Gombe, Kinshasa',
+            accuracy: 1000
+          });
+        } else {
+          setCurrentLocation(parsed);
+          console.log('📍 Position en cache chargée:', parsed);
         }
       } catch (e) {
-        console.error('Erreur lecture cache:', e);
-        localStorage.removeItem('smartcabb_last_location');
+        console.error('Erreur lecture cache position:', e);
       }
     }
   }, []);
 
   // Obtenir et suivre la position réelle de l'utilisateur au chargement
   useEffect(() => {
-    console.log('🚀 Démarrage du système GPS ultra-précis...');
+    console.log('🚀 Démarrage du système GPS rapide...');
     
-    // 🎯 NOUVEAU SYSTÈME GPS ULTRA-PRÉCIS
+    // 🎯 NOUVEAU SYSTÈME GPS OPTIMISÉ POUR LA RAPIDITÉ
     gpsTracker.start({
       // Callback: Position mise à jour
       onPositionUpdate: async (position) => {
@@ -94,12 +109,8 @@ export function MapScreen() {
           });
         }
         
-        // ✅ v517.96: Sauvegarder avec timestamp pour détecter cache ancien
-        const locationWithTimestamp = {
-          ...newLocation,
-          timestamp: Date.now()
-        };
-        localStorage.setItem('smartcabb_last_location', JSON.stringify(locationWithTimestamp));
+        // Sauvegarder dans localStorage pour les prochains démarrages
+        localStorage.setItem('smartcabb_last_location', JSON.stringify(newLocation));
         
         // ✅ Première position obtenue : fermer le toast de chargement
         setLoadingLocation(false);
@@ -114,16 +125,11 @@ export function MapScreen() {
         });
         
         setPositionLocked(true);
-        
-        // 🆕 v517.92: RETIRER le toast - Uber n'en a pas non plus !
-        // toast.success('📍 Position GPS précise verrouillée !', {
-        //   duration: 3000
-        // });
       },
       
       // Callback: Erreur GPS
       onError: (error) => {
-        console.error('❌ Erreur GPS:', error);
+        console.log('⚠️ GPS:', error);
         setLoadingLocation(false);
         
         // Position par défaut Kinshasa
@@ -137,17 +143,16 @@ export function MapScreen() {
         localStorage.setItem('smartcabb_last_location', JSON.stringify(defaultLocation));
         
         toast.dismiss('gps-search');
+        
+        // Afficher un message discret SEULEMENT si vraiment bloqué
+        if (error.includes('permissions policy')) {
+          console.log('📍 Géolocalisation bloquée, position par défaut utilisée (Kinshasa)');
+        }
       },
       
-      // 🆕 v517.91: DÉSACTIVER verrouillage auto pour garder position GPS en temps réel
-      lockOnAccuracy: false,
-      
-      // 🆕 v517.92: MODE INSTANTANÉ (comme Uber/Yango)
-      instantMode: true
+      // ⚡ OPTIMISATION: Désactiver verrouillage auto pour garder position GPS en temps réel
+      lockOnAccuracy: undefined
     });
-    
-    // 🆕 v517.92: RETIRER le toast agaçant - Uber n'en a pas !
-    // toast.loading('🛰️ Recherche de votre position GPS...', { id: 'gps-search', duration: 10000 });
     
     // Cleanup: arrêter le tracking lors du démontage
     return () => {
@@ -186,25 +191,15 @@ export function MapScreen() {
       }
     }
     
-    // Enregistrer la destination dans l'état global
-    if (setGlobalDestination) {
-      // Générer des coordonnées approximatives si pas de coordonnées spécifiques
-      const baseLatKinshasa = -4.3276;
-      const baseLngKinshasa = 15.3136;
-      const randomOffset = () => (Math.random() - 0.5) * 0.1; // ±5km environ
-      
-      setGlobalDestination({
-        lat: baseLatKinshasa + randomOffset(),
-        lng: baseLngKinshasa + randomOffset(),
-        address: destination.trim()
-      });
-      console.log('🎯 Destination enregistrée:', destination.trim());
-    }
+    // ✅ NE PLUS RIEN FAIRE ICI
+    // Les coordonnées sont déjà enregistrées par AddressSearchInput onAddressSelect
+    // Cette fonction est juste pour lancer la course
+    console.log('🎯 Destination déjà enregistrée par AddressSearchInput');
     
     // Enregistrer les instructions de prise en charge
     if (setPickupInstructions) {
-      setPickupInstructions(pickupInstructions);
-      console.log('📍 Instructions enregistrées:', pickupInstructions);
+      setPickupInstructions(pickupInstructionsValue);
+      console.log('📍 Instructions enregistrées:', pickupInstructionsValue);
     }
     
     setCurrentScreen('estimate');
@@ -382,7 +377,8 @@ export function MapScreen() {
         initial={false}
         animate={{ 
           top: isPanelExpanded ? 'calc(35vh + 64px)' : 'calc(35vh + 64px)',
-          height: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto'
+          height: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto',
+          maxHeight: isPanelExpanded ? 'calc(65vh - 64px)' : 'auto'
         }}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         className="absolute left-0 right-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.15)] z-30 flex flex-col"
@@ -395,8 +391,14 @@ export function MapScreen() {
           <div className="w-10 h-1 bg-gray-400 rounded-full" />
         </div>
 
-        {/* Contenu scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 pb-safe">
+        {/* Contenu scrollable avec padding important en bas */}
+        <div className="flex-1 overflow-y-auto px-4 pb-24 overscroll-contain"
+             style={{ 
+               WebkitOverflowScrolling: 'touch',
+               scrollbarWidth: 'none',
+               msOverflowStyle: 'none'
+             }}
+        >
           {/* Destination compacte */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -404,48 +406,53 @@ export function MapScreen() {
                 <Search className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <AddressSearchInput
+                {/* 🆕 NOUVEAU : Composant de recherche Yango-style (SIMPLE ET EFFICACE) */}
+                <GooglePlacesSearch
                   placeholder="Où allez-vous ?"
-                  currentLocation={currentLocation} // 🆕 Passer la position actuelle pour filtrage contextuel
-                  onAddressSelect={(address) => {
-                    console.log('🎯 onAddressSelect MapScreen appelé - Adresse:', address.name);
+                  currentLocation={currentLocation}
+                  onSelect={(result) => {
+                    console.log('🎯 Destination sélectionnée:', result.name);
                     
                     // ✅ Mettre à jour destination LOCALEMENT
-                    setDestination(address.name);
+                    setDestination(result.name);
                     
                     // ✅ Enregistrer les coordonnées dans l'état global
-                    if (setGlobalDestination) {
+                    if (setGlobalDestination && result.coordinates) {
                       setGlobalDestination({
-                        lat: address.coordinates.lat,
-                        lng: address.coordinates.lng,
-                        address: address.name
+                        lat: result.coordinates.lat,
+                        lng: result.coordinates.lng,
+                        address: result.name
                       });
-                      console.log('✅ Coordonnées de destination enregistrées:', address.coordinates);
+                      console.log('✅ Coordonnées de destination enregistrées:', result.coordinates);
+                    } else if (!result.coordinates) {
+                      console.warn('⚠️ Résultat sans coordonnées, sélectionné depuis historique');
+                      // Pour l'historique, les coordonnées sont déjà enregistrées
                     }
                     
                     // ✅ Afficher une confirmation visuelle
-                    toast.success(`📍 Destination : ${address.name}`, { duration: 2000 });
+                    toast.success(`📍 Destination : ${result.name}`, { duration: 2000 });
                   }}
                 />
               </div>
             </div>
 
-            {/* 🆕 Champ d'instructions de prise en charge */}
+            {/* 🆕 Champ point de repère - UTILISE LA BASE DE DONNÉES */}
             <div className="flex items-start gap-2">
               <div className="bg-green-500 p-2 rounded-full flex-shrink-0 mt-1">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="relative">
-                  <Input
-                    placeholder="Point de repère (ex: Devant Total...)"
-                    value={pickupInstructions}
-                    onChange={(e) => setLocalPickupInstructions(e.target.value)}
-                    className="h-12 text-sm bg-white border-gray-200 rounded-xl shadow-sm pl-3 pr-3 focus:border-green-500 focus:ring-1 focus:ring-green-500"
-                  />
-                </div>
+                <GooglePlacesSearch
+                  placeholder="Point de repère (ex: Arrêt Armée, Marché Central...)"
+                  currentLocation={currentLocation}
+                  onSelect={(result) => {
+                    console.log('📍 Point de repère sélectionné:', result.name);
+                    setPickupInstructionsValue(result.name);
+                    toast.success(`📍 Repère : ${result.name}`, { duration: 2000 });
+                  }}
+                />
                 <p className="text-xs text-gray-500 mt-1.5 ml-1">
-                  💡 Aidez le conducteur à vous trouver facilement
+                  💡 Choisissez un lieu proche pour faciliter la prise en charge
                 </p>
               </div>
             </div>
@@ -486,23 +493,28 @@ export function MapScreen() {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <FavoriteLocations
-                    currentLocation={currentLocation}
-                    onSelectLocation={(location) => {
-                      setDestination(location.address);
-                      // Enregistrer aussi les coordonnées de la destination
-                      if (setGlobalDestination) {
-                        setGlobalDestination({
-                          lat: location.lat,
-                          lng: location.lng,
-                          address: location.address
-                        });
-                      }
-                      setShowFavorites(false);
-                      toast.success('✅ Destination sélectionnée depuis vos favoris !');
-                    }}
-                    className="py-2"
-                  />
+                  <div className="max-h-48 overflow-y-auto">
+                    <FavoriteLocations
+                      currentLocation={currentLocation}
+                      onSelectLocation={(location) => {
+                        console.log('🎯 Favori sélectionné dans MapScreen:', location);
+                        setDestination(location.address);
+                        console.log('✅ Destination définie à:', location.address);
+                        // Enregistrer aussi les coordonnées de la destination
+                        if (setGlobalDestination) {
+                          setGlobalDestination({
+                            lat: location.lat,
+                            lng: location.lng,
+                            address: location.address
+                          });
+                          console.log('✅ Destination globale définie:', { lat: location.lat, lng: location.lng });
+                        }
+                        setShowFavorites(false);
+                        toast.success('✅ Destination sélectionnée depuis vos favoris !');
+                      }}
+                      className="py-2"
+                    />
+                  </div>
                 </motion.div>
               )}
             </div>
@@ -638,7 +650,7 @@ export function MapScreen() {
             animate={{ x: 0 }}
             exit={{ x: -300 }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute top-0 left-0 bottom-0 w-80 bg-gradient-to-br from-white via-white to-gray-50 shadow-2xl z-50 flex flex-col"
+            className="absolute top-0 left-0 bottom-0 w-80 bg-gradient-to-br from-white via-white to-gray-50 shadow-2xl z-50 flex flex-col pt-16"
           >
             {/* Header avec profil utilisateur - Design moderne */}
             <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-6 pb-8 relative overflow-hidden">

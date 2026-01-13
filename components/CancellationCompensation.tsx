@@ -1,6 +1,18 @@
-import { useState } from 'react';
-import { motion } from '../framer-motion';
-import { AlertTriangle, DollarSign, Clock, Calendar } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import {
+  Calculator,
+  DollarSign,
+  Info,
+  Clock,
+  AlertTriangle,
+  User,
+  Car,
+  CheckCircle,
+  TrendingDown,
+  ArrowRight,
+  Phone
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 
 interface CancellationCompensationProps {
   rideId: string;

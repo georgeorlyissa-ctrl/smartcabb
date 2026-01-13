@@ -1,14 +1,8 @@
-import { Button } from '../ui/button';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-// Import des icônes Lucide React
-import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Label } from '../ui/label';
+import { Card } from '../ui/card';
+import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from '../../lib/icons';
 
 interface FavoriteLocation {
   id?: string;
@@ -35,11 +29,15 @@ const iconOptions = [
 ];
 
 export function FavoriteLocations({ onSelectLocation, currentLocation, className = "" }: FavoriteLocationsProps) {
-  const { state } = useAppState();
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 🆕 VERSION 2.0 - Log de version pour vérifier le chargement
+  useEffect(() => {
+    console.log('🚀 FavoriteLocations v2.0 chargé avec succès !');
+  }, []);
 
   const [newFavorite, setNewFavorite] = useState<FavoriteLocation>({
     name: '',
@@ -49,28 +47,52 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
     icon: 'home'
   });
 
-  // Charger les favoris depuis Supabase
+  // 🆕 Charger les favoris depuis le backend KV store
   useEffect(() => {
     loadFavorites();
-  }, [state.currentUser]);
+  }, []);
 
   const loadFavorites = async () => {
-    if (!state.currentUser?.id) return;
+    if (!state.currentUser?.id) {
+      console.log('⚠️ Pas d\'utilisateur connecté, impossible de charger les favoris');
+      return;
+    }
 
     try {
-      const { data, error } = await supabase
-        .from('favorite_locations')
-        .select('*')
-        .eq('user_id', state.currentUser.id)
-        .order('created_at', { ascending: false });
+      console.log('🔍 Chargement des favoris pour:', state.currentUser.id);
+      console.log('🔍 URL:', `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`);
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (error) throw error;
+      console.log('📡 Réponse status:', response.status);
+      const data = await response.json();
+      console.log('📡 Réponse data:', data);
 
-      if (data) {
-        setFavorites(data);
+      if (response.ok) {
+        console.log('✅ Favoris chargés:', data);
+        
+        if (data.success && data.favorites) {
+          console.log('✅ Nombre de favoris:', data.favorites.length);
+          setFavorites(data.favorites);
+        } else {
+          console.log('⚠️ Pas de favoris dans la réponse');
+          setFavorites([]);
+        }
+      } else {
+        console.error('❌ Erreur chargement favoris:', response.status, data);
+        setFavorites([]);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des favoris:', error);
+      console.error('❌ Erreur lors du chargement des favoris:', error);
+      setFavorites([]);
     }
   };
 
@@ -89,34 +111,48 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
 
     try {
       if (editingFavorite?.id) {
-        // Mise à jour
-        const { error } = await supabase
-          .from('favorite_locations')
-          .update({
-            name: newFavorite.name,
-            address: newFavorite.address,
-            lat: newFavorite.lat,
-            lng: newFavorite.lng,
-            icon: newFavorite.icon
-          })
-          .eq('id', editingFavorite.id);
+        // 🆕 Mise à jour via API
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites/${editingFavorite.id}`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newFavorite.name,
+              address: newFavorite.address,
+              lat: newFavorite.lat,
+              lng: newFavorite.lng,
+              icon: newFavorite.icon
+            })
+          }
+        );
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Erreur mise à jour');
         toast.success('Favori mis à jour');
       } else {
-        // Création
-        const { error } = await supabase
-          .from('favorite_locations')
-          .insert({
-            user_id: state.currentUser.id,
-            name: newFavorite.name,
-            address: newFavorite.address,
-            lat: newFavorite.lat,
-            lng: newFavorite.lng,
-            icon: newFavorite.icon
-          });
+        // 🆕 Création via API
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name: newFavorite.name,
+              address: newFavorite.address,
+              lat: newFavorite.lat,
+              lng: newFavorite.lng,
+              icon: newFavorite.icon
+            })
+          }
+        );
 
-        if (error) throw error;
+        if (!response.ok) throw new Error('Erreur création');
         toast.success('Favori ajouté');
       }
 
@@ -134,12 +170,18 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
     if (!confirm('Supprimer ce lieu favori ?')) return;
 
     try {
-      const { error } = await supabase
-        .from('favorite_locations')
-        .delete()
-        .eq('id', id);
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser?.id}/favorites/${id}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) throw new Error('Erreur suppression');
 
       toast.success('Favori supprimé');
       await loadFavorites();
@@ -208,16 +250,29 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
       {/* Liste des favoris */}
       <div className="space-y-2">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm text-gray-600">Lieux favoris</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowAddDialog(true)}
-            className="text-blue-600 hover:text-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            Ajouter
-          </Button>
+          <h3 className="text-sm text-gray-600">
+            Lieux favoris {favorites.length > 0 && `(${favorites.length})`}
+          </h3>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadFavorites}
+              className="text-gray-600 hover:text-gray-700"
+              title="Recharger les favoris"
+            >
+              <Navigation className="w-4 h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowAddDialog(true)}
+              className="text-blue-600 hover:text-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              Ajouter
+            </Button>
+          </div>
         </div>
 
         {favorites.length === 0 ? (
@@ -228,42 +283,51 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
           </div>
         ) : (
           <AnimatePresence>
-            {favorites.filter(Boolean).map((favorite) => {
-              // Protection: s'assurer que favorite existe et a toutes les propriétés requises
-              if (!favorite || !favorite.icon || !favorite.address || !favorite.name) {
-                console.error('Favori invalide détecté:', favorite);
+            {favorites.filter(Boolean).map((favorite, index) => {
+              // Log pour déboguer
+              console.log(`🔍 Rendu favori ${index}:`, favorite);
+              
+              // Protection: s'assurer que favorite existe
+              if (!favorite) {
+                console.error('❌ Favori undefined/null:', favorite);
                 return null;
               }
 
-              try {
-                const iconData = getIconComponent(favorite.icon);
-                const IconComponent = iconData.icon;
+              // Utiliser des valeurs par défaut si les propriétés manquent
+              const name = favorite.name || 'Sans nom';
+              const address = favorite.address || 'Adresse non définie';
+              const icon = favorite.icon || 'home';
+              const lat = favorite.lat || -4.3276;
+              const lng = favorite.lng || 15.3136;
 
-                // Double vérification que IconComponent est bien un composant
-                if (!IconComponent || typeof IconComponent !== 'function') {
-                  console.error('IconComponent invalide pour:', favorite.icon);
-                  return null;
-                }
+              console.log(`✅ Favori ${index} valide:`, { name, address, icon, lat, lng });
+
+              try {
+                const iconData = getIconComponent(icon);
+                const IconComponent = iconData.icon;
 
                 return (
                   <motion.button
-                    key={favorite.id || `fav-${Math.random()}`}
+                    key={favorite.id || `fav-${index}-${Math.random()}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100 }}
-                    onClick={() => onSelectLocation({
-                      address: favorite.address,
-                      lat: favorite.lat || -4.3276,
-                      lng: favorite.lng || 15.3136
-                    })}
+                    onClick={() => {
+                      console.log('🎯 Favori cliqué:', { address, lat, lng });
+                      onSelectLocation({
+                        address: address,
+                        lat: lat,
+                        lng: lng
+                      });
+                    }}
                     className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all group"
                   >
                     <div className={`p-2 rounded-full bg-gray-100 ${iconData.color}`}>
                       <IconComponent className="w-5 h-5" />
                     </div>
                     <div className="flex-1 text-left">
-                      <p className="text-sm text-gray-900">{favorite.name}</p>
-                      <p className="text-xs text-gray-500">{favorite.address}</p>
+                      <p className="text-sm text-gray-900">{name}</p>
+                      <p className="text-xs text-gray-500">{address}</p>
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button
@@ -292,10 +356,10 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                   </motion.button>
                 );
               } catch (error) {
-                console.error('Erreur lors du rendu du favori:', error, favorite);
+                console.error('❌ Erreur lors du rendu du favori:', error, favorite);
                 return null;
               }
-            }).filter(Boolean)}
+            })}
           </AnimatePresence>
         )}
       </div>

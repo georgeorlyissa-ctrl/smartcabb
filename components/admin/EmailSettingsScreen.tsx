@@ -1,23 +1,21 @@
 /**
- * EmailSettingsScreen - Gestion des paramètres email de SmartCabb
- * 
- * Permet de configurer SendGrid et gérer les templates d'emails
- * 
- * Fonctionnalités :
- * - Configuration de la clé API SendGrid
- * - Gestion des templates d'emails
- * - Envoi d'emails de test
+ * ============================================================================
+ * SMARTCABB - ÉCRAN DE CONFIGURATION EMAIL
+ * ============================================================================
+ * VERSION PRODUCTION - COMPATIBLE VERCEL
+ * Import sonner SANS version pour compatibilité build production
+ * ============================================================================
  */
 
 import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Textarea } from '../ui/textarea';
-import { Badge } from '../ui/badge';
-import { motion } from '../../framer-motion';
-import { Mail, Key, Save, Send, CheckCircle, XCircle, AlertCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
+
+// ✅ IMPORT CORRECT POUR PRODUCTION
+import { toast } from '../../lib/toast';
 
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
@@ -28,6 +26,35 @@ import {
   SelectValue,
 } from '../ui/select';
 import { Switch } from '../ui/switch';
+
+import {
+  Mail,
+  Save,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Send,
+  Key,
+  Server,
+  Lock,
+  Globe,
+  Settings,
+  TestTube,
+  Copy,
+  Eye,
+  EyeOff,
+  ArrowLeft,
+  Shield,
+  Upload,
+  Download,
+  Database,
+  Activity,
+  Bell,
+  Users,
+  Calendar,
+  FileText
+} from '../../lib/icons';
 
 interface EmailConfig {
   provider: 'resend' | 'sendgrid' | 'smtp';
@@ -265,7 +292,7 @@ export function EmailSettingsScreen({ onBack }: EmailSettingsScreenProps) {
               <div className="flex items-center gap-3">
                 {config.isConfigured && config.isEnabled ? (
                   <>
-                    <CheckCircle2 className="w-6 h-6 text-green-500" />
+                    <CheckCircle className="w-6 h-6 text-green-500" />
                     <div>
                       <p className="font-semibold text-green-700">Emails activés</p>
                       <p className="text-sm text-gray-600">
@@ -297,7 +324,7 @@ export function EmailSettingsScreen({ onBack }: EmailSettingsScreenProps) {
         <Card className="border-2 border-green-300 bg-gradient-to-br from-green-50 to-cyan-50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <CheckCircle className="w-6 h-6 text-green-600" />
               🎉 Test Rapide SendGrid
             </CardTitle>
             <CardDescription>

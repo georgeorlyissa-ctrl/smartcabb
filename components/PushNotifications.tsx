@@ -1,6 +1,6 @@
-import { Bell, X, Check, AlertCircle } from 'lucide-react';
+import { Bell, X, Check, AlertCircle } from '../lib/icons';
 import { Button } from './ui/button';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import { useAppState } from '../hooks/useAppState';
 

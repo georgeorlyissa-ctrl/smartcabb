@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
+import { motion, AnimatePresence } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
@@ -20,12 +20,12 @@ import {
   Wallet,
   TrendingUp, // ✅ FIX #3: Icône pour itinéraire
   Award // ✅ FIX #4: Icône pour profil chauffeur
-} from '../../lucide-react';
+} from '../../lib/icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { AlternativeVehicleDialog } from './AlternativeVehicleDialog';
 import { CancelRideReasonModal } from './CancelRideReasonModal';
 import { VehicleCategory } from '../../lib/pricing';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface DriverData {
   id: string;

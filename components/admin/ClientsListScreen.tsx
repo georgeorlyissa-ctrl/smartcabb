@@ -1,6 +1,28 @@
+import {
+  Search,
+  Filter,
+  Download,
+  Eye,
+  Edit,
+  Trash2,
+  CheckCircle,
+  XCircle,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
+  Calendar,
+  DollarSign,
+  TrendingUp,
+  Star,
+  UserCircle,
+  RefreshCw,
+  Plus,
+  ArrowLeft,
+  Wallet
+} from '../../lib/icons';
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { Users, Search, Phone, Mail, MapPin, Clock, DollarSign, Calendar } from 'lucide-react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -11,7 +33,7 @@ import { PassengerDetailModal } from './PassengerDetailModal';
 import type { Profile } from '../../lib/supabase';
 import { formatCDF } from '../../lib/pricing';
 import { User as UserType } from '../../types';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { syncAllUsersFromSupabase, listenToProfileChanges } from '../../lib/sync-service';
 
 interface ClientsListScreenProps {
@@ -53,7 +75,7 @@ export function ClientsListScreen({ onBack }: ClientsListScreenProps) {
   const getPaymentMethodIcon = (method?: string) => {
     switch (method) {
       case 'mobile_money':
-        return <Phone className="w-4 h-4 text-green-600" />;
+        return <Smartphone className="w-4 h-4 text-green-600" />;
       case 'card':
         return <CreditCard className="w-4 h-4 text-blue-600" />;
       case 'cash':

@@ -1,5 +1,6 @@
-import { Car, Lock, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState } from 'react';
+import { Car, Lock, Eye, EyeOff } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { signIn } from '../../lib/auth-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
@@ -23,108 +24,139 @@ export function DriverLoginScreen() {
     setLoading(true);
 
     try {
+      console.log('🔐 Tentative de connexion conducteur...');
+      
+      // Étape 1: Connexion Supabase Auth
       const result = await signIn({ identifier, password });
 
       if (!result.success) {
-        toast.error(result.error || 'Erreur de connexion');
-        setLoading(false);
-        return;
-      }
-
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${result.user.id}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        toast.error('Profil conducteur introuvable');
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
-
-      if (!data.success || !data.driver) {
-        toast.error('Profil conducteur introuvable');
-        setLoading(false);
-        return;
-      }
-
-      const driverData = data.driver;
-
-      // 🚨 VÉRIFICATION CRITIQUE : Bloquer les conducteurs non approuvés
-      if (driverData.status !== 'approved') {
-        let statusMessage = '';
-        
-        switch (driverData.status) {
-          case 'pending':
-            statusMessage = '⏳ Votre compte est en attente d\'approbation.\n\nUn administrateur doit approuver votre inscription avant que vous puissiez vous connecter.\n\nVeuillez patienter ou contacter le support.';
-            break;
-          case 'rejected':
-            statusMessage = '❌ Votre compte a été rejeté.\n\nVeuillez contacter le support pour plus d\'informations.';
-            break;
-          case 'suspended':
-            statusMessage = '🚫 Votre compte a été suspendu.\n\nVeuillez contacter le support pour plus d\'informations.';
-            break;
-          default:
-            statusMessage = '⚠️ Votre compte n\'est pas actif.\n\nVeuillez contacter le support.';
-        }
-        
-        toast.error(statusMessage, {
-          duration: 8000,
-          position: 'top-center'
+        // Afficher l'erreur de connexion
+        toast.error(result.error || 'Erreur de connexion', {
+          description: 'Vérifiez votre numéro de téléphone et mot de passe',
+          duration: 4000
         });
-        
         setLoading(false);
         return;
       }
 
-      const driver = {
-        id: driverData.id || driverData.user_id,
-        name: driverData.full_name || driverData.name || 'Conducteur',
-        phone: driverData.phone || driverData.phone_number || '',
-        email: driverData.email || '',
-        status: driverData.status || 'pending',
-        is_available: driverData.is_available || false,
-        photo: driverData.photo, // ✅ AJOUT : Photo de profil
-        // ✅ CORRECTION : Structurer les données du véhicule correctement
-        vehicleInfo: driverData.vehicle ? {
-          make: driverData.vehicle.make || '',
-          model: driverData.vehicle.model || '',
-          color: driverData.vehicle.color || '',
-          plate: driverData.vehicle.license_plate || '',
-          category: driverData.vehicle.category || '',
-          year: driverData.vehicle.year || new Date().getFullYear(),
-          seats: driverData.vehicle.seats || 4
-        } : null,
-        // Garder aussi les champs individuels pour compatibilité
-        vehicle_make: driverData.vehicle?.make || '',
-        vehicle_model: driverData.vehicle?.model || '',
-        vehicle_plate: driverData.vehicle?.license_plate || '',
-        vehicle_category: driverData.vehicle?.category || '',
-        rating: driverData.rating || 0,
-        total_rides: driverData.total_rides || 0,
-        wallet_balance: driverData.wallet_balance || 0
-      };
+      console.log('✅ Authentification réussie, récupération du profil conducteur...');
 
-      setCurrentDriver(driver);
-      setCurrentUser({
-        id: driver.id,
-        email: driver.email,
-        role: 'driver',
-        full_name: driver.name
-      });
+      // Étape 2: Récupérer le profil conducteur depuis le backend
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${result.user.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
 
-      toast.success(`Bienvenue ${driver.name}!`);
-      setCurrentScreen('driver-dashboard');
+        if (!response.ok) {
+          console.warn('⚠️ Profil conducteur non trouvé dans la base');
+          toast.error('Profil conducteur introuvable', {
+            description: 'Veuillez contacter le support',
+            duration: 5000
+          });
+          setLoading(false);
+          return;
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.driver) {
+          console.warn('⚠️ Réponse backend invalide:', data);
+          toast.error('Erreur de chargement du profil', {
+            description: 'Impossible de charger vos informations',
+            duration: 5000
+          });
+          setLoading(false);
+          return;
+        }
+
+        const driverData = data.driver;
+
+        // 🚨 VÉRIFICATION : Bloquer les conducteurs non approuvés
+        if (driverData.status !== 'approved') {
+          let statusMessage = '';
+          
+          switch (driverData.status) {
+            case 'pending':
+              statusMessage = 'Votre compte est en attente d\'approbation. Un administrateur doit valider votre inscription.';
+              break;
+            case 'rejected':
+              statusMessage = 'Votre compte a été rejeté. Contactez le support pour plus d\'informations.';
+              break;
+            case 'suspended':
+              statusMessage = 'Votre compte a été suspendu. Contactez le support.';
+              break;
+            default:
+              statusMessage = 'Votre compte n\'est pas actif. Contactez le support.';
+          }
+          
+          toast.error(statusMessage, {
+            duration: 8000
+          });
+          
+          setLoading(false);
+          return;
+        }
+
+        // Construire l'objet conducteur
+        const driver = {
+          id: driverData.id || driverData.user_id,
+          name: driverData.full_name || driverData.name || 'Conducteur',
+          phone: driverData.phone || driverData.phone_number || '',
+          email: driverData.email || '',
+          status: driverData.status || 'pending',
+          is_available: driverData.is_available || false,
+          photo: driverData.photo,
+          vehicleInfo: driverData.vehicle ? {
+            make: driverData.vehicle.make || '',
+            model: driverData.vehicle.model || '',
+            color: driverData.vehicle.color || '',
+            plate: driverData.vehicle.license_plate || '',
+            category: driverData.vehicle.category || '',
+            year: driverData.vehicle.year || new Date().getFullYear(),
+            seats: driverData.vehicle.seats || 4
+          } : null,
+          vehicle_make: driverData.vehicle?.make || '',
+          vehicle_model: driverData.vehicle?.model || '',
+          vehicle_plate: driverData.vehicle?.license_plate || '',
+          vehicle_category: driverData.vehicle?.category || '',
+          rating: driverData.rating || 0,
+          total_rides: driverData.total_rides || 0,
+          wallet_balance: driverData.wallet_balance || 0
+        };
+
+        // Enregistrer dans l'état global
+        setCurrentDriver(driver);
+        setCurrentUser({
+          id: driver.id,
+          email: driver.email,
+          role: 'driver',
+          full_name: driver.name
+        });
+
+        toast.success(`Bienvenue ${driver.name}!`);
+        setCurrentScreen('driver-dashboard');
+
+      } catch (fetchError) {
+        console.error('❌ Erreur lors de la récupération du profil:', fetchError);
+        toast.error('Erreur de connexion au serveur', {
+          description: 'Impossible de charger votre profil',
+          duration: 5000
+        });
+        setLoading(false);
+        return;
+      }
 
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Erreur de connexion');
+      console.error('❌ Erreur inattendue:', error);
+      toast.error('Erreur de connexion', {
+        description: 'Une erreur inattendue s\'est produite',
+        duration: 4000
+      });
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import * as TabsPrimitive from "@radix-ui/react-tabs@1.1.1";
 
 import { cn } from "./utils";
 

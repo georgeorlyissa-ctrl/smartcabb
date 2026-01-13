@@ -3,16 +3,16 @@
  * Bouton flottant pour activer/désactiver les notifications SMS
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { Switch } from '../ui/switch';
+import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { toast } from 'sonner';
-import { MessageSquare, Loader2 } from 'lucide-react';
+import { Textarea } from '../ui/textarea';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { MessageSquare, Loader2 } from '../../lib/icons';
 import { supabase } from '../../lib/supabase';
 
 interface QuickSMSActivationProps {

@@ -1,10 +1,6 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Button } from '../components/ui/button';
-import { motion } from '../framer-motion';
+import React, { useState, useEffect } from 'react';
 import { Link } from '../lib/simple-router';
-
-const SocialFooter = lazy(() => import('../components/SocialFooter').then(m => ({ default: m.SocialFooter })));
-const ChatWidget = lazy(() => import('../components/ChatWidget').then(m => ({ default: m.ChatWidget })));
+import { motion } from '../lib/motion';
 
 // Images hero pour le carrousel - Téléphones avec carte GPS/navigation/transport
 const heroImages = [
@@ -690,12 +686,6 @@ export function LandingPage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <Suspense fallback={<div>Loading...</div>}>
-        <SocialFooter language={language} />
-        <ChatWidget language={language} />
-      </Suspense>
     </div>
   );
 }

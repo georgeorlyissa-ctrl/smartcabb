@@ -1,13 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from '../framer-motion';
-import { Search, MapPin, Navigation, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Search, MapPin, X, Loader2 } from '../lib/icons';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { motion, AnimatePresence } from '../lib/motion';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
+import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
+import { searchProfessionalPlaces, getPlaceCoordinates, type ProfessionalPlace } from '../lib/professional-geocoding'; // 🆕 API PROFESSIONNELLE (Mapbox + Google)
 
 interface Address {
   id: string;
   name: string;
   description: string;
   coordinates: { lat: number; lng: number };
+  distance?: number; // 🆕 Distance en km depuis la position actuelle (comme Yango)
+  placeId?: string; // 🆕 Pour Google Places (obtenir coordonnées plus tard)
 }
 
 interface AddressSearchInputProps {
@@ -106,86 +112,57 @@ export function AddressSearchInput({
     setIsLoading(true);
     updateDropdownPosition();
     
-    setTimeout(() => {
+    // 🌍 RECHERCHE SIMPLE : JUSTE MAPBOX (comme Uber/Yango)
+    setTimeout(async () => {
       const queryLower = query.toLowerCase().trim();
       
-      // 🇨🇩 RECHERCHE CONTEXTUELLE : Quartiers de Kinshasa
-      const matchedQuartiers = searchQuartiers(queryLower);
+      console.log('🌍 ===== RECHERCHE ADRESSE DÉMARRÉE =====');
+      console.log(`🔍 Query: "${query}"`);
+      console.log(`📍 Position actuelle:`, currentLocation);
       
-      // 🎯 FILTRAGE PAR PROXIMITÉ : Si position actuelle disponible
-      let finalQuartiers: Quartier[] = matchedQuartiers;
-      
-      if (currentLocation && matchedQuartiers.length > 0) {
-        // Trouver les quartiers proches (rayon de 10km)
-        const nearbyQuartiers = findNearbyQuartiers(
-          currentLocation.lat, 
-          currentLocation.lng, 
-          10 // rayon en km
-        );
+      try {
+        // 🚀 RECHERCHE AVEC API PROFESSIONNELLES (Mapbox ou Google Places)
+        const professionalResults = await searchProfessionalPlaces(queryLower, currentLocation);
         
-        // Filtrer les résultats pour ne garder que ceux proches
-        // SI l'utilisateur cherche dans une commune proche
-        const nearbyNames = new Set(nearbyQuartiers.map(q => q.nom.toLowerCase()));
-        const nearbyCommunes = new Set(nearbyQuartiers.map(q => q.commune.toLowerCase()));
-        
-        finalQuartiers = matchedQuartiers.filter(q => {
-          const isNearbyQuartier = nearbyNames.has(q.nom.toLowerCase());
-          const isNearbyCommune = nearbyCommunes.has(q.commune.toLowerCase());
-          
-          // Garder si le quartier OU sa commune est proche
-          return isNearbyQuartier || isNearbyCommune || q.populaire; // Toujours garder les lieux populaires
+        console.log(`✅ Résultats professionnels: ${professionalResults.length}`);
+        professionalResults.forEach((result, i) => {
+          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance !== undefined ? result.distance.toFixed(1) + ' km' : 'distance inconnue'}`);
         });
         
-        // Si aucun résultat proche, utiliser tous les matchs (éviter liste vide)
-        if (finalQuartiers.length === 0) {
-          finalQuartiers = matchedQuartiers;
-        }
+        // Convertir au format Address
+        const suggestions: Address[] = professionalResults.map((place, index) => ({
+          id: place.id,
+          name: place.name,
+          description: place.description,
+          coordinates: place.coordinates,
+          distance: place.distance,
+          placeId: place.placeId // 🆕 Pour Google Places
+        }));
         
-        console.log(`🔍 Recherche "${query}":`, {
-          totalMatches: matchedQuartiers.length,
-          nearby: nearbyQuartiers.length,
-          filtered: finalQuartiers.length
-        });
+        console.log(`🎯 ${suggestions.length} suggestions à afficher`);
+        console.log('🌍 ===== RECHERCHE TERMINÉE =====');
+        
+        setSuggestions(suggestions);
+        setIsOpen(suggestions.length > 0);
+        setIsLoading(false);
+        isUserTypingRef.current = false;
+        
+      } catch (error) {
+        console.error('❌ Erreur recherche professionnelle:', error);
+        setSuggestions([]);
+        setIsOpen(false);
+        setIsLoading(false);
+        isUserTypingRef.current = false;
       }
-      
-      // Convertir en format Address
-      const suggestions: Address[] = finalQuartiers.slice(0, 15).map((quartier, index) => ({
-        id: `quartier-${index}`,
-        name: quartier.nom,
-        description: `${quartier.commune}, Kinshasa, RDC`,
-        coordinates: { lat: quartier.lat, lng: quartier.lng }
-      }));
-      
-      // Si aucune suggestion trouvée, créer une suggestion personnalisée
-      if (suggestions.length === 0 && queryLower.length >= 2) {
-        const baseLatKinshasa = -4.3276;
-        const baseLngKinshasa = 15.3136;
-        const randomOffset = () => (Math.random() - 0.5) * 0.05;
-        
-        suggestions.push({
-          id: 'custom',
-          name: query.trim(),
-          description: 'Adresse personnalisée, Kinshasa, RDC',
-          coordinates: { 
-            lat: baseLatKinshasa + randomOffset(), 
-            lng: baseLngKinshasa + randomOffset() 
-          }
-        });
-      }
-      
-      setSuggestions(suggestions);
-      setIsOpen(suggestions.length > 0);
-      setIsLoading(false);
-      isUserTypingRef.current = false;
-    }, 200);
+    }, 300); // Délai anti-spam
   };
 
-  const handleAddressSelect = (address: Address) => {
+  const handleAddressSelect = async (address: Address) => {
     console.log('==========================================');
     console.log('🔍 handleAddressSelect APPELÉ');
     console.log('📍 Adresse sélectionnée:', address.name);
-    console.log('📊 inputValue AVANT:', inputValue);
-    console.log('📊 isOpen AVANT:', isOpen);
+    console.log('📊 placeId:', address.placeId);
+    console.log('📊 coordinates:', address.coordinates);
     console.log('==========================================');
     
     // ✅ ÉTAPE 1: Mettre à jour inputValue IMMÉDIATEMENT
@@ -198,14 +175,50 @@ export function AddressSearchInput({
       console.log('✅ onChange(parent) appelé avec:', address.name);
     }
     
-    // ✅ ÉTAPE 3: Appeler onAddressSelect
-    onAddressSelect(address);
-    console.log('✅ onAddressSelect appelé');
-    
-    // ✅ ÉTAPE 4: Fermer le dropdown SANS setTimeout
+    // ✅ ÉTAPE 3: Fermer le dropdown immédiatement pour améliorer l'UX
     setIsOpen(false);
     setSuggestions([]);
     console.log('✅ Dropdown fermé');
+    
+    // ✅ ÉTAPE 4: Si c'est un Google Places sans coordonnées, les récupérer
+    if (address.placeId && (!address.coordinates || !address.coordinates.lat)) {
+      console.log('📍 Récupération des coordonnées pour Google Places...');
+      setIsLoading(true);
+      
+      try {
+        const details = await getPlaceCoordinates(address.placeId);
+        
+        if (details) {
+          console.log('✅ Coordonnées récupérées:', details.coordinates);
+          
+          // Créer un nouvel objet address avec les coordonnées
+          const completeAddress: Address = {
+            ...address,
+            coordinates: details.coordinates,
+            name: details.name || address.name,
+            description: address.description
+          };
+          
+          // ✅ ÉTAPE 5: Appeler onAddressSelect avec les coordonnées complètes
+          onAddressSelect(completeAddress);
+          console.log('✅ onAddressSelect appelé avec coordonnées complètes');
+        } else {
+          console.error('❌ Impossible de récupérer les coordonnées');
+          // Fallback: appeler quand même avec l'adresse originale
+          onAddressSelect(address);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la récupération des coordonnées:', error);
+        // Fallback: appeler quand même avec l'adresse originale
+        onAddressSelect(address);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      // ✅ ÉTAPE 5: Coordonnées déjà présentes, appeler directement onAddressSelect
+      onAddressSelect(address);
+      console.log('✅ onAddressSelect appelé avec coordonnées existantes');
+    }
     
     console.log('==========================================');
     console.log('🎉 handleAddressSelect TERMINÉ');
@@ -238,7 +251,7 @@ export function AddressSearchInput({
     >
       {isLoading ? (
         <div className="p-4 text-center">
-          <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></div>
+          <Loader2 className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto"></Loader2>
           <p className="text-sm text-gray-600 mt-2">Recherche...</p>
         </div>
       ) : (
@@ -253,20 +266,34 @@ export function AddressSearchInput({
           >
             <div className="flex items-start space-x-3">
               <MapPin className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <p className="text-base font-semibold text-gray-900 leading-snug">{address.name}</p>
                 <p className="text-sm text-gray-700 mt-1 leading-relaxed">{address.description}</p>
               </div>
+              {/* 🆕 DISTANCE COMME YANGO */}
+              {address.distance !== undefined && (
+                <div className="flex-shrink-0 ml-2">
+                  <p className="text-sm font-medium text-gray-500">{address.distance.toFixed(1)} km</p>
+                </div>
+              )}
             </div>
           </button>
         ))
       )}
       
       {!isLoading && suggestions.length === 0 && value.length >= 2 && (
-        <div className="p-4 text-center text-gray-600">
-          <MapPin className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-sm">Aucune adresse trouvée</p>
-          <p className="text-xs">Essayez avec un autre terme de recherche</p>
+        <div className="p-6 text-center text-gray-600">
+          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
+            <MapPin className="w-8 h-8 text-red-500" />
+          </div>
+          <p className="text-base font-semibold text-gray-900 mb-1">Lieu introuvable</p>
+          <p className="text-sm text-gray-600 mb-2">Ce lieu n'existe pas dans notre base de données</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-3">
+            <p className="text-xs text-blue-800 font-medium mb-1">💡 Suggestions :</p>
+            <p className="text-xs text-blue-700">• Vérifiez l'orthographe</p>
+            <p className="text-xs text-blue-700">• Utilisez le nom d'un quartier ou lieu connu</p>
+            <p className="text-xs text-blue-700">• Essayez un point de repère proche</p>
+          </div>
         </div>
       )}
     </motion.div>

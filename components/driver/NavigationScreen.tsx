@@ -1,9 +1,10 @@
-import { toast } from '../../lib/toast';
-import { motion } from '../../framer-motion';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/button';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lucide-react';
-import { TimerControl } from './TimerControl';
-import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
+import { Card } from '../ui/card';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { useAppState } from '../../hooks/useAppState';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
 
 interface NavigationScreenProps {
   onBack: () => void;
@@ -391,6 +392,13 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
     
     // ✅ ENVOYER LA COURSE TERMINÉE AU BACKEND
     try {
+      console.log('🔥 NavigationScreen - Envoi au backend:', {
+        rideId: rideData.id,
+        billingElapsedTime: billingElapsedTime,
+        finalCost: finalCost,
+        distance: distance
+      });
+      
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
         {
@@ -404,7 +412,7 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
             driverId: state.currentDriver?.id,
             passengerId: rideData.passengerId,
             finalPrice: finalCost,
-            duration: billingElapsedTime,
+            duration: billingElapsedTime, // 🔥 DOIT ÊTRE > 0
             rating: 0,
             feedback: '',
             paymentMethod: 'cash',
@@ -499,10 +507,40 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
     if (newState && waitingTime < 600) {
       setWaitingTimeFrozen(waitingTime);
       // NOUVEAU : Démarrer le chrono de facturation
-      setBillingStartTime(Date.now());
+      const billingStart = Date.now();
+      setBillingStartTime(billingStart);
       setBillingElapsedTime(0);
       console.log(`⏸️ Temps d'attente gelé à ${waitingTime}s (${Math.floor(waitingTime / 60)}min ${waitingTime % 60}s)`);
       console.log(`🚀 Chrono de facturation démarré !`);
+      
+      // 🆕 SYNCHRONISER AVEC LE BACKEND pour que le passager reçoive l'info
+      if (state.currentRide?.id) {
+        try {
+          const response = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/update-billing/${state.currentRide.id}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                billingStartTime: billingStart,
+                freeWaitingDisabled: true,
+                billingElapsedTime: 0
+              })
+            }
+          );
+          
+          if (response.ok) {
+            console.log('✅ Temps de facturation synchronisé avec le backend');
+          } else {
+            console.error('❌ Erreur synchronisation backend:', await response.text());
+          }
+        } catch (error) {
+          console.error('❌ Erreur réseau synchronisation billing:', error);
+        }
+      }
       
       // 📱 SMS: Notification de démarrage de course au passager
       if (state.currentRide && state.currentDriver) {
@@ -511,8 +549,10 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
             state.currentUser?.phone || '+243999999999', // Téléphone du passager
             state.currentDriver.phone || '+243999999999', // Téléphone du conducteur
             state.currentUser?.name || 'Passager',
-            state.currentDriver.name,
-            state.currentRide.destination?.address || 'Destination non spécifiée' // ✅ v517.96: Fix crash si destination undefined
+            state.currentDriver.name || 'Conducteur',
+            state.currentRide.vehicleType || 'Smart Standard',
+            state.currentRide.pickup?.address || 'Point de départ',
+            state.currentRide.destination?.address || 'Destination'
           );
           console.log('✅ SMS démarrage de course envoyé au passager (attente gratuite désactivée)');
         } catch (error) {
@@ -525,8 +565,31 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
       // NOUVEAU : Arrêter le chrono de facturation
       setBillingStartTime(null);
       setBillingElapsedTime(0);
-      console.log('▶️ Temps d\'attente dégelé - Compteur reprend');
+      console.log("▶️ Temps d'attente dégelé - Compteur reprend");
       console.log('⏹️ Chrono de facturation arrêté');
+      
+      // 🆕 SYNCHRONISER L'ARRÊT AVEC LE BACKEND
+      if (state.currentRide?.id) {
+        try {
+          await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/update-billing/${state.currentRide.id}`,
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                billingStartTime: null,
+                freeWaitingDisabled: false,
+                billingElapsedTime: 0
+              })
+            }
+          );
+        } catch (error) {
+          console.error('❌ Erreur synchronisation backend:', error);
+        }
+      }
     }
     
     if (updateRide && state.currentRide?.id) {

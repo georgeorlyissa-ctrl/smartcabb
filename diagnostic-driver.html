@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostic Compte Conducteur</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    input:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .success {
+      background: #d1fae5;
+      color: #065f46;
+      border: 2px solid #10b981;
+    }
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2px solid #ef4444;
+    }
+    .info {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 2px solid #3b82f6;
+    }
+    .warning {
+      background: #fef3c7;
+      color: #92400e;
+      border: 2px solid #f59e0b;
+    }
+    .log-entry {
+      padding: 8px;
+      margin: 4px 0;
+      border-left: 3px solid #3b82f6;
+      background: #f8fafc;
+    }
+    .section-title {
+      font-weight: 700;
+      color: #1e40af;
+      margin: 16px 0 8px 0;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔧 Diagnostic Compte Conducteur</h1>
+    <p class="subtitle">Ce script va diagnostiquer votre compte pour identifier pourquoi la connexion échoue</p>
+    
+    <div class="form-group">
+      <label>Numéro de téléphone ou Email</label>
+      <input 
+        type="text" 
+        id="identifier" 
+        placeholder="Ex: 0812345678 ou email@example.com"
+        value=""
+      />
+    </div>
+    
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input 
+        type="password" 
+        id="password" 
+        placeholder="Votre mot de passe"
+      />
+    </div>
+    
+    <button onclick="runDiagnostic()" id="diagBtn">🔍 Lancer le diagnostic</button>
+    <button onclick="runFullSearch()" id="searchBtn" style="background: #7c3aed; margin-top: 12px;">🔎 Recherche complète (sans mot de passe)</button>
+    
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { projectId, publicAnonKey } from './utils/supabase/info.js';
+    
+    window.supabaseClient = createClient(
+      `https://${projectId}.supabase.co`,
+      publicAnonKey
+    );
+    window.projectId = projectId;
+    window.publicAnonKey = publicAnonKey;
+    
+    console.log('✅ Supabase client initialisé');
+  </script>
+
+  <script>
+    function addResult(message, type = 'info') {
+      const resultsDiv = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = `result ${type}`;
+      resultDiv.textContent = message;
+      resultsDiv.appendChild(resultDiv);
+    }
+
+    function addSection(title) {
+      const resultsDiv = document.getElementById('results');
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 'section-title';
+      sectionDiv.textContent = title;
+      resultsDiv.appendChild(sectionDiv);
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+
+    // Fonction de normalisation du téléphone
+    function normalizePhoneNumber(phone) {
+      const cleaned = phone.replace(/[\s\-+()]/g, '');
+      
+      // Cas 1: 9 chiffres → 243XXXXXXXXX
+      if (cleaned.length === 9 && /^\d+$/.test(cleaned)) {
+        return `243${cleaned}`;
+      }
+      
+      // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
+      if (cleaned.length === 10 && cleaned.startsWith('0')) {
+        return `243${cleaned.substring(1)}`;
+      }
+      
+      // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
+      if (cleaned.length === 12 && cleaned.startsWith('243')) {
+        return cleaned;
+      }
+      
+      // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
+      if (cleaned.length === 13 && cleaned.startsWith('2430')) {
+        return `243${cleaned.substring(4)}`;
+      }
+      
+      return phone;
+    }
+
+    function detectInputType(input) {
+      const trimmed = input.trim();
+      
+      if (trimmed.includes('@')) {
+        return 'email';
+      }
+      
+      const cleaned = trimmed.replace(/[\s\-+()]/g, '');
+      if (/^\d+$/.test(cleaned)) {
+        return 'phone';
+      }
+      
+      return 'unknown';
+    }
+
+    async function runFullSearch() {
+      clearResults();
+      const identifier = document.getElementById('identifier').value.trim();
+      
+      if (!identifier) {
+        addResult('❌ Veuillez entrer un numéro de téléphone ou email', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('searchBtn');
+      btn.disabled = true;
+      btn.textContent = '🔍 Recherche en cours...';
+
+      try {
+        addSection('🔍 RECHERCHE COMPLÈTE DANS LE SYSTÈME');
+        
+        const inputType = detectInputType(identifier);
+        addResult(`Type détecté: ${inputType}`, 'info');
+        
+        let normalizedPhone = null;
+        if (inputType === 'phone') {
+          normalizedPhone = normalizePhoneNumber(identifier);
+          addResult(`📱 Numéro normalisé: ${normalizedPhone}`, 'info');
+        }
+
+        // Recherche via l'API
+        addSection('📡 Recherche via API /auth/get-email-by-phone');
+        
+        const searchPayload = {
+          phoneNumber: normalizedPhone || identifier
+        };
+        
+        addResult(`Payload: ${JSON.stringify(searchPayload, null, 2)}`, 'info');
+        
+        const response = await fetch(
+          `https://${window.projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${window.publicAnonKey}`
+            },
+            body: JSON.stringify(searchPayload)
+          }
+        );
+
+        const result = await response.json();
+        
+        addSection('📊 RÉSULTAT DE LA RECHERCHE');
+        addResult(JSON.stringify(result, null, 2), result.success ? 'success' : 'error');
+
+        if (result.success && result.email) {
+          addSection('✅ COMPTE TROUVÉ');
+          addResult(`Email Auth: ${result.email}`, 'success');
+          if (result.profileEmail) {
+            addResult(`Email Profil: ${result.profileEmail}`, 'info');
+          }
+          addResult(`User ID: ${result.userId}`, 'info');
+          
+          addSection('💡 INSTRUCTIONS POUR SE CONNECTER');
+          addResult(
+            `1. Utilisez cet email pour vous connecter: ${result.email}\n` +
+            `2. Utilisez votre mot de passe habituel\n` +
+            `3. Si vous avez oublié votre mot de passe, utilisez la fonction "Mot de passe oublié"`,
+            'warning'
+          );
+        } else {
+          addSection('❌ AUCUN COMPTE TROUVÉ');
+          addResult(
+            `Aucun compte trouvé avec cet identifiant.\n\n` +
+            `Possibilités:\n` +
+            `1. Le compte n'existe pas\n` +
+            `2. Le numéro n'est pas au bon format\n` +
+            `3. Le compte est dans Supabase Auth mais pas dans le KV store`,
+            'error'
+          );
+        }
+
+      } catch (error) {
+        addSection('❌ ERREUR');
+        addResult(`Erreur: ${error.message}\n\nStack: ${error.stack}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔎 Recherche complète (sans mot de passe)';
+      }
+    }
+
+    async function runDiagnostic() {
+      clearResults();
+      const identifier = document.getElementById('identifier').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!identifier || !password) {
+        addResult('❌ Veuillez remplir tous les champs', 'error');
+        return;
+      }
+
+      const btn = document.getElementById('diagBtn');
+      btn.disabled = true;
+      btn.textContent = '🔍 Diagnostic en cours...';
+
+      try {
+        addSection('🔍 ÉTAPE 1 : ANALYSE DE L\'IDENTIFIANT');
+        
+        const inputType = detectInputType(identifier);
+        addResult(`Type détecté: ${inputType}`, 'info');
+        
+        let email = identifier;
+        let normalizedPhone = null;
+        
+        if (inputType === 'phone') {
+          normalizedPhone = normalizePhoneNumber(identifier);
+          addResult(`📱 Numéro normalisé: ${normalizedPhone}`, 'info');
+          
+          // Rechercher l'email correspondant
+          addSection('🔍 ÉTAPE 2 : RECHERCHE DE L\'EMAIL AUTH');
+          
+          const response = await fetch(
+            `https://${window.projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${window.publicAnonKey}`
+              },
+              body: JSON.stringify({ phoneNumber: normalizedPhone })
+            }
+          );
+
+          const result = await response.json();
+          addResult(`Réponse API: ${JSON.stringify(result, null, 2)}`, 'info');
+
+          if (result.success && result.email) {
+            email = result.email;
+            addResult(`✅ Email Auth trouvé: ${email}`, 'success');
+            if (result.profileEmail && result.profileEmail !== result.email) {
+              addResult(`ℹ️ Email profil différent: ${result.profileEmail}`, 'warning');
+            }
+          } else {
+            addResult(`❌ Aucun compte trouvé avec ce numéro`, 'error');
+            addResult(
+              `Formats testés:\n` +
+              `- ${normalizedPhone}\n` +
+              `- ${normalizedPhone.replace('243', '0')}\n` +
+              `- +${normalizedPhone}`,
+              'info'
+            );
+            btn.disabled = false;
+            btn.textContent = '🔍 Lancer le diagnostic';
+            return;
+          }
+        } else {
+          addResult(`📧 Email utilisé: ${email}`, 'info');
+        }
+
+        // Tenter la connexion
+        addSection('🔍 ÉTAPE 3 : TEST DE CONNEXION');
+        addResult(`Email pour connexion: ${email}`, 'info');
+        
+        const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) {
+          addSection('❌ ÉCHEC DE LA CONNEXION');
+          addResult(`Erreur: ${error.message}`, 'error');
+          
+          if (error.message.includes('Invalid login credentials')) {
+            addResult(
+              `⚠️ IDENTIFIANTS INCORRECTS\n\n` +
+              `Possibilités:\n` +
+              `1. Le mot de passe est incorrect\n` +
+              `2. L'email Auth ne correspond pas (${email})\n` +
+              `3. Le compte existe mais avec un autre email\n\n` +
+              `Solutions:\n` +
+              `1. Vérifiez votre mot de passe\n` +
+              `2. Essayez avec un autre format de numéro\n` +
+              `3. Utilisez "Mot de passe oublié"`,
+              'warning'
+            );
+          } else if (error.message.includes('Email not confirmed')) {
+            addResult(
+              `⚠️ EMAIL NON CONFIRMÉ\n\n` +
+              `Le compte existe mais l'email n'est pas confirmé.\n` +
+              `Contactez l'administrateur pour confirmer votre compte.`,
+              'warning'
+            );
+          }
+        } else {
+          addSection('✅ CONNEXION RÉUSSIE !');
+          addResult(`User ID: ${data.user.id}`, 'success');
+          addResult(`Email: ${data.user.email}`, 'success');
+          addResult(`Rôle: ${data.user.user_metadata?.role || 'N/A'}`, 'success');
+          addResult(`Nom: ${data.user.user_metadata?.full_name || 'N/A'}`, 'success');
+          addResult(`Téléphone (metadata): ${data.user.user_metadata?.phone || 'N/A'}`, 'success');
+          
+          addSection('💡 CONCLUSION');
+          addResult(
+            `✅ Votre compte fonctionne !\n\n` +
+            `Utilisez ces identifiants pour vous connecter:\n` +
+            `Email: ${email}\n` +
+            `Mot de passe: [celui que vous venez de tester]`,
+            'success'
+          );
+        }
+
+      } catch (error) {
+        addSection('❌ ERREUR INATTENDUE');
+        addResult(`${error.message}\n\nStack:\n${error.stack}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔍 Lancer le diagnostic';
+      }
+    }
+
+    window.runDiagnostic = runDiagnostic;
+    window.runFullSearch = runFullSearch;
+  </script>
+</body>
+</html>

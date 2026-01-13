@@ -1,14 +1,27 @@
-import { signIn } from '../../lib/auth-service';
-import { profileService } from '../../lib/supabase-services';
-import { Eye, EyeOff, Mail, Lock, ArrowLeft, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { syncUserProfile } from '../../lib/sync-service';
-import { useAppState } from '../../hooks/useAppState';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { useState } from 'react';
+import { Card } from '../ui/card';
+import { EmailPhoneInput } from '../EmailPhoneInput';
+import { PhoneInput } from '../PhoneInput';
+import { OTPVerification } from '../OTPVerification';
+import { useAppState } from '../../hooks/useAppState';
+import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from '../../lib/icons';
+import { toast } from '../../lib/toast';
+import { supabase } from '../../lib/supabase';
+import { signIn } from '../../lib/auth-service';
+import * as profileService from '../../lib/profile-service';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+
+// Hook de navigation simple
+function useNavigate() {
+  return (path: string) => {
+    // Pour l'instant, on ne fait rien car la navigation est gérée par setCurrentScreen
+    console.log('Navigate to:', path);
+  };
+}
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');
@@ -142,10 +155,10 @@ export function LoginScreen() {
       try {
         console.log('💳 Chargement du solde du portefeuille...');
         const balanceResponse = await fetch(
-          `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/passenger-balance/${profile.id}`,
           {
             headers: {
-              'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+              'Authorization': `Bearer ${publicAnonKey}`,
               'Content-Type': 'application/json'
             }
           }
@@ -264,10 +277,10 @@ export function LoginScreen() {
 
           <div className="space-y-6">
             <div>
-              <EmailPhoneInput
+              <PhoneInput
                 id="passenger-identifier"
                 value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                onChange={(value) => setIdentifier(value)}
                 onKeyPress={handleKeyPress}
                 className="px-4 h-12 text-base"
                 disabled={loading}

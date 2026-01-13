@@ -3,11 +3,13 @@
  * Affiche un bouton pour nettoyer facilement les données
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from '../../lib/motion';
 import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
-import { Trash2, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Trash2, Loader2, CheckCircle, AlertTriangle } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface AutoCleanupBannerProps {

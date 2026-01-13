@@ -1,24 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   MessageCircle,
   Send,
   User,
   Clock,
-  CheckCircle2,
+  CheckCircle,
+  XCircle,
   AlertCircle,
+  Filter,
   Search,
-  ArrowLeft,
-  Phone,
-  Mail
-} from 'lucide-react';
+  RefreshCw,
+  ArrowLeft
+} from '../../lib/icons';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface Message {
   id: string;
@@ -340,7 +335,7 @@ export function CustomerSupportScreen({ onBack }: { onBack: () => void }) {
                   <p className="text-sm text-gray-600">Fermées</p>
                   <p className="text-2xl font-bold text-green-600">{stats.closed}</p>
                 </div>
-                <CheckCircle2 className="h-8 w-8 text-green-500" />
+                <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>

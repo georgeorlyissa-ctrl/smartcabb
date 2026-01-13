@@ -1,11 +1,6 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from '../../lucide-react';
-import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
+import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from '../../lib/icons';
 
 interface NewRideNotificationProps {
   driverId: string;

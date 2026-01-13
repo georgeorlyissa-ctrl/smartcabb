@@ -1,6 +1,26 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { CreditCard, CheckCircle, XCircle, Clock, AlertCircle, DollarSign, Search, User } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  DollarSign,
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  MapPin,
+  AlertCircle,
+  Eye,
+  Filter,
+  Search,
+  Download,
+  RefreshCw,
+  ArrowLeft,
+  CreditCard,
+  TrendingUp,
+  MessageCircle
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
@@ -12,6 +32,13 @@ import { useAppState } from '../../hooks/useAppState';
 import { supabase } from '../../lib/supabase';
 import { 
   ArrowLeft, 
+  DollarSign, 
+  Clock, 
+  CheckCircle, 
+  XCircle,
+  AlertCircle,
+  Calendar,
+  User,
   Car,
   TrendingUp,
   FileText,
@@ -19,8 +46,8 @@ import {
   Download,
   RefreshCw,
   UserCheck
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { formatCDF } from '../../lib/pricing';
 
 interface PostpaidRequest {

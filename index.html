@@ -49,70 +49,7 @@
     <meta property="og:locale" content="fr_FR" />
     <meta property="og:site_name" content="SmartCabb" />
     
-    <!-- 🐦 Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://smartcabb.com/" />
-    <meta property="twitter:title" content="SmartCabb - Transport à Kinshasa" />
-    <meta property="twitter:description" content="Réservez votre chauffeur à Kinshasa en quelques clics" />
-    
-    <!-- 📦 Import Map pour Figma Make - Force les versions stables depuis esm.sh -->
-    <script type="importmap">
-    {
-      "imports": {
-        "react": "https://esm.sh/react@18.2.0",
-        "react-dom": "https://esm.sh/react-dom@18.2.0",
-        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-        "lucide-react": "https://esm.sh/lucide-react@0.460.0?bundle",
-        "sonner": "https://esm.sh/sonner@1.5.0?bundle",
-        "motion": "https://esm.sh/motion@10.18.0?bundle",
-        "motion/react": "https://esm.sh/motion@10.18.0/react?bundle",
-        "leaflet": "https://esm.sh/leaflet@1.9.4",
-        "react-leaflet": "https://esm.sh/react-leaflet@4.2.1",
-        "date-fns": "https://esm.sh/date-fns@2.30.0",
-        "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.0"
-      }
-    }
-    </script>
-    
-    <!-- 🔥 NUCLEAR CACHE DESTROYER - Force le rechargement -->
-    <script>
-      // Détruire TOUT le cache avant de charger l'app
-      (async function destroyCache() {
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          for (let registration of registrations) {
-            await registration.unregister();
-          }
-        }
-        
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          for (let cacheName of cacheNames) {
-            await caches.delete(cacheName);
-          }
-        }
-        
-        console.log('🔥 Cache détruit - version v1.0.0');
-      })();
-    </script>
-    
-    <script type="module" src="/main.tsx"></script>
-    
-    <!-- Supprimer le preloader une fois React chargé -->
-    <script>
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const preloader = document.getElementById('preloader');
-          if (preloader) {
-            preloader.style.opacity = '0';
-            preloader.style.transition = 'opacity 0.3s ease-out';
-            setTimeout(function() {
-              preloader.remove();
-            }, 300);
-          }
-        }, 500);
-      });
-    </script>
+    <script type="module" src="/main.tsx?v=517.138"></script>
   </head>
   <body>
     <div id="root">
@@ -147,53 +84,5 @@
         }
       </style>
     </div>
-    
-    <!-- ✅ PROTECTION SSR: Polyfill pour éviter "Illegal constructor" -->
-    <script>
-      // Protection 1: S'assurer que nous sommes côté client
-      if (typeof window === 'undefined') {
-        throw new Error('❌ Ce code ne devrait jamais s\'exécuter côté serveur');
-      }
-      
-      // Protection 2: Créer des stubs pour les APIs manquantes
-      window.__SMARTCABB_CLIENT_READY__ = false;
-      
-      // Protection 3: Wrapper sécurisé pour localStorage/sessionStorage
-      (function() {
-        try {
-          const test = '__test__';
-          localStorage.setItem(test, test);
-          localStorage.removeItem(test);
-          console.log('✅ localStorage disponible');
-        } catch (e) {
-          console.warn('⚠️ localStorage non disponible, création d\'un fallback');
-          
-          // Créer un fallback en mémoire
-          const memoryStorage = new Map();
-          
-          Object.defineProperty(window, 'localStorage', {
-            value: {
-              getItem: (key) => memoryStorage.get(key) || null,
-              setItem: (key, value) => memoryStorage.set(key, value),
-              removeItem: (key) => memoryStorage.delete(key),
-              clear: () => memoryStorage.clear(),
-              key: (index) => {
-                const keys = Array.from(memoryStorage.keys());
-                return keys[index] || null;
-              },
-              get length() {
-                return memoryStorage.size;
-              }
-            },
-            writable: false,
-            configurable: false
-          });
-        }
-        
-        // Marquer comme prêt
-        window.__SMARTCABB_CLIENT_READY__ = true;
-        console.log('✅ Environnement client initialisé');
-      })();
-    </script>
   </body>
 </html>

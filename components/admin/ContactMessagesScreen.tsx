@@ -1,23 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
-import { Input } from '../ui/input';
 import {
   Mail,
-  Phone,
-  User,
-  Calendar,
-  ArrowLeft,
   Search,
-  Check,
+  Filter,
+  Download,
+  RefreshCw,
+  Calendar,
+  User,
+  Clock,
+  CheckCircle,
   Eye,
-  Globe,
-  MessageSquare
-} from 'lucide-react';
-import { toast } from 'sonner';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+  Trash2,
+  ArrowLeft
+} from '../../lib/icons';
+import { supabase } from '../../lib/supabase';
 
 interface ContactMessage {
   key: string;
@@ -47,32 +43,21 @@ export function ContactMessagesScreen({ onBack }: { onBack: () => void }) {
   const loadMessages = async () => {
     try {
       setLoading(true);
-      const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/contact/messages`;
-      
-      console.log('📤 Chargement des messages depuis:', apiUrl);
-      
-      const response = await fetch(apiUrl, {
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const { data, error } = await supabase
+        .rpc('get_contact_messages')
+        .select('*');
 
-      console.log('📥 Réponse reçue. Status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erreur API:', errorText);
-        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      if (error) {
+        console.error('❌ Erreur API:', error);
+        throw new Error(`Erreur: ${error.message}`);
       }
 
-      const data = await response.json();
       console.log('✅ Données reçues:', data);
       
-      // Vérifier que data.messages existe et est un tableau
-      if (data && Array.isArray(data.messages)) {
-        setMessages(data.messages);
-        console.log(`✅ ${data.messages.length} message(s) chargé(s)`);
+      // Vérifier que data existe et est un tableau
+      if (data && Array.isArray(data)) {
+        setMessages(data);
+        console.log(`✅ ${data.length} message(s) chargé(s)`);
       } else {
         console.warn('⚠️ Format de données inattendu:', data);
         setMessages([]);
@@ -88,18 +73,10 @@ export function ContactMessagesScreen({ onBack }: { onBack: () => void }) {
 
   const markAsRead = async (messageKey: string) => {
     try {
-      const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/contact/mark-read`;
-      
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${publicAnonKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ messageKey })
-      });
+      const { data, error } = await supabase
+        .rpc('mark_contact_message_as_read', { message_key: messageKey });
 
-      if (!response.ok) {
+      if (error) {
         throw new Error('Erreur lors de la mise à jour');
       }
 
@@ -301,7 +278,7 @@ export function ContactMessagesScreen({ onBack }: { onBack: () => void }) {
                             size="sm"
                             onClick={() => markAsRead(selectedMessage.key)}
                           >
-                            <Check className="w-4 h-4 mr-2" />
+                            <CheckCircle className="w-4 h-4 mr-2" />
                             Marquer comme lu
                           </Button>
                         )}

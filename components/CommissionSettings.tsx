@@ -1,12 +1,25 @@
+import { useEffect, useState } from 'react';
 import {
-  DollarSign,
   Percent,
+  DollarSign,
   Save,
-  Calculator,
-  Receipt,
+  RotateCcw,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle,
   Info
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../lib/icons';
+import { toast } from '../lib/toast';
+import { Badge } from './ui/badge';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
+import { Separator } from './ui/separator';
+import { useAppState } from '../hooks/useAppState';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { Clock, Receipt, Settings as SettingsIcon } from '../lib/icons';
 
 interface CommissionSettingsProps {
   userType: 'admin' | 'driver';

@@ -1,17 +1,16 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import {
+  Clock,
+  Play,
+  Pause,
+  StopCircle,
+  DollarSign,
+  AlertCircle,
+  CheckCircle
+} from '../../lib/icons';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { 
-  Clock, 
-  Pause, 
-  Play, 
-  StopCircle, 
-  AlertTriangle,
-  DollarSign,
-  Timer,
-  Ban
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface TimerControlProps {
   isTimerActive: boolean;

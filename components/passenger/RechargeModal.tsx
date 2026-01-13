@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { Button } from '../ui/button';
 import {
-  ArrowLeft,
-  Plus,
+  X,
+  Smartphone,
   CreditCard,
-  DollarSign,
-  Gift,
-  Check,
-  Phone,
-  AlertCircle,
-  Loader2,
-  ChevronRight,
+  Wallet,
+  CheckCircle,
   CheckCircle2,
-  Bug,
-  Clock
-} from 'lucide-react';
-import { convertUSDtoCDF, formatCDF, CONSTANTS } from '../../lib/pricing';
+  AlertCircle,
+  DollarSign,
+  Info,
+  Loader2,
+  Check,
+  Gift,
+  Phone,
+  Clock,
+  ChevronRight,
+  ArrowLeft
+} from '../../lib/icons';
+import { motion, AnimatePresence } from '../../lib/motion';
+import { Button } from '../ui/button';
+import { convertUSDtoCDF, formatCDF, getExchangeRate } from '../../lib/pricing';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
 import { DebugPaymentModal } from '../DebugPaymentModal';
@@ -390,7 +393,7 @@ export function RechargeModal({
                 disabled={isProcessing}
                 className="w-8 h-8"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </Button>
             </div>
 

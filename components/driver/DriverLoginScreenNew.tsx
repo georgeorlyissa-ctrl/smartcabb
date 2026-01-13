@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { Car, Lock, Eye, EyeOff } from '../../lucide-react';
-import { toast } from 'sonner';
+import React, { useState } from 'react';
+import { motion } from '../../lib/motion';
+import { Car, Lock, Eye, EyeOff } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { signIn } from '../../lib/auth-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';

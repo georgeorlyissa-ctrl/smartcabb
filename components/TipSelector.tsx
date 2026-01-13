@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from './ui/button';
-import { Heart } from 'lucide-react';
+import { Input } from './ui/input';
+import { Heart } from '../lib/icons';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface TipSelectorProps {
   onTipSelect: (tipAmount: number) => void;
@@ -8,6 +10,7 @@ interface TipSelectorProps {
 }
 
 export function TipSelector({ onTipSelect, rideAmount }: TipSelectorProps) {
+  const { t } = useTranslation();
   const [customTip, setCustomTip] = useState('');
   const [selectedTip, setSelectedTip] = useState<number | null>(null);
 
@@ -40,7 +43,7 @@ export function TipSelector({ onTipSelect, rideAmount }: TipSelectorProps) {
     <div className="p-4 bg-white rounded-lg border border-gray-200">
       <div className="flex items-center gap-2 mb-4">
         <Heart className="w-5 h-5 text-red-500" />
-        <h3 className="font-medium">Ajouter un pourboire</h3>
+        <h3 className="font-medium">{t('add_tip')}</h3>
       </div>
 
       <div className="space-y-3">
@@ -55,7 +58,7 @@ export function TipSelector({ onTipSelect, rideAmount }: TipSelectorProps) {
               className="flex flex-col py-3 h-auto"
             >
               <span className="text-xs">{tip.percentage}%</span>
-              <span className="font-medium">{(tip.amount || 0).toLocaleString()} CDF</span>
+              <span className="font-medium">{(tip.amount || 0).toLocaleString()} {t('cdf')}</span>
             </Button>
           ))}
         </div>
@@ -64,12 +67,12 @@ export function TipSelector({ onTipSelect, rideAmount }: TipSelectorProps) {
         <div className="flex items-center gap-2">
           <Input
             type="number"
-            placeholder="Montant du pourboire"
+            placeholder={t('tip_amount')}
             value={customTip}
             onChange={(e) => handleCustomTip(e.target.value)}
             className="flex-1"
           />
-          <span className="text-sm text-gray-500">CDF</span>
+          <span className="text-sm text-gray-500">{t('cdf')}</span>
         </div>
 
         {/* Pas de pourboire */}
@@ -86,7 +89,7 @@ export function TipSelector({ onTipSelect, rideAmount }: TipSelectorProps) {
       {selectedTip !== null && selectedTip > 0 && (
         <div className="mt-3 p-2 bg-green-50 rounded-lg">
           <p className="text-sm text-green-700">
-            Pourboire sélectionné: {(selectedTip || 0).toLocaleString()} CDF
+            Pourboire sélectionné: {(selectedTip || 0).toLocaleString()} {t('cdf')}
           </p>
         </div>
       )}

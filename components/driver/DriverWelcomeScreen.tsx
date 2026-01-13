@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
-import { getSession } from "../../lib/auth-service";
-import { useNavigate } from "../../lib/simple-router";
-import { useAppState } from '../../hooks/useAppState';
-import { WelcomeBackScreen } from '../WelcomeBackScreen';
-import { SmartCabbLogo } from '../SmartCabbLogo';
+import { useState } from 'react';
 import { Button } from '../ui/button';
-import { ArrowLeft, Car } from 'lucide-react';
+import { Card } from '../ui/card';
+import { motion } from '../../lib/motion';
+import { useNavigate } from '../../lib/simple-router';
+import { useAppState } from '../../hooks/useAppState';
+import { SmartCabbLogo } from '../SmartCabbLogo';
+import { ArrowLeft, Car } from '../../lib/icons';
 
 export function DriverWelcomeScreen() {
   console.log("🚗 DriverWelcomeScreen - Composant monté");

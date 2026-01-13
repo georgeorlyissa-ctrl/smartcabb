@@ -4,21 +4,24 @@
 import { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Car, 
-  Users, 
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Car,
+  DollarSign,
+  MapPin,
+  Clock,
   Calendar,
   Download,
+  Filter,
   RefreshCw,
-  Star,
-  ArrowUp,
-  ArrowDown,
+  Activity,
+  Percent,
   ArrowLeft
-} from 'lucide-react';
+} from '../../lib/icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 
 const CATEGORY_NAMES = {

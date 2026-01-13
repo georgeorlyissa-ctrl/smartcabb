@@ -1,23 +1,27 @@
-import { motion } from '../../framer-motion';
+import { useState, useEffect } from 'react';
+import {
+  Settings,
+  Bell,
+  Shield,
+  Globe,
+  DollarSign,
+  Navigation,
+  Save,
+  RefreshCw,
+  ArrowLeft,
+  Moon,
+  Sun,
+  Volume2,
+  VolumeX,
+  MapPin,
+  Clock
+} from '../../lib/icons';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
-import { 
-  ArrowLeft, 
-  Bell, 
-  Globe, 
-  Shield, 
-  Moon, 
-  Volume2,
-  Smartphone,
-  Lock,
-  Eye,
-  HelpCircle,
-  FileText,
-  LogOut
-} from '../../lucide-react';
-import { useState } from 'react';
+// Removed duplicate imports - using imports from line 2-17
 
 export function DriverSettingsScreen() {
   const { setCurrentScreen, state, setCurrentDriver, setCurrentView } = useAppState();
@@ -118,7 +122,7 @@ export function DriverSettingsScreen() {
     },
     {
       title: 'Préférences',
-      icon: Lock,
+      icon: Settings,
       items: [
         {
           key: 'darkMode',
@@ -142,7 +146,7 @@ export function DriverSettingsScreen() {
     {
       title: 'Zone de travail',
       description: 'Définir votre zone de service préférée',
-      icon: Globe,
+      icon: MapPin,
       action: () => {
         // Navigate to zone settings
       }

@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from '../framer-motion';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { ShieldCheck, RefreshCw } from '../lib/icons';
+import { toast } from '../lib/toast';
+import { sendOTPCode } from '../lib/sms-service';
 
 interface OTPVerificationProps {
   phone: string;
@@ -110,20 +114,9 @@ export function OTPVerification({ phone, onVerified, onCancel, purpose = 'Authen
   };
 
   return (
-    <Dialog open={true} onOpenChange={() => {}}>
+    <Dialog>
       <DialogContent className="sm:max-w-md">
-        <DialogTitle className="sr-only">
-          Vérification OTP
-        </DialogTitle>
-        <DialogDescription className="sr-only">
-          Entrez le code de vérification envoyé par SMS
-        </DialogDescription>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center space-y-6 py-4"
-        >
+        <DialogHeader>
           {/* Header */}
           <div className="space-y-3">
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
@@ -204,7 +197,7 @@ export function OTPVerification({ phone, onVerified, onCancel, purpose = 'Authen
               {loading ? 'Vérification...' : 'Vérifier'}
             </Button>
           </div>
-        </motion.div>
+        </DialogHeader>
       </DialogContent>
     </Dialog>
   );

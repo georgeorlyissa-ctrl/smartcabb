@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
-import { toast } from 'sonner';
+import { Button } from './ui/button';
+import { toast } from '../sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 export function TestSMSDirect() {

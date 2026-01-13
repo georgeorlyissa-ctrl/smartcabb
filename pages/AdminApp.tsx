@@ -1,45 +1,13 @@
-import React, { useEffect, useRef } from 'react';
-import { useLocation, Routes, Route } from '../lib/simple-router';
+import { useState, useEffect } from 'react';
+import React from 'react';
+import { AdminDashboard } from '../components/admin/AdminDashboard';
 import { useAppState } from '../hooks/useAppState';
-import { AlertCircle } from 'lucide-react';
-import { AdminDiagnostic } from '../components/admin/AdminDiagnostic';
-import { UsersManagementScreen } from '../components/UsersManagementScreen';
-
-// Import lazy des écrans admin pour optimisation
-const AdminLoginScreen = React.lazy(() => import('../components/admin/AdminLoginScreen').then(m => ({ default: m.AdminLoginScreen })));
-const AdminRegisterScreen = React.lazy(() => import('../components/admin/AdminRegisterScreen').then(m => ({ default: m.AdminRegisterScreen })));
-const AdminDashboard = React.lazy(() => import('../components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
-const DriversListScreen = React.lazy(() => import('../components/admin/DriversListScreen').then(m => ({ default: m.DriversListScreen })));
-const ClientsListScreen = React.lazy(() => import('../components/admin/ClientsListScreen').then(m => ({ default: m.ClientsListScreen })));
-const FinancialReportsScreen = React.lazy(() => import('../components/admin/FinancialReportsScreen').then(m => ({ default: m.FinancialReportsScreen })));
-const PromoCodesScreen = React.lazy(() => import('../components/admin/PromoCodesScreen').then(m => ({ default: m.PromoCodesScreen })));
-const SettingsScreen = React.lazy(() => import('../components/admin/SettingsScreen').then(m => ({ default: m.SettingsScreen })));
-const GlobalSettingsScreen = React.lazy(() => import('../components/admin/GlobalSettingsScreen').then(m => ({ default: m.GlobalSettingsScreen })));
-const SMSSettingsScreen = React.lazy(() => import('../components/admin/SMSSettingsScreen').then(m => ({ default: m.SMSSettingsScreen })));
-const EmailSettingsScreen = React.lazy(() => import('../components/admin/EmailSettingsScreen').then(m => ({ default: m.EmailSettingsScreen })));
-const EmailHistoryScreen = React.lazy(() => import('../components/admin/EmailHistoryScreen').then(m => ({ default: m.EmailHistoryScreen })));
-const AdminNotificationsCenter = React.lazy(() => import('../components/admin/AdminNotificationsCenter').then(m => ({ default: m.AdminNotificationsCenter })));
-const PostpaidRequestsScreen = React.lazy(() => import('../components/admin/PostpaidRequestsScreen').then(m => ({ default: m.PostpaidRequestsScreen })));
-const ContactMessagesScreen = React.lazy(() => import('../components/admin/ContactMessagesScreen').then(m => ({ default: m.ContactMessagesScreen })));
-const CustomerSupportScreen = React.lazy(() => import('../components/admin/CustomerSupportScreen').then(m => ({ default: m.CustomerSupportScreen })));
-const MarketingCampaignsScreen = React.lazy(() => import('../components/admin/MarketingCampaignsScreen').then(m => ({ default: m.MarketingCampaignsScreen })));
-const RefundManagementScreen = React.lazy(() => import('../components/admin/RefundManagementScreen').then(m => ({ default: m.RefundManagementScreen })));
-const AuditLogsScreen = React.lazy(() => import('../components/admin/AuditLogsScreen').then(m => ({ default: m.AuditLogsScreen })));
-const BackupAndRecoveryScreen = React.lazy(() => import('../components/admin/BackupAndRecoveryScreen').then(m => ({ default: m.BackupAndRecoveryScreen })));
-const AdvancedAnalyticsDashboard = React.lazy(() => import('../components/admin/AdvancedAnalyticsDashboard').then(m => ({ default: m.AdvancedAnalyticsDashboard })));
-const AdminToolsScreen = React.lazy(() => import('../components/admin/AdminToolsScreen').then(m => ({ default: m.AdminToolsScreen })));
-const ChatMessagesScreen = React.lazy(() => import('../components/admin/ChatMessagesScreen').then(m => ({ default: m.ChatMessagesScreen })));
-const BudgetDashboard = React.lazy(() => import('../components/admin/BudgetDashboard').then(m => ({ default: m.BudgetDashboard })));
-const DataCleanupPanel = React.lazy(() => import('../components/admin/DataCleanupPanel').then(m => ({ default: m.DataCleanupPanel })));
-const PendingRechargesScreenNew = React.lazy(() => import('../components/admin/PendingRechargesScreenNew').then(m => ({ default: m.PendingRechargesScreenNew })));
-const AdminAnalyticsDashboard = React.lazy(() => import('../components/admin/AdminAnalyticsDashboard').then(m => ({ default: m.AdminAnalyticsDashboard })));
-const RLSBlockingScreen = React.lazy(() => import('../components/RLSBlockingScreen').then(m => ({ default: m.RLSBlockingScreen })));
-const RLSFixModal = React.lazy(() => import('../components/RLSFixModal').then(m => ({ default: m.RLSFixModal })));
+import { AlertCircle } from '../lib/icons';
 
 function AdminAppContent() {
   const { state, setCurrentScreen, setCurrentView, updateUser } = useAppState();
   const { currentScreen } = state;
-  const initialized = useRef(false);
+  const initialized = useState(false);
   const location = useLocation();
   
   // Définir l'écran par défaut quand on arrive sur /admin

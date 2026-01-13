@@ -1,6 +1,12 @@
+import { useState } from 'react';
+import { motion } from '../../lib/motion';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useNavigate } from '../../lib/simple-router';
+import { useAppState } from '../../hooks/useAppState';
+import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { ArrowLeft, User, Mail, Lock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Shield, Eye, EyeOff, User, Mail, Lock, AlertCircle } from '../../lib/icons';
 import { toast } from '../../lib/toast';
 
 export function AdminRegisterScreen() {

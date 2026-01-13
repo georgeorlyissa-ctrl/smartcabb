@@ -1,27 +1,32 @@
-import { User, Car, Shield } from 'lucide-react';
+import { User, Car, Shield } from '../lib/icons';
+import { useNavigate } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
 import { Button } from './ui/button';
 import { SmartCabbLogo } from './SmartCabbLogo';
 
 export function UserSelectionScreen() {
   const { setCurrentScreen, setCurrentView } = useAppState();
+  const navigate = useNavigate();
 
   const handlePassengerClick = () => {
     console.log('📱 Navigation vers app passager');
     setCurrentView('passenger');
     setCurrentScreen('login');
+    navigate('/app/passenger');
   };
 
   const handleDriverClick = () => {
     console.log('🚗 Navigation vers app conducteur');
     setCurrentView('driver');
     setCurrentScreen('driver-welcome');
+    navigate('/app/driver');
   };
 
   const handleAdminClick = () => {
     console.log('👨‍💼 Navigation vers connexion admin');
     setCurrentView('admin');
     setCurrentScreen('admin-login');
+    navigate('/app/admin');
   };
 
   return (

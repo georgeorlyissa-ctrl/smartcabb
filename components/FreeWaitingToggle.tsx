@@ -1,6 +1,10 @@
-import { useState } from 'react';
-import { motion } from '../framer-motion';
-import { Clock, DollarSign, Info } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import {
+  DollarSign,
+  TrendingDown,
+  Info
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 
 interface FreeWaitingToggleProps {
   enabled: boolean;

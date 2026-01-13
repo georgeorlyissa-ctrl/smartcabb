@@ -1,5 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
+// Utiliser notre stub local au lieu de @supabase/supabase-js pour éviter les erreurs CDN
+import { createClient } from './supabase-stub';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+
+// Ré-exporter createClient pour compatibilité
+export { createClient };
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 const supabaseAnonKey = publicAnonKey;

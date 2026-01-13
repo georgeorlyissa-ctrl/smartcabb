@@ -1,3 +1,4 @@
+import { motion } from '../lib/motion';
 import { Link } from '../lib/simple-router';
 import { useState } from 'react';
 
@@ -130,15 +131,25 @@ export function LegalPage() {
       {/* Hero Section */}
       <section className="pt-32 pb-16 px-4 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-extrabold mb-6">
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="text-5xl md:text-6xl font-extrabold mb-6"
+          >
             {language === 'fr' ? 'Mentions légales' : 'Legal Notice'}
-          </h1>
-          <p className="text-xl text-white/90">
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-xl text-white/90"
+          >
             {language === 'fr' 
-              ? 'Dernière mise à jour : 8 novembre 2025'
-              : 'Last updated: November 8, 2025'
+              ? 'Dernière mise à jour : 7 janvier 2026'
+              : 'Last updated: January 7, 2026'
             }
-          </p>
+          </motion.p>
         </div>
       </section>
 
@@ -346,7 +357,7 @@ export function LegalPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2025 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
+            <p>&copy; 2026 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
           </div>
         </div>
       </footer>

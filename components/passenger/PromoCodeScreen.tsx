@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Card } from '../ui/card';
-import { formatCDF } from '../../lib/pricing';
-import { supabase } from '../../lib/supabase';
+import { ArrowLeft, Tag, Check, X, Gift, Percent } from '../../lib/icons';
 
 interface PromoCode {
   code: string;
@@ -15,6 +12,7 @@ interface PromoCode {
 }
 
 export function PromoCodeScreen() {
+  const { setCurrentScreen, state } = useAppState();
   const [promoCode, setPromoCode] = useState('');
   const [isValidating, setIsValidating] = useState(false);
   const [validatedCode, setValidatedCode] = useState<PromoCode | null>(null);

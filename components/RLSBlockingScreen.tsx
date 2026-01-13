@@ -1,17 +1,18 @@
-import { useState } from 'react';
-import { Button } from './ui/button';
-import { Alert, AlertDescription } from './ui/alert';
-import { 
-  AlertTriangle, 
-  Copy, 
-  ExternalLink, 
-  RefreshCw,
+import { useState, useEffect } from 'react';
+import {
+  Shield,
+  AlertTriangle,
   CheckCircle,
-  ArrowRight,
-  Loader2,
+  XCircle,
+  Database,
+  Lock,
+  Unlock,
+  RefreshCw,
+  ExternalLink,
+  Copy,
   Zap
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const SQL_SCRIPT = `-- 🚨 COPIEZ-COLLEZ CE CODE DANS SUPABASE MAINTENANT

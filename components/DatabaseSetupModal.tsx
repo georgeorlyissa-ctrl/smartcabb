@@ -1,6 +1,5 @@
-import { motion } from '../framer-motion';
-import { X, ExternalLink, CheckCircle2, Copy } from 'lucide-react';
-import { Button } from './ui/button';
+import { useState } from 'react';
+import { X, ExternalLink, CheckCircle2, Copy } from '../lib/icons';
 
 interface DatabaseSetupModalProps {
   onClose: () => void;
@@ -209,7 +208,7 @@ export function DatabaseSetupModal({ onClose }: DatabaseSetupModalProps) {
 
         {/* Close Button */}
         <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid #e5e7eb', textAlign: 'center' }}>
-          <Button
+          <button
             onClick={onClose}
             style={{
               padding: '0.75rem 1.5rem',
@@ -225,7 +224,7 @@ export function DatabaseSetupModal({ onClose }: DatabaseSetupModalProps) {
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6b7280'}
           >
             J'ai compris
-          </Button>
+          </button>
         </div>
       </div>
     </div>

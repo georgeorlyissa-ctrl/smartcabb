@@ -1,8 +1,7 @@
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
-import { AlertTriangle, Shield, User, Phone, MapPin, Clock, Navigation } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '../ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { AlertTriangle, Shield, User, Phone, MapPin, Clock, Navigation } from '../../lib/icons';
 
 interface SOSEmergencyButtonProps {
   driverId: string;

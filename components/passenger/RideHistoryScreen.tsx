@@ -1,7 +1,11 @@
-import { motion } from '../../framer-motion';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, Calendar, Clock, Star, Navigation, CreditCard, Smartphone, Banknote, Loader2 } from '../../lib/icons';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { motion } from '../../lib/motion';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function RideHistoryScreen() {
   const { setCurrentScreen, state } = useAppState();

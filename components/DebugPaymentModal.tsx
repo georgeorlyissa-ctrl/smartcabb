@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion } from '../framer-motion';
-import { X, Copy, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
+import { X, Copy, CheckCircle2, AlertCircle } from '../lib/icons';
 
 interface DebugPaymentModalProps {
   show: boolean;
@@ -189,142 +189,115 @@ export function DebugPaymentModal({ show, onClose }: DebugPaymentModalProps) {
   };
 
   return (
-    <AnimatePresence>
-      {show && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50"
-            onClick={onClose}
-          />
+    <Dialog open={show} onOpenChange={onClose}>
+      <DialogContent className="w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl z-50 flex flex-col">
+        {/* Header */}
+        <DialogHeader className="p-6 border-b">
+          <DialogTitle className="text-xl">🔍 Debug Paiement Flutterwave</DialogTitle>
+          <p className="text-sm text-gray-500 mt-1">
+            Test de création et vérification de transaction
+          </p>
+        </DialogHeader>
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl z-50 flex flex-col"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <div>
-                <h2 className="text-xl">🔍 Debug Paiement Flutterwave</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Test de création et vérification de transaction
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Actions */}
+          <div className="flex gap-3">
+            <Button
+              onClick={testFlutterwaveInit}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              {isLoading ? 'Test en cours...' : '🧪 Lancer le Test'}
+            </Button>
+            
+            {logs.length > 0 && (
+              <Button
+                onClick={copyLogs}
+                variant="outline"
+                className="flex items-center gap-2"
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Actions */}
-              <div className="flex gap-3">
-                <Button
-                  onClick={testFlutterwaveInit}
-                  disabled={isLoading}
-                  className="flex-1"
-                >
-                  {isLoading ? 'Test en cours...' : '🧪 Lancer le Test'}
-                </Button>
-                
-                {logs.length > 0 && (
-                  <Button
-                    onClick={copyLogs}
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    {copied ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Copié !
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-4 h-4" />
-                        Copier les logs
-                      </>
-                    )}
-                  </Button>
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    Copié !
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    Copier les logs
+                  </>
                 )}
-              </div>
+              </Button>
+            )}
+          </div>
 
-              {/* Logs */}
-              {logs.length > 0 ? (
-                <div className="space-y-3">
-                  {logs.map((log, index) => (
-                    <div
-                      key={index}
-                      className={`p-4 rounded-lg border ${getLevelColor(log.level)}`}
-                    >
-                      <div className="flex items-start gap-3">
-                        {getLevelIcon(log.level)}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs text-gray-500 font-mono">
-                              {log.timestamp}
-                            </span>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
-                              log.level === 'success' ? 'bg-green-200 text-green-800' :
-                              log.level === 'error' ? 'bg-red-200 text-red-800' :
-                              'bg-blue-200 text-blue-800'
-                            }`}>
-                              {log.level.toUpperCase()}
-                            </span>
-                          </div>
-                          <p className="text-sm mb-2">{log.message}</p>
-                          {log.data && (
-                            <pre className="text-xs bg-white/50 p-3 rounded border overflow-x-auto">
-                              {JSON.stringify(log.data, null, 2)}
-                            </pre>
-                          )}
-                        </div>
+          {/* Logs */}
+          {logs.length > 0 ? (
+            <div className="space-y-3">
+              {logs.map((log, index) => (
+                <div
+                  key={index}
+                  className={`p-4 rounded-lg border ${getLevelColor(log.level)}`}
+                >
+                  <div className="flex items-start gap-3">
+                    {getLevelIcon(log.level)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-gray-500 font-mono">
+                          {log.timestamp}
+                        </span>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          log.level === 'success' ? 'bg-green-200 text-green-800' :
+                          log.level === 'error' ? 'bg-red-200 text-red-800' :
+                          'bg-blue-200 text-blue-800'
+                        }`}>
+                          {log.level.toUpperCase()}
+                        </span>
                       </div>
+                      <p className="text-sm mb-2">{log.message}</p>
+                      {log.data && (
+                        <pre className="text-xs bg-white/50 p-3 rounded border overflow-x-auto">
+                          {JSON.stringify(log.data, null, 2)}
+                        </pre>
+                      )}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-400">
-                  <p>Aucun log pour le moment.</p>
-                  <p className="text-sm mt-2">Cliquez sur "Lancer le Test" pour commencer.</p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="p-6 border-t bg-gray-50 rounded-b-2xl">
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>✅ <strong>Succès attendu :</strong> Transaction créée + redirectUrl présent</p>
-                <p>❌ <strong>Erreurs possibles :</strong></p>
-                <ul className="ml-6 space-y-1 text-xs">
-                  <li>• "Configuration Flutterwave manquante" → FLUTTERWAVE_SECRET_KEY non définie</li>
-                  <li>• "Invalid authorization key" → Clé API invalide ou expirée</li>
-                  <li>• "No transaction was found" → Transaction non créée dans Flutterwave</li>
-                </ul>
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-xs text-gray-500">
-                    💡 <strong>Rappel :</strong> Assurez-vous que votre clé API Flutterwave est configurée dans Supabase Secrets :
-                  </p>
-                  <div className="bg-gray-100 rounded px-3 py-2 mt-2 font-mono text-xs">
-                    FLUTTERWAVE_SECRET_KEY = votre_clé_production
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    L'application utilise uniquement l'API Flutterwave en mode production.
-                  </p>
                 </div>
-              </div>
+              ))}
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          ) : (
+            <div className="text-center py-12 text-gray-400">
+              <p>Aucun log pour le moment.</p>
+              <p className="text-sm mt-2">Cliquez sur "Lancer le Test" pour commencer.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-6 border-t bg-gray-50 rounded-b-2xl">
+          <div className="text-sm text-gray-600 space-y-1">
+            <p>✅ <strong>Succès attendu :</strong> Transaction créée + redirectUrl présent</p>
+            <p>❌ <strong>Erreurs possibles :</strong></p>
+            <ul className="ml-6 space-y-1 text-xs">
+              <li>• "Configuration Flutterwave manquante" → FLUTTERWAVE_SECRET_KEY non définie</li>
+              <li>• "Invalid authorization key" → Clé API invalide ou expirée</li>
+              <li>• "No transaction was found" → Transaction non créée dans Flutterwave</li>
+            </ul>
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-xs text-gray-500">
+                💡 <strong>Rappel :</strong> Assurez-vous que votre clé API Flutterwave est configurée dans Supabase Secrets :
+              </p>
+              <div className="bg-gray-100 rounded px-3 py-2 mt-2 font-mono text-xs">
+                FLUTTERWAVE_SECRET_KEY = votre_clé_production
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                L'application utilise uniquement l'API Flutterwave en mode production.
+              </p>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

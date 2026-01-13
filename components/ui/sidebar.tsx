@@ -1,15 +1,20 @@
-"use client";
-
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { PanelLeftIcon } from "lucide-react";
-import { cva, type VariantProps } from "class-variance-authority";
+import { Slot } from "../../lib/slot";
+import { VariantProps, cva } from "../../lib/cva";
+import { PanelLeftIcon } from "../../lib/icons";
 
+import { useIsMobile } from "./use-mobile";
 import { cn } from "./utils";
 import { Button } from "./button";
 import { Input } from "./input";
 import { Separator } from "./separator";
-import { Sheet, SheetContent } from "./sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "./sheet";
 import { Skeleton } from "./skeleton";
 import {
   Tooltip,
@@ -188,6 +193,10 @@ function Sidebar({
           }
           side={side}
         >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Sidebar</SheetTitle>
+            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+          </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>

@@ -1,6 +1,6 @@
 import { Link } from '../lib/simple-router';
 
-export function SocialFooter({ language = 'fr' }: { language?: string }) {
+export function SocialFooter() {
   return (
     <footer className="bg-gray-900 text-white py-12 px-4">
       <div className="max-w-7xl mx-auto">
@@ -92,7 +92,7 @@ export function SocialFooter({ language = 'fr' }: { language?: string }) {
         </div>
 
         <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-          <p>&copy; 2025 SmartCabb. Tous droits réservés.</p>
+          <p>&copy; 2026 SmartCabb. Tous droits réservés.</p>
         </div>
       </div>
     </footer>

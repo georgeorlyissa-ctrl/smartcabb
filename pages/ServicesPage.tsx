@@ -16,51 +16,52 @@ export function ServicesPage() {
   // Images pour SmartCabb Standard - vos vraies images + fallback
   const standardVehicles = [
     { 
-      src: '/vehicules/standard/Standard_1.png',
+      src: '/vehicles/smartcabb_standard/Standard_1.png',
       fallback: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
       alt: 'SmartCabb Standard - Véhicule 1'
     },
     { 
-      src: '/vehicules/standard/Standard_2.png',
+      src: '/vehicles/smartcabb_standard/Standard_2.png',
       fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
       alt: 'SmartCabb Standard - Véhicule 2'
     },
     { 
-      src: '/vehicules/standard/Standard_3.png',
+      src: '/vehicles/smartcabb_standard/Standard_3.png',
       fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
       alt: 'SmartCabb Standard - Véhicule 3'
     },
-    { 
-      src: '/vehicules/standard/Standard_4.png',
-      fallback: 'https://images.unsplash.com/photo-1692970060626-8e96d7ee70d2?w=600',
+     { 
+      src: '/vehicles/smartcabb_standard/Standard_4.png',
+      fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
       alt: 'SmartCabb Standard - Véhicule 4'
     },
     { 
-      src: '/vehicules/standard/Standard_5.png',
+      src: '/vehicles/smartcabb_standard/Stadard_5.png',
       fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
       alt: 'SmartCabb Standard - Véhicule 5'
     },
     { 
-      src: '/vehicules/standard/Standard_6.png',
-      fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
+      src: '/vehicles/smartcabb_standard/Standard_6.png',
+      fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
       alt: 'SmartCabb Standard - Véhicule 6'
     }
+    
   ];
 
   // Images pour SmartCabb Confort - vos vraies images + fallback
   const confortVehicles = [
     { 
-      src: '/vehicules/confort/confort 1.png',
+      src: '/vehicles/smartcabb_confort/confort 1.png',
       fallback: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
       alt: 'SmartCabb Confort - Véhicule 1'
     },
     { 
-      src: '/vehicules/confort/Confort_2.png',
+      src: '/vehicles/smartcabb_confort/Confort_2.png',
       fallback: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
       alt: 'SmartCabb Confort - Véhicule 2'
     },
     { 
-      src: '/vehicules/confort/Confort_3.png',
+      src: '/vehicles/smartcabb_confort/Confort_3.png',
       fallback: 'https://images.unsplash.com/photo-1687730594701-88cdea1ef5ae?w=600',
       alt: 'SmartCabb Confort - Véhicule 3'
     }
@@ -69,58 +70,58 @@ export function ServicesPage() {
   // Images pour SmartCabb Business - vos vraies images + fallback
   const businessVehicles = [
     { 
-      src: '/vehicules/business/business_1.png',
+      src: '/vehicles/smartcabb_business/Bussiness_1.png',
       fallback: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
       alt: 'SmartCabb Business - Véhicule 1'
     },
     { 
-      src: '/vehicules/business/Business_2.png',
+      src: '/vehicles/smartcabb_business/Bussiness_2.png',
       fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
       alt: 'SmartCabb Business - Véhicule 2'
     },
     { 
-      src: '/vehicules/business/Business_3.png',
+      src: '/vehicles/smartcabb_business/Bussiness_3.png',
+      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
+      alt: 'SmartCabb Business - Véhicule 2'
+    },
+     { 
+      src: '/vehicles/smartcabb_business/Bussiness_4.png',
+      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
+      alt: 'SmartCabb Business - Véhicule 2'
+    },
+    { 
+      src: '/vehicles/smartcabb_business/Bussiness_5.png',
+      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
+      alt: 'SmartCabb Business - Véhicule 2'
+    },
+    { 
+      src: '/vehicles/smartcabb_business/Business_6.png',
       fallback: 'https://images.unsplash.com/photo-1666846865666-d2d2525c3613?w=600',
       alt: 'SmartCabb Business - Véhicule 3'
-    },
-    { 
-      src: '/vehicules/business/Business_4.png',
-      fallback: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
-      alt: 'SmartCabb Business - Véhicule 4'
-    },
-    { 
-      src: '/vehicules/business/Business_5.png',
-      fallback: 'https://images.unsplash.com/photo-1603094541004-f31aeafaf0e6?w=600',
-      alt: 'SmartCabb Business - Véhicule 5'
-    },
-    { 
-      src: '/vehicules/business/Business_6.png',
-      fallback: 'https://images.unsplash.com/photo-1666846865666-d2d2525c3613?w=600',
-      alt: 'SmartCabb Business - Véhicule 6'
     }
   ];
 
   // Images pour SmartCabb Familia (anciennement Plus) - vos vraies images + fallback
   const familiaVehicles = [
     { 
-      src: '/vehicules/famille/Familiale_1.png',
+      src: '/vehicles/smartcabb_familiale/Familiale_1.png',
       fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
       alt: 'SmartCabb Familia - Véhicule 1'
     },
     { 
-      src: '/vehicules/famille/Familiale_2.png',
+      src: '/vehicles/smartcabb_familiale/Familiale_2.png',
       fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
       alt: 'SmartCabb Familia - Véhicule 2'
     },
     { 
-      src: '/vehicules/famille/Familiale_3.png',
+      src: '/vehicles/smartcabb_familiale/Familiale_3.png',
       fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
-      alt: 'SmartCabb Familia - Véhicule 3'
+      alt: 'SmartCabb Familia - Véhicule 2'
     },
     { 
-      src: '/vehicules/famille/Familiale_4.png',
+      src: '/vehicles/smartcabb_familiale/Familiale_4.png',
       fallback: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
-      alt: 'SmartCabb Familia - Véhicule 4'
+      alt: 'SmartCabb Familia - Véhicule 3'
     }
   ];
 
@@ -340,14 +341,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   {standardVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentStandardIndex === index ? 1 : 0,
                         transform: currentStandardIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -432,14 +433,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-gray-100 via-gray-200 to-gray-300">
                   {confortVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentConfortIndex === index ? 1 : 0,
                         transform: currentConfortIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -528,14 +529,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-green-50 to-green-100">
                   {familiaVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentFamiliaIndex === index ? 1 : 0,
                         transform: currentFamiliaIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -624,14 +625,14 @@ export function ServicesPage() {
             <div className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-2 transition-all duration-300">
               <div className="relative">
                 {/* Image du véhicule avec transition */}
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100">
                   {businessVehicles.map((vehicle, index) => (
                     <ImageWithFallback
                       key={index}
                       src={vehicle.src}
                       fallbackSrc={vehicle.fallback}
                       alt={vehicle.alt}
-                      className="absolute w-full h-full object-cover transition-all duration-1000 ease-in-out"
+                      className="absolute w-full h-full object-contain transition-all duration-1000 ease-in-out"
                       style={{
                         opacity: currentBusinessIndex === index ? 1 : 0,
                         transform: currentBusinessIndex === index ? 'scale(1)' : 'scale(1.1)',
@@ -1013,7 +1014,7 @@ export function ServicesPage() {
           {/* Bottom Bar */}
           <div className="border-t border-gray-800 pt-8 text-center">
             <p className="text-gray-500 text-sm">
-              {t('© 2025 SmartCabb. Tous droits réservés.', '© 2025 SmartCabb. All rights reserved.')}
+              {t('© 2026 SmartCabb. Tous droits réservés.', '© 2026 SmartCabb. All rights reserved.')}
             </p>
           </div>
         </div>

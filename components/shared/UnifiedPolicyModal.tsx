@@ -1,11 +1,10 @@
-import { motion } from 'motion/react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { Button } from '../ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Shield, FileText, X } from '../../lib/icons';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { memo } from 'react';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { X, FileText, Shield } from 'lucide-react';
 
 interface UnifiedPolicyModalProps {
   isOpen: boolean;
@@ -41,20 +40,8 @@ export const UnifiedPolicyModal = memo(function UnifiedPolicyModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="w-full max-w-2xl max-h-[90vh] flex flex-col">
         <Card className="bg-white flex-1 flex flex-col">
           <div className="p-6 flex-1 flex flex-col">
             {/* Header */}
@@ -118,22 +105,18 @@ export const UnifiedPolicyModal = memo(function UnifiedPolicyModal({
             {/* Content */}
             <div className="flex-1 overflow-hidden">
               {mode === 'both' && (
-                <div className="space-y-4">
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold mb-3 flex items-center">
-                      <FileText className="w-5 h-5 mr-2 text-blue-600" />
-                      Conditions Générales d'Utilisation
-                    </h3>
+                <Tabs defaultValue="terms">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="terms">Conditions Générales d'Utilisation</TabsTrigger>
+                    <TabsTrigger value="privacy">Politique de Confidentialité</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="terms">
                     <TermsOfService />
-                  </div>
-                  <div className="border rounded-lg p-4">
-                    <h3 className="font-semibold mb-3 flex items-center">
-                      <Shield className="w-5 h-5 mr-2 text-green-600" />
-                      Politique de Confidentialité
-                    </h3>
+                  </TabsContent>
+                  <TabsContent value="privacy">
                     <PrivacyPolicy />
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
               )}
               {mode === 'terms' && <TermsOfService />}
               {mode === 'privacy' && <PrivacyPolicy />}
@@ -177,7 +160,7 @@ export const UnifiedPolicyModal = memo(function UnifiedPolicyModal({
             </div>
           </div>
         </Card>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 });

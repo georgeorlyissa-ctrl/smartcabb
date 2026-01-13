@@ -1,26 +1,15 @@
-import { useState } from 'react';
-import { motion } from '../../framer-motion';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
+import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from '../../lib/icons';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
-import { 
-  ArrowLeft, 
-  Wallet, 
-  Plus, 
-  DollarSign, 
-  TrendingUp,
-  Gift,
-  Clock,
-  Check,
-  Bug,
-  RefreshCw,
-  CreditCard
-} from 'lucide-react';
-import { convertUSDtoCDF, formatCDF, CONSTANTS } from '../../lib/pricing';
-import { WalletTransaction } from '../../types';
+import type { Passenger, WalletTransaction } from '../../types';
+import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
 import { RechargeModal } from './RechargeModal';
 import { DebugPaymentModal } from '../DebugPaymentModal';
 import { walletService } from '../../lib/wallet-service';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function WalletScreen() {
   const { setCurrentScreen, state, updateUser } = useAppState();
@@ -29,7 +18,7 @@ export function WalletScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const walletBalance = state.currentUser?.walletBalance || 0;
-  const walletBalanceUSD = walletBalance / CONSTANTS.EXCHANGE_RATE;
+  const walletBalanceUSD = walletBalance / getExchangeRate();
   const transactions = state.currentUser?.walletTransactions || [];
 
   // 🎁 Vérifier si le client bénéficie de la réduction de 5%
@@ -41,7 +30,7 @@ export function WalletScreen() {
 
     // Pour les paiements en espèces, créer une transaction "pending"
     if (method === 'cash') {
-      const amountUSD = amountCDF / CONSTANTS.EXCHANGE_RATE;
+      const amountUSD = amountCDF / getExchangeRate();
 
       // Créer la transaction avec statut "pending"
       const transaction: WalletTransaction = {
@@ -83,7 +72,7 @@ export function WalletScreen() {
 
     // Pour Mobile Money, traiter normalement (paiement immédiat)
     const newBalance = walletBalance + amountCDF;
-    const amountUSD = amountCDF / CONSTANTS.EXCHANGE_RATE;
+    const amountUSD = amountCDF / getExchangeRate();
 
     // Créer la transaction
     const transaction: WalletTransaction = {
@@ -194,14 +183,11 @@ export function WalletScreen() {
     try {
       console.log('🔄 Rafraîchissement des transactions depuis le backend...');
       
-      const projectId = 'your_project_id'; // Remplacez par votre ID de projet Supabase
-      const publicAnonKey = 'your_public_anon_key'; // Remplacez par votre clé publique anonyme Supabase
-      
       const response = await fetch(
-        `https://${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_PROJECT_ID) || projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/transactions/${state.currentUser.id}`,
         {
           headers: {
-            'Authorization': `Bearer ${(typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_ANON_KEY) || publicAnonKey}`,
+            'Authorization': `Bearer ${publicAnonKey}`,
             'Content-Type': 'application/json'
           }
         }
@@ -247,11 +233,7 @@ export function WalletScreen() {
   }, [state.currentUser?.id]);
 
   return (
-    <motion.div 
-      initial={{ x: 300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -300, opacity: 0 }}
-      transition={{ duration: 0.3 }}
+    <div 
       className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col"
     >
       {/* Header */}
@@ -523,6 +505,6 @@ export function WalletScreen() {
       >
         <RefreshCw className={`w-6 h-6 ${refreshing ? 'animate-spin' : ''}`} />
       </motion.button>
-    </motion.div>
+    </div>
   );
 }

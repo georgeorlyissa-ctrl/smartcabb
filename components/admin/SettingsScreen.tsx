@@ -1,5 +1,23 @@
 import { useState, useEffect } from 'react';
-import { motion } from '../../framer-motion';
+import {
+  Settings,
+  DollarSign,
+  Percent,
+  Save,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Clock,
+  MapPin,
+  Shield,
+  Bell,
+  Mail,
+  MessageCircle,
+  Database,
+  ArrowLeft
+} from '../../lib/icons';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -9,21 +27,6 @@ import { useAppState } from '../../hooks/useAppState';
 import { useExchangeRate } from '../../hooks/useExchangeRate';
 import { PolicyModal } from '../PolicyModal';
 import { CommissionSettings } from '../CommissionSettings';
-import { 
-  ArrowLeft, 
-  Settings, 
-  Euro, 
-  Percent,
-  Clock,
-  Car,
-  Smartphone,
-  Save,
-  Shield,
-  FileText,
-  DollarSign,
-  RefreshCw
-} from 'lucide-react';
-import { toast } from 'sonner';
 import { formatCDF } from '../../lib/pricing';
 import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
@@ -325,7 +328,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             <Card className="p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <Euro className="w-5 h-5 text-green-600" />
+                  <DollarSign className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
                   <h2 className="text-xl">Tarification</h2>
@@ -408,7 +411,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             <Card className="p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Car className="w-5 h-5 text-blue-600" />
+                  <MapPin className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
                   <h2 className="text-xl">Fonctionnalités</h2>
@@ -484,7 +487,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             <Card className="p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                  <Smartphone className="w-5 h-5 text-orange-600" />
+                  <Bell className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
                   <h2 className="text-xl">Notifications</h2>

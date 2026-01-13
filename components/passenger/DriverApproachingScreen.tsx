@@ -1,21 +1,24 @@
-import { motion } from '../../framer-motion';
-import { useAppState } from '../../hooks/useAppState';
-import { 
-  ArrowLeft, 
-  Phone, 
-  MessageCircle, 
-  Navigation,
-  User,
-  Car,
-  Clock,
+import { useEffect, useState } from 'react';
+import {
+  Phone,
+  MessageCircle,
   MapPin,
-  Star
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
+  Clock,
+  Star,
+  Navigation,
+  X,
+  User,
+  Car
+} from '../../lib/icons';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { useAppState } from '../../hooks/useAppState';
 import { formatCDF } from '../../lib/pricing';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { reverseGeocodeWithCache } from '../../lib/geocoding';
 
 export function DriverApproachingScreen() {
-  const { state, setCurrentScreen } = useAppState();
+  const { state, setCurrentScreen, updateDriver } = useAppState();
   const currentRide = state.currentRide;
   
   // ✅ FIX: Ajouter une vérification de sécurité pour éviter l'erreur "Cannot read properties of undefined"
@@ -24,6 +27,47 @@ export function DriverApproachingScreen() {
   const [driverDistance, setDriverDistance] = useState<number>(0);
   const [estimatedTime, setEstimatedTime] = useState<number>(0);
   const [driverLocation, setDriverLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [driverLocationName, setDriverLocationName] = useState<string>('Calcul...');
+
+  // 🔥 FIX 3: CHARGER LA POSITION DU CONDUCTEUR DEPUIS LE BACKEND
+  useEffect(() => {
+    if (!driver?.id) return;
+    
+    const loadDriverLocation = async () => {
+      try {
+        console.log('📍 Chargement position conducteur depuis backend...');
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/location/${driver.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.location) {
+            console.log('✅ Position conducteur reçue:', data.location);
+            // Mettre à jour le state local du conducteur
+            updateDriver(driver.id, { location: data.location });
+          } else {
+            console.warn('⚠️ Position conducteur non disponible');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement position conducteur:', error);
+      }
+    };
+    
+    // Charger immédiatement
+    loadDriverLocation();
+    
+    // Recharger toutes les 5 secondes pour suivi en temps réel
+    const interval = setInterval(loadDriverLocation, 5000);
+    
+    return () => clearInterval(interval);
+  }, [driver?.id, updateDriver]);
 
   // 🚗 CALCULER LA DISTANCE ET L'ETA EN TEMPS RÉEL
   useEffect(() => {
@@ -35,15 +79,37 @@ export function DriverApproachingScreen() {
         hasDriver: !!driver,
         hasDriverLocation: !!driver?.location
       });
+      // 🔥 FIX 2: Initialiser avec des valeurs par défaut au lieu de laisser 0
+      setDriverDistance(0);
+      setEstimatedTime(0);
       return;
     }
 
     const calculateDistanceAndETA = () => {
-      // Utiliser la localisation du conducteur (mise à jour en temps réel)
-      const driverLat = driver.location.lat;
-      const driverLng = driver.location.lng;
-      const pickupLat = currentRide.pickup.lat;
-      const pickupLng = currentRide.pickup.lng;
+      // 🔥 FIX 2: VALIDATION DES COORDONNÉES AVANT CALCUL
+      // Vérifier que toutes les coordonnées sont valides
+      const driverLat = driver.location?.lat;
+      const driverLng = driver.location?.lng;
+      const pickupLat = currentRide.pickup?.lat;
+      const pickupLng = currentRide.pickup?.lng;
+      
+      // Si une coordonnée est invalide (undefined, null, NaN), arrêter
+      if (
+        typeof driverLat !== 'number' || isNaN(driverLat) ||
+        typeof driverLng !== 'number' || isNaN(driverLng) ||
+        typeof pickupLat !== 'number' || isNaN(pickupLat) ||
+        typeof pickupLng !== 'number' || isNaN(pickupLng)
+      ) {
+        console.warn('⚠️ Coordonnées GPS invalides:', {
+          driverLat,
+          driverLng,
+          pickupLat,
+          pickupLng
+        });
+        setDriverDistance(0);
+        setEstimatedTime(0);
+        return;
+      }
 
       // Formule de Haversine pour calculer la distance
       const R = 6371; // Rayon de la Terre en km
@@ -55,6 +121,14 @@ export function DriverApproachingScreen() {
         Math.sin(dLng / 2) * Math.sin(dLng / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       const distance = R * c;
+      
+      // 🔥 FIX 2: VÉRIFIER QUE LE RÉSULTAT EST VALIDE
+      if (isNaN(distance) || distance < 0) {
+        console.warn('⚠️ Distance calculée invalide:', distance);
+        setDriverDistance(0);
+        setEstimatedTime(0);
+        return;
+      }
 
       setDriverDistance(distance);
       setDriverLocation({ lat: driverLat, lng: driverLng });
@@ -64,6 +138,8 @@ export function DriverApproachingScreen() {
       const timeInHours = distance / averageSpeed;
       const timeInMinutes = Math.ceil(timeInHours * 60);
       setEstimatedTime(timeInMinutes);
+      
+      console.log(`📍 Distance conducteur → pickup: ${distance.toFixed(2)} km (${timeInMinutes} min)`);
     };
 
     calculateDistanceAndETA();
@@ -73,6 +149,27 @@ export function DriverApproachingScreen() {
 
     return () => clearInterval(interval);
   }, [driver?.location, currentRide?.pickup]);
+
+  // 🗺️ GEOCODER LA POSITION DU CONDUCTEUR EN NOM DE LIEU
+  useEffect(() => {
+    if (!driver?.location) {
+      setDriverLocationName('Calcul...');
+      return;
+    }
+    
+    const geocodeLocation = async () => {
+      try {
+        const name = await reverseGeocodeWithCache(driver.location.lat, driver.location.lng);
+        setDriverLocationName(name);
+        console.log('✅ Position conducteur:', name);
+      } catch (error) {
+        console.error('❌ Erreur geocoding position conducteur:', error);
+        setDriverLocationName('En route');
+      }
+    };
+    
+    geocodeLocation();
+  }, [driver?.location]);
 
   // 🎨 ANIMATION DE PROGRESSION
   const getProgressPercentage = () => {
@@ -195,8 +292,13 @@ export function DriverApproachingScreen() {
                   <Navigation className="w-5 h-5 text-secondary" />
                 </div>
                 <p className="text-2xl font-bold text-primary mb-1">
-                  {driverDistance < 0.1 ? '< 100' : driverDistance.toFixed(1)} 
-                  {driverDistance < 0.1 ? ' m' : ' km'}
+                  {driverDistance === 0 ? (
+                    <span className="text-base text-muted-foreground">Calcul...</span>
+                  ) : driverDistance < 0.1 ? (
+                    <>{'< 100 m'}</>
+                  ) : (
+                    <>{driverDistance.toFixed(1)} km</>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">Distance</p>
               </div>
@@ -206,7 +308,13 @@ export function DriverApproachingScreen() {
                   <Clock className="w-5 h-5 text-primary" />
                 </div>
                 <p className="text-2xl font-bold text-primary mb-1">
-                  {estimatedTime < 1 ? '< 1' : estimatedTime} min
+                  {estimatedTime === 0 ? (
+                    <span className="text-base text-muted-foreground">Calcul...</span>
+                  ) : estimatedTime < 1 ? (
+                    <>{'< 1 min'}</>
+                  ) : (
+                    <>{estimatedTime} min</>
+                  )}
                 </p>
                 <p className="text-xs text-muted-foreground">Temps d'arrivée</p>
               </div>

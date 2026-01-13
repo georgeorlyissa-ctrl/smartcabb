@@ -1,31 +1,59 @@
-import { logError, isNetworkError } from '../../lib/error-utils';
-import { 
-  Users, 
-  Car, 
-  DollarSign, 
+import { useEffect, useState } from 'react';
+import {
+  Users,
+  Car,
+  MapPin,
+  DollarSign,
   TrendingUp,
-  Star,
-  Settings,
-  Shield,
-  ChevronRight,
-  RefreshCw,
-  AlertCircle,
-  UserPlus,
-  Mail,
-  Lock,
-  User,
-  Bell,
+  Clock,
   CheckCircle,
-  Wallet,
-  Database,
-  MessageSquare,
-  Trash2,
-  Wrench,
+  XCircle,
+  AlertCircle,
+  Activity,
+  Navigation,
+  Calendar,
+  Star,
   MessageCircle,
-  Receipt,
+  Shield,
+  Settings,
+  BarChart3,
+  FileText,
+  Bell,
+  UserCircle,
+  Menu,
+  X,
+  Home,
+  List,
+  Zap,
+  CreditCard,
+  Database,
+  Mail,
+  LogOut,
+  RefreshCw,
+  Download,
+  Upload,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
+  Filter,
   Search
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
+import { useNavigate } from '../../lib/simple-router';
+import { useAppState } from '../../hooks/useAppState';
+import { useSupabaseData } from '../../hooks/useSupabaseData';
+import { LiveStatsPanel } from '../LiveStatsPanel';
+import { StatsCharts } from './StatsCharts';
+import { ContactMessagesScreen } from './ContactMessagesScreen';
+import { DataCleanupPanel } from './DataCleanupPanel';
+import { AutoCleanupBanner } from './AutoCleanupBanner';
+import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
+import { SMSBalanceCard } from './SMSBalanceCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { supabase } from '../../lib/supabase';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { logError, isNetworkError } from '../../lib/error-utils';
 import { createAdminUser } from '../../lib/auth-service';
 
 export function AdminDashboard() {
@@ -407,7 +435,7 @@ export function AdminDashboard() {
       id: 'action-contact-messages',
       title: 'Messages de contact',
       description: 'Messages du site web',
-      icon: MessageSquare,
+      icon: MessageCircle,
       action: () => setCurrentScreen('contact-messages'),
       count: null,
       highlight: true,

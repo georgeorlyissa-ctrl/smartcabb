@@ -211,7 +211,7 @@ export const PrivacyPolicy = memo(function PrivacyPolicy() {
         <section className="border-t pt-4 mt-6">
           <p className="text-xs text-gray-500 text-center">
             En utilisant SmartCabb, vous acceptez cette Politique de Confidentialité.<br/>
-            © 2025 SmartCabb SARL - Tous droits réservés
+            © 2026 SmartCabb SARL - Tous droits réservés
           </p>
         </section>
       </div>

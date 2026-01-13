@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { CheckCircle, Star } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
+import { CheckCircle, Star } from '../lib/icons';
 
 interface RideCompletionDialogProps {
   isOpen: boolean;
@@ -37,7 +38,10 @@ export function RideCompletionDialog({
           Résumé de votre course et évaluation
         </DialogDescription>
         
-        <Card
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
           className="text-center space-y-6 py-6"
         >
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
@@ -108,7 +112,7 @@ export function RideCompletionDialog({
               Nouvelle course
             </Button>
           </div>
-        </Card>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );

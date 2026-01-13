@@ -1,7 +1,6 @@
-import { Badge } from '../ui/badge';
-import { InteractiveMapView } from '../InteractiveMapView';
-import { toast } from 'sonner';
-import { Navigation as NavigationIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Button } from '../ui/button';
+import { Navigation as NavigationIcon } from '../../lib/icons';
 
 export function GPSNavigationScreen() {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);

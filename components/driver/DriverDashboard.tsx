@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from '../../framer-motion';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { Card } from '../ui/card';
@@ -16,10 +16,38 @@ import { DriverBalanceManager } from './DriverBalanceManager';
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, isDayTime, VehicleCategory } from '../../lib/pricing';
 import { useDriverLocation, isNearPickupLocation, calculateDistance } from '../../lib/gps-utils';
-import { Power, Euro, Clock, Star, Navigation, User, Settings, TrendingUp, Car, Key, Percent, CreditCard, Lock, CheckCircle, AlertCircle, MapPin, Phone, MessageSquare } from 'lucide-react';
-import { toast } from 'sonner';
+import { reverseGeocodeWithCache } from '../../lib/geocoding';
+import { 
+  Power, 
+  Euro, 
+  Clock, 
+  Star, 
+  Navigation,
+  User,
+  Settings,
+  TrendingUp,
+  Car,
+  Key,
+  Percent,
+  CreditCard,
+  Lock,
+  CheckCircle,
+  AlertCircle,
+  MapPin,
+  Phone,
+  MessageSquare
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { notifyRideConfirmed, notifyDriverEnroute, notifyDriverArrived, notifyRideStarted, notifyRideCompleted, notifyPaymentReceived, notifyRideCancelled } from '../../lib/sms-service';
+import { 
+  notifyRideConfirmed,
+  notifyDriverEnroute,
+  notifyDriverArrived,
+  notifyRideStarted,
+  notifyRideCompleted,
+  notifyPaymentReceived,
+  notifyRideCancelled
+} from '../../lib/sms-service';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {
@@ -126,10 +154,12 @@ export function DriverDashboard() {
   const [waitingTimeStarted, setWaitingTimeStarted] = useState(false);
   const [waitingStartTime, setWaitingStartTime] = useState<Date | null>(null);
   
-  // Hook pour suivre la position GPS du conducteur (seulement en course)
-  const { location: driverLocation, error: gpsError } = useDriverLocation(
-    state.currentRide !== null && state.currentRide.status === 'accepted'
-  );
+  // 🗺️ NOUVEAU: Nom du lieu géocodé (ex: "Matete", "Gombe")
+  const [locationName, setLocationName] = useState<string>('Détection...');
+  
+  // ✅ CRITIQUE: GPS activé dès que le conducteur est connecté (pas seulement en course)
+  // Sans GPS, le conducteur ne peut pas passer en ligne
+  const { location: driverLocation, error: gpsError, permissionDenied, accuracy } = useDriverLocation(true);
   
   // ✅ SOLDE SYNCHRONISÉ AVEC LE BACKEND (source de vérité unique)
   const [accountBalance, setAccountBalance] = useState(0);
@@ -288,6 +318,87 @@ export function DriverDashboard() {
     }
   }, [driverLocation, state.currentRide, isNearPickup]);
 
+  // ✅ ENVOYER LA POSITION GPS EN TEMPS RÉEL AU BACKEND
+  useEffect(() => {
+    // ✅ CORRECTION CRITIQUE: Envoyer la position dès qu'elle est disponible
+    // PAS seulement quand en ligne, sinon le conducteur ne peut jamais passer en ligne!
+    if (!driverLocation || !driver?.id) {
+      console.log('⏸️ Envoi GPS en attente - Position:', !!driverLocation, 'Driver:', !!driver?.id);
+      return;
+    }
+
+    console.log('📍 Envoi position GPS RÉELLE au backend:', driverLocation);
+
+    // Fonction pour envoyer la position
+    const sendLocation = async () => {
+      try {
+        // 🔥 FIX CRITIQUE 1: METTRE À JOUR LE STATE LOCAL EN PREMIER
+        // Cela permet au passager de voir la position en temps réel IMMÉDIATEMENT
+        updateDriver(driver.id, { location: driverLocation });
+        console.log('✅ Position GPS mise à jour dans state local:', driverLocation);
+        
+        // Puis envoyer au backend pour persistance
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-driver-location`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            },
+            body: JSON.stringify({
+              driverId: driver.id,
+              location: driverLocation
+            })
+          }
+        );
+
+        if (response.ok) {
+          console.log('✅ Position GPS RÉELLE envoyée au backend:', driverLocation);
+        } else {
+          console.error('❌ Erreur envoi position GPS:', await response.text());
+        }
+      } catch (error) {
+        console.error('❌ Erreur réseau envoi GPS:', error);
+      }
+    };
+
+    // Envoyer immédiatement
+    sendLocation();
+
+    // Puis envoyer toutes les 10 secondes (même si hors ligne, pour garder la position à jour)
+    const interval = setInterval(sendLocation, 10000);
+
+    return () => clearInterval(interval);
+  }, [driverLocation, driver?.id, updateDriver]); // ✅ Retiré isOnline des dépendances!
+
+  // 🗺️ GEOCODER LA POSITION GPS EN NOM DE LIEU
+  useEffect(() => {
+    if (!driverLocation) {
+      setLocationName('Détection...');
+      return;
+    }
+    
+    const geocodeLocation = async () => {
+      try {
+        console.log('🗺️ Geocoding position:', driverLocation);
+        const name = await reverseGeocodeWithCache(driverLocation.lat, driverLocation.lng);
+        setLocationName(name);
+        console.log('✅ Nom du lieu:', name);
+      } catch (error) {
+        console.error('❌ Erreur geocoding:', error);
+        setLocationName('Position GPS activée');
+      }
+    };
+    
+    geocodeLocation();
+    
+    // Re-géocoder toutes les 30 secondes si la position change
+    const interval = setInterval(geocodeLocation, 30000);
+    
+    return () => clearInterval(interval);
+  }, [driverLocation]);
+
   // ✅ VÉRIFICATION TEMPS RÉEL DES DEMANDES DE COURSE depuis le backend
   useEffect(() => {
     // ✅ CORRECTION CRITIQUE : Polling simplifié - uniquement si en ligne
@@ -360,6 +471,93 @@ export function DriverDashboard() {
       clearInterval(interval);
     };
   }, [isOnline, driver?.id, rideRequest?.id, showRideRequest, state.currentRide]);
+
+  // 🔥 NOUVEAU: SURVEILLANCE DE L'ÉTAT DE LA COURSE AFFICHÉE
+  // Détecter si le passager annule ou si un autre conducteur accepte
+  useEffect(() => {
+    if (!showRideRequest || !rideRequest?.id || !driver?.id) {
+      return;
+    }
+
+    console.log('👁️ Surveillance de la course:', rideRequest.id);
+
+    const checkRideStatus = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/status/${rideRequest.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.ride) {
+            const rideStatus = data.ride.status;
+            const assignedDriverId = data.ride.driverId;
+            
+            // Cas 1: Le passager a annulé
+            if (rideStatus === 'cancelled') {
+              console.log('❌ Le passager a annulé sa course');
+              setShowRideRequest(false);
+              setRideRequest(null);
+              toast.error('😔 Le passager a annulé sa course', {
+                duration: 5000
+              });
+              return;
+            }
+            
+            // Cas 2: Un autre conducteur a accepté
+            if (rideStatus === 'accepted' && assignedDriverId && assignedDriverId !== driver.id) {
+              console.log('⚡ Course acceptée par un autre conducteur:', assignedDriverId);
+              setShowRideRequest(false);
+              setRideRequest(null);
+              toast.info('🚗 Course déjà récupérée par un autre conducteur', {
+                duration: 5000
+              });
+              return;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur surveillance statut course:', error);
+      }
+    };
+
+    // Vérifier toutes les 2 secondes
+    const interval = setInterval(checkRideStatus, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [showRideRequest, rideRequest?.id, driver?.id]);
+
+  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 15 SECONDES
+  // Si le conducteur ne répond pas, la demande est offerte au suivant
+  useEffect(() => {
+    if (!showRideRequest || !rideRequest?.id) {
+      return;
+    }
+
+    console.log('⏱️ Démarrage du timer de 15s pour la course:', rideRequest.id);
+
+    // Après 15 secondes, refuser automatiquement
+    const timeoutId = setTimeout(() => {
+      console.log('⏰ Timeout de 15s atteint, refus automatique');
+      setShowRideRequest(false);
+      setRideRequest(null);
+      toast.info('⏱️ Temps écoulé - Course offerte à un autre conducteur', {
+        duration: 4000
+      });
+    }, 15000); // 15 secondes
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [showRideRequest, rideRequest?.id]);
 
   // ==================== FONCTION DE RAFRAÎCHISSEMENT TEMPS RÉEL ====================
   const refreshDriverData = async () => {
@@ -523,7 +721,22 @@ export function DriverDashboard() {
   }, [accountBalance, balanceRenderKey]); // Dépend du balanceRenderKey ET accountBalance
 
   const toggleOnlineStatus = async () => {
-    // ✅ VÉRIFICATION DU SOLDE UNIQUEMENT (plus besoin de post-payé)
+    // ✅ VÉRIFICATION GPS AVANT TOUT (CRITIQUE)
+    if (!isOnline && !driverLocation) {
+      toast.error(
+        '📍 GPS requis ! Veuillez autoriser la géolocalisation pour passer en ligne.',
+        { duration: 6000 }
+      );
+      if (permissionDenied) {
+        toast.error(
+          '⚠️ Accédez aux paramètres de votre navigateur pour autoriser la géolocalisation',
+          { duration: 8000 }
+        );
+      }
+      return;
+    }
+
+    // ✅ VÉRIFICATION DU SOLDE
     if (!isOnline && accountBalance <= 0) {
       toast.error(
         'Solde insuffisant ! Vous devez recharger votre compte pour vous mettre en ligne.',
@@ -581,13 +794,28 @@ export function DriverDashboard() {
       setIsOnline(newStatus);
 
       if (driver) {
-        updateDriver(driver.id, { isOnline: newStatus });
+        updateDriver(driver.id, { isOnline: newStatus, location: driverLocation || undefined });
       }
 
-      toast.success(newStatus ? 'Vous êtes maintenant en ligne' : 'Vous êtes maintenant hors ligne');
-
       if (newStatus) {
-        toast.info('Recherche de courses en cours...');
+        // 🔥 AFFICHER LE NOM DU LIEU QUAND LE CONDUCTEUR PASSE EN LIGNE
+        toast.success('✅ Vous êtes maintenant en ligne !', { duration: 3000 });
+        
+        if (driverLocation) {
+          toast.success(
+            `📍 Votre position: ${locationName}`,
+            { duration: 5000 }
+          );
+          console.log('🟢 CONDUCTEUR EN LIGNE - Position GPS:', driverLocation);
+          console.log('   Latitude:', driverLocation.lat);
+          console.log('   Longitude:', driverLocation.lng);
+          console.log('   Lieu:', locationName);
+          console.log('   Cette position est maintenant visible par les passagers');
+        }
+        
+        toast.info('🔍 Recherche de courses en cours...', { duration: 3000 });
+      } else {
+        toast.success('Vous êtes maintenant hors ligne');
       }
     } catch (error) {
       console.error('❌ Erreur toggle status:', error);
@@ -953,16 +1181,12 @@ export function DriverDashboard() {
         const startData = await startResponse.json();
         console.log('✅ Backend a confirmé le démarrage:', startData);
         
-        // ✅ v517.95: Mettre à jour AUSSI le state global avec startTime
-        const startTime = new Date();
-        setRideStartTime(startTime);
-        const startTimeISO = startData.ride?.startedAt || startTime.toISOString();
-        
+        // Mettre à jour le state local
+        setRideStartTime(new Date());
         setCurrentRide({ 
           ...state.currentRide, 
           status: 'in_progress',
-          startedAt: startTimeISO,
-          startTime: startTimeISO // ✅ CRITIQUE pour calcul uniforme de durée
+          startedAt: startData.ride?.startedAt || new Date().toISOString()
         });
         toast.success('Course démarrée !');
         setEnteredCode('');
@@ -1038,21 +1262,20 @@ export function DriverDashboard() {
         tauxChange: `${exchangeRate} CDF/USD`
       });
 
-      // 🔥 v517.95: LOGS DÉTAILLÉS pour debug passengerId
-      console.log('🔍 v517.95 - Sources de passengerId:', {
-        rideRequestPassengerId: rideRequest?.passengerId,
-        rideRequestUserId: rideRequest?.userId,
-        stateCurrentRidePassengerId: state.currentRide?.passengerId,
-        stateCurrentRideUserId: state.currentRide?.userId,
-        finalPassengerId: rideRequest?.passengerId || rideRequest?.userId || state.currentRide?.passengerId || state.currentRide?.userId || 'unknown'
-      });
-      
       // 🔥 v517.85: SAUVEGARDER LA COURSE DANS LE BACKEND (CRITIQUE!)
       // SANS CETTE ÉTAPE, LES STATS NE PEUVENT PAS SE METTRE À JOUR !
       try {
-        // ✅ v517.85: GÉNÉRER UN rideId UNIQUE pour éviter d'écraser les courses précédentes
-        const uniqueRideId = `ride_${driver.id}_${Date.now()}`;
-        console.log('💾 v517.85 - Sauvegarde course dans le backend avec ID unique:', uniqueRideId);
+        // 🔥 CORRECTION CRITIQUE: Utiliser state.currentRide.id au lieu de générer un nouveau
+        const rideId = state.currentRide.id;
+        console.log('💾 v517.92 - Sauvegarde course dans le backend avec rideId:', rideId);
+        console.log('📊 Durée calculée:', durationInSeconds, 'secondes');
+        console.log('📊 Données complètes:', {
+          rideId,
+          driverId: driver.id,
+          finalPrice: totalRideCost,
+          duration: durationInSeconds,
+          distance: rideRequest?.distance || state.currentRide.distance || 0
+        });
         
         const completeResponse = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/complete`,
@@ -1063,13 +1286,11 @@ export function DriverDashboard() {
               'Authorization': `Bearer ${publicAnonKey}`
             },
             body: JSON.stringify({
-              rideId: uniqueRideId, // ✅ v517.85: ID unique pour chaque course
+              rideId: rideId, // 🔥 UTILISER L'ID EXISTANT POUR QUE LE PASSAGER PUISSE LE RETROUVER
               driverId: driver.id,
-              // ✅ v517.95: CRITIQUE - Utiliser rideRequest en priorité car il vient du backend avec le bon passengerId
-              passengerId: rideRequest?.passengerId || rideRequest?.userId || state.currentRide?.passengerId || state.currentRide?.userId || 'unknown',
+              passengerId: rideRequest?.passengerId || state.currentRide.passengerId || 'unknown',
               finalPrice: totalRideCost,
-              duration: durationInSeconds,
-              billingElapsedTime: billableSeconds, // ✅ v517.96: AJOUT - Temps de facturation réel (après 10 min gratuites)
+              duration: durationInSeconds, // 🔥 CETTE VALEUR DOIT ÊTRE > 0
               rating: 0, // Sera mis à jour par le passager plus tard
               feedback: '',
               paymentMethod: 'cash', // Mode post-payé = cash à la fin
@@ -1078,8 +1299,6 @@ export function DriverDashboard() {
               distance: rideRequest?.distance || state.currentRide.distance || 0,
               vehicleType: driver.vehicleInfo?.type || 'economic',
               completedAt: new Date().toISOString(),
-              // ✅ v517.94: Inclure startTime pour calcul uniforme de la durée
-              startTime: state.currentRide.startTime || rideRequest?.createdAt || state.currentRide.createdAt || new Date(Date.now() - durationInSeconds * 1000).toISOString(),
               createdAt: rideRequest?.createdAt || state.currentRide.createdAt || new Date().toISOString()
             })
           }
@@ -1128,23 +1347,10 @@ export function DriverDashboard() {
       // Forcer le re-render visuel du solde
       setBalanceRenderKey(prev => prev + 1);
       
-      // ✅ v517.96: Mettre à jour currentRide avec billingElapsedTime AVANT de null
-      // pour que le passager reçoive la durée correcte
-      setCurrentRide({ 
-        ...state.currentRide, 
-        status: 'completed',
-        billingElapsedTime: billableSeconds, // ✅ Temps facturable (après 10 min gratuites)
-        duration: durationInSeconds, // Durée totale
-        finalPrice: totalRideCost,
-        completedAt: new Date().toISOString()
-      });
-      
-      // Attendre un peu pour que le passager récupère les données
-      setTimeout(() => {
-        setCurrentRide(null);
-        setConfirmationCode('');
-        setRideStartTime(null);
-      }, 3000); // 3 secondes pour synchronisation
+      // Mettre à jour l'état
+      setCurrentRide(null);
+      setConfirmationCode('');
+      setRideStartTime(null);
       
       // Rafraîchir les données du tableau de bord
       setTimeout(() => {
@@ -1277,7 +1483,7 @@ export function DriverDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className={`w-4 h-4 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+              <div className={`w-4 h-4 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
               <div className="flex-1">
                 <h3 className="font-semibold">
                   {isOnline ? 'Vous êtes en ligne' : 'Vous êtes hors ligne'}
@@ -1285,17 +1491,57 @@ export function DriverDashboard() {
                 <p className="text-sm text-gray-600">
                   {isOnline 
                     ? '✅ Prêt à recevoir des courses' 
-                    : accountBalance <= 0
-                      ? '⚠️ Solde insuffisant - Rechargez pour vous mettre en ligne'
-                      : '👆 Activez pour recevoir des courses'
+                    : !driverLocation
+                      ? '📍 GPS requis - Autorisez la géolocalisation'
+                      : accountBalance <= 0
+                        ? '⚠️ Solde insuffisant - Rechargez pour vous mettre en ligne'
+                        : '👆 Activez pour recevoir des courses'
                   }
                 </p>
+                
+                {/* 🔥 AFFICHAGE POSITION GPS EN TEMPS RÉEL (style capture1) */}
+                {driverLocation && (
+                  <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-200">
+                    <div className="flex items-start space-x-2">
+                      <MapPin className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-green-800">
+                          {isOnline ? '🟢 Actif pour recevoir des courses' : '⚪ Hors ligne'}
+                        </p>
+                        <p className="text-xs text-green-700 mt-0.5">
+                          📍 {locationName}
+                        </p>
+                        {accuracy && (
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            Précision GPS: ±{accuracy.toFixed(0)}m
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {!driverLocation && !isOnline && gpsError && (
+                  <div className="mt-2 p-2 bg-red-50 rounded-lg border border-red-200">
+                    <p className="text-xs text-red-600">
+                      ⚠️ {gpsError}
+                    </p>
+                  </div>
+                )}
+                
+                {!driverLocation && !gpsError && !isOnline && (
+                  <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-xs text-yellow-700">
+                      ⏳ Détection GPS en cours...
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <Switch
               checked={isOnline}
               onCheckedChange={toggleOnlineStatus}
-              disabled={accountBalance <= 0}
+              disabled={accountBalance <= 0 || !driverLocation}
             />
           </div>
         </Card>
@@ -1422,7 +1668,7 @@ export function DriverDashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Destination</p>
-                <p className="font-medium">{state.currentRide.destination?.address || 'Destination non spécifiée'}</p>
+                <p className="font-medium">{state.currentRide.destination.address}</p>
               </div>
               
               {/* 🆕 v517.91: BOUTONS DE CONTACT PASSAGER */}

@@ -1,78 +1,36 @@
-import { BackendSyncProvider } from './components/BackendSyncProvider';
-import { applyBrowserOptimizations, applySafariFixes, isPrivateBrowsing } from './utils/browserDetection';
-import { BUILD_VERSION, BUILD_DATE } from './BUILD_VERSION';
-import { startUpdateDetection } from './utils/updateDetector';
-import { checkForUpdate } from './utils/cacheManager';
-import { useState, useEffect, lazy, Suspense } from 'react';
-import { Router, Route, Routes, Navigate } from './lib/simple-router';
-import { Toaster } from 'sonner';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Router, Routes, Route, Navigate } from './lib/simple-router';
+import { ToastProvider } from './components/ui/toast';
+import { LoadingScreen } from './components/LoadingScreen';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AppProvider } from './hooks/useAppState';
-import { OnlineStatusIndicator, PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PWAInstallPrompt, OnlineStatusIndicator } from './components/PWAInstallPrompt';
 import { ExchangeRateSync } from './components/ExchangeRateSync';
 import { PageTransition } from './components/PageTransition';
-import { LoadingScreen } from './components/LoadingScreen';
-import './styles/globals.css';
+import { AppProvider } from './hooks/useAppState';
+import { BackendSyncProvider } from './components/BackendSyncProvider';
+import { applyBrowserOptimizations, applySafariFixes, isPrivateBrowsing } from './utils/browserDetection';
+import { BUILD_VERSION, BUILD_TIMESTAMP } from './BUILD_VERSION';
+import { startUpdateDetection } from './utils/updateDetector';
+import { checkForUpdate } from './utils/cacheManager';
+import { logger } from './utils/logger';
 
-// 🔥 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}
-console.log('🚀 BUILD v517.89 - FIX STRUCTURE OBJET KV STORE: {balance: X, updated_at: ...}');
-console.log('❌ PROBLÈME v517.88: Le NaN persiste ENCORE après isNaN() !');
-console.log('   Log erreur: "Données KV: { balance: 40700, updated_at: ... } Type: object"');
-console.log('   → parseFloat(String(object)) = parseFloat("[object Object]") = NaN ❌');
-console.log('');
-console.log('🎯 VRAIE CAUSE RACINE:');
-console.log('   Le KV store stocke une STRUCTURE OBJET au lieu d\'un nombre simple:');
-console.log('   {');
-console.log('     balance: 40700,');
-console.log('     updated_at: "2025-12-22T23:45:46.397Z"');
-console.log('   }');
-console.log('');
-console.log('   Code v517.88: parseFloat(String({balance: 40700}))');
-console.log('                 ↓');
-console.log('                 parseFloat("[object Object]")');
-console.log('                 ↓');
-console.log('                 NaN ❌');
-console.log('');
-console.log('✅ SOLUTION v517.89:');
-console.log('   DÉTECTER structure objet et EXTRAIRE .balance AVANT parseFloat() !');
-console.log('');
-console.log('   Pattern correct (déjà utilisé dans toggle-online-status):');
-console.log('   let balanceValue = 0;');
-console.log('   if (typeof balance === "number") {');
-console.log('     balanceValue = balance;  // Nombre simple ✅');
-console.log('   } else if (balance && typeof balance === "object" && "balance" in balance) {');
-console.log('     balanceValue = balance.balance;  // Extraire propriété ✅');
-console.log('   } else {');
-console.log('     balanceValue = parseFloat(String(balance));  // Fallback');
-console.log('   }');
-console.log('   if (isNaN(balanceValue)) { /* Réparation */ }');
-console.log('');
-console.log('BACKEND driver-routes.tsx:');
-console.log('   GET /:driverId/balance:');
-console.log('   ✅ Extraction .balance si objet (3 cas: number / objet / autre)');
-console.log('   ✅ isNaN() après extraction');
-console.log('   ✅ Log: "Structure objet détectée, extraction de .balance: X"');
-console.log('');
-console.log('   POST /:driverId/balance (add):');
-console.log('   ✅ Extraction .balance si objet (3 cas)');
-console.log('   ✅ isNaN() après extraction ET après calcul');
-console.log('   ✅ Log: "Structure objet détectée (add), extraction de .balance: X"');
-console.log('');
-console.log('   POST /:driverId/balance (subtract):');
-console.log('   ✅ Extraction .balance si objet (3 cas)');
-console.log('   ✅ isNaN() après extraction ET après calcul');
-console.log('   ✅ Log: "Structure objet détectée (subtract), extraction de .balance: X"');
-console.log('');
-console.log('✅ v517.88 MAINTENU: isNaN() après parseFloat() (localStorage frontend)');
-console.log('✅ v517.87 MAINTENU: Validation recharge (parseInt)');
-console.log('✅ v517.86 MAINTENU: Validation courses (handleCompleteRide)');
-console.log('✅ v517.85 MAINTENU: rideId unique');
-console.log('');
-console.log('⚡ TRIPLE PROTECTION ANTI-NaN:');
-console.log('   🛡️ Backend GET: isNaN() après parseFloat()');
-console.log('   🛡️ Backend POST: isNaN() après parseFloat() + newBalance');
-console.log('   🛡️ Frontend: isNaN() après CHAQUE parseFloat()');
-console.log('🎉 AUCUN NaN NE PEUT SURVIVRE ! 💯');
+// 🔥 BUILD v517.114 - PRODUCTION OPTIMIZATION: Logs conditionnels
+logger.build('🚀 BUILD v517.114 - PRODUCTION OPTIMIZATION');
+logger.build('✅ Logger conditionnel activé (désactivé en production)');
+logger.build('✅ Ancienne version: v517.89 - FIX STRUCTURE OBJET KV STORE');
+logger.build('');
+logger.build('📊 CORRECTIONS MAINTENUES:');
+logger.build('   ✅ v517.91: Fix double addition solde conducteur');
+logger.build('   ✅ v517.89: Extraction .balance depuis objet KV');
+logger.build('   ✅ v517.88: isNaN() après parseFloat()');
+logger.build('   ✅ v517.87: Validation recharge (parseInt)');
+logger.build('   ✅ v517.86: Validation courses (handleCompleteRide)');
+logger.build('   ✅ v517.85: rideId unique');
+logger.build('');
+logger.build('⚡ TRIPLE PROTECTION ANTI-NaN:');
+logger.build('   🛡️ Backend GET: isNaN() après parseFloat()');
+logger.build('   🛡️ Backend POST: isNaN() après parseFloat() + newBalance');
+logger.build('   🛡️ Frontend: isNaN() après CHAQUE parseFloat()');
 
 // 🌐 Landing Page (Site Vitrine) - Import direct pour fiabilité
 import { LandingPage } from './pages/LandingPage';
@@ -118,7 +76,7 @@ import { TestSMSDirect } from './components/TestSMSDirect';
 
 // 🔧 Loading fallback
 const SuspenseFallback = () => {
-  console.log('⏳ SuspenseFallback - Chargement en cours...');
+  logger.log('⏳ SuspenseFallback - Chargement en cours...');
   return (
     <div className="h-screen w-screen flex items-center justify-center bg-gradient-to-br from-cyan-50 to-white">
       <LoadingScreen />
@@ -141,11 +99,11 @@ function lazyWithRetry(componentImport: () => Promise<any>) {
         })
         .catch((error) => {
           if (!hasRefreshed) {
-            console.log('⚠️ Échec chargement lazy, tentative de rafraîchissement...');
+            logger.warn('⚠️ Échec chargement lazy, tentative de rafraîchissement...');
             window.sessionStorage.setItem('retry-lazy-refreshed', 'true');
             return window.location.reload();
           }
-          console.error('❌ Échec chargement lazy après refresh:', error);
+          logger.error('❌ Échec chargement lazy après refresh:', error);
           reject(error);
         });
     });
@@ -153,7 +111,7 @@ function lazyWithRetry(componentImport: () => Promise<any>) {
 }
 
 function App() {
-  console.log(`🚀 SmartCabb v${BUILD_VERSION} - Build ${BUILD_DATE} - Démarrage...`);
+  logger.log(`🚀 SmartCabb v${BUILD_VERSION} - Build ${BUILD_TIMESTAMP} - Démarrage...`);
   
   // Appliquer les optimisations navigateur au démarrage
   useEffect(() => {
@@ -379,19 +337,7 @@ function App() {
             <PWAInstallPrompt />
             
             {/* Toast Notifications */}
-            <Toaster 
-              position="top-center"
-              toastOptions={{
-                duration: 3000,
-                style: {
-                  background: '#fff',
-                  color: '#1a1a1a',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                },
-              }}
-            />
+            <ToastProvider />
 
             {/* 🔄 Synchronisation automatique du taux de change depuis le backend */}
             <ExchangeRateSync />

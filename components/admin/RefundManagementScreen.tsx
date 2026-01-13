@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Card } from '../ui/card';
+import { ArrowLeft, DollarSign, CheckCircle, XCircle, Clock, Filter, Search, AlertCircle } from '../../lib/icons';
+import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
+import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { motion } from '../../framer-motion';
-import { DollarSign, Search, Filter, CheckCircle, XCircle, Clock, AlertTriangle, User, Car, Calendar } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { useAppState } from '../../hooks/useAppState';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { motion } from '../../lib/motion';
 
 // Fonction de formatage de date simple
 const formatDate = (dateString: string) => {
@@ -437,9 +437,6 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Traiter la demande de remboursement</DialogTitle>
-            <DialogDescription>
-              Veuillez approuver ou rejeter cette demande de remboursement.
-            </DialogDescription>
           </DialogHeader>
 
           {selectedRefund && (

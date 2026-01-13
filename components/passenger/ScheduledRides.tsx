@@ -1,8 +1,7 @@
-import { supabase } from '../../lib/supabase';
-import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
-import { GooglePlacesSearch } from './GooglePlacesSearch';
-import { Plus, Calendar, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Plus, Calendar, Trash2 } from '../../lib/icons';
 
 interface ScheduledRide {
   id?: string;

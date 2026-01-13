@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { motion } from '../lib/motion';
 import { Link } from '../lib/simple-router';
-import { motion } from '../framer-motion';
+import { useState } from 'react';
 import { ChatWidget } from '../components/ChatWidget';
 
 export function AboutPage() {
@@ -381,7 +381,7 @@ export function AboutPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2025 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
+            <p>&copy; 2026 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
           </div>
         </div>
       </footer>

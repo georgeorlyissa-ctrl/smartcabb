@@ -1,13 +1,11 @@
 import { useState } from 'react';
-import { motion } from '../../framer-motion';
-import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from '../../lucide-react';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from '../../lib/icons';
 import { signUpDriver } from '../../lib/auth-service-driver-signup';
 import { sendSMS } from '../../lib/sms-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
+import { toast } from '../../lib/toast';
 import { Label } from '../ui/label';
 import { PhoneInput } from '../PhoneInput';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -292,11 +290,7 @@ export function DriverRegistrationScreen() {
   };
 
   return (
-    <motion.div 
-      initial={{ x: 300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -300, opacity: 0 }}
-      transition={{ type: 'spring', damping: 25 }}
+    <div 
       className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex flex-col"
     >
       {/* Header */}
@@ -323,22 +317,16 @@ export function DriverRegistrationScreen() {
 
       {/* Form */}
       <div className="flex-1 px-6 py-4 overflow-y-auto">
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+        <div
           className="text-center mb-6"
         >
           <h2 className="text-xl mb-2">Inscription Conducteur</h2>
           <p className="text-gray-600 text-sm">
             Rejoignez notre équipe de conducteurs professionnels
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
+        <div
           className="space-y-4"
         >
           {/* Personal Information */}
@@ -708,14 +696,11 @@ export function DriverRegistrationScreen() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Terms and Conditions */}
-      <motion.div
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5 }}
+      <div
         className="px-6"
       >
         <div className="flex items-start space-x-2 mb-4">
@@ -747,13 +732,10 @@ export function DriverRegistrationScreen() {
             </button> de SmartCabb.
           </label>
         </div>
-      </motion.div>
+      </div>
 
       {/* Actions */}
-      <motion.div
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4 }}
+      <div
         className="px-6 pb-6 space-y-4"
       >
         <Button
@@ -773,7 +755,7 @@ export function DriverRegistrationScreen() {
             Se connecter
           </button>
         </p>
-      </motion.div>
+      </div>
 
       {/* Terms Modal */}
       <PolicyModal
@@ -781,6 +763,6 @@ export function DriverRegistrationScreen() {
         onAccept={() => setShowTermsModal(false)}
         showCloseButton={true}
       />
-    </motion.div>
+    </div>
   );
 }

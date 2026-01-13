@@ -1,8 +1,23 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from '../../framer-motion';
-import { Bell, AlertTriangle, CheckCircle, Info, X, Send } from 'lucide-react';
+import {
+  Bell,
+  Send,
+  Users,
+  Car,
+  MessageSquare,
+  Calendar,
+  X,
+  CheckCircle,
+  AlertCircle,
+  Filter,
+  Search,
+  Download,
+  Upload,
+  RefreshCw,
+  Info
+} from '../../lib/icons';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';

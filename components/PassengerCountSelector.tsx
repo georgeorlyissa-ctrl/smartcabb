@@ -1,5 +1,6 @@
-import React from 'react';
-import { Users, Plus, Minus } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from './ui/button';
+import { Users, Plus, Minus } from '../lib/icons';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface PassengerCountSelectorProps {
@@ -35,7 +36,7 @@ export function PassengerCountSelector({
       </div>
       
       <div className="flex items-center gap-3">
-        <button
+        <Button
           variant="outline"
           size="sm"
           onClick={handleDecrease}
@@ -43,11 +44,11 @@ export function PassengerCountSelector({
           className="w-8 h-8 p-0"
         >
           <Minus className="w-4 h-4" />
-        </button>
+        </Button>
         
         <span className="w-8 text-center font-medium">{value}</span>
         
-        <button
+        <Button
           variant="outline"
           size="sm"
           onClick={handleIncrease}
@@ -55,7 +56,7 @@ export function PassengerCountSelector({
           className="w-8 h-8 p-0"
         >
           <Plus className="w-4 h-4" />
-        </button>
+        </Button>
       </div>
     </div>
   );

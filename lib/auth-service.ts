@@ -88,7 +88,7 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       
       try {
         const findEmailResponse = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/find-email-by-phone`,
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
           {
             method: 'POST',
             headers: {

@@ -4,6 +4,12 @@ import * as kv from './kv_store.tsx';
 
 const driverRoutes = new Hono();
 
+// Initialiser le client Supabase
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL') ?? '',
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+);
+
 // ============================================
 // RÉCUPÉRER LES CONDUCTEURS EN LIGNE
 // ⚠️ AUCUNE SIMULATION - Données réelles uniquement
@@ -11,11 +17,6 @@ const driverRoutes = new Hono();
 driverRoutes.get('/online-drivers', async (c) => {
   try {
     console.log('🚗 Récupération des conducteurs en ligne...');
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
 
     // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
     const { data: drivers, error } = await supabase
@@ -65,15 +66,25 @@ driverRoutes.get('/online-drivers', async (c) => {
         return null;
       }
 
-      // Position aléatoire dans un rayon de ~5km autour de Kinshasa
-      const randomLat = -4.3276 + (Math.random() - 0.5) * 0.09; // ~5km
-      const randomLng = 15.3136 + (Math.random() - 0.5) * 0.09; // ~5km
+      // ✅ UTILISER LA VRAIE POSITION GPS DU CONDUCTEUR (pas de simulation)
+      const locationKey = `driver:${driver.id}:location`;
+      const locationData = await kv.get(locationKey);
+      
+      console.log(`🔍 Conducteur ${driver.full_name} - Position KV:`, locationData);
+      
+      // Si pas de position GPS enregistrée, ne pas afficher ce conducteur
+      if (!locationData || !locationData.lat || !locationData.lng) {
+        console.log(`⚠️ Conducteur ${driver.full_name} en ligne mais sans position GPS`);
+        return null;
+      }
+      
+      console.log(`✅ Position GPS du conducteur ${driver.full_name}: ${locationData.lat}, ${locationData.lng}`);
       
       return {
         id: driver.id,
         name: driver.full_name || 'Conducteur',
         phone: driver.phone || 'N/A',
-        location: { lat: randomLat, lng: randomLng },
+        location: { lat: locationData.lat, lng: locationData.lng }, // ✅ Position GPS réelle
         vehicleInfo: { 
           make: 'Toyota',
           model: 'Corolla',
@@ -124,23 +135,67 @@ driverRoutes.post('/update-driver-location', async (c) => {
       }, 400);
     }
 
-    console.log('📍 Mise à jour position conducteur:', driverId);
+    console.log('📍 Mise à jour position conducteur:', driverId, `(${location.lat}, ${location.lng})`);
 
-    // Pour l'instant, on stocke la position dans le KV store
-    // car la table profiles ne contient pas de colonne current_location
+    // Stocker la position dans le KV store
     const locationKey = `driver:${driverId}:location`;
     const locationData = {
-      ...location,
+      lat: location.lat,
+      lng: location.lng,
       updated_at: new Date().toISOString()
     };
 
-    // Note: Il faudrait importer kv_store ici
-    // Pour l'instant on retourne juste un succès
+    await kv.set(locationKey, locationData);
+    
     console.log('✅ Position conducteur mise à jour (KV):', locationKey);
     return c.json({ success: true });
 
   } catch (error) {
     console.error('❌ Erreur update-driver-location:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// RÉCUPÉRER LA POSITION D'UN CONDUCTEUR
+// ============================================
+driverRoutes.get('/location/:driverId', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    
+    if (!driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'ID conducteur requis' 
+      }, 400);
+    }
+
+    // Récupérer la position depuis le KV store
+    const locationKey = `driver:${driverId}:location`;
+    const locationData = await kv.get(locationKey);
+    
+    if (!locationData || !locationData.lat || !locationData.lng) {
+      console.warn('⚠️ Position conducteur non trouvée:', driverId);
+      return c.json({ 
+        success: false, 
+        error: 'Position non disponible' 
+      }, 404);
+    }
+
+    console.log('✅ Position conducteur récupérée:', driverId, locationData);
+    return c.json({ 
+      success: true, 
+      location: {
+        lat: locationData.lat,
+        lng: locationData.lng
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur get-driver-location:', error);
     return c.json({ 
       success: false, 
       error: 'Erreur serveur: ' + String(error)
@@ -155,11 +210,6 @@ driverRoutes.post('/toggle-online-status', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
     
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
     const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
     
     if (authError || !user?.id) {
@@ -211,6 +261,18 @@ driverRoutes.post('/toggle-online-status', async (c) => {
     };
 
     await kv.set(statusKey, statusData);
+    
+    // ✅ CRITIQUE: Si une location est fournie, l'enregistrer dans la clé séparée
+    if (location && location.lat && location.lng) {
+      const locationKey = `driver:${user.id}:location`;
+      const locationData = {
+        lat: location.lat,
+        lng: location.lng,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(locationKey, locationData);
+      console.log(`📍 Position GPS enregistrée: ${location.lat}, ${location.lng}`);
+    }
     
     // ✅ CORRECTION CRITIQUE : Aussi mettre à jour le profil conducteur principal
     // Récupérer le profil conducteur complet
@@ -484,23 +546,226 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
     const driverId = c.req.param('driverId');
     const updates = await c.req.json();
     
-    console.log(`💾 Mise à jour du profil du conducteur ${driverId}...`);
-    console.log('📝 Mises à jour:', updates);
+    console.log(`🔥🔥🔥 ========== DÉBUT UPDATE CONDUCTEUR ==========`);
+    console.log(`💾 ID:`, driverId);
+    console.log('📝 Nouvelles données:', JSON.stringify(updates, null, 2));
     
-    // Récupérer le profil actuel du conducteur
-    const currentDriver = await kv.get(`driver:${driverId}`) || {};
+    // 🔥 NORMALISER LE TÉLÉPHONE avant de sauvegarder
+    let normalizedPhone = updates.phone;
+    if (updates.phone) {
+      // Fonction de normalisation (même logique que le frontend)
+      const normalizePhone = (phone: string): string => {
+        const cleaned = phone.replace(/[\s\-+]/g, '');
+        
+        // Cas 1: 9 chiffres → 243XXXXXXXXX
+        if (cleaned.length === 9) {
+          return `243${cleaned}`;
+        }
+        
+        // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
+        if (cleaned.length === 10 && cleaned.startsWith('0')) {
+          return `243${cleaned.substring(1)}`;
+        }
+        
+        // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
+        if (cleaned.length === 12 && cleaned.startsWith('243')) {
+          return cleaned;
+        }
+        
+        // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
+        if (cleaned.length === 13 && cleaned.startsWith('2430')) {
+          return `243${cleaned.substring(4)}`;
+        }
+        
+        // Si aucun cas ne correspond, retourner tel quel
+        return phone;
+      };
+      
+      normalizedPhone = normalizePhone(updates.phone);
+      console.log(`📱 Téléphone normalisé: ${updates.phone} → ${normalizedPhone}`);
+    }
     
-    // Fusionner les mises à jour
+    // 🔥 Récupérer le profil depuis TOUTES les clés possibles
+    let currentDriver = await kv.get(`driver:${driverId}`) || {};
+    const currentProfile = await kv.get(`profile:${driverId}`);
+    const currentUser = await kv.get(`user:${driverId}`);
+    
+    console.log("📖 Données existantes:");
+    console.log("  - driver:", currentDriver && Object.keys(currentDriver).length > 0 ? "✅" : "❌");
+    console.log("  - profile:", currentProfile ? "✅" : "❌");
+    console.log("  - user:", currentUser ? "✅" : "❌");
+    
+    // Fusionner les mises à jour avec le téléphone normalisé
     const updatedDriver = {
       ...currentDriver,
       ...updates,
+      phone: normalizedPhone || currentDriver.phone,
       updatedAt: new Date().toISOString()
     };
     
-    // Sauvegarder dans le KV store
-    await kv.set(`driver:${driverId}`, updatedDriver);
+    console.log("🔄 Conducteur mis à jour:", JSON.stringify(updatedDriver, null, 2));
     
-    console.log(`✅ Profil du conducteur ${driverId} mis à jour avec succès`);
+    // 🔥 SAUVEGARDER DANS TOUTES LES CLÉS DU KV STORE
+    // 1. Sauvegarder dans driver:
+    await kv.set(`driver:${driverId}`, updatedDriver);
+    console.log('✅ 1/5 - driver: mis à jour');
+    
+    // 2. Sauvegarder dans profile: (si existe)
+    if (currentProfile) {
+      const updatedProfile = {
+        ...currentProfile,
+        full_name: updates.name || currentProfile.full_name,
+        email: updates.email || currentProfile.email,
+        phone: normalizedPhone || currentProfile.phone,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`profile:${driverId}`, updatedProfile);
+      console.log('✅ 2/5 - profile: mis à jour');
+    } else {
+      console.log("⏭️ 2/5 - profile: n'existe pas, ignoré");
+    }
+    
+    // 3. Sauvegarder dans user: (si existe)
+    if (currentUser) {
+      const updatedUser = {
+        ...currentUser,
+        name: updates.name || currentUser.name,
+        full_name: updates.name || currentUser.full_name,
+        email: updates.email || currentUser.email,
+        phone: normalizedPhone || currentUser.phone,
+        updated_at: new Date().toISOString()
+      };
+      await kv.set(`user:${driverId}`, updatedUser);
+      console.log('✅ 3/5 - user: mis à jour');
+    } else {
+      console.log("⏭️ 3/5 - user: n'existe pas, ignoré");
+    }
+    
+    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé OU si le téléphone a changé
+    console.log("🔥 4/5 - Mise à jour Supabase Auth...");
+    try {
+      let authUpdated = false;
+      
+      // 🔥 CAS 1: L'email a changé (email réel, pas généré)
+      if (updates.email && currentDriver.email !== updates.email) {
+        console.log(`📧 Email changé: ${currentDriver.email} → ${updates.email}`);
+        const { error: updateError } = await supabase.auth.admin.updateUserById(
+          driverId,
+          { email: updates.email }
+        );
+        
+        if (updateError) {
+          console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
+        } else {
+          console.log("✅ Supabase Auth: email mis à jour");
+          authUpdated = true;
+        }
+      }
+      
+      // 🔥 CAS 2: Le téléphone a changé
+      // ⚠️ CORRECTION CRITIQUE : NE PAS MODIFIER L'EMAIL DANS SUPABASE AUTH
+      // L'email dans Auth sert uniquement pour l'authentification et doit rester stable
+      // On met seulement à jour les user_metadata pour garder la trace du nouveau téléphone
+      if (normalizedPhone && currentDriver.phone !== normalizedPhone) {
+        console.log(`📱 Téléphone changé: ${currentDriver.phone} → ${normalizedPhone}`);
+        console.log(`🔄 Mise à jour des user_metadata uniquement (sans changer l'email Auth)...`);
+        
+        const { error: updatePhoneError } = await supabase.auth.admin.updateUserById(
+          driverId,
+          { 
+            user_metadata: {
+              phone: normalizedPhone
+            }
+          }
+        );
+        
+        if (updatePhoneError) {
+          console.error("⚠️ Erreur mise à jour téléphone dans Supabase Auth:", updatePhoneError);
+        } else {
+          console.log("✅ Supabase Auth: user_metadata.phone mis à jour (email Auth inchangé)");
+          authUpdated = true;
+        }
+      }
+      
+      if (!authUpdated) {
+        console.log("⏭️ 4/5 - Supabase Auth: aucun changement, ignoré");
+      } else {
+        console.log("✅ 4/5 - Supabase Auth: mis à jour avec succès!");
+      }
+    } catch (error) {
+      console.error("⚠️ Erreur Supabase Auth:", error);
+    }
+    
+    // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
+    console.log("🔥 5/5 - Mise à jour table profiles...");
+    try {
+      // 📖 D'abord, lire les données actuelles
+      const { data: currentProfileData, error: selectError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', driverId)
+        .single();
+      
+      if (selectError) {
+        console.error("❌ Erreur lecture table profiles:", selectError);
+        console.error("   Code:", selectError.code);
+        console.error("   Message:", selectError.message);
+        console.error("   Details:", selectError.details);
+        console.log("⏭️ 5/5 - Table profiles: erreur de lecture, mise à jour ignorée pour éviter les conflits");
+        // ⚠️ NE PAS continuer si on ne peut pas lire les données actuelles
+      } else if (!currentProfileData) {
+        console.error("❌ currentProfileData est null/undefined");
+        console.log("⏭️ 5/5 - Table profiles: données actuelles introuvables, mise à jour ignorée");
+      } else {
+        console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
+        
+        const updateData: any = {};
+        
+        // ✅ Ne mettre à jour QUE les champs qui ont changé
+        if (updates.name && updates.name !== currentProfileData.full_name) {
+          updateData.full_name = updates.name;
+          console.log(`   → full_name: "${currentProfileData.full_name}" → "${updates.name}"`);
+        }
+        
+        if (updates.email && updates.email !== currentProfileData.email) {
+          updateData.email = updates.email;
+          console.log(`   → email: "${currentProfileData.email}" → "${updates.email}"`);
+        }
+        
+        if (normalizedPhone && normalizedPhone !== currentProfileData.phone) {
+          updateData.phone = normalizedPhone;
+          console.log(`   → phone: "${currentProfileData.phone}" → "${normalizedPhone}"`);
+        }
+        
+        // ✅ Seulement si on a des changements
+        if (Object.keys(updateData).length === 0) {
+          console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
+        } else {
+          console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
+          
+          const { data: updatedData, error: profileError } = await supabase
+            .from('profiles')
+            .update(updateData)
+            .eq('id', driverId)
+            .select();
+          
+          if (profileError) {
+            console.error("❌ Erreur mise à jour table profiles:", profileError);
+            console.error("   Code:", profileError.code);
+            console.error("   Message:", profileError.message);
+            console.error("   Details:", profileError.details);
+          } else {
+            console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
+            console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Exception table profiles:", error);
+      console.error("   Stack:", error instanceof Error ? error.stack : 'N/A');
+    }
+    
+    console.log(`🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========`);
     
     return c.json({
       success: true,
@@ -508,7 +773,9 @@ driverRoutes.post('/update-profile/:driverId', async (c) => {
       driver: updatedDriver
     });
   } catch (error) {
+    console.error('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (ERREUR) ==========');
     console.error('❌ Erreur mise à jour profil conducteur:', error);
+    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -567,18 +834,69 @@ driverRoutes.get('/:driverId', async (c) => {
 
     // Récupérer les données du conducteur depuis le KV store
     const driverKey = `driver:${driverId}`;
-    const driverData = await kv.get(driverKey);
+    let driverData = await kv.get(driverKey);
 
     if (!driverData) {
-      console.error('❌ Conducteur introuvable:', driverId);
-      return c.json({ 
-        success: false, 
-        error: 'Conducteur introuvable',
-        driver: null
-      }, 404);
+      console.warn('⚠️ Conducteur introuvable dans le KV store:', driverId);
+      console.log('🔄 Tentative de récupération depuis auth.users via Supabase...');
+      
+      // 🆕 NOUVEAU : Essayer de récupérer l'utilisateur depuis Supabase Auth
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(driverId);
+        
+        if (userError || !user) {
+          console.error('❌ Utilisateur introuvable dans Supabase Auth:', driverId);
+          return c.json({ 
+            success: false, 
+            error: 'Conducteur introuvable. Veuillez vous inscrire en tant que conducteur.',
+            driver: null
+          }, 404);
+        }
+        
+        console.log('✅ Utilisateur trouvé dans Auth:', user.email);
+        
+        // Créer un profil conducteur "pending" par défaut
+        console.log('🆕 Création d\'un profil conducteur par défaut (status: pending)...');
+        
+        const newDriverProfile = {
+          id: user.id,
+          user_id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
+          phone: user.user_metadata?.phone || user.phone || '',
+          status: 'pending', // ⚠️ Statut "pending" par défaut
+          is_available: false,
+          photo: null,
+          vehicle: null,
+          vehicle_make: '',
+          vehicle_model: '',
+          vehicle_plate: '',
+          vehicle_category: '',
+          rating: 0,
+          total_rides: 0,
+          wallet_balance: 0,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Sauvegarder le profil dans le KV store
+        await kv.set(driverKey, newDriverProfile);
+        console.log('✅ Profil conducteur "pending" créé:', newDriverProfile.email);
+        
+        // Utiliser ce nouveau profil
+        driverData = newDriverProfile;
+        
+      } catch (authError) {
+        console.error('❌ Erreur lors de la récupération depuis Supabase Auth:', authError);
+        return c.json({ 
+          success: false, 
+          error: 'Conducteur introuvable',
+          driver: null
+        }, 404);
+      }
     }
 
-    console.log('✅ Conducteur trouvé:', driverData.name);
+    console.log('✅ Conducteur trouvé:', driverData.full_name || driverData.name);
 
     return c.json({
       success: true,
@@ -643,131 +961,6 @@ driverRoutes.get('/:driverId/stats', async (c) => {
         ratingsCount: 0
       }
     }, 500);
-  }
-});
-
-// ============================================
-// 🚗 v517.97: SAUVEGARDER LA POSITION GPS DRIVER EN TEMPS RÉEL
-// ============================================
-driverRoutes.post('/:driverId/location', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    const body = await c.req.json();
-    const { lat, lng, rideId, timestamp } = body;
-
-    if (!lat || !lng) {
-      return c.json({ 
-        success: false, 
-        error: 'Coordonnées GPS manquantes' 
-      }, 400);
-    }
-
-    console.log(`📍 v517.97 - Position driver ${driverId}:`, { lat, lng, rideId });
-
-    // Sauvegarder position dans KV store avec expiration courte (30s)
-    const locationKey = `driver_location_${driverId}`;
-    await kv.set(locationKey, {
-      lat,
-      lng,
-      rideId: rideId || null,
-      timestamp: timestamp || Date.now(),
-      updatedAt: new Date().toISOString()
-    });
-
-    console.log(`✅ Position driver ${driverId} sauvegardée`);
-
-    return c.json({ success: true });
-  } catch (error) {
-    console.error('❌ Erreur sauvegarde position driver:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur' 
-    }, 500);
-  }
-});
-
-// ============================================
-// 🚗 v517.97: RÉCUPÉRER LA POSITION GPS DRIVER EN TEMPS RÉEL
-// ============================================
-driverRoutes.get('/:driverId/location', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-
-    console.log(`🔍 v517.97 - Récupération position driver ${driverId}`);
-
-    // Récupérer position depuis KV store
-    const locationKey = `driver_location_${driverId}`;
-    const locationData = await kv.get(locationKey);
-
-    if (!locationData) {
-      console.log(`⚠️ Aucune position trouvée pour driver ${driverId}`);
-      return c.json({ 
-        success: false, 
-        error: 'Position non disponible' 
-      }, 404);
-    }
-
-    console.log(`✅ Position driver ${driverId} récupérée:`, locationData);
-
-    return c.json({ 
-      success: true, 
-      location: {
-        lat: locationData.lat,
-        lng: locationData.lng,
-        timestamp: locationData.timestamp,
-        updatedAt: locationData.updatedAt
-      }
-    });
-  } catch (error) {
-    console.error('❌ Erreur récupération position driver:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur' 
-    }, 500);
-  }
-});
-
-// ============================================
-// 🎯 v517.97: VÉRIFIER SI UNE COURSE EST PRISE PAR UN AUTRE
-// ============================================
-driverRoutes.get('/:driverId/rides/:rideId/status', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    const rideId = c.req.param('rideId');
-
-    console.log(`🔍 v517.97 - Vérification status course ${rideId} pour driver ${driverId}`);
-
-    // Vérifier si marqué comme "pris par un autre"
-    const statusKey = `driver_${driverId}_ride_${rideId}_status`;
-    const status = await kv.get(statusKey);
-
-    if (status && status.status === 'taken_by_other') {
-      console.log(`⚠️ Course ${rideId} prise par ${status.takenBy}`);
-      return c.json({
-        status: 'taken_by_other',
-        takenBy: status.takenBy,
-        takenAt: status.takenAt
-      });
-    }
-
-    // Sinon, vérifier le status de la course elle-même
-    const rideKey = `ride_request_${rideId}`;
-    const ride = await kv.get(rideKey);
-    
-    if (!ride) {
-      console.log(`❌ Course ${rideId} introuvable`);
-      return c.json({ status: 'not_found' }, 404);
-    }
-
-    console.log(`✅ Status course ${rideId}:`, ride.status);
-
-    return c.json({
-      status: ride.status,
-      driverId: ride.driverId || null
-    });
-  } catch (error) {
-    console.error('❌ Erreur vérification status course:', error);
-    return c.json({ status: 'error' }, 500);
   }
 });
 

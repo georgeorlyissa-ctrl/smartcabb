@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { motion } from '../framer-motion';
-import { ArrowLeft, Mail, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { EmailPhoneInput } from './EmailPhoneInput';
+import { ArrowLeft, Mail, CheckCircle, Phone } from '../lib/icons';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAppState } from '../hooks/useAppState';
@@ -197,9 +199,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
   if (emailSent) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+      <div
         className={`min-h-screen bg-gradient-to-br ${theme.gradient} flex flex-col`}
       >
         {/* Header */}
@@ -218,19 +218,13 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
         {/* Success Message */}
         <div className="flex-1 flex flex-col items-center justify-center px-6">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', delay: 0.2 }}
+          <div
             className={`w-20 h-20 ${theme.icon} rounded-full flex items-center justify-center mb-6`}
           >
-            <CheckCircle2 className="w-10 h-10 text-white" />
-          </motion.div>
+            <CheckCircle className="w-10 h-10 text-white" />
+          </div>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
+          <div
             className="text-center"
           >
             <h2 className="text-2xl mb-4">Email envoyé !</h2>
@@ -254,18 +248,14 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
             >
               Retour à la connexion
             </Button>
-          </motion.div>
+          </div>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
-    <motion.div
-      initial={{ x: 300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1 }}
-      exit={{ x: -300, opacity: 0 }}
-      transition={{ type: 'spring', damping: 25 }}
+    <div
       className={`min-h-screen bg-gradient-to-br ${theme.gradient} flex flex-col`}
     >
       {/* Header */}
@@ -284,10 +274,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
 
       {/* Form */}
       <div className="flex-1 px-6 py-8">
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
+        <div
           className="text-center mb-8"
         >
           <div className={`w-16 h-16 ${theme.icon} rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -297,12 +284,9 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
           <p className="text-gray-600">
             Entrez votre email ou numéro de téléphone pour recevoir un lien de réinitialisation.
           </p>
-        </motion.div>
+        </div>
 
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.3 }}
+        <div
           className="space-y-6"
         >
           <EmailPhoneInput
@@ -319,14 +303,11 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
               Si vous avez utilisé un numéro de téléphone, un SMS avec un code sera envoyé (délai : 5-60 secondes).
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* Actions */}
-      <motion.div
-        initial={{ y: 50, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4 }}
+      <div
         className="px-6 pb-8 space-y-4"
       >
         <Button
@@ -344,7 +325,7 @@ export function ForgotPasswordScreen({ onBack, userType = 'passenger' }: ForgotP
         >
           Annuler
         </Button>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

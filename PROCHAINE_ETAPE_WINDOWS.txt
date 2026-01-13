@@ -1,0 +1,285 @@
+═══════════════════════════════════════════════════════════════════════════════
+🪟 PROCHAINE ÉTAPE - WINDOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+Vous utilisez Windows.
+Voici exactement quoi faire MAINTENANT.
+
+═══════════════════════════════════════════════════════════════════════════════
+⚡ MÉTHODE RECOMMANDÉE (10 minutes)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Avez-vous Git ou GitHub Desktop installé ?
+
+    Pour vérifier Git :
+    1. Appuyer sur Windows + R
+    2. Taper : cmd
+    3. Taper : git --version
+    
+    Si vous voyez une version → Git est installé ✅
+    Si vous voyez "command not found" → Git n'est PAS installé ❌
+
+
+  ✅ SI VOUS AVEZ GIT OU GITHUB DESKTOP :
+
+    Suivre le guide Windows complet qui est TRÈS détaillé avec toutes les
+    étapes illustrées :
+
+      Ouvrir : INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+    Ce guide vous montre EXACTEMENT quoi faire avec des captures d'écran.
+
+    Temps : 10 minutes
+    Difficulté : ⭐⭐ Moyen
+
+
+  ❌ SI VOUS N'AVEZ PAS GIT :
+
+    Option 1 : Installer Git Desktop d'abord (recommandé)
+
+      Télécharger GitHub Desktop :
+      → https://desktop.github.com/
+
+      C'est gratuit et très simple à utiliser.
+      Puis suivre : INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+
+    Option 2 : Installer Git CLI
+
+      Télécharger Git for Windows :
+      → https://git-scm.com/download/win
+
+      Puis suivre : INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+
+    Option 3 : Méthode sans Git (très long - 1-2 heures)
+
+      Vous pouvez copier CHAQUE fichier manuellement sur GitHub Web.
+      
+      Lire : INSTALLATION_PROPRE_v2224_WINDOWS.md
+      Section "Option C : Via GitHub Web"
+
+      ⚠️ Attention : Cette méthode est TRÈS longue car vous devez
+      copier 100+ fichiers un par un.
+
+═══════════════════════════════════════════════════════════════════════════════
+🚀 APERÇU DES ÉTAPES (Windows avec Git)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Voici un aperçu rapide de ce que vous allez faire :
+
+  1. TÉLÉCHARGER
+     Télécharger le ZIP depuis Figma Make
+     → Il va dans C:\Users\VotreNom\Downloads\
+
+  2. BACKUP
+     Copier votre dossier smartcabb actuel
+     Renommer la copie en smartcabb-backup
+
+  3. SAUVEGARDER .git
+     Copier le dossier .git (fichier caché)
+     Le mettre sur le Bureau temporairement
+
+  4. VIDER
+     Supprimer TOUT dans smartcabb (sauf .git)
+
+  5. EXTRAIRE
+     Extraire le ZIP téléchargé
+     Copier tous les fichiers dans smartcabb
+
+  6. GIT COMMIT
+     Via Git CLI ou GitHub Desktop
+     Commit tous les changements
+
+  7. GIT PUSH
+     Push vers GitHub
+     (écrase l'ancienne version)
+
+  8. VERCEL
+     Attend que Vercel déploie (3-5 min)
+     → https://vercel.com/dashboard
+
+  9. TESTER
+     Ouvrir https://smartcabb.com
+     Vérifier que tout fonctionne
+
+  ✅ TERMINÉ !
+
+═══════════════════════════════════════════════════════════════════════════════
+📖 GUIDE DÉTAILLÉ WINDOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+  Pour avoir TOUTES les étapes détaillées avec explications :
+
+    Ouvrir : INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+  Ce guide contient :
+  ✅ Captures d'écran
+  ✅ Explications détaillées
+  ✅ Solutions aux problèmes courants
+  ✅ Alternatives si Git n'est pas installé
+  ✅ Vérifications après chaque étape
+
+  Temps de lecture : 5 minutes
+  Temps d'exécution : 10 minutes
+
+═══════════════════════════════════════════════════════════════════════════════
+⚡ VERSION ULTRA-RAPIDE (Si vous avez Git CLI)
+═══════════════════════════════════════════════════════════════════════════════
+
+  Si vous êtes à l'aise avec PowerShell :
+
+  1. Télécharger ZIP depuis Figma Make
+     → Sauvegarder dans Downloads
+
+  2. Ouvrir PowerShell
+     Win + X → Windows PowerShell
+
+  3. Créer nouveau dossier
+     cd $HOME\Desktop
+     mkdir smartcabb-v2224-clean
+     cd smartcabb-v2224-clean
+
+  4. Extraire ZIP
+     Expand-Archive -Path "$HOME\Downloads\smartcabb.zip" -DestinationPath .
+
+  5. Copier .git de l'ancien projet
+     Copy-Item -Path "C:\chemin\vers\ancien\smartcabb\.git" -Destination ".\.git" -Recurse
+
+  6. Commit
+     git add -A
+     git commit -m "🚀 Version 2224 - Installation propre"
+
+  7. Push
+     git push -f origin main
+
+  8. Attendre Vercel
+     → https://vercel.com/dashboard
+
+  9. Tester
+     → https://smartcabb.com
+
+  ✅ TERMINÉ !
+
+═══════════════════════════════════════════════════════════════════════════════
+📚 TOUS LES GUIDES DISPONIBLES
+═══════════════════════════════════════════════════════════════════════════════
+
+  📖 GUIDES POUR WINDOWS
+  ├── INSTALLATION_PROPRE_v2224_WINDOWS.md ⭐ PRINCIPAL
+  ├── 🚀_DEPLOYER_MAINTENANT_v2224.md - Guide express
+  └── GUIDE_DEPLOIEMENT_VERSION_2224.md - Guide complet
+
+  💻 AUTRES
+  ├── 📖_COMMENCER_ICI_v2224.md - Navigation générale
+  └── ⚡_COMMANDES_RAPIDES_v2224.txt - Commandes PowerShell
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 RÉSUMÉ POUR VOUS
+═══════════════════════════════════════════════════════════════════════════════
+
+  Guide recommandé pour Windows :
+
+    INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+  Temps total : 10-15 minutes
+  Difficulté : ⭐⭐ Moyen
+
+  Ce guide est TRÈS détaillé et vous montre EXACTEMENT quoi faire.
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ CHECKLIST WINDOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+  AVANT DE COMMENCER
+  [ ] Git ou GitHub Desktop installé (ou choisir Option 3)
+  [ ] ZIP téléchargé depuis Figma Make
+  [ ] Dossier smartcabb actuel localisé
+
+  PENDANT L'INSTALLATION
+  [ ] Backup créé
+  [ ] Dossier .git sauvegardé
+  [ ] Anciens fichiers supprimés
+  [ ] Nouveaux fichiers v2224 copiés
+  [ ] Commit Git effectué
+  [ ] Push vers GitHub effectué
+
+  APRÈS L'INSTALLATION
+  [ ] Build Vercel terminé
+  [ ] Application charge sur smartcabb.com
+  [ ] Les 3 interfaces fonctionnent
+  [ ] Console sans erreurs (F12)
+
+═══════════════════════════════════════════════════════════════════════════════
+🐛 PROBLÈMES COURANTS WINDOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+  Le dossier .git est invisible ?
+  → Explorateur → Affichage → Cocher "Éléments masqués"
+
+  "git: command not found" ?
+  → Installer Git : https://git-scm.com/download/win
+  → OU installer GitHub Desktop : https://desktop.github.com/
+
+  "Access denied" lors de la suppression ?
+  → Fermer tous les programmes qui utilisent le dossier
+  → Ou redémarrer l'ordinateur
+
+  PowerShell refuse d'exécuter des scripts ?
+  → Utiliser Git Bash à la place
+  → OU utiliser la méthode manuelle (GUI)
+
+  Le ZIP ne s'extrait pas ?
+  → Clic droit → "Extraire tout..."
+  → OU utiliser 7-Zip : https://www.7-zip.org/
+
+═══════════════════════════════════════════════════════════════════════════════
+💡 CONSEIL WINDOWS
+═══════════════════════════════════════════════════════════════════════════════
+
+  Pour la plupart des utilisateurs Windows, je recommande :
+
+  1. Installer GitHub Desktop (c'est gratuit et très simple)
+     → https://desktop.github.com/
+
+  2. Suivre le guide Windows complet
+     → INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+  C'est la méthode la plus simple et la mieux documentée !
+
+═══════════════════════════════════════════════════════════════════════════════
+🎉 C'EST PARTI !
+═══════════════════════════════════════════════════════════════════════════════
+
+  Votre prochaine action :
+
+  Ouvrir : INSTALLATION_PROPRE_v2224_WINDOWS.md
+
+  Suivre les étapes une par une.
+
+  Dans 15 minutes, votre app sera en production ! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════
+🔗 LIENS UTILES
+═══════════════════════════════════════════════════════════════════════════════
+
+  Télécharger Git for Windows :
+  → https://git-scm.com/download/win
+
+  Télécharger GitHub Desktop :
+  → https://desktop.github.com/
+
+  Télécharger 7-Zip (pour extraire les ZIP) :
+  → https://www.7-zip.org/
+
+  Vercel Dashboard :
+  → https://vercel.com/dashboard
+
+  Votre application en production :
+  → https://smartcabb.com
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Version 2224 | Build v517.36 | 6 janvier 2026
+
+Bonne installation ! ✨

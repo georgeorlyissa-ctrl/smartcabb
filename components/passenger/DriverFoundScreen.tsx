@@ -1,7 +1,24 @@
-import { motion } from '../../framer-motion';
+import { useEffect, useState } from 'react';
+import {
+  Phone,
+  MessageCircle,
+  MapPin,
+  Clock,
+  Star,
+  Navigation,
+  X,
+  User,
+  Car,
+  AlertTriangle,
+  Award,
+  Shield
+} from '../../lib/icons';
+import { Button } from '../ui/button';
+import { motion } from '../../lib/motion';
 import { useAppState } from '../../hooks/useAppState';
+import { useTranslation } from '../../hooks/useTranslation';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface DriverFoundScreenProps {
   driverData: {
@@ -24,6 +41,7 @@ interface DriverFoundScreenProps {
 }
 
 export function DriverFoundScreen({ driverData: initialDriverData, confirmationCode, estimatedArrival }: DriverFoundScreenProps) {
+  const { t } = useTranslation();
   const { setCurrentScreen, state, updateRide } = useAppState();
   const [arrivalTime, setArrivalTime] = useState(estimatedArrival);
   const [driverData, setDriverData] = useState(initialDriverData);
@@ -160,7 +178,7 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
             onClick={() => setCurrentScreen('map')}
             className="w-10 h-10 hover:bg-muted"
           >
-            <ArrowLeft className="w-5 h-5 text-primary" />
+            <X className="w-5 h-5 text-primary" />
           </Button>
           <h1 className="text-primary">Chauffeur trouvé !</h1>
           <div className="w-10" />
