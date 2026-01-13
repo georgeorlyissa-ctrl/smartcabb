@@ -46,6 +46,8 @@ export function GPSNavigationScreen({
   const [heading, setHeading] = useState<number>(0);
 
   // Démarrer le suivi GPS
+  // Démarrer le suivi GPS
+  // Démarrer le suivi GPS
   useEffect(() => {
     if (!isTracking) return;
 
