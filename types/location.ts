@@ -1,6 +1,9 @@
 /**
  * Types géographiques partagés pour SmartCabb
  */
+/**
+ * Types géographiques partagés pour SmartCabb
+ */
 
 export interface Location {
   lat: number;
