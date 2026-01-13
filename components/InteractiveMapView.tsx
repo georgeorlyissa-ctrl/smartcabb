@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { reverseGeocode } from '../lib/precise-gps';
 import { Loader2, Plus, Minus, Maximize2 } from '../lib/icons';
 
@@ -47,6 +47,24 @@ const loadLeaflet = async () => {
     throw error;
   }
 };
+
+interface Location {
+  lat: number;
+  lng: number;
+  address?: string;
+  accuracy?: number;
+}
+
+interface Driver {
+  id: string;
+  name: string;
+  location: Location;
+  vehicleInfo?: {
+    make: string;
+    color: string;
+  };
+  rating?: number;
+}
 
 interface InteractiveMapViewProps {
   center?: Location;
