@@ -85,7 +85,7 @@ function AdminAppContent() {
       'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
       'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
       'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
-      'admin-sync', 'admin-account-sync', 'cancellations'
+      'admin-sync', 'admin-account-sync', 'cancellations', 'admin-users-diagnostic' // ✅ Ajouté
     ];
     
     // 🆕 CORRECTION : Ne pas écraser l'écran restauré depuis localStorage s'il est valide
@@ -119,7 +119,7 @@ function AdminAppContent() {
     'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
     'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
     'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
-    'admin-sync', 'admin-account-sync', 'cancellations'
+    'admin-sync', 'admin-account-sync', 'cancellations', 'admin-users-diagnostic' // ✅ Ajouté
   ];
   
   // ✅ FALLBACK AMÉLIORÉ : Vérifier si l'écran est dans la liste des écrans admin valides
