@@ -267,7 +267,7 @@ app.get("/stats", async (c) => {
       .not('passenger_rating', 'is', null);
 
     const avgRating = ratings && ratings.length > 0
-      ? (ratings.reduce((acc, r) => acc + (r.passenger_rating || 0), 0) / ratings.length).toFixed(1)
+      ? ((ratings.reduce((acc, r) => acc + (r.passenger_rating || 0), 0) / ratings.length) || 0).toFixed(1)
       : '4.8';
 
     // Compter total courses

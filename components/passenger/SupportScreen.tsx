@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -15,7 +15,7 @@ import {
   AlertCircle,
   CheckCircle,
   Send
-} from 'lucide-react';
+} from '../../lib/icons';
 import { useState } from 'react';
 
 export function SupportScreen() {
@@ -32,7 +32,8 @@ export function SupportScreen() {
       value: '+243 990 666 661',
       action: 'Appeler maintenant',
       available: '24h/7j',
-      color: 'bg-green-500'
+      color: 'bg-green-500',
+      link: 'tel:+243990666661'
     },
     {
       icon: Phone,
@@ -41,7 +42,8 @@ export function SupportScreen() {
       value: '+243 814 018 048',
       action: 'Appeler maintenant',
       available: '24h/7j',
-      color: 'bg-green-600'
+      color: 'bg-green-600',
+      link: 'tel:+243814018048'
     },
     {
       icon: MessageCircle,
@@ -50,7 +52,8 @@ export function SupportScreen() {
       value: '+243 990 666 661',
       action: 'Ouvrir WhatsApp',
       available: 'En ligne',
-      color: 'bg-blue-600'
+      color: 'bg-blue-600',
+      link: 'https://wa.me/243990666661?text='
     },
     {
       icon: Mail,
@@ -59,7 +62,8 @@ export function SupportScreen() {
       value: 'support@smartcabb.cd',
       action: 'Envoyer un email',
       available: 'Réponse sous 24h',
-      color: 'bg-blue-500'
+      color: 'bg-blue-500',
+      link: 'mailto:support@smartcabb.cd'
     }
   ];
 
@@ -196,8 +200,14 @@ export function SupportScreen() {
                           <span className="text-xs text-green-600">{method.available}</span>
                         </div>
                       </div>
-                      <Button size="sm">
-                        {method.action}
+                      <Button size="sm" asChild>
+                        <a 
+                          href={method.link}
+                          target={method.link.startsWith('http') ? '_blank' : undefined}
+                          rel={method.link.startsWith('http') ? 'noopener noreferrer' : undefined}
+                        >
+                          {method.action}
+                        </a>
                       </Button>
                     </div>
                   </Card>

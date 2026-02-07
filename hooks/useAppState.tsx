@@ -35,6 +35,8 @@ interface AppContextType {
   setLanguage: (language: 'fr' | 'en') => void;
   setPickup?: (pickup: Location | null) => void;
   setDestination?: (destination: Location | null) => void;
+  updatePickup?: (pickup: Location | null) => void;
+  updateDestination?: (destination: Location | null) => void;
   setPickupInstructions?: (instructions: string) => void;
   drivers: Driver[];
   rides: Ride[];
@@ -71,6 +73,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let savedView = null;
     let savedScreen = '';
     let savedIsAdmin = false;
+    let savedPickup = null;  // 🆕 AJOUT
+    let savedDestination = null;  // 🆕 AJOUT
+    let savedPickupInstructions = '';  // 🆕 AJOUT
     
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -96,6 +101,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (savedRideStr) {
           savedRide = JSON.parse(savedRideStr);
           console.log('✅ currentRide chargé depuis localStorage:', savedRide);
+        }
+        
+        // 🆕 AJOUT : Charger pickup depuis localStorage
+        const savedPickupStr = localStorage.getItem('smartcab_pickup');
+        if (savedPickupStr) {
+          savedPickup = JSON.parse(savedPickupStr);
+          console.log('✅ pickup chargé depuis localStorage:', savedPickup);
+        }
+        
+        // 🆕 AJOUT : Charger destination depuis localStorage
+        const savedDestinationStr = localStorage.getItem('smartcab_destination');
+        if (savedDestinationStr) {
+          savedDestination = JSON.parse(savedDestinationStr);
+          console.log('✅ destination chargé depuis localStorage:', savedDestination);
+        }
+        
+        // 🆕 AJOUT : Charger pickupInstructions depuis localStorage
+        const savedPickupInstructionsStr = localStorage.getItem('smartcab_pickup_instructions');
+        if (savedPickupInstructionsStr) {
+          savedPickupInstructions = savedPickupInstructionsStr;
+          console.log('✅ pickupInstructions chargé depuis localStorage:', savedPickupInstructions);
         }
         
         const savedViewStr = localStorage.getItem('smartcab_current_view');
@@ -124,6 +150,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       currentUser: savedUser,
       currentDriver: savedDriver,
       currentRide: savedRide,  // ✅ AJOUT
+      pickup: savedPickup,  // 🆕 AJOUT
+      destination: savedDestination,  // 🆕 AJOUT
+      pickupInstructions: savedPickupInstructions,  // 🆕 AJOUT
       currentView: savedView as any,
       currentScreen: savedScreen,
       isAdmin: savedIsAdmin
@@ -159,6 +188,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } else {
           localStorage.removeItem('smartcab_current_ride');
         }
+        // 🆕 AJOUT : Sauvegarder pickup dans localStorage
+        if (state.pickup) {
+          localStorage.setItem('smartcab_pickup', JSON.stringify(state.pickup));
+        } else {
+          localStorage.removeItem('smartcab_pickup');
+        }
+        // 🆕 AJOUT : Sauvegarder destination dans localStorage
+        if (state.destination) {
+          localStorage.setItem('smartcab_destination', JSON.stringify(state.destination));
+        } else {
+          localStorage.removeItem('smartcab_destination');
+        }
+        // 🆕 AJOUT : Sauvegarder pickupInstructions dans localStorage
+        if (state.pickupInstructions) {
+          localStorage.setItem('smartcab_pickup_instructions', state.pickupInstructions);
+        } else {
+          localStorage.removeItem('smartcab_pickup_instructions');
+        }
         if (state.currentView) {
           localStorage.setItem('smartcab_current_view', state.currentView);
         } else {
@@ -189,8 +236,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setCurrentScreen = useCallback((screen: string) => {
-    setState(prev => ({ ...prev, currentScreen: screen }));
-  }, []);
+    console.log('🔄 setCurrentScreen appelé avec:', screen);
+    console.log('📍 Ancien currentScreen:', state.currentScreen);
+    setState(prev => {
+      const newState = { ...prev, currentScreen: screen };
+      console.log('✅ Nouveau state.currentScreen:', newState.currentScreen);
+      return newState;
+    });
+  }, [state.currentScreen]);
 
   const setIsAdmin = useCallback((isAdmin: boolean) => {
     setState(prev => ({ ...prev, isAdmin }));
@@ -209,6 +262,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setDestination = useCallback((destination: Location | null) => {
+    setState(prev => ({ ...prev, destination }));
+  }, []);
+
+  const updatePickup = useCallback((pickup: Location | null) => {
+    setState(prev => ({ ...prev, pickup }));
+  }, []);
+
+  const updateDestination = useCallback((destination: Location | null) => {
     setState(prev => ({ ...prev, destination }));
   }, []);
 
@@ -344,6 +405,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLanguage,
     setPickup,
     setDestination,
+    updatePickup,
+    updateDestination,
     setPickupInstructions,
     drivers,
     rides,
@@ -377,6 +440,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLanguage,
     setPickup,
     setDestination,
+    updatePickup,
+    updateDestination,
     setPickupInstructions,
     drivers,
     rides,

@@ -1,7 +1,8 @@
-import { motion } from 'motion/react';
-import { useAppState } from '../hooks/useAppState';
+import { motion } from '../lib/motion';
+import { Card } from './ui/card';
 import { Car, Star } from '../lib/icons';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useAppState } from '../hooks/useAppState';
 
 export function AvailableDriversMap() {
   const { drivers } = useAppState();

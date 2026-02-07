@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, Search, CheckCircle, XCircle } from 'lucide-react';
+import { AlertCircle, Search, CheckCircle, XCircle } from '../../lib/icons';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';

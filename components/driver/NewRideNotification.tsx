@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react'; // ✅ FIX: Import React hooks
+import { motion, AnimatePresence } from '../../lib/motion'; // ✅ FIX CRITIQUE: Import motion et AnimatePresence
+import { X, MapPin, Clock, DollarSign, User, Navigation, Phone } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';

@@ -1,19 +1,39 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { ArrowLeft } from '../../lib/icons';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Calendar } from '../ui/calendar';
-import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { ArrowLeft, Search, Download, Filter, RefreshCw, User, Clock, Activity, Eye, Calendar as CalendarIcon, FileText } from '../../lib/icons';
 import { useAppState } from '../../hooks/useAppState';
 import { supabase } from '../../lib/supabase';
-import { Badge } from '../ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { FileText } from 'lucide-react';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
+
+// 📅 Fonction de formatage de date locale (évite dépendance date-fns)
+function formatDate(date: Date | string, formatStr: string, options?: { locale?: any }): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+  
+  // Format patterns supportés
+  return formatStr
+    .replace('yyyy', year.toString())
+    .replace('MM', month)
+    .replace('dd', day)
+    .replace('HH', hours)
+    .replace('mm', minutes)
+    .replace('ss', seconds);
+}
 
 interface AuditLog {
   id: string;
@@ -162,7 +182,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `audit-logs-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+      link.download = `audit-logs-${formatDate(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
       link.click();
 
       toast.success('Logs exportés');
@@ -181,7 +201,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
   const convertToCSV = (logs: AuditLog[]) => {
     const headers = ['Date', 'Utilisateur', 'Rôle', 'Action', 'Type', 'Détails', 'IP'];
     const rows = logs.map(log => [
-      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
+      formatDate(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
       log.user?.name || 'N/A',
       log.user?.role || 'N/A',
       ACTION_LABELS[log.action]?.label || log.action,
@@ -229,7 +249,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
           </Button>
           <div>
             <h1 className="text-2xl flex items-center gap-2">
-              <Shield className="w-6 h-6" />
+              <Activity className="w-6 h-6" />
               Logs d'audit
             </h1>
             <p className="text-sm text-gray-600">Traçabilité complète des actions administratives</p>
@@ -283,28 +303,24 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
             </SelectContent>
           </Select>
 
-          <div className="flex gap-2">
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <CalendarIcon className="w-4 h-4" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent>
-                <Calendar
-                  mode="single"
-                  selected={startDate}
-                  onSelect={setStartDate}
-                  locale={fr}
-                />
-              </PopoverContent>
-            </Popover>
+          <div className="flex gap-2 items-center">
+            <div className="relative">
+              <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              <Input
+                type="date"
+                value={startDate ? startDate.toISOString().split('T')[0] : ''}
+                onChange={(e) => setStartDate(e.target.value ? new Date(e.target.value) : undefined)}
+                className="pl-10 w-40"
+                placeholder="Date de début"
+              />
+            </div>
 
             {startDate && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setStartDate(undefined)}
+                className="px-2"
               >
                 ×
               </Button>
@@ -323,19 +339,9 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
           <div className="text-center py-12 text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
             <p className="text-lg font-medium mb-2">Aucun log d'audit trouvé</p>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-gray-400">
               Les actions administratives seront enregistrées ici automatiquement.
             </p>
-            {logs.length === 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mt-4 max-w-md mx-auto">
-                <p className="text-xs text-orange-700">
-                  💡 <strong>Table audit_logs non trouvée</strong>
-                </p>
-                <p className="text-xs text-orange-600 mt-2">
-                  Exécutez le script SQL <code className="bg-orange-100 px-2 py-1 rounded font-mono">⚡-CRÉER-TABLE-AUDIT-LOGS.sql</code> dans Supabase, puis rechargez cette page.
-                </p>
-              </div>
-            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -351,7 +357,7 @@ export function AuditLogsScreen({ onBack }: AuditLogsScreenProps) {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <span className="text-sm text-gray-600">
-                        {format(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}
+                        {formatDate(new Date(log.created_at), 'dd/MM/yyyy HH:mm:ss')}
                       </span>
                       {getActionBadge(log.action)}
                       <Badge variant="outline">{log.entity_type}</Badge>

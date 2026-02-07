@@ -1,5 +1,40 @@
-import { toast } from 'sonner';
+import React, { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
+import { toast } from '../../lib/toast';
 import { useNavigate } from '../../lib/simple-router';
+import { Card } from '../ui/card';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
+import { supabase } from '../../lib/supabase';
+
+// Icônes inline (évite import lucide-react qui échoue avec esm.sh)
+const MailIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="20" height="16" x="2" y="4" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+);
+
+const CheckIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
+const AlertCircleIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" x2="12" y1="8" y2="12" />
+    <line x1="12" x2="12.01" y1="16" y2="16" />
+  </svg>
+);
+
+const ArrowLeftIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m12 19-7-7 7-7" />
+    <path d="M19 12H5" />
+  </svg>
+);
 
 export function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -84,7 +119,7 @@ export function ForgotPasswordPage() {
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
             >
-              <Check className="w-10 h-10 text-green-600" />
+              <CheckIcon className="w-10 h-10 text-green-600" />
             </motion.div>
 
             <h1 className="text-2xl text-center mb-4">Email envoyé !</h1>
@@ -106,7 +141,7 @@ export function ForgotPasswordPage() {
 
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-left">
                 <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircleIcon className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-yellow-800">
                       <strong>Configuration requise :</strong>
@@ -126,7 +161,7 @@ export function ForgotPasswordPage() {
                 className="w-full"
                 variant="outline"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
+                <ArrowLeftIcon className="w-4 h-4 mr-2" />
                 Retour à la connexion
               </Button>
               
@@ -159,7 +194,7 @@ export function ForgotPasswordPage() {
           {/* En-tête */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Mail className="w-8 h-8 text-white" />
+              <MailIcon className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl mb-2">Mot de passe oublié ?</h1>
             <p className="text-gray-600">
@@ -172,7 +207,7 @@ export function ForgotPasswordPage() {
             <div>
               <label className="block text-sm mb-2">Adresse email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <MailIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <Input
                   type="email"
                   placeholder="votre@email.com"
@@ -196,7 +231,7 @@ export function ForgotPasswordPage() {
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   >
-                    <Mail className="w-4 h-4" />
+                    <MailIcon className="w-4 h-4" />
                   </motion.div>
                   <span>Envoi en cours...</span>
                 </div>
@@ -214,7 +249,7 @@ export function ForgotPasswordPage() {
               disabled={loading}
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              <ArrowLeft className="w-4 h-4 mr-1" />
+              <ArrowLeftIcon className="w-4 h-4 mr-1" />
               Retour à la connexion
             </Button>
           </div>

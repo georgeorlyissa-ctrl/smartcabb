@@ -147,116 +147,38 @@ nominatimApp.get('/smart-search', async (c) => {
     const viewbox = getViewboxForCity(city as keyof typeof RDC_CITIES);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 1️⃣ APPELER NOMINATIM AVEC STRATÉGIE MULTI-TENTATIVES
+    // 1️⃣ APPELER NOMINATIM
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    
-    let allNominatimResults: any[] = [];
-    
-    // TENTATIVE 1 : Recherche stricte avec ville + pays
-    console.log('🔍 Tentative 1 : Recherche stricte avec ville + pays');
-    const strictUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
-      q: `${query}, ${city}, RDC`,
-      format: 'json',
-      addressdetails: '1',
-      extratags: '1',
-      namedetails: '1',
-      limit: '50',
-      viewbox: viewbox,
-      bounded: '0',
-      countrycodes: 'cd',
-      'accept-language': 'fr',
-      dedupe: '0'
-    });
-    
-    try {
-      const response1 = await fetch(strictUrl, {
-        headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
-      });
-      
-      if (response1.ok) {
-        const results1 = await response1.json();
-        console.log(`  ✅ Tentative 1 : ${results1.length} résultats`);
-        allNominatimResults.push(...results1);
-      }
-    } catch (e) {
-      console.error('  ❌ Tentative 1 échouée:', e);
-    }
-    
-    // TENTATIVE 2 : Recherche simple (sans ville)
-    console.log('🔍 Tentative 2 : Recherche simple (sans ville)');
-    const simpleUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
+    const nominatimUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
       q: query,
       format: 'json',
       addressdetails: '1',
       extratags: '1',
       namedetails: '1',
-      limit: '30',
+      limit: '100', // Plus de résultats pour meilleur ranking
       viewbox: viewbox,
-      bounded: '0',
+      bounded: '1',
       countrycodes: 'cd',
       'accept-language': 'fr'
     });
-    
-    try {
-      const response2 = await fetch(simpleUrl, {
-        headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
-      });
-      
-      if (response2.ok) {
-        const results2 = await response2.json();
-        console.log(`  ✅ Tentative 2 : ${results2.length} résultats`);
-        allNominatimResults.push(...results2);
+
+    const response = await fetch(nominatimUrl, {
+      headers: {
+        'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
       }
-    } catch (e) {
-      console.error('  ❌ Tentative 2 échouée:', e);
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nominatim API error: ${response.status}`);
     }
-    
-    // TENTATIVE 3 : Recherche par catégorie si peu de résultats
-    if (allNominatimResults.length < 5) {
-      console.log('🔍 Tentative 3 : Recherche par catégorie');
-      const categories = ['amenity', 'shop', 'place', 'highway', 'building'];
-      
-      for (const cat of categories) {
-        const catUrl = `https://nominatim.openstreetmap.org/search?` + new URLSearchParams({
-          q: `${cat}=${query}`,
-          format: 'json',
-          addressdetails: '1',
-          extratags: '1',
-          limit: '10',
-          viewbox: viewbox,
-          countrycodes: 'cd',
-          'accept-language': 'fr'
-        });
-        
-        try {
-          const catResponse = await fetch(catUrl, {
-            headers: { 'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)' }
-          });
-          
-          if (catResponse.ok) {
-            const catResults = await catResponse.json();
-            if (catResults.length > 0) {
-              console.log(`  ✅ Catégorie ${cat} : ${catResults.length} résultats`);
-              allNominatimResults.push(...catResults);
-            }
-          }
-        } catch (e) {
-          console.error(`  ❌ Catégorie ${cat} échouée:`, e);
-        }
-      }
-    }
-    
-    // Dédoublonner par place_id
-    const uniqueResults = Array.from(
-      new Map(allNominatimResults.map(place => [place.place_id, place])).values()
-    );
-    
-    console.log(`✅ Nominatim: ${uniqueResults.length} résultats uniques (${allNominatimResults.length} total)`);
+
+    const nominatimResults: any[] = await response.json();
+    console.log(`✅ Nominatim: ${nominatimResults.length} résultats bruts`);
 
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // 2️⃣ ENRICHIR LES RÉSULTATS
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const enrichedPlaces = uniqueResults
+    const enrichedPlaces = nominatimResults
       .map(place => {
         const enriched = enrichPlaceForSmartSearch(place, searchCenter, query);
         if (enriched) {
@@ -373,32 +295,90 @@ nominatimApp.get('/reverse', async (c) => {
       'accept-language': 'fr'
     });
 
-    const response = await fetch(nominatimUrl, {
-      headers: {
-        'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
+    // 🔧 Ajout d'un timeout de 5 secondes
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const response = await fetch(nominatimUrl, {
+        headers: {
+          'User-Agent': 'SmartCabb/1.0 (contact@smartcabb.com)'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Nominatim reverse API error: ${response.status}`);
       }
-    });
 
-    if (!response.ok) {
-      throw new Error(`Nominatim reverse API error: ${response.status}`);
+      const result: any = await response.json();
+      const enrichedPlace = enrichPlace(result, { lat: numLat, lng: numLng });
+
+      return c.json({
+        success: true,
+        result: enrichedPlace,
+        source: 'nominatim'
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      // 🔧 Si Nominatim échoue, retourner une adresse générique
+      console.warn('⚠️ Nominatim indisponible, utilisation d\'une adresse générique');
+      
+      const fallbackPlace = {
+        name: 'Position sélectionnée',
+        display_name: `${numLat.toFixed(4)}, ${numLng.toFixed(4)}`,
+        address: {
+          road: 'Position GPS',
+          city: 'Kinshasa',
+          country: 'République démocratique du Congo'
+        },
+        lat: numLat,
+        lon: numLng,
+        coordinates: { lat: numLat, lng: numLng },
+        category: 'position',
+        type: 'gps',
+        importance: 0.5,
+        relevanceScore: 0.5
+      };
+
+      return c.json({
+        success: true,
+        result: fallbackPlace,
+        source: 'fallback',
+        warning: 'Nominatim unavailable, using fallback'
+      });
     }
-
-    const result: any = await response.json();
-    const enrichedPlace = enrichPlace(result, { lat: numLat, lng: numLng });
-
-    return c.json({
-      success: true,
-      result: enrichedPlace,
-      source: 'nominatim'
-    });
 
   } catch (error) {
     console.error('❌ Erreur Nominatim reverse:', error);
+    
+    // Retourner une adresse fallback même en cas d'erreur totale
+    const lat = Number(c.req.query('lat')) || -4.3276;
+    const lng = Number(c.req.query('lng')) || 15.3136;
+    
     return c.json({
-      error: 'Reverse geocoding failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-      success: false
-    }, 500);
+      success: true,
+      result: {
+        name: 'Kinshasa',
+        display_name: 'Kinshasa, République démocratique du Congo',
+        address: {
+          city: 'Kinshasa',
+          country: 'République démocratique du Congo'
+        },
+        lat: lat,
+        lon: lng,
+        coordinates: { lat, lng },
+        category: 'place',
+        type: 'city',
+        importance: 0.5,
+        relevanceScore: 0.5
+      },
+      source: 'emergency_fallback',
+      warning: 'Geocoding service unavailable'
+    });
   }
 });
 

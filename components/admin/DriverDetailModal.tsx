@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity, User, Save, Shield, Ban, Trash2, AlertCircle, DollarSign } from 'lucide-react';
+import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity, User, Save, Shield, Ban, Trash2, AlertCircle, DollarSign } from '../../lib/admin-icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { safeFormatDate, safeFormatDateShort } from '../../utils/dateHelpers'; // 🔥 IMPORT
 

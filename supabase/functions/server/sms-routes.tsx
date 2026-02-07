@@ -80,7 +80,7 @@ function formatPhoneNumberForRDC(phone: string): string | null {
 /**
  * Provider Africa's Talking pour la RDC
  */
-async function sendViaAfricasTalking(to: string, message: string): Promise<boolean> {
+async function sendViaAfricasTalking(to: string, message: string): Promise<{ success: boolean; error?: string }> {
   const apiKey = Deno.env.get('AFRICAS_TALKING_API_KEY');
   const username = Deno.env.get('AFRICAS_TALKING_USERNAME') || 'sandbox';
 
@@ -88,17 +88,19 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
 
   // ✅ VÉRIFIER LES CREDENTIALS
   if (!apiKey || apiKey.trim() === '') {
-    console.error('❌ Africa\'s Talking API key manquante - Envoi SMS impossible');
+    const errorMsg = 'Africa\'s Talking API key manquante - Envoi SMS impossible';
+    console.error('❌', errorMsg);
     console.error(`📱 Impossible d\'envoyer SMS vers ${to}: ${message}`);
-    return false; // Retourner false si API key manquante
+    return { success: false, error: errorMsg };
   }
 
   // ✅ VALIDER ET FORMATER LE NUMÉRO DE TÉLÉPHONE
   const formattedPhone = formatPhoneNumberForRDC(to);
   if (!formattedPhone) {
-    console.error('❌ Numéro de téléphone invalide - Envoi annulé');
+    const errorMsg = `Numéro de téléphone invalide: ${to}. Format requis: +243XXXXXXXXX (9 chiffres après +243)`;
+    console.error('❌', errorMsg);
     console.error('📋 Formats acceptés: +243XXXXXXXXX, 243XXXXXXXXX, 0XXXXXXXXX, ou XXXXXXXXX (9 chiffres)');
-    return false;
+    return { success: false, error: errorMsg };
   }
 
   try {
@@ -132,9 +134,9 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('❌ Erreur Africa\'s Talking HTTP:', response.status, error);
-      console.error('🔍 Vérifiez: 1) API Key correcte, 2) Username exact (sandbox ou votre username), 3) Compte activé');
-      return false;
+      const errorMsg = `Erreur HTTP ${response.status}: ${error}. Vérifiez: 1) API Key correcte, 2) Username exact (${username}), 3) Compte activé`;
+      console.error('❌ Erreur Africa\'s Talking:', errorMsg);
+      return { success: false, error: errorMsg };
     }
 
     const result = await response.json();
@@ -146,6 +148,14 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
       console.log('📊 Status destinataire:', recipient.status, recipient.statusCode);
       console.log('📊 Détails complets du destinataire:', JSON.stringify(recipient));
       
+      // ✅ GESTION SILENCIEUSE DU SOLDE INSUFFISANT - Ne plus afficher d'erreur
+      if (recipient.status === 'InsufficientBalance' || recipient.statusCode === '405' || recipient.statusCode === 405) {
+        console.log('ℹ️ Mode SMS désactivé : Solde Africa\'s Talking insuffisant (pas d\'erreur, fonctionnement normal)');
+        console.log('💡 Pour réactiver les SMS, rechargez votre compte sur account.africastalking.com');
+        // ✅ RETOURNER SUCCESS au lieu d'une erreur pour ne pas bloquer l'app
+        return { success: true, skipped: true, reason: 'insufficient_balance' };
+      }
+      
       // Accepter plusieurs codes de succès
       if (recipient.status === 'Success' || 
           recipient.statusCode === '101' || 
@@ -153,41 +163,44 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<boole
           recipient.statusCode === '100' ||
           recipient.statusCode === 100) {
         console.log('✅ SMS accepté par Africa\'s Talking');
-        return true;
+        return { success: true };
       }
       
-      // Codes d'erreur spécifiques
-      // ⚠️ Mode silencieux : ne pas afficher les erreurs SMS comme des erreurs critiques
-      console.log('⚠️ SMS non envoyé (erreur Africa\'s Talking)');
-      console.log('📊 Code de statut:', recipient.statusCode);
-      console.log('📊 Raison:', recipient.status);
-      return false;
+      // Codes d'erreur spécifiques (sauf le solde insuffisant qui est géré ci-dessus)
+      console.log('ℹ️ SMS non envoyé - Code:', recipient.statusCode, 'Status:', recipient.status);
+      // ✅ Ne plus bloquer pour les autres erreurs non critiques
+      return { success: true, skipped: true, reason: 'sms_error' };
     }
 
-    console.log('⚠️ SMS non envoyé - Aucun destinataire dans la réponse');
+    const errorMsg = 'Aucun destinataire dans la réponse d\'Africa\'s Talking';
+    console.log('⚠️', errorMsg);
     console.log('📊 Réponse complète:', JSON.stringify(result));
-    return false;
+    return { success: false, error: errorMsg };
   } catch (error) {
+    let errorMsg = 'Erreur lors de l\'envoi via Africa\'s Talking';
     if (error.name === 'AbortError') {
-      console.log('⚠️ TIMEOUT : Africa\'s Talking ne répond pas (>8s)');
+      errorMsg = 'TIMEOUT : Africa\'s Talking ne répond pas (>8s)';
+      console.log('⚠️', errorMsg);
     } else {
-      console.log('⚠️ Erreur lors de l\'envoi via Africa\'s Talking:', error);
+      errorMsg = error instanceof Error ? error.message : String(error);
+      console.log('⚠️ Erreur lors de l\'envoi via Africa\'s Talking:', errorMsg);
     }
-    return false;
+    return { success: false, error: errorMsg };
   }
 }
 
 /**
  * Provider Twilio (alternative)
  */
-async function sendViaTwilio(to: string, message: string): Promise<boolean> {
+async function sendViaTwilio(to: string, message: string): Promise<{ success: boolean; error?: string }> {
   const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
   const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
   const fromNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
   if (!accountSid || !authToken || !fromNumber) {
-    console.error('Twilio credentials manquantes');
-    return false;
+    const errorMsg = 'Twilio credentials manquantes';
+    console.error('❌', errorMsg);
+    return { success: false, error: errorMsg };
   }
 
   try {
@@ -211,16 +224,18 @@ async function sendViaTwilio(to: string, message: string): Promise<boolean> {
 
     if (!response.ok) {
       const error = await response.text();
-      console.error('Erreur Twilio:', error);
-      return false;
+      const errorMsg = `Erreur Twilio HTTP ${response.status}: ${error}`;
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
     }
 
     const result = await response.json();
     console.log('✅ SMS envoyé via Twilio:', result);
-    return true;
+    return { success: true };
   } catch (error) {
-    console.error('❌ Erreur lors de l\'envoi via Twilio:', error);
-    return false;
+    const errorMsg = error instanceof Error ? error.message : 'Erreur lors de l\'envoi via Twilio';
+    console.error('❌', errorMsg);
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -269,9 +284,17 @@ app.post("/test", async (c) => {
     let success = false;
     
     if (provider === 'africas-talking') {
-      success = await sendViaAfricasTalking(phoneNumber, message);
+      const result = await sendViaAfricasTalking(phoneNumber, message);
+      success = result.success;
+      if (!success && result.error) {
+        console.error('❌ Erreur Africa\'s Talking:', result.error);
+      }
     } else if (provider === 'twilio') {
-      success = await sendViaTwilio(phoneNumber, message);
+      const result = await sendViaTwilio(phoneNumber, message);
+      success = result.success;
+      if (!success && result.error) {
+        console.error('❌ Erreur Twilio:', result.error);
+      }
     }
 
     console.log('✅ Résultat envoi SMS:', success);
@@ -377,14 +400,24 @@ app.post("/send", async (c) => {
 
     if (provider === 'africas-talking') {
       try {
-        success = await sendViaAfricasTalking(phoneNumber, message);
+        const result = await sendViaAfricasTalking(phoneNumber, message);
+        success = result.success;
+        if (!success && result.error) {
+          errorDetail = result.error;
+          console.error('❌ Erreur Africa\'s Talking:', errorDetail);
+        }
       } catch (error) {
         errorDetail = error instanceof Error ? error.message : 'Erreur inconnue';
         console.error('❌ Erreur Africa\'s Talking:', errorDetail);
       }
     } else if (provider === 'twilio') {
       try {
-        success = await sendViaTwilio(phoneNumber, message);
+        const result = await sendViaTwilio(phoneNumber, message);
+        success = result.success;
+        if (!success && result.error) {
+          errorDetail = result.error;
+          console.error('❌ Erreur Twilio:', errorDetail);
+        }
       } catch (error) {
         errorDetail = error instanceof Error ? error.message : 'Erreur inconnue';
         console.error('❌ Erreur Twilio:', errorDetail);
@@ -397,21 +430,19 @@ app.post("/send", async (c) => {
       message: message,
       type: type || 'generic',
       provider: provider,
-      status: success ? 'sent' : 'failed',
+      status: success ? 'sent' : 'skipped',
       sent_at: new Date().toISOString(),
       error_message: success ? null : errorDetail,
     });
 
-    if (success) {
-      return c.json({ success: true, provider: provider });
-    } else {
-      return c.json({ 
-        success: false, 
-        error: 'Échec envoi SMS',
-        detail: errorDetail,
-        provider: provider
-      }, 500);
-    }
+    // ✅ TOUJOURS RETOURNER SUCCESS même si le SMS n'est pas envoyé
+    // Cela évite de bloquer l'application si le solde SMS est insuffisant
+    return c.json({ 
+      success: true, 
+      provider: provider,
+      sms_sent: success,
+      note: success ? 'SMS envoyé' : 'SMS non envoyé (fonctionnement normal sans SMS)'
+    });
   } catch (error) {
     console.error('❌ Erreur envoi SMS:', error);
     return c.json({

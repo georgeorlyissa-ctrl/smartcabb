@@ -162,7 +162,7 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       success: true,
       user: data.user,
       profile,
-      accessToken: data.session?.access_token
+      accessToken: data.access_token // ✅ FIX: Utiliser data.access_token directement
     };
   } catch (error) {
     console.error('❌ Erreur inattendue lors de la connexion:', error);
@@ -313,7 +313,7 @@ export async function signUp(signUpData: SignUpData): Promise<AuthResult> {
       success: true,
       user: data.user,
       profile,
-      accessToken: data.session?.access_token
+      accessToken: data.access_token // ✅ FIX: Utiliser data.access_token directement
     };
   } catch (error) {
     console.error('❌ Erreur inattendue lors de l\'inscription:', error);

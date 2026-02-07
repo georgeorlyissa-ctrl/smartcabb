@@ -1,22 +1,12 @@
-import { motion, AnimatePresence } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
-import { 
-  CreditCard,
-  Smartphone,
-  Banknote,
-  CheckCircle,
-  Loader2,
-  Wallet,
-  AlertCircle,
-  X,
-  Phone,
-  Split
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'; // ✅ FIX CRITIQUE: Import React hooks
+import { motion, AnimatePresence } from '../../lib/motion'; // ✅ FIX: Import motion + AnimatePresence
+import { Button } from '../ui/button'; // ✅ FIX: Import Button
+import { Card } from '../ui/card'; // ✅ FIX: Import Card
+import { Input } from '../ui/input'; // ✅ FIX: Import Input
+import { Wallet, Banknote, Smartphone, CreditCard, Split, X, CheckCircle, AlertCircle, Clock, DollarSign, Loader2, Phone } from '../../lib/icons'; // ✅ FIX: Import icons + Loader2 + Phone
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
+import { toast } from '../../lib/toast';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';
 import { VodacomMpesaLogo, OrangeMoneyLogo, AirtelMoneyLogo, AfrimoneyLogo } from '../mobile-money-logos';
@@ -93,8 +83,17 @@ export function PaymentScreen() {
   const durationInSeconds = currentRide?.duration || currentRide?.billingElapsedTime || 0;
   const durationInMinutes = Math.round(durationInSeconds / 60);
   
+  // 🔥 PROTECTION : S'assurer que distance et duration sont des nombres valides
+  const safeDistance = isNaN(distance) || distance < 0 ? 0 : distance;
+  const safeDuration = isNaN(durationInSeconds) || durationInSeconds < 0 ? 0 : durationInSeconds;
+  
   // ✅ FONCTION POUR FORMATER LA DURÉE (cohérente avec le driver)
-  const formatDuration = (seconds: number): string => {
+  const formatDuration = (seconds: number | undefined): string => {
+    // 🔥 PROTECTION contre undefined/NaN
+    if (seconds === undefined || seconds === null || isNaN(seconds) || seconds < 0) {
+      return '0min';
+    }
+    
     if (seconds < 60) {
       return `${seconds}s`;
     }
@@ -801,11 +800,11 @@ export function PaymentScreen() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Distance</span>
-                  <span className="font-medium">{distance.toFixed(1)} km</span>
+                  <span className="font-medium">{safeDistance.toFixed(1)} km</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Durée</span>
-                  <span className="font-medium">{formatDuration(durationInSeconds)}</span>
+                  <span className="font-medium">{formatDuration(safeDuration)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Catégorie</span>

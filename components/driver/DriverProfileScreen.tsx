@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
 import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Edit3, Save, X, User, Mail, Phone, Car, MapPin, Star, DollarSign, TrendingUp, Shield, Camera, Upload } from 'lucide-react';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
+import { toast } from '../../lib/toast';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Card } from '../ui/card';
@@ -10,8 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, type VehicleCategory } from '../../lib/pricing';
 import { notifyVehicleUpdated, notifyProfileUpdated } from '../../lib/sms-service';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { 
+  ArrowLeft, 
+  X, 
+  Edit3, 
+  User, 
+  Camera, 
+  Star, 
+  MapPin, 
+  Mail, 
+  Phone, 
+  Car,
+  Save,
+  DollarSign,
+  TrendingUp
+} from '../../lib/icons';
 
 // Helper functions
 const convertUSDtoCDF = (usdAmount: number) => {
@@ -459,7 +473,7 @@ export function DriverProfileScreen() {
                 <div className="flex items-center space-x-1 flex-shrink-0">
                   <Star className="w-4 h-4 text-yellow-400 fill-current" />
                   <span className="text-sm font-medium">
-                    {driverStats.loading ? '...' : driverStats.rating.toFixed(1)}
+                    {driverStats.loading ? '...' : (driverStats.rating || 0).toFixed(1)}
                   </span>
                 </div>
                 <div className="text-sm text-gray-600 flex-shrink-0">

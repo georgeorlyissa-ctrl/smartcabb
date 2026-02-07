@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
-import { LiveTrackingMap } from './LiveTrackingMap';
-import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
-import { Share2, AlertTriangle, Clock } from 'lucide-react';
+import { toast } from '../../lib/toast';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { LiveRideTracking } from '../LiveRideTracking';
+import { useState, useEffect } from 'react';
+import { useAppState } from '../../hooks/useAppState';
 
 export function LiveTrackingScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();
@@ -17,25 +16,36 @@ export function LiveTrackingScreen() {
 
   // ⏱️ Chronomètre - CORRECTION : Utiliser billingStartTime au lieu de startedAt
   // Le chronomètre démarre UNIQUEMENT quand le driver désactive le temps d'attente
+  // ✅ v518.53 - AVEC GESTION DES PAUSES
   useEffect(() => {
     const billingStart = currentRide?.billingStartTime;
+    const isPaused = currentRide?.isPaused;
+    const totalPauseDuration = currentRide?.totalPauseDuration || 0;
+    
     if (!billingStart) {
       setElapsedTime(0);
+      return;
+    }
+
+    // ⏸️ Si en pause, ne pas mettre à jour le timer
+    if (isPaused) {
+      console.log('⏸️ Chrono en pause côté passager');
       return;
     }
 
     const updateTimer = () => {
       const startTime = typeof billingStart === 'number' ? billingStart : new Date(billingStart).getTime();
       const now = Date.now();
-      const elapsed = Math.floor((now - startTime) / 1000); // en secondes
-      setElapsedTime(elapsed);
+      // Soustraire le temps total de pause
+      const elapsed = Math.floor((now - startTime) / 1000) - totalPauseDuration;
+      setElapsedTime(elapsed > 0 ? elapsed : 0);
     };
 
     updateTimer(); // Mise à jour immédiate
     const timer = setInterval(updateTimer, 1000); // Mise à jour chaque seconde
 
     return () => clearInterval(timer);
-  }, [currentRide?.billingStartTime]);
+  }, [currentRide?.billingStartTime, currentRide?.isPaused, currentRide?.totalPauseDuration]);
 
   // Formater le temps en HH:MM:SS ou MM:SS
   const formatTime = (seconds: number): string => {
@@ -234,13 +244,18 @@ export function LiveTrackingScreen() {
         </div>
       </div>
 
-      {/* 🗺️ CARTE - Hauteur fixe pour laisser place aux boutons */}
-      <div className="flex-1 relative" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-        <LiveTrackingMap 
-          driverId={currentRide.driverId || ''}
+      {/* 🗺️ CARTE - Nouveau composant unifié */}
+      <div className="flex-1 relative">
+        <LiveRideTracking
+          mode="passenger"
+          rideId={currentRide.id}
           pickup={state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
           destination={state.destination || { lat: -4.3276, lng: 15.3136, address: 'Kinshasa' }}
-          driverName={currentRide.driverName || 'Conducteur'}
+          driverId={currentRide.driverId}
+          driverName={currentRide.driverName}
+          driverPhone={currentRide.driverPhone}
+          estimatedDuration={currentRide.estimatedDuration}
+          estimatedPrice={currentRide.estimatedPrice}
         />
         
         {/* 🆕 Overlay d'attente des données finales */}
@@ -264,7 +279,11 @@ export function LiveTrackingScreen() {
         {currentRide.billingStartTime && (
           <div className="flex items-center justify-center mb-3">
             <div className="flex items-center gap-2 bg-orange-100 border-2 border-orange-500 px-4 py-2 rounded-full">
-              <Clock className="w-5 h-5 text-orange-600" />
+              {/* Clock icon inline */}
+              <svg className="w-5 h-5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
+              </svg>
               <span className="text-2xl font-bold text-orange-600 tabular-nums">
                 {formatTime(elapsedTime)}
               </span>
@@ -294,14 +313,26 @@ export function LiveTrackingScreen() {
             onClick={() => setShowShareDialog(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md transition-all"
           >
-            <Share2 className="w-5 h-5 mr-2" />
+            {/* Share2 icon inline */}
+            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="18" cy="5" r="3"/>
+              <circle cx="6" cy="12" r="3"/>
+              <circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
             Partager
           </Button>
           <Button
             onClick={() => setShowSOSDialog(true)}
             className="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-xl shadow-md transition-all"
           >
-            <AlertTriangle className="w-5 h-5 mr-2" />
+            {/* AlertTriangle icon inline */}
+            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
             SOS
           </Button>
         </div>

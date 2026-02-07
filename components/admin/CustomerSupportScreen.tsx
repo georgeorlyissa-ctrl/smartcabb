@@ -1,24 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
-import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import {
-  MessageCircle,
-  Send,
-  User,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  Search,
-  ArrowLeft,
-  Phone,
-  Mail
-} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface Message {
   id: string;

@@ -3,7 +3,7 @@
  * Ce script s'exécute automatiquement au démarrage du serveur
  */
 
-import { createClient } from 'npm:@supabase/supabase-js';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 export async function ensureSMSTableExists(): Promise<boolean> {
   const supabase = createClient(

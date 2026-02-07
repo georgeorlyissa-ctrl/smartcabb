@@ -1,7 +1,7 @@
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Shield, X } from 'lucide-react';
+import { Shield, X } from '../lib/icons';
 import { UnifiedPolicyModal } from './shared/UnifiedPolicyModal';
 import { memo } from 'react';
 

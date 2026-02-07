@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
@@ -8,12 +8,12 @@ import {
   MapPin,
   Clock,
   DollarSign,
-  Route,
+  Navigation, // ✅ Remplacé Route par Navigation (0.263.1 compatible)
   Car,
   Star,
   User,
   CreditCard
-} from 'lucide-react';
+} from '../../lib/icons';
 
 export function RideCompletedScreen() {
   const { state, setCurrentScreen, drivers } = useAppState();
@@ -174,7 +174,7 @@ export function RideCompletedScreen() {
               <div className="grid grid-cols-3 gap-4 pt-4 border-t">
                 <div className="text-center">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-1">
-                    <Route className="w-4 h-4 text-blue-600" />
+                    <Navigation className="w-4 h-4 text-blue-600" />
                   </div>
                   <p className="text-xs text-gray-500">Distance</p>
                   <p className="font-semibold">8.7 km</p>

@@ -1,6 +1,6 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
 
 const authRoutes = new Hono();
 
@@ -9,14 +9,19 @@ const authRoutes = new Hono();
 // ============================================
 authRoutes.post('/auth/login', async (c) => {
   try {
-    const { email, password } = await c.req.json();
+    const { email, password, identifier } = await c.req.json();
     
-    if (!email || !password) {
+    // Support both 'email' (legacy) and 'identifier' (new) parameters
+    const userIdentifier = identifier || email;
+    
+    if (!userIdentifier || !password) {
       return c.json({ 
         success: false, 
-        error: 'Email et mot de passe requis' 
+        error: 'Email/téléphone et mot de passe requis' 
       }, 400);
     }
+
+    console.log('🔐 Tentative de connexion avec:', userIdentifier);
 
     // Créer un client Supabase avec la clé service pour l'authentification
     const supabase = createClient(
@@ -24,17 +29,131 @@ authRoutes.post('/auth/login', async (c) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Détecter si c'est un email ou un numéro de téléphone
+    const isPhone = /^[0-9+\s\-()]+$/.test(userIdentifier.trim());
+    let emailToUse = userIdentifier;
+
+    if (isPhone) {
+      console.log('📱 Numéro de téléphone détecté, recherche de l\'email associé...');
+      
+      // Normaliser le numéro pour la recherche
+      const normalizePhone = (phone: string): string[] => {
+        const clean = phone.replace(/[\s()\-]/g, '');
+        const formats = [clean];
+        
+        if (clean.startsWith('+243')) {
+          formats.push(clean.substring(4));
+          formats.push('0' + clean.substring(4));
+          formats.push(clean.substring(1));
+        } else if (clean.startsWith('243')) {
+          formats.push('+' + clean);
+          formats.push('0' + clean.substring(3));
+        } else if (clean.startsWith('0')) {
+          formats.push('+243' + clean.substring(1));
+          formats.push('243' + clean.substring(1));
+        }
+        
+        return [...new Set(formats)];
+      };
+      
+      // ✅ NORMALISER AU FORMAT STANDARD pour comparaison exacte
+      const normalizeToStandardFormat = (phone: string): string => {
+        const clean = phone.replace(/[\s+()\-]/g, '');
+        if (clean.length === 9) {
+          return `+243${clean}`;
+        } else if (clean.length === 10 && clean.startsWith('0')) {
+          return `+243${clean.substring(1)}`;
+        } else if (clean.length === 12 && clean.startsWith('243')) {
+          return `+${clean}`;
+        } else if (clean.length === 13 && clean.startsWith('+243')) {
+          return clean;
+        } else if (clean.startsWith('243')) {
+          return `+${clean}`;
+        } else if (clean.startsWith('0')) {
+          return `+243${clean.substring(1)}`;
+        }
+        return clean;
+      };
+      
+      const normalizedSearchPhone = normalizeToStandardFormat(userIdentifier);
+      console.log('📱 Numéro de recherche normalisé:', normalizedSearchPhone);
+
+      // Chercher dans tous les profils
+      const allProfiles = await kv.getByPrefix('profile:');
+      const allDrivers = await kv.getByPrefix('driver:');
+      const allPassengers = await kv.getByPrefix('passenger:');
+      const allUsers = [...allProfiles, ...allDrivers, ...allPassengers];
+
+      const matchingProfile = allUsers.find(p => {
+        if (!p || !p.phone) return false;
+        const normalizedProfilePhone = normalizeToStandardFormat(p.phone);
+        return normalizedProfilePhone === normalizedSearchPhone;
+      });
+
+      if (matchingProfile && matchingProfile.email) {
+        emailToUse = matchingProfile.email;
+        console.log('✅ Email trouvé pour le numéro:', emailToUse);
+      } else {
+        console.log('❌ Aucun compte trouvé pour ce numéro');
+        return c.json({ 
+          success: false, 
+          error: 'Aucun compte trouvé avec ce numéro de téléphone' 
+        }, 401);
+      }
+    }
+
     // Connexion avec Supabase Auth
+    console.log('🔐 Connexion Supabase Auth avec email:', emailToUse);
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
+      email: emailToUse,
       password
     });
 
     if (authError) {
       console.error('❌ Erreur authentification:', authError);
+      console.error('📧 Email utilisé pour la connexion:', emailToUse);
+      console.error('🔑 Longueur du mot de passe:', password?.length || 0);
+      console.error('🆔 Identifiant original:', userIdentifier);
+      
+      // Message plus détaillé pour aider au debugging
+      let errorMessage: string;
+      let hint: string;
+      
+      if (authError.code === 'invalid_credentials') {
+        errorMessage = 'Identifiants incorrects';
+        hint = 'Vérifiez votre mot de passe. Si vous avez oublié votre mot de passe, utilisez "Mot de passe oublié".';
+        
+        // Log pour le debug
+        console.error('═══════════════════════════════════════════════');
+        console.error('❌ ERREUR: Identifiants invalides');
+        console.error('');
+        console.error('🔍 Détails du diagnostic:');
+        console.error('   - Email trouvé dans KV: OUI (', emailToUse, ')');
+        console.error('   - Compte Auth Supabase: PROBABLEMENT OUI');
+        console.error('   - Mot de passe: INCORRECT');
+        console.error('');
+        console.error('💡 SOLUTIONS POSSIBLES:');
+        console.error('   1. Vérifier que le mot de passe est correct');
+        console.error('   2. Utiliser "Mot de passe oublié" pour réinitialiser');
+        console.error('   3. Si inscription récente, réessayer dans 30 secondes');
+        console.error('═══════════════════════════════════════════════');
+      } else if (authError.message.includes('Email not confirmed')) {
+        errorMessage = 'Compte non activé';
+        hint = 'Votre email n\'a pas été confirmé. Contactez le support.';
+      } else {
+        errorMessage = authError.message;
+        hint = 'Essayez de vous reconnecter ou contactez le support.';
+      }
+      
       return c.json({ 
         success: false, 
-        error: 'Email ou mot de passe incorrect' 
+        error: errorMessage,
+        detail: hint,
+        debug: {
+          code: authError.code,
+          emailUsed: emailToUse,
+          identifier: userIdentifier
+        }
       }, 401);
     }
 
@@ -45,17 +164,27 @@ authRoutes.post('/auth/login', async (c) => {
       }, 401);
     }
 
-    // Récupérer le profil depuis le KV store
+    // Récupérer le profil depuis le KV store (chercher dans tous les préfixes)
     let profile = await kv.get(`profile:${authData.user.id}`);
+    
+    if (!profile) {
+      profile = await kv.get(`driver:${authData.user.id}`);
+      console.log('🔍 Cherché dans driver:', profile ? '✅ Trouvé' : '❌ Non trouvé');
+    }
+    
+    if (!profile) {
+      profile = await kv.get(`passenger:${authData.user.id}`);
+      console.log('🔍 Cherché dans passenger:', profile ? '✅ Trouvé' : '❌ Non trouvé');
+    }
 
     if (!profile) {
-      console.log('⚠️ Profil non trouvé pour:', authData.user.id, '- Création automatique...');
+      console.log('ℹ️ Création automatique du profil pour:', authData.user.id);
       
       // Créer automatiquement le profil s'il n'existe pas
       profile = {
         id: authData.user.id,
-        email: authData.user.email || email,
-        full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || email.split('@')[0],
+        email: authData.user.email || emailToUse,
+        full_name: authData.user.user_metadata?.full_name || authData.user.user_metadata?.name || (authData.user.email || emailToUse).split('@')[0],
         phone: authData.user.user_metadata?.phone || null,
         role: authData.user.user_metadata?.role || 'admin', // Par défaut admin pour les comptes existants
         balance: 0,
@@ -76,11 +205,14 @@ authRoutes.post('/auth/login', async (c) => {
       // Mettre à jour le mot de passe dans le profil existant
       profile.password = password;
       profile.updated_at = new Date().toISOString();
-      await kv.set(`profile:${authData.user.id}`, profile);
       
-      // Mettre à jour aussi dans le préfixe du rôle
-      const rolePrefix = profile.role === 'driver' ? 'driver:' : profile.role === 'passenger' ? 'passenger:' : 'admin:';
+      // Déterminer le préfixe du rôle
+      const rolePrefix = profile.role === 'driver' ? 'driver:' : profile.role === 'passenger' ? 'passenger:' : 'profile:';
+      
+      // Mettre à jour dans le bon préfixe uniquement
       await kv.set(`${rolePrefix}${authData.user.id}`, profile);
+      
+      console.log('✅ Profil mis à jour avec préfixe:', rolePrefix);
     }
 
     console.log('✅ Connexion réussie:', authData.user.id, '- Role:', profile.role);
@@ -88,8 +220,9 @@ authRoutes.post('/auth/login', async (c) => {
     return c.json({
       success: true,
       user: authData.user,
+      session: authData.session, // 🔥 CRITIQUE : Retourner la session COMPLÈTE (access_token + refresh_token)
       profile,
-      accessToken: authData.session?.access_token
+      accessToken: authData.session?.access_token // Backward compatibility
     });
 
   } catch (error) {
@@ -316,6 +449,236 @@ authRoutes.post('/auth/forgot-password', async (c) => {
 });
 
 // ============================================
+// DIAGNOSTIC COMPTE ADMIN - VÉRIFIER ET RÉPARER
+// ============================================
+authRoutes.post('/auth/admin/diagnostic', async (c) => {
+  try {
+    const { email } = await c.req.json();
+    
+    if (!email) {
+      return c.json({ 
+        success: false, 
+        error: 'Email requis' 
+      }, 400);
+    }
+
+    console.log('🔍 DIAGNOSTIC pour email:', email);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const diagnostic = {
+      email: email,
+      existsInAuth: false,
+      existsInKV: false,
+      kvData: null,
+      authData: null,
+      canLogin: false,
+      issues: [] as string[],
+      fixes: [] as string[]
+    };
+
+    // 1. Vérifier dans Supabase Auth
+    console.log('🔍 Vérification dans Supabase Auth...');
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const authUser = authList?.users?.find(u => u.email === email);
+    
+    if (authUser) {
+      diagnostic.existsInAuth = true;
+      diagnostic.authData = {
+        id: authUser.id,
+        email: authUser.email,
+        created_at: authUser.created_at,
+        email_confirmed_at: authUser.email_confirmed_at,
+        metadata: authUser.user_metadata
+      };
+      console.log('✅ Trouvé dans Auth:', authUser.id);
+    } else {
+      diagnostic.issues.push('Compte inexistant dans Supabase Auth');
+      console.log('❌ PAS trouvé dans Auth');
+    }
+
+    // 2. Vérifier dans le KV store
+    console.log('🔍 Vérification dans KV store...');
+    const allProfiles = await kv.getByPrefix('profile:');
+    const allAdmins = await kv.getByPrefix('admin:');
+    const kvProfile = [...allProfiles, ...allAdmins].find(p => p && p.email === email);
+    
+    if (kvProfile) {
+      diagnostic.existsInKV = true;
+      diagnostic.kvData = {
+        id: kvProfile.id,
+        email: kvProfile.email,
+        full_name: kvProfile.full_name,
+        role: kvProfile.role,
+        phone: kvProfile.phone
+      };
+      console.log('✅ Trouvé dans KV:', kvProfile.id);
+    } else {
+      diagnostic.issues.push('Profil inexistant dans le KV store');
+      console.log('❌ PAS trouvé dans KV');
+    }
+
+    // 3. Analyse et recommandations
+    if (diagnostic.existsInAuth && diagnostic.existsInKV) {
+      diagnostic.canLogin = true;
+      diagnostic.fixes.push('✅ Le compte est OK, vous devriez pouvoir vous connecter');
+      diagnostic.fixes.push('Si la connexion échoue, vérifiez que le mot de passe est correct');
+    } else if (diagnostic.existsInAuth && !diagnostic.existsInKV) {
+      diagnostic.issues.push('Profil manquant dans KV (sera créé automatiquement à la connexion)');
+      diagnostic.canLogin = true;
+      diagnostic.fixes.push('Le compte Auth existe, tentez de vous connecter - le profil sera créé auto');
+    } else if (!diagnostic.existsInAuth && diagnostic.existsInKV) {
+      diagnostic.issues.push('PROBLÈME: Profil KV existe mais pas de compte Auth');
+      diagnostic.canLogin = false;
+      diagnostic.fixes.push('❌ Vous devez créer le compte dans Auth avec /auth/admin/fix');
+    } else {
+      diagnostic.issues.push('PROBLÈME: Aucun compte trouvé nulle part');
+      diagnostic.canLogin = false;
+      diagnostic.fixes.push('❌ Créez un nouveau compte admin avec /auth/signup');
+    }
+
+    console.log('📊 Diagnostic complet:', diagnostic);
+
+    return c.json({
+      success: true,
+      diagnostic
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur diagnostic:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// RÉPARER COMPTE ADMIN - CRÉER DANS AUTH SI MANQUANT
+// ============================================
+authRoutes.post('/auth/admin/fix', async (c) => {
+  try {
+    const { email, password, fullName } = await c.req.json();
+    
+    if (!email || !password) {
+      return c.json({ 
+        success: false, 
+        error: 'Email et mot de passe requis' 
+      }, 400);
+    }
+
+    if (password.length < 6) {
+      return c.json({ 
+        success: false, 
+        error: 'Le mot de passe doit contenir au moins 6 caractères' 
+      }, 400);
+    }
+
+    console.log('🔧 RÉPARATION compte pour:', email);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Vérifier si le compte Auth existe déjà
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const existingAuth = authList?.users?.find(u => u.email === email);
+
+    if (existingAuth) {
+      console.log('ℹ️ Compte Auth existe déjà:', existingAuth.id);
+      
+      // Mettre à jour le mot de passe si nécessaire
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        existingAuth.id,
+        { password: password }
+      );
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour mot de passe:', updateError);
+      } else {
+        console.log('✅ Mot de passe mis à jour');
+      }
+
+      return c.json({
+        success: true,
+        message: 'Compte Auth existe déjà, mot de passe mis à jour',
+        userId: existingAuth.id,
+        canLogin: true
+      });
+    }
+
+    // Créer le compte dans Auth
+    console.log('🆕 Création compte Auth...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName || 'Admin SmartCabb',
+        role: 'admin'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erreur création Auth:', authError);
+      return c.json({ 
+        success: false, 
+        error: `Erreur Auth: ${authError.message}` 
+      }, 500);
+    }
+
+    if (!authData.user) {
+      return c.json({ 
+        success: false, 
+        error: 'Aucun utilisateur retourné par Auth' 
+      }, 500);
+    }
+
+    console.log('✅ Compte Auth créé:', authData.user.id);
+
+    // Créer le profil dans le KV store
+    const profile = {
+      id: authData.user.id,
+      email,
+      full_name: fullName || 'Admin SmartCabb',
+      phone: null,
+      role: 'admin',
+      balance: 0,
+      password: password,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    await kv.set(`profile:${authData.user.id}`, profile);
+    await kv.set(`admin:${authData.user.id}`, profile);
+
+    console.log('✅ Profil KV créé');
+
+    return c.json({
+      success: true,
+      message: 'Compte admin créé avec succès',
+      userId: authData.user.id,
+      canLogin: true,
+      credentials: {
+        email: email,
+        password: '***' // Ne pas renvoyer le vrai mot de passe
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur fix admin:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // ENDPOINT DE TEST - Vérifier config Africa's Talking
 // ============================================
 authRoutes.get('/test-sms-config', async (c) => {
@@ -463,6 +826,328 @@ authRoutes.post('/test-sms-send', async (c) => {
 });
 
 // ============================================
+// SYNCHRONISER COMPTE ADMIN EXISTANT
+// ============================================
+authRoutes.post('/auth/admin/sync-existing', async (c) => {
+  try {
+    console.log('🔄 SYNCHRONISATION compte admin existant...');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 1. Chercher le compte admin dans le KV store
+    const allProfiles = await kv.getByPrefix('profile:');
+    const allAdmins = await kv.getByPrefix('admin:');
+    const allUsers = [...allProfiles, ...allAdmins];
+
+    // Trouver le compte contact@smartcabb.com
+    const adminProfile = allUsers.find(p => 
+      p && p.email === 'contact@smartcabb.com' && p.role === 'admin'
+    );
+
+    if (!adminProfile) {
+      return c.json({ 
+        success: false, 
+        error: 'Compte admin contact@smartcabb.com non trouvé dans le KV store' 
+      }, 404);
+    }
+
+    console.log('✅ Profil admin trouvé dans KV:', adminProfile.id);
+
+    // 2. Vérifier si le compte existe dans Supabase Auth
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const existingAuth = authList?.users?.find(u => u.email === 'contact@smartcabb.com');
+
+    if (existingAuth) {
+      console.log('✅ Compte Auth existe déjà:', existingAuth.id);
+      
+      // Mettre à jour le mot de passe à Admin123
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        existingAuth.id,
+        { password: 'Admin123' }
+      );
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour mot de passe:', updateError);
+        return c.json({ 
+          success: false, 
+          error: `Erreur mise à jour: ${updateError.message}` 
+        }, 500);
+      }
+
+      console.log('✅ Mot de passe mis à jour à Admin123');
+
+      // Mettre à jour l'ID dans le KV si différent
+      if (adminProfile.id !== existingAuth.id) {
+        console.log('🔄 Mise à jour ID profil KV:', existingAuth.id);
+        
+        // Supprimer l'ancien profil
+        await kv.del(`profile:${adminProfile.id}`);
+        await kv.del(`admin:${adminProfile.id}`);
+        
+        // Créer avec le nouvel ID
+        const updatedProfile = {
+          ...adminProfile,
+          id: existingAuth.id,
+          password: 'Admin123',
+          updated_at: new Date().toISOString()
+        };
+        
+        await kv.set(`profile:${existingAuth.id}`, updatedProfile);
+        await kv.set(`admin:${existingAuth.id}`, updatedProfile);
+      }
+
+      return c.json({
+        success: true,
+        message: 'Compte synchronisé avec succès',
+        userId: existingAuth.id,
+        email: 'contact@smartcabb.com'
+      });
+    }
+
+    // 3. Créer le compte dans Auth s'il n'existe pas
+    console.log('🆕 Création compte Auth pour contact@smartcabb.com...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: 'contact@smartcabb.com',
+      password: 'Admin123',
+      email_confirm: true,
+      user_metadata: {
+        full_name: adminProfile.full_name || 'Admin SmartCabb',
+        role: 'admin'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erreur création Auth:', authError);
+      return c.json({ 
+        success: false, 
+        error: `Erreur Auth: ${authError.message}` 
+      }, 500);
+    }
+
+    if (!authData.user) {
+      return c.json({ 
+        success: false, 
+        error: 'Aucun utilisateur retourné par Auth' 
+      }, 500);
+    }
+
+    console.log('✅ Compte Auth créé:', authData.user.id);
+
+    // Supprimer l'ancien profil
+    await kv.del(`profile:${adminProfile.id}`);
+    await kv.del(`admin:${adminProfile.id}`);
+
+    // Créer le nouveau profil avec le bon ID
+    const newProfile = {
+      ...adminProfile,
+      id: authData.user.id,
+      email: 'contact@smartcabb.com',
+      password: 'Admin123',
+      updated_at: new Date().toISOString()
+    };
+
+    await kv.set(`profile:${authData.user.id}`, newProfile);
+    await kv.set(`admin:${authData.user.id}`, newProfile);
+
+    console.log('✅ Profil KV mis à jour avec le nouvel ID');
+
+    return c.json({
+      success: true,
+      message: 'Compte créé et synchronisé avec succès',
+      userId: authData.user.id,
+      email: 'contact@smartcabb.com'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur sync admin:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// CRÉER/SYNCHRONISER COMPTE SUPPORT
+// ============================================
+authRoutes.post('/auth/support/create', async (c) => {
+  try {
+    console.log('🔧 CRÉATION/SYNCHRONISATION compte support@smartcabb.com...');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 1. Vérifier si le compte existe déjà dans Supabase Auth
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const existingAuth = authList?.users?.find(u => u.email === 'support@smartcabb.com');
+
+    if (existingAuth) {
+      console.log('✅ Compte Auth existe déjà:', existingAuth.id);
+      
+      // Mettre à jour le mot de passe
+      const { error: updateError } = await supabase.auth.admin.updateUserById(
+        existingAuth.id,
+        { password: 'Support2026!' }
+      );
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour mot de passe:', updateError);
+        return c.json({ 
+          success: false, 
+          error: `Erreur mise à jour: ${updateError.message}` 
+        }, 500);
+      }
+
+      console.log('✅ Mot de passe mis à jour à Support2026!');
+
+      // Créer/Mettre à jour le profil dans le KV store
+      const profile = {
+        id: existingAuth.id,
+        email: 'support@smartcabb.com',
+        full_name: 'Support SmartCabb',
+        phone: '+243999999999',
+        role: 'admin',
+        balance: 0,
+        password: 'Support2026!',
+        created_at: existingAuth.created_at,
+        updated_at: new Date().toISOString()
+      };
+
+      await kv.set(`profile:${existingAuth.id}`, profile);
+      await kv.set(`admin:${existingAuth.id}`, profile);
+
+      return c.json({
+        success: true,
+        message: 'Compte support synchronisé avec succès',
+        userId: existingAuth.id,
+        email: 'support@smartcabb.com',
+        password: 'Support2026!',
+        note: 'Mot de passe mis à jour'
+      });
+    }
+
+    // 2. Créer le compte dans Auth s'il n'existe pas
+    console.log('🆕 Création nouveau compte Auth pour support@smartcabb.com...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: 'support@smartcabb.com',
+      password: 'Support2026!',
+      email_confirm: true,
+      user_metadata: {
+        full_name: 'Support SmartCabb',
+        role: 'admin'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erreur création Auth:', authError);
+      return c.json({ 
+        success: false, 
+        error: `Erreur Auth: ${authError.message}` 
+      }, 500);
+    }
+
+    if (!authData.user) {
+      return c.json({ 
+        success: false, 
+        error: 'Aucun utilisateur retourné par Auth' 
+      }, 500);
+    }
+
+    console.log('✅ Compte Auth créé:', authData.user.id);
+
+    // 3. Créer le profil dans le KV store
+    const newProfile = {
+      id: authData.user.id,
+      email: 'support@smartcabb.com',
+      full_name: 'Support SmartCabb',
+      phone: '+243999999999',
+      role: 'admin',
+      balance: 0,
+      password: 'Support2026!',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    await kv.set(`profile:${authData.user.id}`, newProfile);
+    await kv.set(`admin:${authData.user.id}`, newProfile);
+
+    console.log('✅ Profil KV créé');
+
+    return c.json({
+      success: true,
+      message: 'Compte support créé avec succès',
+      userId: authData.user.id,
+      email: 'support@smartcabb.com',
+      password: 'Support2026!',
+      note: 'Utilisez ces identifiants pour vous connecter'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur création support:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// NETTOYER COMPTES ADMIN INDÉSIRABLES
+// ============================================
+authRoutes.post('/auth/admin/cleanup', async (c) => {
+  try {
+    console.log('🧹 NETTOYAGE comptes admin indésirables...');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const adminEmails = ['admin@smartcabb.cd', 'admin@smartcabb.com'];
+    const deletedAccounts: string[] = [];
+
+    // Supprimer les comptes admin@smartcabb.cd et admin@smartcabb.com
+    for (const user of (authList?.users || [])) {
+      if (adminEmails.includes(user.email || '')) {
+        console.log('🗑️ Suppression compte:', user.email);
+        
+        const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+        
+        if (deleteError) {
+          console.error('❌ Erreur suppression:', user.email, deleteError);
+        } else {
+          console.log('✅ Supprimé:', user.email);
+          deletedAccounts.push(user.email || '');
+          
+          // Supprimer aussi du KV store
+          await kv.del(`profile:${user.id}`);
+          await kv.del(`admin:${user.id}`);
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      message: `Nettoyage terminé. ${deletedAccounts.length} compte(s) supprimé(s)`,
+      deletedAccounts
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur cleanup:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // RÉINITIALISATION PAR TÉLÉPHONE - ÉTAPE 1 : ENVOYER OTP
 // ============================================
 authRoutes.post('/send-reset-otp', async (c) => {
@@ -489,7 +1174,7 @@ authRoutes.post('/send-reset-otp', async (c) => {
     
     // Normaliser le numéro pour la recherche (plusieurs formats possibles)
     const normalizePhone = (phone: string): string[] => {
-      const clean = phone.replace(/[\s\-()]/g, '');
+      const clean = phone.replace(/[\s()\-]/g, '');
       const formats = [clean];
       
       if (clean.startsWith('+243')) {
@@ -602,6 +1287,18 @@ authRoutes.post('/send-reset-otp', async (c) => {
         }).toString()
       });
 
+      console.log('📡 Code HTTP reçu:', smsResponse.status);
+
+      // Vérifier l'erreur HTTP avant de parser JSON
+      if (!smsResponse.ok) {
+        const errorText = await smsResponse.text();
+        console.error('❌ Erreur HTTP Africa\'s Talking:', smsResponse.status, errorText);
+        return c.json({
+          success: false,
+          error: `Erreur HTTP ${smsResponse.status}: ${errorText}. Vérifiez: 1) API Key correcte, 2) Username exact (${username}), 3) Compte activé`
+        }, 500);
+      }
+
       const smsResult = await smsResponse.json();
       console.log('📤 Résultat envoi SMS:', JSON.stringify(smsResult, null, 2));
 
@@ -622,13 +1319,40 @@ authRoutes.post('/send-reset-otp', async (c) => {
       }
 
       // Vérifier si l'envoi a réussi
-      const status = smsResult.SMSMessageData?.Recipients?.[0]?.status;
-      if (status && status !== 'Success') {
-        console.error('❌ Échec envoi SMS:', status);
-        return c.json({
-          success: false,
-          error: `Échec envoi SMS: ${status}`
-        }, 500);
+      if (smsResult.SMSMessageData?.Recipients?.[0]) {
+        const recipient = smsResult.SMSMessageData.Recipients[0];
+        const status = recipient.status;
+        const statusCode = recipient.statusCode;
+        
+        console.log('📊 Status destinataire:', status, 'Code:', statusCode);
+        
+        // ✅ CORRECTION : Gestion spécifique du solde insuffisant
+        if (status === 'InsufficientBalance' || statusCode === '405' || statusCode === 405) {
+          const warnMsg = '⚠️ SOLDE INSUFFISANT sur votre compte Africa\'s Talking. Le code OTP a été généré mais le SMS n\'a pas pu être envoyé.';
+          console.warn(warnMsg);
+          console.log('💡 Code OTP disponible dans les logs pour test:', otpCode);
+          // Retourner quand même succès car l'OTP est généré, juste informer sur le SMS
+          return c.json({
+            success: true,
+            userId: userId,
+            message: 'Code généré (SMS non envoyé - solde insuffisant)',
+            warning: 'Solde SMS insuffisant - Veuillez recharger votre compte Africa\'s Talking',
+            otpCode: otpCode // ✅ Inclure le code pour debug en cas de solde insuffisant
+          });
+        }
+        
+        // Accepter plusieurs codes de succès
+        if (status === 'Success' || statusCode === '101' || statusCode === 101 || statusCode === '100' || statusCode === 100) {
+          console.log('✅ SMS OTP accepté par Africa\'s Talking');
+        } else {
+          const errorMsg = `SMS rejeté par Africa's Talking - Code: ${statusCode}, Status: ${status}`;
+          console.error('❌', errorMsg);
+          // ⚠️ Ne pas bloquer l'utilisateur, juste logger l'erreur
+          console.log('💡 Code OTP disponible pour debug:', otpCode);
+        }
+      } else {
+        console.warn('⚠️ Aucun destinataire dans la réponse');
+        console.log('📊 Réponse complète:', JSON.stringify(smsResult));
       }
 
       return c.json({
@@ -821,6 +1545,124 @@ authRoutes.post('/reset-password-by-phone', async (c) => {
 });
 
 // ============================================
+// RÉCUPÉRER L'EMAIL PAR NUMÉRO DE TÉLÉPHONE (POUR CONNEXION)
+// ============================================
+authRoutes.post('/auth/get-email-by-phone', async (c) => {
+  try {
+    const { phoneNumber } = await c.req.json();
+    
+    if (!phoneNumber) {
+      return c.json({ 
+        success: false, 
+        error: 'Numéro de téléphone requis' 
+      }, 400);
+    }
+
+    console.log('🔍 Recherche email pour le numéro:', phoneNumber);
+
+    // Normaliser le numéro pour la recherche (plusieurs formats possibles)
+    const normalizePhone = (phone: string): string[] => {
+      const clean = phone.replace(/[\s()\-]/g, '');
+      const formats = [clean];
+      
+      if (clean.startsWith('+243')) {
+        formats.push(clean.substring(4)); // Sans +243
+        formats.push('0' + clean.substring(4)); // Avec 0
+        formats.push(clean.substring(1)); // Sans +
+      } else if (clean.startsWith('243')) {
+        formats.push('+' + clean); // Avec +
+        formats.push('0' + clean.substring(3)); // Avec 0
+      } else if (clean.startsWith('0')) {
+        formats.push('+243' + clean.substring(1)); // Avec +243
+        formats.push('243' + clean.substring(1)); // Avec 243
+      }
+      
+      return [...new Set(formats)]; // Enlever les doublons
+    };
+    
+    const phoneFormats = normalizePhone(phoneNumber);
+    console.log('🔍 Formats de téléphone à chercher:', phoneFormats);
+
+    // Chercher dans TOUS les préfixes (profile:, driver:, passenger:)
+    const allProfiles = await kv.getByPrefix('profile:');
+    const allDrivers = await kv.getByPrefix('driver:');
+    const allPassengers = await kv.getByPrefix('passenger:');
+    
+    console.log(`📊 Total profils dans KV: ${allProfiles.length}`);
+    console.log(`📊 Total conducteurs dans KV: ${allDrivers.length}`);
+    console.log(`📊 Total passagers dans KV: ${allPassengers.length}`);
+    
+    // Combiner tous les profils
+    const allUsers = [...allProfiles, ...allDrivers, ...allPassengers];
+    
+    // Log de tous les téléphones dans le KV pour debug
+    console.log('📱 Téléphones dans le KV store:');
+    allUsers.forEach((user, index) => {
+      if (user && user.phone) {
+        console.log(`  ${index + 1}. ${user.phone} (${user.role}) - Email: ${user.email}`);
+      }
+    });
+
+    // Fonction pour normaliser un numéro au format +243XXXXXXXXX
+    const normalizeToStandardFormat = (phone: string): string => {
+      const clean = phone.replace(/[\s+()\-]/g, '');
+      if (clean.length === 9) {
+        return `+243${clean}`;
+      } else if (clean.length === 10 && clean.startsWith('0')) {
+        return `+243${clean.substring(1)}`;
+      } else if (clean.length === 12 && clean.startsWith('243')) {
+        return `+${clean}`;
+      } else if (clean.length === 13 && clean.startsWith('+243')) {
+        return clean;
+      } else if (clean.startsWith('243')) {
+        return `+${clean}`;
+      } else if (clean.startsWith('0')) {
+        return `+243${clean.substring(1)}`;
+      }
+      return clean;
+    };
+    
+    const normalizedSearchPhone = normalizeToStandardFormat(phoneNumber);
+    console.log('📱 Numéro de recherche normalisé:', normalizedSearchPhone);
+    
+    // Chercher le profil qui correspond au numéro
+    const matchingProfile = allUsers.find(p => {
+      if (!p || !p.phone) return false;
+      const normalizedProfilePhone = normalizeToStandardFormat(p.phone);
+      const matches = normalizedProfilePhone === normalizedSearchPhone;
+      if (matches) {
+        console.log(`✅ Match trouvé! ${normalizedSearchPhone} === ${normalizedProfilePhone}`);
+      }
+      return matches;
+    });
+
+    if (matchingProfile && matchingProfile.email) {
+      console.log('✅ Email trouvé dans KV:', matchingProfile.email);
+      console.log('✅ Rôle du profil:', matchingProfile.role);
+      return c.json({
+        success: true,
+        email: matchingProfile.email,
+        userId: matchingProfile.id,
+        role: matchingProfile.role
+      });
+    }
+
+    console.log('⚠️ Aucun email trouvé pour ce numéro');
+    return c.json({ 
+      success: false, 
+      error: 'Aucun compte trouvé avec ce numéro' 
+    }, 404);
+
+  } catch (error) {
+    console.error('❌ Erreur get-email-by-phone:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // VÉRIFIER SI UN NUMÉRO DE TÉLÉPHONE EXISTE
 // ============================================
 authRoutes.post('/auth/check-phone-exists', async (c) => {
@@ -838,7 +1680,7 @@ authRoutes.post('/auth/check-phone-exists', async (c) => {
 
     // Normaliser le numéro de téléphone
     const normalizePhone = (phone: string): string[] => {
-      const clean = phone.replace(/[\s\-()]/g, '');
+      const clean = phone.replace(/[\s()\-]/g, '');
       const formats: string[] = [clean];
       
       if (clean.startsWith('+243')) {
@@ -927,7 +1769,7 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
 
     // Normaliser le numéro de téléphone
     const normalizePhone = (phone: string): string[] => {
-      const clean = phone.replace(/[\s\-()]/g, '');
+      const clean = phone.replace(/[\s()\-]/g, '');
       const formats: string[] = [clean];
       
       if (clean.startsWith('+243')) {
@@ -964,12 +1806,48 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
       if (profileData && profileData.phone) {
         // Vérifier si le téléphone correspond
         if (phoneFormats.includes(profileData.phone)) {
-          console.log('✅ Email trouvé (KV):', profileData.email);
-          return c.json({
-            success: true,
-            email: profileData.email,
-            userId: profileData.id
-          });
+          console.log('✅ Profil trouvé (KV) avec phone:', profileData.phone);
+          
+          // 🔥 CRITIQUE : Récupérer l'email Auth RÉEL depuis Supabase (pas l'email du profil)
+          console.log('🔍 Récupération de l\'email Auth depuis Supabase...');
+          try {
+            const { createClient } = await import('npm:@supabase/supabase-js@2');
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profileData.id);
+            
+            if (authError || !authUser || !authUser.user || !authUser.user.email) {
+              console.error('❌ Erreur récupération Auth user:', authError);
+              console.log('⚠️ Fallback : utilisation de l\'email du profil');
+              return c.json({
+                success: true,
+                email: profileData.email,
+                userId: profileData.id
+              });
+            }
+            
+            const authEmail = authUser.user.email;
+            console.log(`✅ Email Auth trouvé: ${authEmail} (email profil: ${profileData.email})`);
+            
+            // ✅ RETOURNER L'EMAIL AUTH (pas l'email du profil)
+            return c.json({
+              success: true,
+              email: authEmail,  // Email réel dans Supabase Auth
+              profileEmail: profileData.email,  // Email dans le profil (peut être différent)
+              userId: profileData.id
+            });
+          } catch (error) {
+            console.error('❌ Erreur accès Supabase Auth:', error);
+            // Fallback : utiliser l'email du profil
+            return c.json({
+              success: true,
+              email: profileData.email,
+              userId: profileData.id
+            });
+          }
         }
       }
     }
@@ -982,12 +1860,41 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const userData of allUsers) {
       if (userData && userData.phone) {
         if (phoneFormats.includes(userData.phone)) {
-          console.log('✅ Email trouvé (user:):', userData.email);
-          return c.json({
-            success: true,
-            email: userData.email,
-            userId: userData.id
-          });
+          console.log('✅ User trouvé (user:) avec phone:', userData.phone);
+          
+          try {
+            const { createClient } = await import('npm:@supabase/supabase-js@2');
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
+            
+            if (authError || !authUser || !authUser.user || !authUser.user.email) {
+              return c.json({
+                success: true,
+                email: userData.email,
+                userId: userData.id
+              });
+            }
+            
+            const authEmail = authUser.user.email;
+            console.log(`✅ Email Auth trouvé: ${authEmail}`);
+            
+            return c.json({
+              success: true,
+              email: authEmail,
+              profileEmail: userData.email,
+              userId: userData.id
+            });
+          } catch (error) {
+            return c.json({
+              success: true,
+              email: userData.email,
+              userId: userData.id
+            });
+          }
         }
       }
     }
@@ -999,12 +1906,41 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const passengerData of allPassengers) {
       if (passengerData && passengerData.phone) {
         if (phoneFormats.includes(passengerData.phone)) {
-          console.log('✅ Email trouvé (passenger:):', passengerData.email);
-          return c.json({
-            success: true,
-            email: passengerData.email,
-            userId: passengerData.id
-          });
+          console.log('✅ Passenger trouvé (passenger:) avec phone:', passengerData.phone);
+          
+          try {
+            const { createClient } = await import('npm:@supabase/supabase-js@2');
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(passengerData.id);
+            
+            if (authError || !authUser || !authUser.user || !authUser.user.email) {
+              return c.json({
+                success: true,
+                email: passengerData.email,
+                userId: passengerData.id
+              });
+            }
+            
+            const authEmail = authUser.user.email;
+            console.log(`✅ Email Auth trouvé: ${authEmail}`);
+            
+            return c.json({
+              success: true,
+              email: authEmail,
+              profileEmail: passengerData.email,
+              userId: passengerData.id
+            });
+          } catch (error) {
+            return c.json({
+              success: true,
+              email: passengerData.email,
+              userId: passengerData.id
+            });
+          }
         }
       }
     }
@@ -1016,12 +1952,41 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
     for (const driverData of allDrivers) {
       if (driverData && driverData.phone) {
         if (phoneFormats.includes(driverData.phone)) {
-          console.log('✅ Email trouvé (driver:):', driverData.email);
-          return c.json({
-            success: true,
-            email: driverData.email,
-            userId: driverData.id
-          });
+          console.log('✅ Driver trouvé (driver:) avec phone:', driverData.phone);
+          
+          try {
+            const { createClient } = await import('npm:@supabase/supabase-js@2');
+            const supabase = createClient(
+              Deno.env.get('SUPABASE_URL') ?? '',
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+            );
+            
+            const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(driverData.id);
+            
+            if (authError || !authUser || !authUser.user || !authUser.user.email) {
+              return c.json({
+                success: true,
+                email: driverData.email,
+                userId: driverData.id
+              });
+            }
+            
+            const authEmail = authUser.user.email;
+            console.log(`✅ Email Auth trouvé: ${authEmail}`);
+            
+            return c.json({
+              success: true,
+              email: authEmail,
+              profileEmail: driverData.email,
+              userId: driverData.id
+            });
+          } catch (error) {
+            return c.json({
+              success: true,
+              email: driverData.email,
+              userId: driverData.id
+            });
+          }
         }
       }
     }
@@ -1073,7 +2038,7 @@ authRoutes.post('/auth/reset-password-phone', async (c) => {
     // 🔧 NORMALISER LE NUMÉRO DE TÉLÉPHONE POUR LA RECHERCHE
     // Accepter tous les formats : +243XXX, 243XXX, 0XXX
     const normalizePhone = (phone: string): string[] => {
-      const clean = phone.replace(/[\s\-()]/g, ''); // Enlever espaces, tirets, parenthèses
+      const clean = phone.replace(/[\s()\-]/g, ''); // Enlever espaces, tirets, parenthèses
       const formats: string[] = [clean]; // Format original
       
       // Si commence par +243
@@ -1115,7 +2080,7 @@ authRoutes.post('/auth/reset-password-phone', async (c) => {
 
     // Chercher dans passenger:
     const passengers = await kv.getByPrefix('passenger:');
-    console.log('📊 Nombre de passagers dans KV:', passengers?.length || 0);
+    console.log('���� Nombre de passagers dans KV:', passengers?.length || 0);
     if (passengers && passengers.length > 0) {
       console.log('📋 Premiers passagers (debug):', passengers.slice(0, 3).map((p: any) => ({ id: p.id, phone: p.phone, full_name: p.full_name })));
       // ✅ RECHERCHE AVEC NORMALISATION
@@ -1421,7 +2386,7 @@ authRoutes.post('/find-email-by-phone', async (c) => {
     );
 
     // Normaliser le numéro de téléphone (enlever les espaces, +, etc.)
-    const cleanPhone = phoneNumber.replace(/[\s\-\+\(\)]/g, '');
+    const cleanPhone = phoneNumber.replace(/[\s+()\-]/g, '');
     
     // Chercher dans profiles par différents formats de téléphone
     const phoneFormats = [
@@ -1582,6 +2547,551 @@ authRoutes.post('/auth/create-first-admin', async (c) => {
       success: false, 
       error: 'Erreur serveur: ' + String(error) 
     }, 500);
+  }
+});
+
+// ============================================
+// ENDPOINT DE DEBUG : Vérifier l'état d'un compte
+// ============================================
+authRoutes.post('/auth/debug-account', async (c) => {
+  try {
+    const { phoneNumber, email } = await c.req.json();
+    
+    if (!phoneNumber && !email) {
+      return c.json({ 
+        success: false, 
+        error: 'Numéro de téléphone ou email requis' 
+      }, 400);
+    }
+
+    console.log('🐛 DEBUG - Vérification compte pour:', phoneNumber || email);
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const debugInfo: any = {
+      phoneNumber: phoneNumber || null,
+      email: email || null,
+      kvProfiles: [],
+      authUsers: []
+    };
+
+    // Chercher dans le KV store
+    if (phoneNumber) {
+      const normalizePhone = (phone: string): string[] => {
+        const clean = phone.replace(/[\s()\-]/g, '');
+        const formats = [clean];
+        
+        if (clean.startsWith('+243')) {
+          formats.push(clean.substring(4));
+          formats.push('0' + clean.substring(4));
+          formats.push(clean.substring(1));
+        } else if (clean.startsWith('243')) {
+          formats.push('+' + clean);
+          formats.push('0' + clean.substring(3));
+        } else if (clean.startsWith('0')) {
+          formats.push('+243' + clean.substring(1));
+          formats.push('243' + clean.substring(1));
+        }
+        
+        return [...new Set(formats)];
+      };
+      
+      const phoneFormats = normalizePhone(phoneNumber);
+      const allProfiles = await kv.getByPrefix('profile:');
+      const allDrivers = await kv.getByPrefix('driver:');
+      const allPassengers = await kv.getByPrefix('passenger:');
+      const allUsers = [...allProfiles, ...allDrivers, ...allPassengers];
+
+      const matchingProfiles = allUsers.filter(p => {
+        if (!p || !p.phone) return false;
+        const profilePhone = p.phone.replace(/[\s()\-]/g, '');
+        return phoneFormats.some(format => 
+          profilePhone.includes(format) || format.includes(profilePhone)
+        );
+      });
+
+      debugInfo.kvProfiles = matchingProfiles.map(p => ({
+        id: p.id,
+        email: p.email,
+        phone: p.phone,
+        role: p.role,
+        status: p.status,
+        created_at: p.created_at
+      }));
+
+      // Vérifier dans Supabase Auth
+      for (const profile of matchingProfiles) {
+        const { data: authUser, error } = await supabase.auth.admin.getUserById(profile.id);
+        if (authUser?.user) {
+          debugInfo.authUsers.push({
+            id: authUser.user.id,
+            email: authUser.user.email,
+            email_confirmed_at: authUser.user.email_confirmed_at,
+            created_at: authUser.user.created_at,
+            user_metadata: authUser.user.user_metadata
+          });
+        }
+      }
+    }
+
+    return c.json({
+      success: true,
+      debug: debugInfo
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur debug-account:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error) 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔧 MIGRATION: NORMALISER TOUS LES TÉLÉPHONES DANS LE KV STORE
+// ============================================
+authRoutes.post('/auth/migrate-phone-numbers', async (c) => {
+  try {
+    console.log('🔧 MIGRATION: Normalisation des numéros de téléphone dans le KV store');
+    
+    // Fonction de normalisation
+    const normalizeToStandardFormat = (phone: string): string => {
+      if (!phone) return phone;
+      const clean = phone.replace(/[\s+()\-]/g, '');
+      if (clean.length === 9) {
+        return `+243${clean}`;
+      } else if (clean.length === 10 && clean.startsWith('0')) {
+        return `+243${clean.substring(1)}`;
+      } else if (clean.length === 12 && clean.startsWith('243')) {
+        return `+${clean}`;
+      } else if (clean.length === 13 && clean.startsWith('+243')) {
+        return clean;
+      } else if (clean.startsWith('243')) {
+        return `+${clean}`;
+      } else if (clean.startsWith('0')) {
+        return `+243${clean.substring(1)}`;
+      }
+      return phone;
+    };
+    
+    let totalUpdated = 0;
+    const errors: string[] = [];
+    
+    // Récupérer tous les profils
+    const allProfiles = await kv.getByPrefix('profile:');
+    const allDrivers = await kv.getByPrefix('driver:');
+    const allPassengers = await kv.getByPrefix('passenger:');
+    
+    console.log(`📊 Profils à vérifier: ${allProfiles.length} profiles, ${allDrivers.length} drivers, ${allPassengers.length} passengers`);
+    
+    // Fonction helper pour migrer un profil
+    const migrateProfile = async (profile: any, prefix: string) => {
+      if (!profile || !profile.phone || !profile.id) return;
+      
+      const oldPhone = profile.phone;
+      const newPhone = normalizeToStandardFormat(oldPhone);
+      
+      if (oldPhone === newPhone) {
+        console.log(`✅ ${prefix}${profile.id} - Téléphone déjà normalisé: ${oldPhone}`);
+        return;
+      }
+      
+      console.log(`🔄 Migration ${prefix}${profile.id}: "${oldPhone}" → "${newPhone}"`);
+      
+      try {
+        const updatedProfile = {
+          ...profile,
+          phone: newPhone,
+          updated_at: new Date().toISOString()
+        };
+        
+        await kv.set(`${prefix}${profile.id}`, updatedProfile);
+        totalUpdated++;
+        console.log(`✅ ${prefix}${profile.id} migré avec succès`);
+      } catch (error) {
+        const errorMsg = `Erreur migration ${prefix}${profile.id}: ${error}`;
+        console.error(`❌ ${errorMsg}`);
+        errors.push(errorMsg);
+      }
+    };
+    
+    for (const profile of allProfiles) {
+      await migrateProfile(profile, 'profile:');
+    }
+    
+    for (const driver of allDrivers) {
+      await migrateProfile(driver, 'driver:');
+    }
+    
+    for (const passenger of allPassengers) {
+      await migrateProfile(passenger, 'passenger:');
+    }
+    
+    console.log(`✅ Migration terminée: ${totalUpdated} profils mis à jour`);
+    
+    return c.json({
+      success: true,
+      totalUpdated,
+      errors: errors.length > 0 ? errors : undefined,
+      message: `${totalUpdated} numéros de téléphone normalisés avec succès`
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur migration:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur lors de la migration: ' + String(error) 
+    }, 500);
+  }
+});
+
+// ============================================
+// DIAGNOSTIC COMPLET DE CONNEXION
+// ============================================
+authRoutes.post('/auth/diagnostic-login', async (c) => {
+  try {
+    const { identifier, password } = await c.req.json();
+    
+    if (!identifier) {
+      return c.json({ 
+        success: false, 
+        error: 'Identifiant requis' 
+      }, 400);
+    }
+    
+    console.log('🔍 DIAGNOSTIC DE CONNEXION pour:', identifier);
+    
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    const diagnostic: any = {
+      identifier,
+      passwordProvided: !!password,
+      passwordLength: password?.length || 0,
+      kvProfiles: [],
+      authEmail: null,
+      authUserExists: false,
+      canLogin: false,
+      issues: [],
+      suggestions: []
+    };
+    
+    // 1. Chercher dans le KV store
+    const normalizeToStandardFormat = (phone: string): string => {
+      let clean = phone.replace(/[\s()\-]/g, '');
+      if (clean.startsWith('+')) {
+        return clean;
+      } else if (clean.startsWith('243')) {
+        return `+${clean}`;
+      } else if (clean.startsWith('0')) {
+        return `+243${clean.substring(1)}`;
+      }
+      return clean;
+    };
+    
+    const normalizedSearchPhone = normalizeToStandardFormat(identifier);
+    console.log('📱 Numéro normalisé:', normalizedSearchPhone);
+    
+    const allProfiles = await kv.getByPrefix('profile:');
+    const allDrivers = await kv.getByPrefix('driver:');
+    const allPassengers = await kv.getByPrefix('passenger:');
+    const allUsers = [...allProfiles, ...allDrivers, ...allPassengers];
+    
+    const matchingProfile = allUsers.find(p => {
+      if (!p || !p.phone) return false;
+      const normalizedProfilePhone = normalizeToStandardFormat(p.phone);
+      return normalizedProfilePhone === normalizedSearchPhone;
+    });
+    
+    if (matchingProfile) {
+      diagnostic.kvProfiles.push({
+        id: matchingProfile.id,
+        email: matchingProfile.email,
+        phone: matchingProfile.phone,
+        role: matchingProfile.role,
+        full_name: matchingProfile.full_name
+      });
+      diagnostic.authEmail = matchingProfile.email;
+      console.log('✅ Profil KV trouvé:', matchingProfile.id);
+      console.log('📧 Email du profil:', matchingProfile.email);
+    } else {
+      diagnostic.issues.push('Aucun profil trouvé dans le KV store pour ce numéro');
+      diagnostic.suggestions.push('Vérifiez que vous êtes bien inscrit avec ce numéro');
+      console.log('❌ Aucun profil KV trouvé');
+      
+      return c.json({
+        success: false,
+        diagnostic,
+        message: 'Aucun compte trouvé avec ce numéro de téléphone'
+      });
+    }
+    
+    // 2. Vérifier si l'utilisateur existe dans Supabase Auth
+    try {
+      const { data: authUser } = await supabase.auth.admin.getUserById(matchingProfile.id);
+      
+      if (authUser && authUser.user) {
+        diagnostic.authUserExists = true;
+        diagnostic.authEmail = authUser.user.email;
+        console.log('✅ Utilisateur Auth existe:', authUser.user.id);
+        console.log('📧 Email Auth:', authUser.user.email);
+        
+        // 3. Tester la connexion si mot de passe fourni
+        if (password) {
+          const { data: testAuth, error: testError } = await supabase.auth.signInWithPassword({
+            email: authUser.user.email || diagnostic.authEmail,
+            password
+          });
+          
+          if (testError) {
+            diagnostic.canLogin = false;
+            diagnostic.issues.push(`Erreur de connexion: ${testError.code}`);
+            
+            if (testError.code === 'invalid_credentials') {
+              diagnostic.issues.push('Le mot de passe fourni est INCORRECT');
+              diagnostic.suggestions.push('Utilisez "Mot de passe oublié" pour réinitialiser votre mot de passe');
+              diagnostic.suggestions.push('Ou vérifiez que vous utilisez le bon mot de passe');
+            } else {
+              diagnostic.issues.push(testError.message);
+            }
+            
+            console.log('❌ Test de connexion échoué:', testError.code);
+          } else {
+            diagnostic.canLogin = true;
+            diagnostic.suggestions.push('✅ Le compte et le mot de passe sont corrects !');
+            console.log('✅ Test de connexion réussi !');
+          }
+        } else {
+          diagnostic.suggestions.push('Fournissez un mot de passe pour tester la connexion');
+        }
+      } else {
+        diagnostic.authUserExists = false;
+        diagnostic.issues.push('PROBLÈME CRITIQUE: Profil KV existe mais pas de compte Auth Supabase');
+        diagnostic.suggestions.push('Utilisez la route /auth/fix-orphan-profile pour créer le compte Auth');
+        console.log('❌ Utilisateur Auth n\'existe pas');
+      }
+    } catch (authError) {
+      diagnostic.authUserExists = false;
+      diagnostic.issues.push('Erreur lors de la vérification du compte Auth');
+      console.error('❌ Erreur vérification Auth:', authError);
+    }
+    
+    console.log('📊 Diagnostic complet:', diagnostic);
+    
+    return c.json({
+      success: true,
+      diagnostic,
+      message: diagnostic.canLogin 
+        ? 'Le compte fonctionne correctement' 
+        : 'Des problèmes ont été détectés'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur diagnostic-login:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// INSCRIPTION ADMIN RAPIDE - SANS EMAIL
+// ============================================
+authRoutes.post('/auth/admin/quick-signup', async (c) => {
+  try {
+    const { email, password, fullName } = await c.req.json();
+    
+    if (!email || !password || !fullName) {
+      return c.json({ 
+        success: false, 
+        error: 'Email, mot de passe et nom complet requis' 
+      }, 400);
+    }
+
+    console.log('🚀 Création compte admin rapide:', email);
+
+    // Créer un client Supabase avec la clé service pour bypass le rate limit
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // 1. Créer le compte dans Supabase Auth SANS envoyer d'email
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: password,
+      email_confirm: true, // ✅ Confirmer l'email automatiquement (pas d'envoi d'email)
+      user_metadata: {
+        full_name: fullName,
+        role: 'admin'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erreur création Auth:', authError);
+      return c.json({ 
+        success: false, 
+        error: authError.message || 'Erreur lors de la création du compte Auth' 
+      }, 400);
+    }
+
+    if (!authData.user) {
+      return c.json({ 
+        success: false, 
+        error: 'Aucun utilisateur créé' 
+      }, 400);
+    }
+
+    console.log('✅ Compte Auth créé:', authData.user.id);
+
+    // 2. Créer le profil dans le KV store
+    const profile = {
+      id: authData.user.id,
+      email: email,
+      full_name: fullName,
+      phone: '',
+      role: 'admin',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    await kv.set(`admin:${authData.user.id}`, profile);
+    console.log('✅ Profil admin créé dans KV store');
+
+    return c.json({
+      success: true,
+      message: 'Compte admin créé avec succès',
+      user: {
+        id: authData.user.id,
+        email: email,
+        full_name: fullName,
+        role: 'admin'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur création admin:', error);
+    return c.json({ 
+      success: false, 
+      error: error.message || 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// CRÉER COMPTE ADMIN RAPIDE (contact@smartcabb.com)
+// ============================================
+authRoutes.post('/auth/admin/quick-create', async (c) => {
+  try {
+    console.log('🚀 CRÉATION RAPIDE compte admin contact@smartcabb.com...');
+
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Vérifier si le compte existe déjà
+    const { data: authList } = await supabase.auth.admin.listUsers();
+    const existingAuth = authList?.users?.find(u => u.email === 'contact@smartcabb.com');
+
+    if (existingAuth) {
+      console.log('✅ Compte existe déjà:', existingAuth.id);
+      
+      // Juste mettre à jour le mot de passe
+      await supabase.auth.admin.updateUserById(existingAuth.id, { password: 'Admin123' });
+
+      // Créer/Mettre à jour le profil
+      const profile = {
+        id: existingAuth.id,
+        email: 'contact@smartcabb.com',
+        full_name: 'Admin SmartCabb',
+        phone: '+243999999999',
+        role: 'admin',
+        balance: 0,
+        password: 'Admin123',
+        created_at: existingAuth.created_at,
+        updated_at: new Date().toISOString()
+      };
+
+      await kv.set(`profile:${existingAuth.id}`, profile);
+      await kv.set(`admin:${existingAuth.id}`, profile);
+
+      return c.json({
+        success: true,
+        message: '✅ Compte admin prêt !',
+        credentials: {
+          email: 'contact@smartcabb.com',
+          password: 'Admin123',
+          loginUrl: 'https://smartcabb.com/admin'
+        }
+      });
+    }
+
+    // Créer le nouveau compte
+    console.log('🆕 Création nouveau compte...');
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: 'contact@smartcabb.com',
+      password: 'Admin123',
+      email_confirm: true,
+      user_metadata: {
+        full_name: 'Admin SmartCabb',
+        role: 'admin'
+      }
+    });
+
+    if (authError) {
+      console.error('❌ Erreur création:', authError);
+      return c.json({ 
+        success: false,
+        error: `Impossible de créer le compte: ${authError.message}`,
+        code: authError.code
+      }, 400);
+    }
+
+    if (!authData.user) {
+      return c.json({ success: false, error: 'Aucun utilisateur retourné' }, 500);
+    }
+
+    console.log('✅ Compte créé:', authData.user.id);
+
+    // Créer le profil
+    const profile = {
+      id: authData.user.id,
+      email: 'contact@smartcabb.com',
+      full_name: 'Admin SmartCabb',
+      phone: '+243999999999',
+      role: 'admin',
+      balance: 0,
+      password: 'Admin123',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    await kv.set(`profile:${authData.user.id}`, profile);
+    await kv.set(`admin:${authData.user.id}`, profile);
+
+    console.log('✅ Profil créé');
+
+    return c.json({
+      success: true,
+      message: '🎉 Compte admin créé avec succès !',
+      credentials: {
+        email: 'contact@smartcabb.com',
+        password: 'Admin123',
+        loginUrl: 'https://smartcabb.com/admin'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur:', error);
+    return c.json({ success: false, error: String(error) }, 500);
   }
 });
 

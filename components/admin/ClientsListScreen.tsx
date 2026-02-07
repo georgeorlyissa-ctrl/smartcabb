@@ -1,37 +1,39 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Input } from '../ui/input';
-import { Badge } from '../ui/badge';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
 import { useAppState } from '../../hooks/useAppState';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
-import { PassengerDetailModal } from './PassengerDetailModal';
+import { Card } from '../ui/card';
+import { Button } from '../ui/button';
+import { Input } from '../ui/input';
+import { Badge } from '../ui/badge';
 import { 
-  ArrowLeft, 
+  Users, 
   Search, 
-  User, 
-  Phone, 
+  ArrowLeft, 
   Mail, 
-  MapPin,
-  Calendar,
+  Phone, 
+  Calendar, 
+  MapPin, 
+  TrendingUp,
+  Clock,
+  DollarSign,
+  User,
   Car,
-  Star,
-  CreditCard,
-  Smartphone,
-  Banknote,
+  RefreshCw,
   Download,
   Filter,
-  Eye,
-  RefreshCw,
-  Wallet
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
+  CreditCard,
+  Smartphone,
+  Wallet,
+  Star,
+  Eye
+} from '../../lib/admin-icons';
 import type { Profile } from '../../lib/supabase';
-import { formatCDF } from '../../lib/pricing';
 import { User as UserType } from '../../types';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { syncAllUsersFromSupabase, listenToProfileChanges } from '../../lib/sync-service';
+import { formatCDF } from '../../utils/formatters';
+import { PassengerDetailModal } from './PassengerDetailModal';
 
 interface ClientsListScreenProps {
   onBack?: () => void;
@@ -76,7 +78,7 @@ export function ClientsListScreen({ onBack }: ClientsListScreenProps) {
       case 'card':
         return <CreditCard className="w-4 h-4 text-blue-600" />;
       case 'cash':
-        return <Banknote className="w-4 h-4 text-orange-600" />;
+        return <DollarSign className="w-4 h-4 text-orange-600" />;
       default:
         return <CreditCard className="w-4 h-4 text-gray-600" />;
     }

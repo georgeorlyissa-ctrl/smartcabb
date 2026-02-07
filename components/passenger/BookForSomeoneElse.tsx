@@ -17,14 +17,15 @@
  */
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Card } from '../ui/card';
+import { motion, AnimatePresence } from '../../lib/motion';
+import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
-import { User, Phone, AlertCircle, Users } from 'lucide-react';
-import { toast } from 'sonner';
 import { useAppState } from '../../hooks/useAppState';
+import { toast } from '../../lib/toast';
+import { User, Phone, AlertCircle, Users } from '../../lib/icons';
 
 interface BookForSomeoneElseProps {
   showForm: boolean;
@@ -121,7 +122,6 @@ export function BookForSomeoneElse({ showForm, onToggleForm, onBeneficiaryChange
     }
   };
 
-  // ✅ CORRECTION: Utiliser useEffect au lieu de useState
   useEffect(() => {
     updateBeneficiary();
   }, [beneficiaryName, beneficiaryPhone, bookingForSelf]);

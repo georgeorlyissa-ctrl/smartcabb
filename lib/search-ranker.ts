@@ -2,11 +2,11 @@
  * 🧠 ALGORITHME DE RANKING INTELLIGENT - COMME UBER/YANGO
  * 
  * Classe les suggestions selon plusieurs critères :
- * - **PERTINENCE DU NOM (50%)** ← PRIORITAIRE !
- * - Distance (25%)
- * - Popularité (15%)
- * - Contexte temporel (5%)
- * - Historique utilisateur (5%)
+ * - **PERTINENCE DU NOM (40%)** ← PRIORITAIRE !
+ * - **SOURCE (30%)** ← Base locale prioritaire
+ * - Distance (20%)
+ * - Popularité (7%)
+ * - Historique utilisateur (3%)
  */
 
 export interface SearchResult {
@@ -16,11 +16,12 @@ export interface SearchResult {
   coordinates: { lat: number; lng: number };
   placeType?: string;
   distance?: number;
-  source?: string;
+  source?: 'local' | 'nominatim' | 'hybrid'; // 🆕 Source du résultat
   
   // Métadonnées de ranking
   score?: number;
   relevanceScore?: number;
+  sourceScore?: number; // 🆕 Score de source
   distanceScore?: number;
   popularityScore?: number;
   contextScore?: number;
@@ -52,6 +53,7 @@ export class SearchRanker {
         ...result,
         score,
         relevanceScore: this.getRelevanceScore(result, context.query),
+        sourceScore: this.getSourceScore(result), // 🆕
         distanceScore: this.getDistanceScore(result.distance),
         popularityScore: this.getPopularityScore(result),
         contextScore: this.getContextScore(result, context.currentHour),
@@ -68,12 +70,12 @@ export class SearchRanker {
   /**
    * 🧮 CALCULER LE SCORE TOTAL
    * 
-   * NOUVELLE PONDÉRATION :
-   * - Pertinence nom : 50% (PRIORITAIRE!)
-   * - Distance : 25%
-   * - Popularité : 15%
-   * - Contexte : 5%
-   * - Historique : 5%
+   * NOUVELLE PONDÉRATION (avec base locale) :
+   * - Pertinence nom : 40% (PRIORITAIRE!)
+   * - Source : 30% (Base locale = meilleur score)
+   * - Distance : 20%
+   * - Popularité : 7%
+   * - Historique : 3%
    */
   private static calculateScore(
     result: SearchResult,
@@ -82,36 +84,62 @@ export class SearchRanker {
     let score = 0;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🔍 PERTINENCE DU NOM (50% du score) - PRIORITAIRE !
+    // 🔍 PERTINENCE DU NOM (40% du score) - PRIORITAIRE !
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const relevanceScore = this.getRelevanceScore(result, context.query);
-    score += relevanceScore * 0.50;
+    score += relevanceScore * 0.40;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📏 DISTANCE (25% du score)
+    // 🗄️ SOURCE (30% du score) - Base locale prioritaire
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const sourceScore = this.getSourceScore(result);
+    score += sourceScore * 0.30;
+    
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // 📏 DISTANCE (20% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const distanceScore = this.getDistanceScore(result.distance);
-    score += distanceScore * 0.25;
+    score += distanceScore * 0.20;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // ⭐ POPULARITÉ (15% du score)
+    // ⭐ POPULARITÉ (7% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const popularityScore = this.getPopularityScore(result);
-    score += popularityScore * 0.15;
+    score += popularityScore * 0.07;
     
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 🕐 CONTEXTE TEMPOREL (5% du score)
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const contextScore = this.getContextScore(result, context.currentHour);
-    score += contextScore * 0.05;
-    
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // 📚 HISTORIQUE UTILISATEUR (5% du score)
+    // 📚 HISTORIQUE UTILISATEUR (3% du score)
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     const historyScore = this.getHistoryScore(result, context);
-    score += historyScore * 0.05;
+    score += historyScore * 0.03;
     
     return score;
+  }
+  
+  /**
+   * 🗄️ SCORE DE SOURCE - PRIVILÉGIER LA BASE LOCALE
+   * 
+   * Les résultats de la base locale sont plus fiables car vérifiés manuellement
+   */
+  private static getSourceScore(result: SearchResult): number {
+    if (!result.source) return 50; // Score neutre
+    
+    switch (result.source) {
+      case 'local':
+        // Base locale = données vérifiées et riches
+        return 100;
+        
+      case 'nominatim':
+        // OpenStreetMap = données complètes mais moins riches
+        return 70;
+        
+      case 'hybrid':
+        // Mix des deux
+        return 85;
+        
+      default:
+        return 50;
+    }
   }
   
   /**
@@ -161,7 +189,7 @@ export class SearchRanker {
     // 4️⃣ MOT DU NOM COMMENCE PAR LA REQUÊTE = 80 points
     // Exemple: "université" → "Université Pédagogique"
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const nameWords = name.split(/\\s+/);
+    const nameWords = name.split(/\s+/);
     for (const word of nameWords) {
       if (word.startsWith(queryLower)) {
         console.log(`🎯 Mot commence par: "${result.name}" (mot: "${word}")`);

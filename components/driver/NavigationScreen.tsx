@@ -1,15 +1,50 @@
-import { VEHICLE_PRICING, VehicleCategory } from '../../lib/pricing';
-import { notifyRideStarted } from '../../lib/sms-service';
-import { updateDriverBalance } from '../../hooks/useDriverBalance';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useEffect, useState } from 'react';
 import { useAppState } from '../../hooks/useAppState';
-import { useState, useEffect } from 'react';
-import { toast } from '../../lib/toast';
-import { motion } from 'motion/react';
+import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from 'lucide-react';
+import { Phone, MessageCircle, Clock, DollarSign, CheckCircle } from '../../lib/icons';
 import { TimerControl } from './TimerControl';
 import { RideCompletionSummaryDialog } from '../RideCompletionSummaryDialog';
+import { GoogleMapView } from '../GoogleMapView';
+import { VEHICLE_PRICING, type VehicleCategory } from '../../lib/pricing';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
+import { notifyRideStarted } from '../../lib/sms-service';
+
+// Fonction pour mettre à jour le solde du conducteur
+async function updateDriverBalance(
+  driverId: string,
+  operation: 'add' | 'subtract',
+  amount: number
+): Promise<number | null> {
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/wallet/driver-balance`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          driverId,
+          operation,
+          amount
+        })
+      }
+    );
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.newBalance || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ Erreur mise à jour solde:', error);
+    return null;
+  }
+}
 
 interface NavigationScreenProps {
   onBack: () => void;
@@ -29,6 +64,33 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
   const [billingElapsedTime, setBillingElapsedTime] = useState(0);
   const [passengerPaid, setPassengerPaid] = useState(false);
   const [isLoadingRideData, setIsLoadingRideData] = useState(false);
+  const [mapboxApiKey, setMapboxApiKey] = useState<string>('');
+  
+  // ✅ CHARGER LA CLÉ MAPBOX DEPUIS L'ENVIRONNEMENT
+  useEffect(() => {
+    const loadMapboxKey = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/config/mapbox-key`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.apiKey) {
+            setMapboxApiKey(data.apiKey);
+            console.log('✅ Clé Mapbox chargée pour NavigationScreen');
+          }
+        }
+      } catch (err) {
+        console.error('❌ Erreur chargement clé Mapbox:', err);
+      }
+    };
+    loadMapboxKey();
+  }, []);
   
   // ✅ NOUVEAU : CHARGER LES VRAIES DONNÉES DU BACKEND AU DÉMARRAGE
   useEffect(() => {
@@ -141,6 +203,8 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
 
       return () => clearInterval(interval);
     }
+    // ✅ FIX React #310 : Toujours retourner undefined explicitement si pas de cleanup
+    return undefined;
   }, [phase, freeWaitingDisabled, waitingTime]);
 
   // ✅ NOUVEAU : Auto-démarrage du chrono de facturation après 10 minutes d'attente
@@ -173,6 +237,8 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
 
       return () => clearInterval(interval);
     }
+    // ✅ FIX React #310 : Toujours retourner undefined explicitement si pas de cleanup
+    return undefined;
   }, [phase, freeWaitingDisabled, waitingTime, billingStartTime, isTimerDisabled, updateRide, state.currentRide?.id]);
 
   // Timer logic for billing - NOUVEAU : Calcul basé sur billingElapsedTime
@@ -184,6 +250,8 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
 
       return () => clearInterval(interval);
     }
+    // ✅ FIX React #310 : Toujours retourner undefined explicitement si pas de cleanup
+    return undefined;
   }, [phase, isTimerDisabled]);
 
   // Calcul du coût en temps réel basé sur billingElapsedTime - NOUVEAU SYSTÈME PAR PALIERS
@@ -238,7 +306,7 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
     console.log(`   Tarif horaire: $${hourlyRateUSD}/h`);
     console.log(`   Prix USD: $${priceUSD}`);
     console.log(`   Taux de change: ${exchangeRate}`);
-    console.log(`   💵 TOTAL CALCULÉ: ${totalCost.toLocaleString()} CDF ($${priceUSD.toFixed(2)})`);
+    console.log(`   💵 TOTAL CALCULÉ: ${totalCost.toLocaleString()} CDF ($${(priceUSD || 0).toFixed(2)})`);
     
     // ✅ DEBUG : Vérifier si le calcul est correct
     if (totalCost === 0 || isNaN(totalCost)) {
@@ -495,8 +563,51 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
     toast.info('Envoi d\'un message...');
   };
 
-  const handleTimerToggle = (disabled: boolean) => {
+  const handleTimerToggle = async (disabled: boolean) => {
     setIsTimerDisabled(disabled);
+    
+    // ✅ v518.53 - SYNCHRONISER LA PAUSE/REPRISE AVEC LE BACKEND
+    if (state.currentRide?.id) {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${state.currentRide.id}/toggle-pause`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              isPaused: disabled,
+              pausedAt: disabled ? Date.now() : null,
+              resumedAt: disabled ? null : Date.now(),
+              currentElapsedTime: billingElapsedTime // Envoyer le temps actuel
+            })
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log(`✅ Pause ${disabled ? 'activée' : 'désactivée'} et synchronisée avec le passager`);
+          
+          // Mettre à jour le ride local avec les infos de pause
+          if (updateRide) {
+            updateRide(state.currentRide.id, {
+              timerDisabled: disabled,
+              isPaused: disabled,
+              pausedAt: disabled ? Date.now() : null,
+              totalPauseDuration: data.totalPauseDuration || 0
+            });
+          }
+        } else {
+          console.error('❌ Erreur synchronisation pause:', await response.text());
+        }
+      } catch (error) {
+        console.error('❌ Erreur réseau toggle pause:', error);
+      }
+    }
+    
+    // Fallback: mise à jour locale même si le backend échoue
     if (updateRide && state.currentRide?.id) {
       updateRide(state.currentRide.id, {
         timerDisabled: disabled
@@ -522,7 +633,7 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
       if (state.currentRide?.id) {
         try {
           const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/update-billing/${state.currentRide.id}`,
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${state.currentRide.id}/start-billing`,
             {
               method: 'POST',
               headers: {
@@ -530,20 +641,26 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                billingStartTime: billingStart,
-                freeWaitingDisabled: true,
-                billingElapsedTime: 0
+                waitingTimeFrozen: waitingTime // 🆕 Envoyer le temps d'attente gelé
               })
             }
           );
           
           if (response.ok) {
-            console.log('✅ Temps de facturation synchronisé avec le backend');
+            const data = await response.json();
+            console.log('✅ Facturation activée côté serveur:', data);
+            
+            // Mettre à jour le ride dans le contexte
+            updateRide(state.currentRide.id, {
+              billingStartTime: data.billingStartTime,
+              billingActive: true,
+              waitingTimeFrozen: waitingTime // 🆕 Synchroniser le temps gelé
+            });
           } else {
-            console.error('❌ Erreur synchronisation backend:', await response.text());
+            console.error('❌ Erreur activation facturation:', await response.text());
           }
         } catch (error) {
-          console.error('❌ Erreur réseau synchronisation billing:', error);
+          console.error('❌ Erreur réseau activation facturation:', error);
         }
       }
       
@@ -624,7 +741,12 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
 
   const isBillingActive = waitingTime >= 600 || freeWaitingDisabled;
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | undefined) => {
+    // 🔥 PROTECTION contre undefined/NaN
+    if (seconds === undefined || seconds === null || isNaN(seconds) || seconds < 0) {
+      return '0:00';
+    }
+    
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
@@ -687,6 +809,37 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
           </div>
         </div>
 
+        {/* 🗺️ CARTE GOOGLE MAPS AVEC ITINÉRAIRE */}
+        {state.currentRide?.pickup?.lat && 
+         state.currentRide?.pickup?.lng && 
+         state.currentRide?.destination?.lat && 
+         state.currentRide?.destination?.lng ? (
+          <div className="mb-4 h-64 rounded-lg overflow-hidden">
+            <GoogleMapView
+              center={state.currentRide.pickup}
+              zoom={13}
+              showRoute={true}
+              routeStart={state.currentRide.pickup}
+              routeEnd={state.currentRide.destination}
+              enableGeolocation={true}
+              enableZoomControls={true}
+              className="w-full h-full"
+            />
+          </div>
+        ) : (
+          <div className="mb-4 h-64 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="text-center p-4">
+              <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm text-gray-600 font-medium">Chargement de la carte...</p>
+              <p className="text-xs text-gray-500 mt-1">🗺️ Google Maps • Itinéraire en temps réel</p>
+              <p className="text-xs text-gray-400 mt-2">
+                Pickup: {state.currentRide?.pickup?.lat && state.currentRide?.pickup?.lng ? '✅' : '❌'} | 
+                Dest: {state.currentRide?.destination?.lat && state.currentRide?.destination?.lng ? '✅' : '❌'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Locations */}
         <div className="space-y-3">
           <div className="flex items-start space-x-3">
@@ -739,7 +892,9 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
             elapsedTime={elapsedTime}
             freeWaitingDisabled={freeWaitingDisabled}
             waitingTime={waitingTime}
+            waitingTimeFrozen={waitingTimeFrozen}
             billingElapsedTime={billingElapsedTime}
+            isBillingActive={isBillingActive}
           />
         )}
       </motion.div>
@@ -808,14 +963,14 @@ export function NavigationScreen({ onBack }: NavigationScreenProps) {
         }}
         userType="driver"
         rideData={{
-          duration: elapsedTime,
+          duration: elapsedTime || 0,
           distance: state.currentRide?.distance || 0,
           baseCost: 0, // ✅ CORRECTION : Ne pas calculer baseCost/waitingCost séparément
-          waitingTime: waitingTime,
+          waitingTime: waitingTime || 0,
           waitingCost: 0, // ✅ CORRECTION : Tout est dans totalCost
-          totalCost: currentCost, // ✅ C'est le montant RÉEL calculé
+          totalCost: (currentCost && !isNaN(currentCost)) ? currentCost : 0, // ✅ PROTECTION ANTI-CRASH
           freeWaitingDisabled: freeWaitingDisabled,
-          billingElapsedTime: billingElapsedTime,
+          billingElapsedTime: billingElapsedTime || 0,
           passengerName: state.currentUser?.name || state.currentRide?.passengerName || 'Passager',
           vehicleType: (state.currentRide?.vehicleType || 'Smart Confort') as 'Smart Standard' | 'Smart Confort' | 'Smart Plus',
           startLocation: state.currentRide?.pickup?.address || state.currentRide?.pickupAddress || 'Point de départ',

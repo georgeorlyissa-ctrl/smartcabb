@@ -1,7 +1,7 @@
-import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { motion } from 'motion/react'; // ✅ FIX: Import manquant
+import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button'; // ✅ FIX: Import manquant
 import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
 import { Switch } from '../ui/switch'; // ✅ FIX: Import manquant
@@ -17,7 +17,7 @@ import {
   Users,
   FileText,
   AlertCircle
-} from 'lucide-react';
+} from '../../lib/icons';
 
 export function PrivacySettingsScreen() {
   const { setCurrentScreen } = useAppState();

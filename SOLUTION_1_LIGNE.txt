@@ -1,7 +1,0 @@
-🔥 FIX BUILD VERCEL EN 1 LIGNE :
-
-cd ~/smartcabb && rm -f lib/route-calculator.ts components/InteractiveRouteMap.tsx && sed -i.bak 's/export { Loader as Loader2 }/export { Loader2 }/' lib/icons.ts && rm -rf node_modules/.vite dist .vercel && git add -A && git commit -m "fix: build" && git push origin main
-
-PUIS : Vercel → Deployments → Redeploy → ☑️ Clear Build Cache → Deploy
-
-C'EST TOUT ! ✅

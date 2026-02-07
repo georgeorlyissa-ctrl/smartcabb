@@ -6,8 +6,8 @@
 import { useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { Trash2, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Trash2, Loader2, CheckCircle, AlertTriangle } from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface AutoCleanupBannerProps {
@@ -19,7 +19,7 @@ export function AutoCleanupBanner({ onCleanupComplete }: AutoCleanupBannerProps)
   const [cleaned, setCleaned] = useState(false);
 
   const handleCleanup = async () => {
-    if (!confirm('⚠️ Voulez-vous vraiment supprimer TOUTES les données de simulation ?\n\nCeci va supprimer :\n✅ Toutes les courses\n✅ Tous les chauffeurs et leurs profils\n✅ Tous les passagers et leurs profils\n✅ Tous les véhicules\n✅ Tous les codes promo\n✅ Toutes les transactions\n✅ Tous les messages\n\n❌ SEULS les comptes ADMINS seront conservés\n\nCette action est IRRÉVERSIBLE !')) {
+    if (!confirm('⚠️ ATTENTION - SUPPRESSION TOTALE ⚠️\n\nVoulez-vous vraiment supprimer TOUTES les données ?\n\n🗑️ SERA SUPPRIMÉ :\n✅ Toutes les courses\n✅ Tous les chauffeurs (KV + Auth)\n✅ Tous les passagers (KV + Auth)\n✅ Tous les profils non-admin\n✅ Tous les véhicules\n✅ Tous les codes promo\n✅ Toutes les transactions\n✅ Tous les messages\n✅ Tout l\'historique\n\n✅ SERA CONSERVÉ :\n👤 Les comptes ADMIN uniquement\n\n⚠️ Cette action est IRRÉVERSIBLE !\n\nÊtes-vous absolument sûr ?')) {
       return;
     }
 
@@ -42,7 +42,9 @@ export function AutoCleanupBanner({ onCleanupComplete }: AutoCleanupBannerProps)
 
       if (data.success) {
         console.log('✅ NETTOYAGE TERMINÉ !', data.deleted);
-        toast.success('✅ Nettoyage terminé avec succès !');
+        toast.success('✅ Nettoyage terminé avec succès !', {
+          description: `${data.deleted.profiles} profils et ${data.deleted.authUsers} utilisateurs supprimés. ${data.adminsConserves} admin(s) conservé(s).`
+        });
         setCleaned(true);
         
         // Attendre un peu pour que le backend finisse, puis rafraîchir
@@ -58,7 +60,7 @@ export function AutoCleanupBanner({ onCleanupComplete }: AutoCleanupBannerProps)
       }
     } catch (error: any) {
       console.error('❌ Erreur:', error);
-      toast.error('Erreur de connexion');
+      toast.error('Erreur de connexion au serveur');
     } finally {
       setLoading(false);
     }

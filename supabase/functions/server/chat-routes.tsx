@@ -5,7 +5,7 @@ import { Hono } from 'npm:hono@3';
 import { cors } from 'npm:hono/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { generateAutoReply, analyzeSentiment } from './chat-auto-replies.tsx';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
 
 const app = new Hono();
 

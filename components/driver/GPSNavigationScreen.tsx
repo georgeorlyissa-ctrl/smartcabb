@@ -1,9 +1,60 @@
-import { Badge } from '../ui/badge';
-import { InteractiveMapView } from '../InteractiveMapView';
-import { toast } from 'sonner';
-import { Navigation as NavigationIcon } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
+import { Button } from '../ui/button';
+import { Navigation as NavigationIcon, ArrowLeft, Minimize2, Maximize2, Phone, MessageSquare, MapPin, AlertTriangle } from '../../lib/icons';
+import { MapView } from '../MapView'; // ✅ OPTIMISÉ: Utiliser MapView directement (Google Maps)
+import { motion } from '../../lib/motion';
 
-export function GPSNavigationScreen() {
+// Types
+interface Position {
+  lat: number;
+  lng: number;
+  accuracy?: number | null;
+  speed?: number | null;
+  heading?: number | null;
+}
+
+interface NavigationStep {
+  instruction: string;
+  distance: string;
+  duration: string;
+}
+
+interface GPSNavigationScreenProps {
+  passengerName: string;
+  pickup: { lat: number; lng: number; address: string };
+  dropoff: { lat: number; lng: number; address: string };
+  onBack: () => void;
+  onCallPassenger: () => void;
+  onOpenChat: () => void;
+  onEmergency: () => void;
+}
+
+// Composants UI simples (puisque nous n'avons pas shadcn/ui)
+const Badge = ({ children, variant = 'default', className = '' }: any) => {
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${className}`}>
+      {children}
+    </span>
+  );
+};
+
+const Card = ({ children, className = '' }: any) => {
+  return (
+    <div className={`bg-white rounded-lg shadow ${className}`}>
+      {children}
+    </div>
+  );
+};
+
+export function GPSNavigationScreen({
+  passengerName,
+  pickup,
+  dropoff,
+  onBack,
+  onCallPassenger,
+  onOpenChat,
+  onEmergency
+}: GPSNavigationScreenProps) {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
   const [isTracking, setIsTracking] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -96,40 +147,6 @@ export function GPSNavigationScreen() {
     }
   }, [isTracking, dropoff]);
 
-  // Calculer ETA et distance restante
-  const calculateETAAndDistance = useCallback((from: Position, to: { lat: number; lng: number }) => {
-    // Calcul simple de distance (formule Haversine)
-    const R = 6371; // Rayon de la Terre en km
-    const dLat = toRad(to.lat - from.lat);
-    const dLng = toRad(to.lng - from.lng);
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c;
-
-    const safeDistance = distance || 0;
-    setDistanceRemaining(`${safeDistance.toFixed(1)} km`);
-
-    // Calcul ETA simple (vitesse moyenne 40 km/h en ville)
-    const avgSpeed = from.speed ? from.speed * 3.6 : 40; // m/s → km/h
-    const timeHours = distance / avgSpeed;
-    const timeMinutes = Math.round(timeHours * 60);
-    
-    setEta(`${timeMinutes} min`);
-
-    // Générer une instruction de navigation simple
-    const bearing = calculateBearing(from, to);
-    const direction = getDirectionFromBearing(bearing);
-    
-    setCurrentStep({
-      instruction: `Continuez vers ${direction}`,
-      distance: `${safeDistance.toFixed(1)} km`,
-      duration: `${timeMinutes} min`
-    });
-  }, []);
-
   const toRad = (deg: number) => deg * (Math.PI / 180);
 
   const calculateBearing = (from: Position, to: { lat: number; lng: number }) => {
@@ -152,6 +169,40 @@ export function GPSNavigationScreen() {
     const index = Math.round(bearing / 45) % 8;
     return directions[index];
   };
+
+  // Calculer ETA et distance restante
+  const calculateETAAndDistance = useCallback((from: Position, to: { lat: number; lng: number }) => {
+    // Calcul simple de distance (formule Haversine)
+    const R = 6371; // Rayon de la Terre en km
+    const dLat = toRad(to.lat - from.lat);
+    const dLng = toRad(to.lng - from.lng);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(from.lat)) * Math.cos(toRad(to.lat)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    const safeDistance = distance || 0;
+    setDistanceRemaining(`${(safeDistance || 0).toFixed(1)} km`);
+
+    // Calcul ETA simple (vitesse moyenne 40 km/h en ville)
+    const avgSpeed = from.speed ? from.speed * 3.6 : 40; // m/s → km/h
+    const timeHours = distance / avgSpeed;
+    const timeMinutes = Math.round(timeHours * 60);
+    
+    setEta(`${timeMinutes} min`);
+
+    // Générer une instruction de navigation simple
+    const bearing = calculateBearing(from, to);
+    const direction = getDirectionFromBearing(bearing);
+    
+    setCurrentStep({
+      instruction: `Continuez vers ${direction}`,
+      distance: `${(safeDistance || 0).toFixed(1)} km`,
+      duration: `${timeMinutes} min`
+    });
+  }, []);
 
   // Ouvrir dans Google Maps / Apple Maps
   const openInMaps = () => {
@@ -240,7 +291,7 @@ export function GPSNavigationScreen() {
 
       {/* Carte + Instructions */}
       <div className="relative" style={{ height: isFullscreen ? 'calc(100vh - 280px)' : '400px' }}>
-        <InteractiveMapView
+        <MapView
           center={currentPosition ? { lat: currentPosition.lat, lng: currentPosition.lng } : pickup}
           markers={[pickup, dropoff]}
           zoom={15}
@@ -275,7 +326,7 @@ export function GPSNavigationScreen() {
           <div className="absolute bottom-4 right-4 z-10 bg-white px-4 py-2 rounded-full shadow-lg">
             <p className="text-xs text-gray-500">Vitesse</p>
             <p className="text-lg">
-              {currentPosition.speed ? (currentPosition.speed * 3.6).toFixed(0) : 0} km/h
+              {currentPosition.speed ? ((currentPosition.speed * 3.6) || 0).toFixed(0) : 0} km/h
             </p>
           </div>
         )}

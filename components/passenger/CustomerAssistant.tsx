@@ -1,11 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { ScrollArea } from '../ui/scroll-area';
+import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { MessageCircle, X, Send, Bot, User, Phone, Mail, Clock } from 'lucide-react';
-import { toast } from 'sonner';
+import { MessageCircle, X, Send, Bot, User, Phone, Mail, Clock } from '../../lib/icons';
 
 interface Message {
   id: string;

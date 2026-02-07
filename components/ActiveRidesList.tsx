@@ -1,9 +1,35 @@
-import { motion } from 'motion/react';
-import { useAppState } from '../hooks/useAppState';
-import { MapPin, Clock, DollarSign, User } from '../lib/icons';
+import { motion } from '../lib/motion';
 import { Card } from './ui/card';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
+import { useAppState } from '../hooks/useAppState';
+
+// Icônes inline (évite import lucide-react)
+const MapPinIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const ClockIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const DollarSignIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="12" x2="12" y1="2" y2="22" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+  </svg>
+);
+
+const UserIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+);
 
 interface ActiveRidesListProps {
   onAcceptRide?: (rideId: string) => void;
@@ -25,7 +51,7 @@ export function ActiveRidesList({ onAcceptRide, showPassengerInfo = false }: Act
       <Card className="p-8 text-center">
         <div className="max-w-sm mx-auto">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MapPin className="w-8 h-8 text-gray-400" />
+            <MapPinIcon className="w-8 h-8 text-gray-400" />
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">
             Aucune course active
@@ -106,7 +132,7 @@ export function ActiveRidesList({ onAcceptRide, showPassengerInfo = false }: Act
                 {/* Info passager */}
                 {showPassengerInfo && passenger && (
                   <div className="flex items-center space-x-2 pb-2 border-b">
-                    <User className="w-4 h-4 text-gray-400" />
+                    <UserIcon className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-900">{passenger.name}</span>
                   </div>
                 )}
@@ -125,7 +151,7 @@ export function ActiveRidesList({ onAcceptRide, showPassengerInfo = false }: Act
                   
                   <div className="flex items-start space-x-2">
                     <div className="mt-1">
-                      <MapPin className="w-3 h-3 text-red-500" />
+                      <MapPinIcon className="w-3 h-3 text-red-500" />
                     </div>
                     <div className="flex-1">
                       <p className="text-xs text-gray-500">Destination</p>
@@ -138,11 +164,11 @@ export function ActiveRidesList({ onAcceptRide, showPassengerInfo = false }: Act
                 <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center space-x-4 text-sm">
                     <div className="flex items-center space-x-1 text-gray-600">
-                      <Clock className="w-4 h-4" />
+                      <ClockIcon className="w-4 h-4" />
                       <span>{ride.estimatedDuration} min</span>
                     </div>
                     <div className="flex items-center space-x-1 text-green-600 font-semibold">
-                      <DollarSign className="w-4 h-4" />
+                      <DollarSignIcon className="w-4 h-4" />
                       <span>{(ride.estimatedPrice || 0).toLocaleString('fr-FR')} CDF</span>
                     </div>
                   </div>

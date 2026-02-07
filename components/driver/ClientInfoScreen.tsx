@@ -1,4 +1,7 @@
-import { motion } from 'motion/react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from '../../lib/toast';
+import { GoogleMapView } from '../GoogleMapView';
+import { motion } from '../../lib/motion'; // ✅ FIX: Import depuis lib/motion au lieu de motion/react
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
@@ -12,22 +15,20 @@ import {
   Calendar,
   MessageCircle,
   Shield,
-  ChevronDown
-} from 'lucide-react';
+  ChevronDown,
+  Play
+} from '../../lib/icons';
 import { useState, useEffect } from 'react';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function ClientInfoScreen() {
   const { setCurrentScreen, passengers, state } = useAppState();
   const [clientData, setClientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [showCallMenu, setShowCallMenu] = useState(false);
-  const [showMessageMenu, setShowMessageMenu] = useState(false);
   
   // ✅ CORRECTION: Obtenir le passager depuis la course en cours
   const currentRide = state.currentRide;
   const passengerId = currentRide?.passengerId || currentRide?.userId;
-  
+
   // ✅ CHARGER LES VRAIES DONNÉES DU PASSAGER DEPUIS LE BACKEND
   useEffect(() => {
     const fetchPassengerData = async () => {
@@ -276,13 +277,44 @@ export function ClientInfoScreen() {
               <div className="grid grid-cols-2 gap-3 pt-3 border-t">
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600">Distance</p>
-                  <p className="text-lg font-bold text-blue-600">{currentRide?.distance?.toFixed(1) || 'N/A'} km</p>
+                  <p className="text-lg font-bold text-blue-600">{(currentRide?.distance || 0).toFixed(1) || 'N/A'} km</p>
                 </div>
                 <div className="text-center p-3 bg-green-50 rounded-lg">
                   <p className="text-sm text-gray-600">Prix</p>
                   <p className="text-lg font-bold text-green-600">{currentRide?.estimatedPrice?.toLocaleString() || 'N/A'} CDF</p>
                 </div>
               </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* 🗺️ CARTE GOOGLE MAPS - VISIBLE ICI ! */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="p-0 overflow-hidden">
+            <div className="relative h-64 bg-gray-200">
+              {currentRide?.pickup?.lat && 
+               currentRide?.pickup?.lng && 
+               currentRide?.destination?.lat && 
+               currentRide?.destination?.lng ? (
+                <GoogleMapView
+                  pickup={currentRide.pickup}
+                  destination={currentRide.destination}
+                  height="h-64"
+                  showTraffic={true}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <div className="text-center">
+                    <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 font-medium">Chargement de la carte...</p>
+                    <p className="text-xs text-gray-500 mt-1">🗺️ Google Maps • Trafic en temps réel</p>
+                  </div>
+                </div>
+              )}
             </div>
           </Card>
         </motion.div>
@@ -419,6 +451,25 @@ export function ClientInfoScreen() {
             </div>
           </Card>
         </motion.div>
+
+        {/* Bouton Démarrer la course */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="sticky bottom-4"
+        >
+          <Button
+            onClick={() => setCurrentScreen('active-ride')}
+            className="w-full bg-green-600 hover:bg-green-700 h-14 text-lg font-semibold shadow-lg"
+          >
+            <Play className="w-6 h-6 mr-2" />
+            Démarrer la course
+          </Button>
+        </motion.div>
+
+        {/* Padding pour éviter que le contenu soit caché */}
+        <div className="h-20" />
       </div>
     </div>
   );

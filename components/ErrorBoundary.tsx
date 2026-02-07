@@ -1,6 +1,33 @@
 import * as React from 'react';
 import { Button } from './ui/button';
-import { AlertCircle, Home, WifiOff } from 'lucide-react';
+
+// Icônes inline (évite import lucide-react)
+const AlertCircleIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" x2="12" y1="8" y2="12" />
+    <line x1="12" x2="12.01" y1="16" y2="16" />
+  </svg>
+);
+
+const HomeIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    <polyline points="9 22 9 12 15 12 15 22" />
+  </svg>
+);
+
+const WifiOffIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 20h.01" />
+    <path d="M8.5 16.429a5 5 0 0 1 7 0" />
+    <path d="M5 12.859a10 10 0 0 1 5.17-2.69" />
+    <path d="M19 12.859a10 10 0 0 0-2.007-1.523" />
+    <path d="M2 8.82a15 15 0 0 1 4.177-2.643" />
+    <path d="M22 8.82a15 15 0 0 0-11.288-3.764" />
+    <path d="m2 2 20 20" />
+  </svg>
+);
 
 interface Props {
   children: React.ReactNode;
@@ -134,7 +161,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center p-6">
             <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl p-8">
               <div className="text-center mb-6">
-                <WifiOff className="w-20 h-20 text-orange-500 mx-auto mb-4" />
+                <WifiOffIcon className="w-20 h-20 text-orange-500 mx-auto mb-4" />
                 <h2 className="text-3xl mb-3 text-gray-900">Mode hors ligne</h2>
                 <p className="text-gray-600 mb-2">
                   Cette page n'est pas disponible hors ligne.
@@ -164,7 +191,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                   variant="outline"
                   className="w-full h-12"
                 >
-                  <Home className="w-4 h-4 mr-2" />
+                  <HomeIcon className="w-4 h-4 mr-2" />
                   Retour à l'accueil
                 </Button>
               </div>
@@ -183,7 +210,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
         <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-6">
           <div className="max-w-lg w-full bg-white rounded-2xl shadow-2xl p-8">
             <div className="text-center mb-6">
-              <AlertCircle className="w-20 h-20 text-red-500 mx-auto mb-4" />
+              <AlertCircleIcon className="w-20 h-20 text-red-500 mx-auto mb-4" />
               <h2 className="text-3xl mb-3 text-gray-900">Erreur de chargement</h2>
               <p className="text-gray-600 mb-2">
                 Une erreur est survenue lors du chargement de cette page.
@@ -233,7 +260,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 variant="outline"
                 className="w-full h-12"
               >
-                <Home className="w-4 h-4 mr-2" />
+                <HomeIcon className="w-4 h-4 mr-2" />
                 Retour à l'accueil
               </Button>
             </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ExternalLink, CheckCircle2, Copy } from 'lucide-react';
+import { X, ExternalLink, CheckCircle2, Copy } from '../lib/icons';
 
 interface DatabaseSetupModalProps {
   onClose: () => void;

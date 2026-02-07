@@ -2,7 +2,7 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as kv from "./kv_store.tsx";
+import * as kv from "./kv-wrapper.tsx";
 import smsRoutes from "./sms-routes.tsx";
 import backupRoutes from "./backup-routes.tsx";
 import exportRoutes from "./export-routes.tsx";
@@ -23,14 +23,21 @@ import diagnosticRoute from "./diagnostic-driver-route.tsx";
 import geocodingApp from "./geocoding-api.ts";
 import analyticsApp from "./analytics-api.ts";
 import nominatimApp from "./nominatim-enriched-api.ts";
+import fcmRoutes from "./fcm-routes.ts";
+import googleMapsApp from "./google-maps-api.ts";
+import configRoutes from "./config-routes.tsx";
+import resetDatabaseRoutes from "./reset-database-routes.tsx";
+import { securityMiddleware } from "./security-middleware.tsx";
+import auditRoutes from "./audit-emails-route.tsx";
 
 const app = new Hono();
 
-// 🔄 REDÉPLOIEMENT FORCÉ V4 - NOMINATIM ENRICHI - 12/01/2026
-// ✅ Intégration OpenStreetMap/Nominatim pour 50 000+ POI en RDC
-// ✅ Cache intelligent pour performances optimales
-// ✅ Fallback automatique pour recherche de lieux
-console.log('🔄 Serveur SmartCabb V4 - Nominatim Enrichi 50K+ POI - 12/01/2026');
+// 🔄 REDÉPLOIEMENT FORCÉ V6 - SÉCURITÉ OWASP TOP 10 - 02/02/2026
+// ✅ Firebase Cloud Messaging pour notifications push
+// ✅ Notifications sonores avec adresses dynamiques
+// ✅ Architecture 100% standalone
+// 🔒 Protection OWASP Top 10 2021
+console.log('🔄 Serveur SmartCabb V6 - Sécurité OWASP - 02/02/2026');
 
 // 🚀 Démarrage immédiat du serveur (pas d'attente bloquante)
 console.log('🚀 Démarrage du serveur SmartCabb...');
@@ -38,21 +45,64 @@ console.log('🚀 Démarrage du serveur SmartCabb...');
 // Enable logger
 app.use('*', logger(console.log));
 
+// 🔒 MIDDLEWARE DE SÉCURITÉ OWASP (appliqué à toutes les routes)
+app.use('*', securityMiddleware);
+
 // Enable CORS for all routes and methods
 app.use(
   "/*",
   cors({
-    origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
+    origin: ["https://smartcabb.com", "https://www.smartcabb.com", "http://localhost:3000"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
+    exposeHeaders: ["Content-Length", "X-RateLimit-Remaining"],
     maxAge: 600,
+    credentials: true,
   }),
 );
 
 // Health check endpoint
 app.get("/make-server-2eb02e52/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+// ✅ ENDPOINT MAPBOX API KEY
+app.get('/make-server-2eb02e52/config/mapbox-key', (c) => {
+  try {
+    const mapboxKey = Deno.env.get('MAPBOX_API_KEY');
+    if (!mapboxKey) {
+      console.warn('⚠️ MAPBOX_API_KEY not found in environment');
+      return c.json({ success: false, error: 'API key not configured' }, 500);
+    }
+    return c.json({ success: true, apiKey: mapboxKey });
+  } catch (error) {
+    console.error('❌ Error loading Mapbox key:', error);
+    return c.json({ success: false, error: 'Failed to load API key' }, 500);
+  }
+});
+
+// ✅ ENDPOINT GOOGLE MAPS API KEY (FRONTEND)
+app.get('/make-server-2eb02e52/config/google-maps-key', (c) => {
+  try {
+    // Essayer plusieurs noms possibles de variables d'environnement
+    const googleMapsKey = 
+      Deno.env.get('GOOGLE_MAPS_API_KEY') || 
+      Deno.env.get('GOOGLE_MAPS_SERVER_API_KEY') ||
+      Deno.env.get('API_KEY');
+    
+    if (!googleMapsKey) {
+      console.warn('⚠️ GOOGLE_MAPS_API_KEY not found in environment');
+      console.warn('⚠️ Tried: GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_SERVER_API_KEY, API_KEY');
+      return c.json({ success: false, error: 'API key not configured' }, 500);
+    }
+    console.log('✅ Google Maps API key fournie au frontend (source: ' + 
+      (Deno.env.get('GOOGLE_MAPS_API_KEY') ? 'GOOGLE_MAPS_API_KEY' : 
+       Deno.env.get('GOOGLE_MAPS_SERVER_API_KEY') ? 'GOOGLE_MAPS_SERVER_API_KEY' : 'API_KEY') + ')');
+    return c.json({ success: true, apiKey: googleMapsKey });
+  } catch (error) {
+    console.error('❌ Error loading Google Maps key:', error);
+    return c.json({ success: false, error: 'Failed to load API key' }, 500);
+  }
 });
 
 // ============================================
@@ -306,30 +356,24 @@ app.post("/make-server-2eb02e52/init-test-user", async (c) => {
 
     console.log('✅ Auth user created:', authData.user.id);
 
-    // Create profile in database (use UPSERT to avoid duplicate key errors)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert({
-        id: authData.user.id,
-        email: 'admin@smartcabb.cd',
-        full_name: 'Admin SmartCabb',
-        role: 'admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'id',
-        ignoreDuplicates: false
-      });
+    // Create profile in KV store
+    const profile = {
+      id: authData.user.id,
+      email: 'admin@smartcabb.cd',
+      full_name: 'Admin SmartCabb',
+      phone: null,
+      role: 'admin',
+      balance: 0,
+      password: 'Admin123!', // Stocker le mot de passe pour le panel admin
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-    if (profileError) {
-      console.error('❌ Error creating profile:', profileError);
-      return c.json({ 
-        success: false, 
-        error: `Profile error: ${profileError.message}` 
-      }, 500);
-    }
+    // Sauvegarder dans le KV store avec les deux préfixes
+    await kv.set(`profile:${authData.user.id}`, profile);
+    await kv.set(`admin:${authData.user.id}`, profile);
 
-    console.log('✅ Profile created successfully');
+    console.log('✅ Profile created in KV store successfully');
 
     return c.json({
       success: true,
@@ -1024,11 +1068,37 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // ✅ VALIDATION STRICTE DES EMAILS RÉELS (Anti-bounce Supabase)
+    // Fonction de validation email robuste
+    const isValidRealEmail = (email: string): boolean => {
+      if (!email || !email.includes('@')) return false;
+      
+      // Regex stricte pour validation email
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      
+      if (!emailRegex.test(email)) return false;
+      
+      // Vérifier que ce n'est pas un email @smartcabb.app généré automatiquement
+      if (email.includes('@smartcabb.app')) return false;
+      
+      // Vérifier que le domaine a au moins 2 caractères après le point
+      const domain = email.split('@')[1];
+      const domainParts = domain.split('.');
+      if (domainParts.length < 2 || domainParts[domainParts.length - 1].length < 2) {
+        return false;
+      }
+      
+      return true;
+    };
+
     // Déterminer l'email à utiliser
     let finalEmail: string;
+    let usesPhoneAuth = false;
     
-    if (email && email.trim() && !email.includes('@smartcabb.app')) {
-      // Email réel fourni
+    if (email && email.trim() && isValidRealEmail(email.trim())) {
+      // ✅ Email réel fourni et VALIDE
+      console.log('✅ Email réel valide fourni:', email.trim());
+      
       const { data: existingEmailProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -1043,8 +1113,18 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
       }
       
       finalEmail = email.trim().toLowerCase();
+      usesPhoneAuth = false;
+    } else if (email && email.trim() && !isValidRealEmail(email.trim())) {
+      // ❌ Email fourni mais INVALIDE
+      console.error('❌ Email fourni mais invalide:', email.trim());
+      return c.json({ 
+        success: false, 
+        error: 'Email invalide. Veuillez entrer un email valide (ex: nom@gmail.com) ou laissez vide pour utiliser uniquement le téléphone.' 
+      }, 400);
     } else {
-      // Pas d'email réel : créer email interne basé sur téléphone
+      // ⚠️ Pas d'email réel : créer email interne basé sur téléphone
+      console.log('⚠️ Aucun email réel fourni, génération email interne @smartcabb.app');
+      
       // Normaliser le téléphone au format 243XXXXXXXXX
       const cleanPhone = phone.replace(/[\s\-+]/g, '');
       let normalizedPhone: string;
@@ -1061,8 +1141,12 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
         normalizedPhone = cleanPhone.replace(/^0+/, '243');
       }
       
-      // Utiliser un email unique avec timestamp pour éviter les collisions
+      // ⚠️ IMPORTANT: Utiliser un email unique avec timestamp pour éviter les collisions
+      // Ces emails NE DOIVENT JAMAIS recevoir d'emails (utiliser SMS à la place)
       finalEmail = `${normalizedPhone}_${Date.now()}@smartcabb.app`;
+      usesPhoneAuth = true;
+      
+      console.log('📧 Email interne généré (NE RECEVRA PAS D\'EMAILS):', finalEmail);
     }
 
     // Vérifier si le téléphone existe déjà dans le KV store
@@ -1118,7 +1202,7 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
         full_name: fullName,
         phone: phone,
         role: role || 'passenger',
-        uses_phone_auth: !email || email.includes('@smartcabb.app')
+        uses_phone_auth: usesPhoneAuth // ✅ Indique si l'utilisateur utilise uniquement le téléphone
       }
     });
 
@@ -1280,11 +1364,54 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       }
     }
 
-    // Déterminer l'email à utiliser
+    // ✅ VALIDATION STRICTE DES EMAILS RÉELS (Anti-bounce Supabase)
+    // Fonction de validation email robuste
+    const isValidRealEmail = (email: string): boolean => {
+      if (!email || !email.includes('@')) return false;
+      
+      // Regex stricte pour validation email
+      const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+      
+      if (!emailRegex.test(email)) return false;
+      
+      // Vérifier que ce n'est pas un email @smartcabb.app généré automatiquement
+      if (email.includes('@smartcabb.app')) return false;
+      
+      // Vérifier que le domaine a au moins 2 caractères après le point
+      const domain = email.split('@')[1];
+      const domainParts = domain.split('.');
+      if (domainParts.length < 2 || domainParts[domainParts.length - 1].length < 2) {
+        return false;
+      }
+      
+      return true;
+    };
+
+    // Déterminer l'email à utiliser ET normaliser le téléphone pour le stockage
     let finalEmail: string;
+    let normalizedPhoneForStorage: string;
+    let usesPhoneAuth = false;
     
-    if (email && email.trim()) {
-      // Email fourni : vérifier s'il existe déjà
+    // ✅ TOUJOURS normaliser le téléphone au format +243XXXXXXXXX pour le stockage
+    const cleanPhone = phone.replace(/[\s\-+()]/g, '');
+    if (cleanPhone.length === 9) {
+      normalizedPhoneForStorage = `+243${cleanPhone}`;
+    } else if (cleanPhone.length === 10 && cleanPhone.startsWith('0')) {
+      normalizedPhoneForStorage = `+243${cleanPhone.substring(1)}`;
+    } else if (cleanPhone.length === 12 && cleanPhone.startsWith('243')) {
+      normalizedPhoneForStorage = `+${cleanPhone}`;
+    } else if (cleanPhone.length === 13 && cleanPhone.startsWith('+243')) {
+      normalizedPhoneForStorage = cleanPhone;
+    } else if (cleanPhone.length === 13 && cleanPhone.startsWith('2430')) {
+      normalizedPhoneForStorage = `+243${cleanPhone.substring(4)}`;
+    } else {
+      normalizedPhoneForStorage = `+${cleanPhone.replace(/^0+/, '243')}`;
+    }
+    
+    if (email && email.trim() && isValidRealEmail(email.trim())) {
+      // ✅ Email réel fourni et VALIDE
+      console.log('✅ Email réel valide fourni:', email.trim());
+      
       const { data: existingEmailProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -1299,29 +1426,31 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       }
       
       finalEmail = email.trim().toLowerCase();
+      usesPhoneAuth = false;
+    } else if (email && email.trim() && !isValidRealEmail(email.trim())) {
+      // ❌ Email fourni mais INVALIDE
+      console.error('❌ Email fourni mais invalide:', email.trim());
+      return c.json({ 
+        success: false, 
+        error: 'Email invalide. Veuillez entrer un email valide (ex: nom@gmail.com) ou laissez vide pour utiliser uniquement le téléphone.' 
+      }, 400);
     } else {
-      // Pas d'email : créer email interne basé sur téléphone
-      // Normaliser le téléphone au format 243XXXXXXXXX
-      const cleanPhone = phone.replace(/[\s\-+]/g, '');
-      let normalizedPhone: string;
+      // ⚠️ Pas d'email réel : créer email interne basé sur téléphone
+      console.log('⚠️ Aucun email réel fourni, génération email interne @smartcabb.app');
       
-      if (cleanPhone.length === 9) {
-        normalizedPhone = `243${cleanPhone}`;
-      } else if (cleanPhone.length === 10 && cleanPhone.startsWith('0')) {
-        normalizedPhone = `243${cleanPhone.substring(1)}`;
-      } else if (cleanPhone.length === 12 && cleanPhone.startsWith('243')) {
-        normalizedPhone = cleanPhone;
-      } else if (cleanPhone.length === 13 && cleanPhone.startsWith('2430')) {
-        normalizedPhone = `243${cleanPhone.substring(4)}`;
-      } else {
-        normalizedPhone = cleanPhone.replace(/^0+/, '243');
-      }
+      // Utiliser normalizedPhoneForStorage sans le + pour l'email
+      const normalizedPhoneForEmail = normalizedPhoneForStorage.substring(1); // Enlever le +
       
-      // Utiliser un email unique avec timestamp pour éviter les collisions
-      finalEmail = `${normalizedPhone}_${Date.now()}@smartcabb.app`;
+      // ⚠️ IMPORTANT: Utiliser un email unique avec timestamp pour éviter les collisions
+      // Ces emails NE DOIVENT JAMAIS recevoir d'emails (utiliser SMS à la place)
+      finalEmail = `${normalizedPhoneForEmail}_${Date.now()}@smartcabb.app`;
+      usesPhoneAuth = true;
+      
+      console.log('📧 Email interne généré (NE RECEVRA PAS D\'EMAILS):', finalEmail);
     }
 
     console.log("📧 Email final:", finalEmail);
+    console.log("📱 Téléphone normalisé pour stockage:", normalizedPhoneForStorage);
 
     // ÉTAPE 1: Vérifier et nettoyer les utilisateurs orphelins AVANT de créer
     console.log('🔍 Vérification préventive des utilisateurs orphelins (conducteur)...');
@@ -1378,7 +1507,7 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
         full_name: fullName,
         phone: phone,
         role: 'driver',
-        uses_phone_auth: !email || !email.trim()
+        uses_phone_auth: usesPhoneAuth // ✅ Indique si l'utilisateur utilise uniquement le téléphone
       }
     });
 
@@ -1403,7 +1532,7 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
     const profileData = {
       id: authData.user.id,
       email: finalEmail,
-      phone: phone,
+      phone: normalizedPhoneForStorage, // ✅ Utiliser le téléphone normalisé
       full_name: fullName,
       name: fullName, // ✅ Ajouter aussi 'name' pour compatibilité
       role: 'driver',
@@ -1857,12 +1986,17 @@ app.route('/make-server-2eb02e52/sms', smsRoutes);
 app.route('/make-server-2eb02e52/test', testRoutes);
 
 // ============================================
-// GEOCODING API ROUTES (Mapbox + Nominatim)
+// 🗺️ GOOGLE MAPS API - ROUTES PRINCIPALES
+// ============================================
+app.route('/make-server-2eb02e52/google-maps', googleMapsApp);
+
+// ============================================
+// GEOCODING API ROUTES (Mapbox + Nominatim) - DEPRECATED
 // ============================================
 app.route('/make-server-2eb02e52/geocoding', geocodingApp);
 
 // ============================================
-// NOMINATIM ENRICHED API - 50 000+ POI EN RDC
+// NOMINATIM ENRICHED API - 50 000+ POI EN RDC - DEPRECATED
 // ============================================
 app.route('/make-server-2eb02e52/nominatim', nominatimApp);
 
@@ -1890,6 +2024,11 @@ app.route('/make-server-2eb02e52/export', exportRoutes);
 // CLEANUP ROUTES (Nettoyage des données)
 // ============================================
 app.route('/make-server-2eb02e52/cleanup', cleanupRoutes);
+
+// ============================================
+// 📧 AUDIT EMAILS ROUTES (Prévention bounces)
+// ============================================
+app.route('/make-server-2eb02e52', auditRoutes);
 
 // ============================================
 // WEBSITE ROUTES
@@ -1925,6 +2064,11 @@ app.route('/make-server-2eb02e52/rides', rideRoutes);
 // ADMIN ROUTES (Analytics & Statistics)
 // ============================================
 app.route('/make-server-2eb02e52/admin', adminRoutes);
+
+// ============================================
+// 🗑️ RESET DATABASE ROUTES (DANGER ZONE)
+// ============================================
+app.route('/make-server-2eb02e52/reset', resetDatabaseRoutes);
 
 // ============================================
 // SETTINGS ROUTES (System Settings)
@@ -1968,6 +2112,16 @@ app.route('/make-server-2eb02e52', emailRoutes);
 // EMERGENCY ROUTES (SOS & Alerts)
 // ============================================
 app.route('/make-server-2eb02e52/emergency', emergencyRoutes);
+
+// ============================================
+// FCM ROUTES (Firebase Cloud Messaging)
+// ============================================
+app.route('/make-server-2eb02e52/fcm', fcmRoutes);
+
+// ============================================
+// CONFIG ROUTES (Configuration Globale)
+// ============================================
+app.route('/make-server-2eb02e52/config', configRoutes);
 
 // ============================================
 // CONTACT FORM ROUTE
@@ -2469,6 +2623,35 @@ app.get("/make-server-2eb02e52/drivers", async (c) => {
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur',
       drivers: []
+    }, 500);
+  }
+});
+
+/**
+ * Récupère tous les passagers depuis le KV store
+ * Utilisé par le panel admin pour afficher la liste des passagers
+ */
+app.get("/make-server-2eb02e52/passengers", async (c) => {
+  try {
+    console.log('📊 Récupération de tous les passagers depuis KV store...');
+    
+    // Récupérer tous les passengers du KV store
+    const passengers = await kv.getByPrefix('passenger:');
+    
+    console.log(`✅ ${passengers?.length || 0} passager(s) trouvé(s)`);
+    
+    return c.json({
+      success: true,
+      passengers: passengers || [],
+      count: passengers?.length || 0
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération passagers:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur',
+      passengers: []
     }, 500);
   }
 });

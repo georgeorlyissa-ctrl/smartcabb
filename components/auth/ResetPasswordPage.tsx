@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
-import { AlertCircle } from 'lucide-react';
 import { useNavigate } from '../../lib/simple-router';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState('');
@@ -130,14 +129,17 @@ export function ResetPasswordPage() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="w-full max-w-md p-8 text-center">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
               className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6"
             >
-              <Check className="w-10 h-10 text-green-600" />
+              {/* Check icon inline */}
+              <svg className="w-10 h-10 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             </motion.div>
 
             <h1 className="text-2xl mb-4">Mot de passe réinitialisé !</h1>
@@ -147,7 +149,7 @@ export function ResetPasswordPage() {
             <p className="text-sm text-gray-500">
               Redirection vers la page de connexion...
             </p>
-          </Card>
+          </div>
         </motion.div>
       </div>
     );
@@ -161,11 +163,15 @@ export function ResetPasswordPage() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        <Card className="p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* En-tête */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-white" />
+              {/* Lock icon inline */}
+              <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
             </div>
             <h1 className="text-2xl mb-2">Réinitialiser le mot de passe</h1>
             <p className="text-gray-600">
@@ -180,7 +186,12 @@ export function ResetPasswordPage() {
               animate={{ opacity: 1, y: 0 }}
               className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start space-x-3"
             >
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              {/* AlertCircle icon inline */}
+              <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
               <div className="flex-1">
                 <p className="text-sm text-red-800">{error}</p>
                 <Button
@@ -212,13 +223,17 @@ export function ResetPasswordPage() {
             <div>
               <label className="block text-sm mb-2">Nouveau mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                {/* Lock icon inline */}
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Min. 6 caractères"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   disabled={loading || !sessionEstablished}
                 />
                 <button
@@ -226,7 +241,17 @@ export function ResetPasswordPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -235,13 +260,17 @@ export function ResetPasswordPage() {
             <div>
               <label className="block text-sm mb-2">Confirmer le mot de passe</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <Input
+                {/* Lock icon inline */}
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirmer le mot de passe"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10 pr-10"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                   disabled={loading || !sessionEstablished}
                 />
                 <button
@@ -249,7 +278,17 @@ export function ResetPasswordPage() {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                      <line x1="1" y1="1" x2="23" y2="23"/>
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -284,7 +323,10 @@ export function ResetPasswordPage() {
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   >
-                    <Lock className="w-4 h-4" />
+                    <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
                   </motion.div>
                   <span>Mise à jour...</span>
                 </div>
@@ -305,7 +347,7 @@ export function ResetPasswordPage() {
               Retour à la connexion
             </Button>
           </div>
-        </Card>
+        </div>
       </motion.div>
     </div>
   );

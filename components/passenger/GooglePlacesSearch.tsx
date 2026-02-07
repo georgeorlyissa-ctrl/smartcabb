@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, X, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Search, MapPin, X, Loader2 } from '../../lib/icons';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
+import * as GoogleMapsService from '../../lib/google-maps-service';
+import { toast } from '../../lib/toast';
 
 interface GooglePlacesSearchProps {
   onSelectPlace: (place: {
@@ -12,18 +14,23 @@ interface GooglePlacesSearchProps {
   placeholder?: string;
   value?: string;
   className?: string;
+  currentLocation?: { lat: number; lng: number };
 }
 
 interface Prediction {
+  id: string;
+  name: string;
   description: string;
-  place_id: string;
+  coordinates: { lat: number; lng: number };
+  placeId?: string;
 }
 
 export function GooglePlacesSearch({ 
   onSelectPlace, 
   placeholder = "Rechercher une adresse...",
   value = "",
-  className = ""
+  className = "",
+  currentLocation
 }: GooglePlacesSearchProps) {
   const [query, setQuery] = useState(value);
   const [predictions, setPredictions] = useState<Prediction[]>([]);
@@ -31,7 +38,7 @@ export function GooglePlacesSearch({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  // Fonction pour obtenir les suggestions d'adresses
+  // ✅ Recherche via le backend SmartCabb (Google Maps API)
   const fetchPredictions = async (searchQuery: string) => {
     if (!searchQuery || searchQuery.length < 3) {
       setPredictions([]);
@@ -41,58 +48,37 @@ export function GooglePlacesSearch({
     setIsLoading(true);
 
     try {
-      // Utilisation de l'API Google Places Autocomplete
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(searchQuery)}&components=country:cd&language=fr&key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY || 'YOUR_API_KEY'}`
+      console.log('🔍 Recherche Google Places via backend:', searchQuery);
+      
+      // ✅ UTILISER LE SERVICE BACKEND AU LIEU D'APPELER DIRECTEMENT L'API
+      const results = await GoogleMapsService.searchPlaces(
+        searchQuery,
+        currentLocation || { lat: -4.3276, lng: 15.3136 } // Position par défaut: Kinshasa
       );
       
-      const data = await response.json();
+      console.log('✅ Résultats reçus:', results.length);
+
+      // Convertir les résultats au format attendu
+      const formattedPredictions: Prediction[] = results.map(result => ({
+        id: result.id,
+        name: result.name,
+        description: result.description,
+        coordinates: result.coordinates,
+        placeId: result.placeId
+      }));
+
+      setPredictions(formattedPredictions);
       
-      if (data.predictions) {
-        setPredictions(data.predictions);
+      if (formattedPredictions.length === 0) {
+        console.warn('⚠️ Aucune suggestion trouvée pour:', searchQuery);
       }
     } catch (error) {
-      console.error('Erreur lors de la recherche:', error);
-      // Fallback : suggestions locales pour Kinshasa
-      const localSuggestions: Prediction[] = [
-        { description: `${searchQuery} - Gombe, Kinshasa`, place_id: 'local_1' },
-        { description: `${searchQuery} - Ngaliema, Kinshasa`, place_id: 'local_2' },
-        { description: `${searchQuery} - Limete, Kinshasa`, place_id: 'local_3' },
-        { description: `${searchQuery} - Bandalungwa, Kinshasa`, place_id: 'local_4' },
-        { description: `${searchQuery} - Kalamu, Kinshasa`, place_id: 'local_5' },
-      ];
-      setPredictions(localSuggestions);
+      console.error('❌ Erreur lors de la recherche:', error);
+      toast.error('Erreur lors de la recherche d\'adresses');
+      setPredictions([]);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Fonction pour obtenir les coordonnées d'un lieu
-  const getPlaceDetails = async (placeId: string, description: string) => {
-    try {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=geometry&key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY || 'YOUR_API_KEY'}`
-      );
-      
-      const data = await response.json();
-      
-      if (data.result?.geometry?.location) {
-        return {
-          description,
-          lat: data.result.geometry.location.lat,
-          lng: data.result.geometry.location.lng
-        };
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération des détails:', error);
-    }
-
-    // Fallback : coordonnées par défaut pour Kinshasa
-    return {
-      description,
-      lat: -4.3276 + (Math.random() - 0.5) * 0.1,
-      lng: 15.3136 + (Math.random() - 0.5) * 0.1
-    };
   };
 
   // Effet pour la recherche avec debounce
@@ -112,13 +98,18 @@ export function GooglePlacesSearch({
     };
   }, [query]);
 
-  const handleSelectPrediction = async (prediction: Prediction) => {
+  // ✅ Plus besoin de getPlaceDetails : les coordonnées sont déjà dans les résultats
+  const handleSelectPrediction = (prediction: Prediction) => {
     setQuery(prediction.description);
     setShowSuggestions(false);
     setPredictions([]);
 
-    const placeDetails = await getPlaceDetails(prediction.place_id, prediction.description);
-    onSelectPlace(placeDetails);
+    // Les coordonnées sont déjà disponibles dans le résultat de searchPlaces()
+    onSelectPlace({
+      description: prediction.description,
+      lat: prediction.coordinates.lat,
+      lng: prediction.coordinates.lng
+    });
   };
 
   const handleClear = () => {
@@ -163,7 +154,7 @@ export function GooglePlacesSearch({
         <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 max-h-80 overflow-y-auto z-50">
           {predictions.map((prediction, index) => (
             <button
-              key={prediction.place_id}
+              key={prediction.placeId}
               onClick={() => handleSelectPrediction(prediction)}
               className="w-full flex items-start gap-3 p-4 hover:bg-gray-50 transition-colors text-left border-b last:border-b-0"
             >

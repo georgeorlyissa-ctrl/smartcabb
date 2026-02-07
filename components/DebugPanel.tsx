@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -12,7 +12,7 @@ import {
   User,
   Car,
   CreditCard
-} from 'lucide-react';
+} from '../lib/icons';
 
 export function DebugPanel() {
   const { state, setCurrentScreen, clearCurrentRide } = useAppState();

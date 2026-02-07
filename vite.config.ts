@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import path from 'path';
 
 // Configuration pour FIGMA MAKE (utilise esm.sh CDN)
 export default defineConfig({
@@ -10,12 +11,19 @@ export default defineConfig({
   ],
   
   resolve: {
+    extensions: ['.tsx', '.ts', '.jsx', '.js'], // ✅ NOUVEAU: Résolution automatique des extensions
     alias: {
-      // Alias pour Motion (Framer Motion) - Version stable
-      'motion/react': 'framer-motion',
+      // Alias pour Motion - Redirige vers notre implémentation locale
+      'motion/react': path.resolve(__dirname, './lib/motion.tsx'),
       
-      // PAS d'alias pour sonner - laisser la résolution naturelle
-      // PAS d'alias pour @radix-ui - laisser la résolution naturelle
+      // Alias pour sonner - Utilise notre implémentation locale
+      'sonner': path.resolve(__dirname, './lib/sonner.ts'),
+      
+      // Alias pour class-variance-authority
+      'class-variance-authority': path.resolve(__dirname, './lib/class-variance-authority.ts'),
+      
+      // ✅ NOUVEAU: Alias pour lucide-react - Redirige vers nos icônes locales
+      'lucide-react': path.resolve(__dirname, './lib/icons.tsx'),
     },
   },
   
@@ -28,6 +36,10 @@ export default defineConfig({
       output: {
         manualChunks: undefined,
       },
+      external: [
+        'react-day-picker', // ✅ Externaliser react-day-picker pour éviter l'erreur path.resolve
+        'framer-motion', // ✅ Externaliser framer-motion - n'est plus utilisé
+      ],
     },
   },
   
@@ -40,13 +52,22 @@ export default defineConfig({
     include: [
       'react',
       'react-dom',
-      'lucide-react',
-      'sonner',
       'leaflet',
       'react-leaflet',
-      'date-fns',
-      'framer-motion',
+      'react-day-picker', // ✅ AJOUTÉ - Pre-bundle react-day-picker
+      'date-fns', // ✅ AJOUTÉ - Pre-bundle date-fns avec react-day-picker
+      'date-fns/format',
+      'date-fns/locale',
     ],
+    exclude: [
+      'lucide-react', // ✅ NOUVEAU: Exclure lucide-react - utilise notre implémentation locale
+      'sonner', // Utilise notre implémentation locale dans /lib/sonner.ts
+      'class-variance-authority', // Utilise notre implémentation locale
+      'framer-motion', // ✅ N'est plus utilisé
+      'firebase/app', // ✅ Exclure Firebase - chargé dynamiquement via esm.sh
+      'firebase/messaging',
+      'firebase/analytics',
+    ]
   },
   
   server: {

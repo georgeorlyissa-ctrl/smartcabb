@@ -10,7 +10,7 @@ import { DriverProfileScreen } from '../components/driver/DriverProfileScreen';
 import { ClientInfoScreen } from '../components/driver/ClientInfoScreen';
 import { ConfirmationCodeScreen } from '../components/driver/ConfirmationCodeScreen';
 import { DriverWalletScreen } from '../components/driver/DriverWalletScreen';
-import { ActiveRideScreen } from '../components/driver/ActiveRideScreen';
+import { ActiveRideNavigationScreen } from '../components/driver/ActiveRideNavigationScreen';
 import { PaymentConfirmationScreen } from '../components/driver/PaymentConfirmationScreen';
 import { useAppState } from '../hooks/useAppState';
 import { WelcomeBackScreen } from '../components/WelcomeBackScreen';
@@ -91,7 +91,7 @@ function DriverAppContent() {
         {(currentScreen === 'driver-client-info' || currentScreen === 'client-info') && <ClientInfoScreen />}
         {currentScreen === 'driver-wallet' && <DriverWalletScreen />}
         {(currentScreen === 'driver-confirmation-code' || currentScreen === 'confirmation-code') && <ConfirmationCodeScreen />}
-        {(currentScreen === 'driver-active-ride' || currentScreen === 'active-ride') && <ActiveRideScreen />}
+        {(currentScreen === 'driver-active-ride' || currentScreen === 'active-ride') && <ActiveRideNavigationScreen />}
         {(currentScreen === 'driver-payment-confirmation' || currentScreen === 'payment-confirmation') && <PaymentConfirmationScreen />}
         {(currentScreen === 'welcome-back' || currentScreen === 'welcome-back-driver') && (
           <WelcomeBackScreen 

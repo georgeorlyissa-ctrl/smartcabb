@@ -172,20 +172,20 @@ export function useDriverLocation(isActive: boolean = true) {
     // Gestion des erreurs GPS
     const handleGPSError = (err: GeolocationPositionError) => {
       if (err.code === err.PERMISSION_DENIED) {
-        console.error('❌ GPS refusé par l\'utilisateur');
+        console.log('📍 GPS non autorisé - Veuillez autoriser la géolocalisation dans les paramètres'); // ✅ Changé de error à log
         setPermissionDenied(true);
         setError('GPS non autorisé - Veuillez autoriser la géolocalisation');
         setLocation(null);
       } else if (err.code === err.POSITION_UNAVAILABLE) {
-        console.error('❌ Position GPS indisponible');
+        console.warn('⚠️ Position GPS indisponible');
         setError('Position GPS indisponible - Vérifiez votre connexion GPS');
         setLocation(null);
       } else if (err.code === err.TIMEOUT) {
-        console.error('❌ Timeout GPS');
+        console.warn('⚠️ Timeout GPS');
         setError('Délai de géolocalisation dépassé - Réessayez');
         setLocation(null);
       } else {
-        console.error('❌ Erreur GPS:', err.message);
+        console.warn('⚠️ Erreur GPS:', err.message);
         setError('Erreur GPS: ' + err.message);
         setLocation(null);
       }
@@ -219,7 +219,7 @@ export function useDriverLocation(isActive: boolean = true) {
       (err) => {
         // Si permission refusée, arrêter complètement le tracking
         if (err.code === err.PERMISSION_DENIED) {
-          console.error('❌ GPS refusé - Arrêt du suivi');
+          console.log('📍 GPS non autorisé - Suivi GPS interrompu'); // ✅ Changé de error à log
           setPermissionDenied(true);
           setError('GPS non autorisé');
           setLocation(null);

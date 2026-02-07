@@ -10,8 +10,8 @@ import {
   ArrowRight,
   Loader2,
   Zap
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const SQL_SCRIPT = `-- 🚨 COPIEZ-COLLEZ CE CODE DANS SUPABASE MAINTENANT

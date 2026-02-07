@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Lock, CheckCircle, Eye, EyeOff } from '../lib/icons';
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface ResetPasswordOTPScreenProps {
   onBack: () => void;
   userType?: 'passenger' | 'driver' | 'admin';
-  onSuccess?: () => void; // Callback après succès de la réinitialisation
+  onSuccess?: () => void;
 }
 
 export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSuccess }: ResetPasswordOTPScreenProps) {
@@ -24,11 +24,10 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
   const [loading, setLoading] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [userId, setUserId] = useState('');
-  const [resendCountdown, setResendCountdown] = useState(60); // 60 secondes avant de pouvoir renvoyer
+  const [resendCountdown, setResendCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [debugCode, setDebugCode] = useState<string | null>(null);
 
-  // Charger les données depuis localStorage
   useEffect(() => {
     const phone = localStorage.getItem('reset_phone');
     const storedOtpCode = localStorage.getItem('reset_otp_code');
@@ -41,13 +40,11 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     
     setPhoneNumber(phone);
     
-    // Si on a un code OTP stocké, l'afficher en mode debug
     if (storedOtpCode) {
       console.log('🔧 CODE OTP DISPONIBLE:', storedOtpCode);
     }
   }, [onBack]);
 
-  // Compte à rebours pour le renvoi
   useEffect(() => {
     if (resendCountdown > 0 && step === 'otp') {
       const timer = setTimeout(() => {
@@ -59,7 +56,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     }
   }, [resendCountdown, step]);
 
-  // Vérifier le code OTP
   const handleVerifyOTP = async () => {
     if (!otpCode || otpCode.length !== 6) {
       toast.error('Veuillez entrer le code à 6 chiffres');
@@ -69,7 +65,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     setLoading(true);
 
     try {
-      // Récupérer le code OTP stocké localement
       const storedOtpCode = localStorage.getItem('reset_otp_code');
       const storedTimestamp = localStorage.getItem('reset_otp_timestamp');
       
@@ -79,7 +74,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         return;
       }
 
-      // Vérifier si le code est expiré (10 minutes)
       const now = Date.now();
       const timestamp = parseInt(storedTimestamp);
       const tenMinutes = 10 * 60 * 1000;
@@ -92,7 +86,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         return;
       }
 
-      // Vérifier le code
       if (otpCode === storedOtpCode) {
         console.log('✅ Code OTP valide');
         setStep('password');
@@ -109,7 +102,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     }
   };
 
-  // Changer le mot de passe
   const handleResetPassword = async () => {
     console.log('🔄 handleResetPassword appelé');
     console.log('📱 Numéro de téléphone:', phoneNumber);
@@ -142,7 +134,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
       console.log('📤 URL:', url);
       console.log('📤 Body:', { phoneNumber, newPassword: '***' });
 
-      // Appel à l'endpoint de réinitialisation par téléphone
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -161,7 +152,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
         console.error('❌ Erreur HTTP:', response.status, errorData);
         
-        // Gérer spécifiquement l'erreur 404 (compte non trouvé)
         if (response.status === 404) {
           const errorMessage = errorData.error || 'Aucun compte trouvé avec ce numéro de téléphone';
           toast.error(errorMessage, {
@@ -169,14 +159,12 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
             description: 'Vous devez d\'abord créer un compte pour pouvoir le réinitialiser.'
           });
           
-          // Proposer de créer un compte après un délai
           setTimeout(() => {
             if (confirm('Aucun compte trouvé avec ce numéro. Voulez-vous créer un compte ?')) {
-              // Nettoyer localStorage
               localStorage.removeItem('reset_phone');
               localStorage.removeItem('reset_otp_code');
               localStorage.removeItem('reset_otp_timestamp');
-              onBack(); // Retour au login qui a un lien vers l'inscription
+              onBack();
             }
           }, 2000);
           
@@ -197,19 +185,15 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
         
         setStep('success');
         
-        // Nettoyer localStorage
         localStorage.removeItem('reset_phone');
         localStorage.removeItem('reset_otp_code');
         localStorage.removeItem('reset_otp_timestamp');
 
-        // Redirection immédiate vers login via onSuccess
         if (onSuccess) {
-          // Utiliser setTimeout pour laisser l'animation de succès se terminer
           setTimeout(() => {
             onSuccess();
           }, 2000);
         } else {
-          // Fallback: retour automatique après 3 secondes si onSuccess n'est pas fourni
           setTimeout(() => {
             onBack();
           }, 3000);
@@ -231,18 +215,15 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     }
   };
 
-  // Renvoyer le code
   const handleResendOTP = async () => {
     setLoading(true);
 
     try {
-      // Générer un nouveau code OTP à 6 chiffres
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const message = `SmartCabb : Votre code de reinitialisation est ${otpCode}. Utilisez ce code pour reinitialiser votre mot de passe. Ne partagez jamais ce code avec qui que ce soit.`;
 
       console.log('🔐 Nouveau code OTP généré:', otpCode);
 
-      // Envoyer le SMS via l'endpoint /sms/send
       const smsResponse = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/sms/send`,
         {
@@ -263,7 +244,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
       console.log('📱 Résultat SMS renvoi:', smsResult);
 
       if (smsResult.success) {
-        // Stocker le nouveau code OTP
         localStorage.setItem('reset_otp_code', otpCode);
         localStorage.setItem('reset_otp_timestamp', Date.now().toString());
         
@@ -283,7 +263,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     }
   };
 
-  // Couleurs selon le type d'utilisateur
   const colors = {
     passenger: {
       gradient: 'from-green-50 to-emerald-50',
@@ -307,7 +286,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
 
   const theme = colors[userType];
 
-  // Écran de succès
   if (step === 'success') {
     return (
       <motion.div
@@ -350,7 +328,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     );
   }
 
-  // Écran de vérification OTP
   if (step === 'otp') {
     return (
       <motion.div
@@ -414,7 +391,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
               </p>
             </div>
 
-            {/* Panneau DEBUG si les credentials SMS ne sont pas configurés */}
             {debugCode && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -485,7 +461,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
     );
   }
 
-  // Écran de nouveau mot de passe
   console.log('📝 Affichage écran password');
   console.log('📝 newPassword:', newPassword);
   console.log('📝 confirmPassword:', confirmPassword);
@@ -534,7 +509,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
           transition={{ delay: 0.3 }}
           className="space-y-4"
         >
-          {/* Nouveau mot de passe */}
           <div>
             <label className="block text-sm mb-2">Nouveau mot de passe</label>
             <div className="relative">
@@ -556,7 +530,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
             </div>
           </div>
 
-          {/* Confirmer */}
           <div>
             <label className="block text-sm mb-2">Confirmer le mot de passe</label>
             <div className="relative">
@@ -578,7 +551,6 @@ export function ResetPasswordOTPScreen({ onBack, userType = 'passenger', onSucce
             </div>
           </div>
 
-          {/* Indicateurs */}
           {newPassword && (
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm">

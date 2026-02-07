@@ -1,109 +1,88 @@
+import { calculateDuration } from './duration-calculator';
+
 /**
- * 🧮 CALCULATEUR DE DISTANCE ET DURÉE PROFESSIONNEL POUR KINSHASA
+ * 📏 CALCUL DE DISTANCE ET ITINÉRAIRE AVEC OSRM
  * 
- * ✅ VERSION 2.0 - UTILISE OSRM POUR LES VRAIS ITINÉRAIRES
- * ✅ Compatible Yango/Uber - suit les vraies routes
- * ✅ Fallback intelligent si OSRM échoue
- * ✅ Optimisé pour les conditions de trafic de Kinshasa
+ * Ce module gère :
+ * - Calcul d'itinéraire avec OSRM (vraies routes)
+ * - Fallback intelligent avec distance à vol d'oiseau × facteur urbain
+ * - Calibration sur Google Maps pour Kinshasa
  */
 
-import { calculateRoute as calculateOSRMRoute } from './routing';
+// Types
+interface Location {
+  lat: number;
+  lng: number;
+}
 
-export interface RouteCalculation {
-  distance: number; // Distance en kilomètres
-  duration: number; // Durée en minutes
-  durationText: string; // Durée formatée (ex: "15 min")
-  distanceText: string; // Distance formatée (ex: "5.2 km")
+interface RouteCalculation {
+  distance: number;
+  duration: number;
+  distanceText: string;
+  durationText: string;
 }
 
 /**
- * 🌍 CALCUL DE DISTANCE HAVERSINE (BACKUP UNIQUEMENT)
- * Utilisé seulement si OSRM échoue
+ * 📐 FORMULE DE HAVERSINE : Distance à vol d'oiseau
+ * Utilisée comme fallback quand OSRM échoue
  */
-function calculateDistanceHaversine(
+export function calculateDistanceHaversine(
   lat1: number,
   lng1: number,
   lat2: number,
   lng2: number
 ): number {
-  const R = 6371; // Rayon de la Terre en kilomètres
-  
-  // Convertir les degrés en radians
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  
+  const R = 6371; // Rayon de la Terre en km
   const dLat = toRad(lat2 - lat1);
   const dLng = toRad(lng2 - lng1);
   
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
   
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
-  const distance = R * c; // Distance en km
+  const distance = R * c;
   
   return distance;
 }
 
-/**
- * 🌍 FONCTION PUBLIQUE POUR COMPATIBILITÉ (garde l'ancien nom)
- */
-export function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  return calculateDistanceHaversine(lat1, lng1, lat2, lng2);
+function toRad(degrees: number): number {
+  return (degrees * Math.PI) / 180;
 }
 
 /**
- * ⏱️ CALCUL DE DURÉE BASÉ SUR LES CONDITIONS RÉELLES DE KINSHASA
- * 
- * Vitesses moyennes à Kinshasa selon les conditions :
- * - Trafic fluide (5h-7h, 22h-5h) : 35-40 km/h
- * - Trafic modéré (7h-9h, 15h-17h) : 20-25 km/h
- * - Trafic dense (9h-15h, 17h-22h) : 15-20 km/h
- * - Embouteillages : 8-12 km/h
+ * 🛣️ CALCUL D'ITINÉRAIRE AVEC OSRM (Open Source Routing Machine)
+ * Retourne la distance et durée réelles sur les routes
  */
-export function calculateDuration(distanceKm: number): number {
-  const now = new Date();
-  const hour = now.getHours();
+async function calculateOSRMRoute(
+  from: Location,
+  to: Location
+): Promise<{ distance: number; duration: number }> {
+  const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=false`;
   
-  let averageSpeed: number;
+  const response = await fetch(url);
   
-  // Déterminer la vitesse moyenne selon l'heure
-  if ((hour >= 5 && hour < 7) || (hour >= 22 || hour < 5)) {
-    // Trafic fluide (nuit/tôt le matin)
-    averageSpeed = 37.5; // km/h
-  } else if ((hour >= 7 && hour < 9) || (hour >= 15 && hour < 17)) {
-    // Trafic modéré (heures de pointe légères)
-    averageSpeed = 22.5; // km/h
-  } else if ((hour >= 9 && hour < 15) || (hour >= 17 && hour < 22)) {
-    // Trafic dense (journée/soirée)
-    averageSpeed = 17.5; // km/h
-  } else {
-    // Par défaut
-    averageSpeed = 20; // km/h
+  if (!response.ok) {
+    throw new Error(`OSRM error: ${response.status}`);
   }
   
-  // Ajustements selon la distance
-  if (distanceKm < 2) {
-    // Courtes distances : plus de temps aux arrêts/démarrages
-    averageSpeed *= 0.7;
-  } else if (distanceKm > 10) {
-    // Longues distances : possibilité d'utiliser des axes rapides
-    averageSpeed *= 1.15;
+  const data = await response.json();
+  
+  if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
+    throw new Error('OSRM returned no routes');
   }
   
-  // Calcul de la durée en minutes
-  const durationMinutes = (distanceKm / averageSpeed) * 60;
+  const route = data.routes[0];
+  const distanceKm = route.distance / 1000; // Convertir m en km
+  const durationMin = route.duration / 60;  // Convertir s en min
   
-  // Ajouter un buffer de sécurité (5-10%)
-  const buffer = durationMinutes * 0.075;
-  
-  return Math.round(durationMinutes + buffer);
+  return {
+    distance: distanceKm,
+    duration: durationMin
+  };
 }
 
 /**
@@ -126,7 +105,12 @@ export async function calculateRoute(
       { lat: toLat, lng: toLng }
     );
     
-    console.log(`✅ OSRM OK: ${osrmRoute.distance.toFixed(1)}km en ${Math.round(osrmRoute.duration)}min`);
+    // 🎯 CORRECTION : Ne PAS multiplier par un facteur
+    // OSRM retourne déjà la durée optimiste, on utilise calculateDuration() calibré sur Google Maps
+    const adjustedDuration = calculateDuration(osrmRoute.distance);
+    
+    console.log(`✅ OSRM: ${osrmRoute.distance.toFixed(1)}km en ${Math.round(osrmRoute.duration)}min (brut)`);
+    console.log(`🎯 Ajusté pour trafic réel Kinshasa (comme Google Maps): ${adjustedDuration}min`);
     
     // Formater la distance
     let distanceText: string;
@@ -138,14 +122,13 @@ export async function calculateRoute(
       distanceText = `${Math.round(osrmRoute.distance)} km`;
     }
     
-    // Formater la durée
-    const duration = Math.round(osrmRoute.duration);
+    // Formater la durée AJUSTÉE
     let durationText: string;
-    if (duration < 60) {
-      durationText = `${duration} min`;
+    if (adjustedDuration < 60) {
+      durationText = `${adjustedDuration} min`;
     } else {
-      const hours = Math.floor(duration / 60);
-      const mins = duration % 60;
+      const hours = Math.floor(adjustedDuration / 60);
+      const mins = adjustedDuration % 60;
       if (mins === 0) {
         durationText = `${hours}h`;
       } else {
@@ -155,26 +138,38 @@ export async function calculateRoute(
     
     return {
       distance: osrmRoute.distance,
-      duration,
+      duration: adjustedDuration,  // 🎯 CORRECTION : Utiliser calculateDuration() calibré Google Maps
       distanceText,
       durationText
     };
     
   } catch (error) {
-    console.warn('⚠️ OSRM échoué, utilisation fallback Haversine:', error);
+    console.warn('⚠️ OSRM échoué, utilisation fallback intelligent:', error);
     
-    // 🔙 FALLBACK : Utiliser Haversine si OSRM échoue
-    const distance = calculateDistanceHaversine(fromLat, fromLng, toLat, toLng);
-    const duration = calculateDuration(distance);
+    // 🔙 FALLBACK INTELLIGENT : Distance à vol d'oiseau × facteur de détour urbain
+    const distanceStraightLine = calculateDistanceHaversine(fromLat, fromLng, toLat, toLng);
+    
+    // 🎯 AMÉLIORATION : En ville, la distance réelle sur routes = 1.8-2.0x la distance à vol d'oiseau
+    // Exemple : 3 km à vol d'oiseau → 5.4-6.0 km réels (comme Google Maps qui montre 5.7 km)
+    const urbanDetourFactor = 1.9; // Facteur moyen pour Kinshasa
+    const estimatedRealDistance = distanceStraightLine * urbanDetourFactor;
+    
+    // 🎯 Calculer la durée avec la vitesse réelle de Kinshasa (comme Google Maps)
+    const duration = calculateDuration(estimatedRealDistance);
+    
+    console.log('🔄 Fallback intelligent appliqué:');
+    console.log(`  - Distance à vol d'oiseau: ${distanceStraightLine.toFixed(1)} km`);
+    console.log(`  - Distance réelle estimée (×${urbanDetourFactor}): ${estimatedRealDistance.toFixed(1)} km`);
+    console.log(`  - Durée calculée (vitesse réelle Kinshasa): ${duration} min`);
     
     // Formater la distance
     let distanceText: string;
-    if (distance < 1) {
-      distanceText = `${Math.round(distance * 1000)} m`;
-    } else if (distance < 10) {
-      distanceText = `${distance.toFixed(1)} km`;
+    if (estimatedRealDistance < 1) {
+      distanceText = `${Math.round(estimatedRealDistance * 1000)} m`;
+    } else if (estimatedRealDistance < 10) {
+      distanceText = `${estimatedRealDistance.toFixed(1)} km`;
     } else {
-      distanceText = `${Math.round(distance)} km`;
+      distanceText = `${Math.round(estimatedRealDistance)} km`;
     }
     
     // Formater la durée
@@ -192,7 +187,7 @@ export async function calculateRoute(
     }
     
     return {
-      distance,
+      distance: estimatedRealDistance,
       duration,
       distanceText,
       durationText
@@ -201,44 +196,50 @@ export async function calculateRoute(
 }
 
 /**
- * 📊 OBTENIR LA CONDITION DE TRAFIC ACTUELLE
+ * 🚦 OBTENIR LES CONDITIONS DE TRAFIC ACTUELLES
+ * Retourne un objet avec emoji, couleur et description pour l'affichage UI
  */
 export function getCurrentTrafficCondition(): {
-  level: 'fluide' | 'modéré' | 'dense' | 'embouteillage';
-  color: string;
   emoji: string;
+  color: string;
   description: string;
+  level: 'fluide' | 'modéré' | 'dense' | 'embouteillage';
 } {
   const now = new Date();
   const hour = now.getHours();
   
+  // 🎯 CALIBRÉ SUR LES CONDITIONS RÉELLES DE KINSHASA
   if ((hour >= 5 && hour < 7) || (hour >= 22 || hour < 5)) {
+    // Trafic fluide (nuit/tôt le matin)
     return {
-      level: 'fluide',
-      color: 'text-green-600',
       emoji: '🟢',
-      description: 'Trafic fluide'
+      color: 'text-green-600',
+      description: 'Trafic fluide',
+      level: 'fluide'
     };
-  } else if ((hour >= 7 && hour < 9) || (hour >= 15 && hour < 17)) {
+  } else if ((hour >= 7 && hour < 9) || (hour >= 19 && hour < 22)) {
+    // Trafic modéré (début/fin de journée)
     return {
-      level: 'modéré',
-      color: 'text-yellow-600',
       emoji: '🟡',
-      description: 'Trafic modéré'
+      color: 'text-yellow-600',
+      description: 'Trafic modéré',
+      level: 'modéré'
     };
-  } else if ((hour >= 9 && hour < 15) || (hour >= 17 && hour < 22)) {
+  } else if (hour >= 9 && hour < 17) {
+    // Trafic dense (journée)
     return {
-      level: 'dense',
-      color: 'text-orange-600',
       emoji: '🟠',
-      description: 'Trafic dense'
+      color: 'text-orange-600',
+      description: 'Trafic dense',
+      level: 'dense'
     };
   } else {
+    // Trafic modéré par défaut
     return {
-      level: 'modéré',
-      color: 'text-yellow-600',
       emoji: '🟡',
-      description: 'Trafic modéré'
+      color: 'text-yellow-600',
+      description: 'Trafic modéré',
+      level: 'modéré'
     };
   }
 }

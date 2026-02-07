@@ -1,6 +1,6 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
 
 const app = new Hono();
 
@@ -110,9 +110,9 @@ app.post('/create', async (c) => {
     }
 
     // Calculer la taille
-    const sizeKB = (totalSize / 1024).toFixed(2);
-    const sizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-    const sizeFormatted = totalSize > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+    const sizeKB = ((totalSize || 0) / 1024).toFixed(2);
+    const sizeMB = ((totalSize || 0) / (1024 * 1024)).toFixed(2);
+    const sizeFormatted = (totalSize || 0) > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
 
     backupData.metadata.size = sizeFormatted;
     backupData.metadata.status = 'completed';

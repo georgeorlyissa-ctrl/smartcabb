@@ -1,8 +1,10 @@
-import { Bell, X, Check, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bell, X, Check, AlertCircle } from '../lib/icons';
 import { Button } from './ui/button';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 import { supabase } from '../lib/supabase';
 import { useAppState } from '../hooks/useAppState';
+import { motion, AnimatePresence } from '../lib/motion';
 
 interface PushNotificationsProps {
   className?: string;
@@ -145,6 +147,12 @@ export function PushNotifications({ className = "" }: PushNotificationsProps) {
 
   // Enregistrer la souscription aux push notifications
   const registerPushSubscription = async () => {
+    // 🚫 Service Worker désactivé temporairement - Push Notifications nécessitent un SW actif
+    console.log('⚠️ Push Notifications: Service Worker désactivé temporairement');
+    return;
+    
+    // Code commenté pour éviter les erreurs de Service Worker
+    /*
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
       return;
     }
@@ -174,6 +182,7 @@ export function PushNotifications({ className = "" }: PushNotificationsProps) {
     } catch (error) {
       console.error('Erreur lors de l\'enregistrement de la souscription:', error);
     }
+    */
   };
 
   // Afficher une notification push
@@ -339,7 +348,7 @@ export function PushNotifications({ className = "" }: PushNotificationsProps) {
                 </div>
               </div>
 
-              {/* Demande de permission si n��cessaire */}
+              {/* Demande de permission si ncessaire */}
               {permission === 'default' && (
                 <div className="p-4 bg-blue-50 border-b border-blue-200">
                   <p className="text-sm text-blue-900 mb-2">

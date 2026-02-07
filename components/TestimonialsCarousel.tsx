@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Star, Quote } from 'lucide-react';
+import { motion, AnimatePresence } from '../lib/motion';
 
 interface Testimonial {
   id: number;
@@ -115,7 +114,11 @@ export function TestimonialsCarousel({
             <div className={`bg-white rounded-2xl shadow-lg border ${colors.border} p-8 md:p-12 relative`}>
               {/* Icône de citation */}
               <div className={`absolute top-6 right-6 ${colors.primary} w-12 h-12 rounded-full flex items-center justify-center opacity-10`}>
-                <Quote className="w-6 h-6 text-white" />
+                {/* Quote icon inline */}
+                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/>
+                  <path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/>
+                </svg>
               </div>
 
               <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-6">
@@ -148,14 +151,20 @@ export function TestimonialsCarousel({
                   {/* Étoiles */}
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (
-                      <Star
+                      <svg
                         key={i}
                         className={`w-4 h-4 ${
                           i < current.rating
                             ? `${colors.text} fill-current`
                             : 'text-gray-300'
                         }`}
-                      />
+                        viewBox="0 0 24 24"
+                        fill={i < current.rating ? 'currentColor' : 'none'}
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
                     ))}
                     <span className="ml-2 text-sm text-gray-600">
                       {current.rating}/5

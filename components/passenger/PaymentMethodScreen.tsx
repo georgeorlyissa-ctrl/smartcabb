@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -16,8 +16,8 @@ import {
   Calculator,
   Building2,
   Wallet
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 export function PaymentMethodScreen() {
   const { setCurrentScreen, updateRide, state, createRide } = useAppState();

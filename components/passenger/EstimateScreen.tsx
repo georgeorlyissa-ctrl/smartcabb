@@ -1,25 +1,21 @@
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
-import { motion } from 'motion/react';
 import { useState, useEffect } from 'react';
-import { useTranslation } from '../../hooks/useTranslation';
+import { motion } from '../../lib/motion';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
+import { useTranslation } from '../../hooks/useTranslation';
+import { toast } from '../../lib/toast';
+import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from '../../lib/icons';
+import { VehicleCategory, PromoCode } from '../../types';
+import { VEHICLE_PRICING, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
+import { calculateRoute } from '../../lib/distance-calculator';
+import { getCurrentTrafficConditions, calculateDuration } from '../../lib/duration-calculator';
+import { RouteMapPreview } from '../RouteMapPreview';
+import { VehicleImageCarousel } from '../VehicleImageCarousel';
 import { PassengerCountSelector } from '../PassengerCountSelector';
 import { PromoCodeInput } from '../PromoCodeInput';
-import { BookForSomeoneElse } from './BookForSomeoneElse';
-import { RouteMapPreview } from '../RouteMapPreview';
-import { PromoCode } from '../../types';
-import { VEHICLE_PRICING, VehicleCategory, convertUSDtoCDF, formatCDF, isDayTime } from '../../lib/pricing';
-import { 
-  calculateEstimatedDuration, 
-  calculateDetailedDuration, 
-  calculateDurationRange,
-  formatDuration,
-  getCurrentTrafficConditions
-} from '../../lib/duration-calculator';
-import { calculateRoute, getCurrentTrafficCondition } from '../../lib/distance-calculator';
-import { Button } from '../ui/button';
-import { ArrowLeft, Car, Users, Clock, MapPin, Info, Sun, Moon } from 'lucide-react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 // 🚗 CHEMINS DES IMAGES DE VÉHICULES (pour GitHub/Vercel)
 // ⚠️ Ces chemins pointent vers /public/vehicles/
@@ -55,10 +51,6 @@ export function EstimateScreen() {
   const [basePrice, setBasePrice] = useState(12500);
   const [estimatedDuration, setEstimatedDuration] = useState(15);
   
-  // État pour la réservation pour quelqu'un d'autre
-  const [showBeneficiaryForm, setShowBeneficiaryForm] = useState(false);
-  const [beneficiary, setBeneficiary] = useState<{ name: string; phone: string } | null>(null);
-  
   // 🆕 État pour le calcul OSRM (async)
   const [routeInfo, setRouteInfo] = useState<{
     distance: number;
@@ -68,12 +60,27 @@ export function EstimateScreen() {
   } | null>(null);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState(true);
   
-  // Utiliser les vraies données de l'état global (pickup et destination saisies par l'utilisateur)
-  const pickup = state.pickup || { lat: -4.3276, lng: 15.3136, address: 'Boulevard du 30 Juin, Gombe, Kinshasa' };
-  const destination = state.destination || { lat: -4.4050, lng: 15.2980, address: 'Université de Kinshasa (UNIKIN)' }; // ✅ CORRIGÉ: Coordonnées exactes de UNIKIN
+  // ❌ SUPPRESSION DES DONNÉES PAR DÉFAUT EN MÉMOIRE
+  // ✅ Utiliser UNIQUEMENT les vraies données de l'utilisateur
+  const pickup = state.pickup;
+  const destination = state.destination;
+  
+  // 🚨 REDIRECTION : Si pas de pickup ou destination, retourner à la carte
+  useEffect(() => {
+    if (!pickup || !destination) {
+      console.warn('⚠️ Pas de pickup ou destination, redirection vers la carte');
+      setCurrentScreen('map');
+    }
+  }, [pickup, destination, setCurrentScreen]);
+  
+  // Si pas de données, ne rien afficher (on va être redirigé)
+  if (!pickup || !destination) {
+    return null;
+  }
+  
   const distanceKm = routeInfo?.distance || (calculateDistance ? calculateDistance(pickup, destination) : 10.0);
   
-  const trafficCondition = getCurrentTrafficCondition();
+  const trafficCondition = getCurrentTrafficConditions();  // ✅ CORRECTION : Pour affichage UI (emoji, color, description)
   
   // Récupérer les instructions de prise en charge (point de repère)
   const pickupInstructions = state.pickupInstructions || '';
@@ -93,17 +100,29 @@ export function EstimateScreen() {
         );
         
         setRouteInfo(result);
+        
+        // ✅ CORRECTION : La durée est déjà ajustée dans calculateRoute()
+        // Pas besoin de réajuster ici (éviter double multiplication)
+        setEstimatedDuration(result.duration);
+        
         console.log(`✅ Itinéraire calculé: ${result.distanceText} en ${result.durationText}`);
       } catch (error) {
         console.error('❌ Erreur calcul itinéraire:', error);
         // Fallback: utiliser distance Haversine
         const fallbackDist = calculateDistance ? calculateDistance(pickup, destination) : 10.0;
+        
+        // 🎯 CORRECTION : Utiliser le même fallback intelligent que dans calculateRoute()
+        // Distance réelle = distance à vol d'oiseau × 1.9
+        const estimatedRealDistance = fallbackDist * 1.9;
+        const fallbackDuration = calculateDuration(estimatedRealDistance);
+        
         setRouteInfo({
-          distance: fallbackDist,
-          duration: Math.round(fallbackDist * 3), // ~20 km/h moyen
-          distanceText: `${fallbackDist.toFixed(1)} km`,
-          durationText: `${Math.round(fallbackDist * 3)} min`
+          distance: estimatedRealDistance,
+          duration: fallbackDuration,
+          distanceText: `${estimatedRealDistance.toFixed(1)} km`,
+          durationText: `${fallbackDuration} min`
         });
+        setEstimatedDuration(fallbackDuration);
       } finally {
         setIsCalculatingRoute(false);
       }
@@ -240,7 +259,7 @@ export function EstimateScreen() {
     return priceCDF;
   };
   
-  // Update price and duration when vehicle or distance changes
+  // Update price when vehicle changes (but NOT duration - we use OSRM duration)
   useEffect(() => {
     // ✅ PROTECTION : Vérifier que pickup et destination existent
     if (!pickup || !destination) {
@@ -248,32 +267,21 @@ export function EstimateScreen() {
       return;
     }
     
-    // Calculer la durée estimée avec le nouveau système avancé
-    const newDuration = calculateEstimatedDuration(pickup, destination);
-    setEstimatedDuration(newDuration);
+    // ✅ CORRECTION : Utiliser la durée OSRM (déjà calculée dans routeInfo)
+    // NE PAS recalculer avec calculateEstimatedDuration qui écrase la valeur réaliste d'OSRM
+    const duration = routeInfo?.duration || estimatedDuration;
     
     // Calculer le prix basé sur cette durée et la catégorie de véhicule
-    const newPrice = calculatePrice(selectedVehicle, newDuration);
+    const newPrice = calculatePrice(selectedVehicle, duration);
     setBasePrice(newPrice);
     
-    // Obtenir les détails du calcul pour le log
-    const breakdown = calculateDetailedDuration(pickup, destination);
-    const traffic = getCurrentTrafficConditions();
-    const range = calculateDurationRange(pickup, destination);
-    
-    console.log('💰 Calcul avancé du prix estimé:', {
-      distance: `${(breakdown?.distance || 0).toFixed(1)} km`,
-      duréeEstimée: `${newDuration} min`,
-      fourchette: `${range.min}-${range.max} min`,
-      trafic: traffic.timeOfDay,
-      vitesseBase: `${breakdown.baseSpeed} km/h`,
-      vitesseAjustée: `${breakdown.adjustedSpeed} km/h`,
-      congestion: `×${breakdown.zoneCongestion}`,
+    console.log('💰 Calcul du prix estimé:', {
       catégorie: selectedVehicle,
-      prixEstimé: `${newPrice.toLocaleString()} CDF`,
-      confiance: breakdown.confidence
+      duréeOSRM: `${duration} min`,
+      distanceOSRM: `${routeInfo?.distance || 0} km`,
+      prixEstimé: `${newPrice.toLocaleString()} CDF`
     });
-  }, [selectedVehicle, pickup, destination]);
+  }, [selectedVehicle, routeInfo]); // ✅ Dépend de routeInfo, pas de pickup/destination
   
   // Calculate final price with promo discount
   const finalPrice = appliedPromo 
@@ -488,7 +496,8 @@ export function EstimateScreen() {
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-600">Arrivée estimée</span>
                 <span className="font-medium text-green-600">
-                  {new Date(Date.now() + (routeInfo?.duration || 0) * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                  {/* ✅ CORRECTION : duration est en MINUTES, donc multiplier par 60*1000 */}
+                  {new Date(Date.now() + (routeInfo?.duration || 0) * 60 * 1000).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               </div>
             </div>
@@ -614,20 +623,11 @@ export function EstimateScreen() {
                   >
                     {/* Image du véhicule */}
                     {vehicle.images && vehicle.images.length > 0 && (
-                      <div className="relative h-24 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                        <img 
-                          src={vehicle.images[0]} 
-                          alt={vehicle.name}
-                          className="w-full h-full object-cover"
-                        />
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-6 h-6 bg-secondary rounded-full flex items-center justify-center shadow-lg">
-                            <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
+                      <VehicleImageCarousel
+                        images={vehicle.images}
+                        alt={vehicle.name}
+                        isSelected={isSelected}
+                      />
                     )}
                     
                     {/* Informations du véhicule */}
@@ -709,15 +709,6 @@ export function EstimateScreen() {
             <PromoCodeInput
               rideAmount={basePrice}
               onPromoApplied={setAppliedPromo}
-            />
-          </div>
-          
-          {/* Option pour réservation pour quelqu'un d'autre */}
-          <div className="px-4">
-            <BookForSomeoneElse
-              showForm={showBeneficiaryForm}
-              onToggleForm={setShowBeneficiaryForm}
-              onBeneficiaryChange={setBeneficiary}
             />
           </div>
         </div>

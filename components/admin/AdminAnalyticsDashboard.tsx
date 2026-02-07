@@ -16,9 +16,9 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowLeft
-} from 'lucide-react';
+} from '../../lib/admin-icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 
 const CATEGORY_NAMES = {
@@ -63,8 +63,92 @@ export function AdminAnalyticsDashboard() {
   };
 
   // ✅ Fonction pour actualiser manuellement
-  const handleRefresh = () => {
-    loadAllData();
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadAllData();
+  };
+
+  const handleExport = () => {
+    try {
+      // Préparer les données à exporter
+      const exportData = [];
+
+      // 1. Statistiques générales
+      exportData.push(['STATISTIQUES GÉNÉRALES']);
+      exportData.push(['']);
+      if (stats) {
+        exportData.push(['Total Courses', stats.totalRides || 0]);
+        exportData.push(['Revenu Total (CDF)', stats.totalRevenue || 0]);
+        exportData.push(['Total Commissions (CDF)', stats.totalCommissions || 0]);
+        exportData.push(['Conducteurs Actifs', stats.activeDrivers || 0]);
+      }
+      exportData.push(['']);
+
+      // 2. Données par période
+      exportData.push(['ÉVOLUTION SUR ' + period + ' JOURS']);
+      exportData.push(['']);
+      exportData.push(['Date', 'Courses', 'Revenus (CDF)', 'Commissions (CDF)', 'Conducteurs Actifs']);
+      periodData.forEach(day => {
+        exportData.push([
+          day.date,
+          day.rides,
+          day.revenue,
+          day.commissions,
+          day.activeDrivers
+        ]);
+      });
+      exportData.push(['']);
+
+      // 3. Statistiques par catégorie
+      exportData.push(['STATISTIQUES PAR CATÉGORIE']);
+      exportData.push(['']);
+      exportData.push(['Catégorie', 'Courses', 'Revenus (CDF)']);
+      Object.entries(categoryStats).forEach(([category, data]: [string, any]) => {
+        exportData.push([
+          CATEGORY_NAMES[category as keyof typeof CATEGORY_NAMES] || category,
+          data.rides || 0,
+          data.revenue || 0
+        ]);
+      });
+      exportData.push(['']);
+
+      // 4. Top 10 conducteurs
+      exportData.push(['TOP 10 CONDUCTEURS']);
+      exportData.push(['']);
+      exportData.push(['Rang', 'Nom', 'Courses', 'Gains Nets (CDF)', 'Commissions (CDF)', 'Note Moyenne']);
+      leaderboard.forEach((driver, index) => {
+        exportData.push([
+          index + 1,
+          driver.driverName || driver.driverId,
+          driver.totalRides,
+          driver.netEarnings,
+          driver.totalCommissions,
+          driver.averageRating?.toFixed(1) || 'N/A'
+        ]);
+      });
+
+      // Convertir en CSV
+      const csv = exportData.map(row => row.join(',')).join('\n');
+
+      // Créer le fichier et télécharger
+      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      
+      const date = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `smartcabb_analytics_${date}.csv`);
+      link.style.visibility = 'hidden';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Export réussi !');
+    } catch (error) {
+      console.error('❌ Erreur export:', error);
+      toast.error('Erreur lors de l\'export');
+    }
   };
 
   const loadOverviewStats = async () => {
@@ -196,7 +280,7 @@ export function AdminAnalyticsDashboard() {
               <RefreshCw className="w-4 h-4 mr-2" />
               Actualiser
             </Button>
-            <Button variant="outline">
+            <Button onClick={handleExport} variant="outline">
               <Download className="w-4 h-4 mr-2" />
               Exporter
             </Button>
@@ -371,7 +455,7 @@ export function AdminAnalyticsDashboard() {
                       #{index + 1}
                     </span>
                   </td>
-                  <td className="py-3 px-4 font-medium">{driver.driverId}</td>
+                  <td className="py-3 px-4 font-medium">{driver.driverName || driver.driverId}</td>
                   <td className="text-right py-3 px-4">{driver.totalRides}</td>
                   <td className="text-right py-3 px-4 font-semibold text-green-600">
                     {formatCurrency(driver.totalEarnings)}

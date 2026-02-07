@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale avec AnimatePresence
 import { Button } from './ui/button';
-import { X, Copy, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Copy, CheckCircle2, AlertCircle } from '../lib/icons';
 
 interface DebugPaymentModalProps {
   show: boolean;

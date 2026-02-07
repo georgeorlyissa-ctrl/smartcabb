@@ -11,12 +11,12 @@ import {
   Calendar,
   ArrowLeft,
   Search,
-  Check,
+  CheckCircle as Check,
   Eye,
   Globe,
   MessageSquare
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface ContactMessage {

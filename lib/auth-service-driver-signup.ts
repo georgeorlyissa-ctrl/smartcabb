@@ -102,7 +102,8 @@ export async function signUpDriver(driverData: {
       password
     });
 
-    if (authError || !authData.session) {
+    // ✅ FIX: Vérifier authData.access_token au lieu de authData.session
+    if (authError || !authData.access_token) {
       console.error('❌ Erreur connexion:', authError);
       return {
         success: false,
@@ -110,13 +111,13 @@ export async function signUpDriver(driverData: {
       };
     }
 
-    console.log('✅ Connexion réussie après inscription');
-
+    console.log('✅ Conducteur créé et connecté:', serverData.profile.full_name);
+    
     return {
       success: true,
       user: authData.user,
       profile: serverData.profile,
-      accessToken: authData.session.access_token
+      accessToken: authData.access_token // ✅ FIX: Utiliser authData.access_token directement
     };
 
   } catch (error) {

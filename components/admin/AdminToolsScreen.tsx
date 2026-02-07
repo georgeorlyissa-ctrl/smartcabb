@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { 
+import {
   ArrowLeft,
-  Trash2, 
+  Trash2,
   RefreshCw, 
   AlertTriangle,
   CheckCircle
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 
 export function AdminToolsScreen() {
   const { setCurrentScreen } = useAppState();
@@ -134,7 +133,7 @@ export function AdminToolsScreen() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Warning Banner */}
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
@@ -151,10 +150,10 @@ export function AdminToolsScreen() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
 
         {/* Cleanup Auth Users Tool */}
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -203,7 +202,7 @@ export function AdminToolsScreen() {
 
             {/* Result Display */}
             {result && (
-              <motion.div
+              <div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
@@ -228,13 +227,13 @@ export function AdminToolsScreen() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
           </Card>
-        </motion.div>
+        </div>
 
         {/* Sync Wallet Tool */}
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
@@ -299,7 +298,7 @@ export function AdminToolsScreen() {
 
             {/* Result Display */}
             {syncResult && (
-              <motion.div
+              <div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
@@ -326,13 +325,13 @@ export function AdminToolsScreen() {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
           </Card>
-        </motion.div>
+        </div>
 
         {/* Info Card */}
-        <motion.div
+        <div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -359,7 +358,7 @@ export function AdminToolsScreen() {
               </li>
             </ul>
           </Card>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

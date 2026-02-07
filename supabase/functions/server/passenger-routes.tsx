@@ -1,5 +1,5 @@
 import { Hono } from "npm:hono";
-import * as kv from "./kv_store.tsx";
+import * as kv from "./kv-wrapper.tsx";
 
 const app = new Hono();
 
@@ -284,7 +284,8 @@ app.get('/:id/stats', async (c) => {
 });
 
 /**
- * ✅ GET /passengers/:id - Récupérer les informations d'un passager
+ * 🧑 GET /passengers/:id - Récupérer les informations d'un passager
+ * Gestion intelligente : Support UUID ET custom ID ET téléphone
  */
 app.get("/:id", async (c) => {
   try {
@@ -299,18 +300,160 @@ app.get("/:id", async (c) => {
 
     console.log("🔍 Récupération informations passager:", passengerId);
 
-    // Récupérer les informations du passager depuis le KV store
-    const passenger = await kv.get(`user:${passengerId}`);
+    // 🔧 FIX: D'abord, essayer de récupérer depuis le KV store par ID
+    let passengerFromKV = await kv.get(`passenger:${passengerId}`);
     
-    if (!passenger) {
-      console.warn("⚠️ Passager non trouvé:", passengerId);
+    // Si pas trouvé par ID, essayer par téléphone (si le passengerId ressemble à un téléphone)
+    if (!passengerFromKV && /^[0-9+\s\-()]+$/.test(passengerId)) {
+      console.log("📱 ID ressemble à un téléphone, recherche par téléphone...");
+      const allPassengers = await kv.getByPrefix('passenger:');
+      passengerFromKV = allPassengers.find((p: any) => p && p.phone === passengerId);
+      
+      if (passengerFromKV) {
+        console.log("✅ Passager trouvé par téléphone:", passengerFromKV.id);
+      }
+    }
+    
+    // Si pas trouvé par ID, essayer avec le préfixe user:
+    if (!passengerFromKV) {
+      passengerFromKV = await kv.get(`user:${passengerId}`);
+      if (passengerFromKV) {
+        console.log("✅ Passager trouvé avec préfixe user:");
+      }
+    }
+    
+    if (passengerFromKV) {
+      console.log("✅ Passager trouvé dans KV store:", passengerFromKV);
+      return c.json({
+        success: true,
+        passenger: passengerFromKV
+      });
+    }
+
+    console.log("⚠️ Passager non trouvé dans KV, tentative Supabase Auth...");
+
+    // 🔧 FIX: Vérifier si l'ID est un UUID valide avant d'appeler getUserById
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isValidUUID = uuidRegex.test(passengerId);
+
+    if (!isValidUUID) {
+      console.error("❌ ID invalide: pas un UUID, pas un téléphone et pas trouvé dans KV store");
       return c.json({ 
         success: false, 
-        error: "Passager non trouvé" 
+        error: "Passager introuvable" 
       }, 404);
     }
 
-    console.log("✅ Passager trouvé:", passenger);
+    // 🔍 1. Vérifier si le passager existe dans Supabase Auth (seulement si UUID valide)
+    const { createClient } = await import('npm:@supabase/supabase-js@2');
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(passengerId);
+    
+    if (authError || !authUser.user) {
+      console.error("❌ Utilisateur introuvable dans Supabase Auth:", authError);
+      return c.json({ 
+        success: false, 
+        error: "Utilisateur introuvable dans le système d'authentification" 
+      }, 404);
+    }
+
+    console.log("✅ Utilisateur trouvé dans Supabase Auth:", authUser.user.email);
+
+    // 🔍 2. Vérifier si le profil existe dans la table profiles
+    const { data: existingProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', passengerId)
+      .single();
+
+    // 🆕 3. Si le profil n'existe pas dans la table profiles, le créer automatiquement
+    if (profileError && profileError.code === 'PGRST116') {
+      console.log("⚠️ Profil introuvable dans la table profiles, création automatique...");
+      
+      const newProfile = {
+        id: passengerId,
+        full_name: authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Utilisateur',
+        email: authUser.user.email || `user-${passengerId}@smartcabb.local`,
+        phone: authUser.user.user_metadata?.phone || authUser.user.phone || '',
+        role: 'passenger',
+        created_at: new Date().toISOString()
+      };
+
+      const { data: createdProfile, error: createError } = await supabase
+        .from('profiles')
+        .insert(newProfile)
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("❌ Erreur création profil automatique:", createError);
+        return c.json({ 
+          success: false, 
+          error: "Impossible de créer le profil automatiquement" 
+        }, 500);
+      }
+
+      console.log("✅ Profil passager créé automatiquement:", createdProfile);
+    } else if (profileError) {
+      console.error("❌ Erreur récupération profil:", profileError);
+      return c.json({ 
+        success: false, 
+        error: "Erreur lors de la récupération du profil" 
+      }, 500);
+    } else {
+      console.log("✅ Profil trouvé dans la table profiles:", existingProfile);
+    }
+
+    // 🔍 4. Récupérer les informations du passager depuis le KV store
+    const passenger = await kv.get(`user:${passengerId}`);
+    
+    if (!passenger) {
+      console.warn("⚠️ Passager non trouvé dans le KV store (normal pour un nouveau compte)");
+      
+      // Créer un profil de base dans le KV store
+      const basicProfile = {
+        id: passengerId,
+        name: authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Utilisateur',
+        full_name: authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name || authUser.user.email?.split('@')[0] || 'Utilisateur',
+        email: authUser.user.email || `user-${passengerId}@smartcabb.local`,
+        phone: authUser.user.user_metadata?.phone || authUser.user.phone || '',
+        role: 'passenger',
+        created_at: new Date().toISOString(),
+        total_rides: 0,
+        balance: 0,
+        rating: 5.0,
+        favorite_payment_method: 'cash'
+      };
+      
+      await kv.set(`user:${passengerId}`, basicProfile);
+      console.log("✅ Profil de base créé dans le KV store");
+      
+      return c.json({
+        success: true,
+        passenger: {
+          id: passengerId,
+          name: basicProfile.name,
+          full_name: basicProfile.full_name,
+          phone: basicProfile.phone,
+          email: basicProfile.email,
+          address: "",
+          total_rides: 0,
+          totalRides: 0,
+          created_at: basicProfile.created_at,
+          registeredAt: basicProfile.created_at,
+          favorite_payment_method: "cash",
+          favoritePaymentMethod: "cash",
+          balance: 0,
+          rating: 5.0
+        }
+      });
+    }
+
+    console.log("✅ Passager trouvé dans le KV store:", passenger);
 
     return c.json({
       success: true,

@@ -1,19 +1,13 @@
 /**
- * 🗺️ SERVICE DE ROUTING PROFESSIONNEL POUR SMART CABB
+ * 🗺️ SERVICE DE ROUTING GOOGLE MAPS POUR SMARTCABB
  * 
- * ✅ Utilise OSRM (Open Source Routing Machine) avec serveurs de backup
+ * ✅ Utilise Google Directions API exclusivement
  * ✅ Optimisé pour Kinshasa, RDC
  * ✅ Compatible avec Yango/Uber pour itinéraires réalistes
- * ✅ Système de fallback multi-niveaux
+ * ✅ Système de fallback intelligent
  */
-/**
- * 🗺️ SERVICE DE ROUTING PROFESSIONNEL POUR SMART CABB
- * 
- * ✅ Utilise OSRM (Open Source Routing Machine) avec serveurs de backup
- * ✅ Optimisé pour Kinshasa, RDC
- * ✅ Compatible avec Yango/Uber pour itinéraires réalistes
- * ✅ Système de fallback multi-niveaux
- */
+
+import * as GoogleMapsService from './google-maps-service';
 
 interface RoutePoint {
   lat: number;
@@ -24,24 +18,13 @@ interface RouteResult {
   coordinates: RoutePoint[];
   distance: number; // en kilomètres
   duration: number; // en minutes
-  geometry: string; // Polyline encodée (optionnel)
+  geometry: string; // Polyline encodée
 }
 
 /**
- * 🌍 SERVEURS OSRM MULTIPLES POUR HAUTE DISPONIBILITÉ
+ * Calculer un itinéraire réel entre deux points avec Google Directions API
  * 
- * Plusieurs serveurs de backup pour garantir un service fiable
- */
-const OSRM_SERVERS = [
-  'https://router.project-osrm.org',  // Serveur principal OSRM
-  'https://routing.openstreetmap.de', // Serveur backup Europe
-  'http://router.project-osrm.org',   // HTTP fallback
-];
-
-/**
- * Calculer un itinéraire réel entre deux points avec OSRM
- * 
- * ✅ OSRM utilise les vraies routes d'OpenStreetMap
+ * ✅ Google utilise les vraies routes avec trafic en temps réel
  * ✅ Même technologie que Yango/Uber
  * ✅ Optimisé pour Kinshasa
  */
@@ -49,7 +32,7 @@ export async function calculateRoute(
   start: RoutePoint,
   end: RoutePoint
 ): Promise<RouteResult> {
-  console.log(`🛣️ Calcul d'itinéraire RÉEL: (${start.lat.toFixed(4)}, ${start.lng.toFixed(4)}) → (${end.lat.toFixed(4)}, ${end.lng.toFixed(4)})`);
+  console.log(`🛣️ Calcul d'itinéraire Google Maps: (${start.lat.toFixed(4)}, ${start.lng.toFixed(4)}) → (${end.lat.toFixed(4)}, ${end.lng.toFixed(4)})`);
   
   // 🎯 VALIDATION DES COORDONNÉES (zone Kinshasa/RDC)
   if (!isValidCoordinate(start) || !isValidCoordinate(end)) {
@@ -57,87 +40,36 @@ export async function calculateRoute(
     return createFallbackRoute(start, end);
   }
   
-  // 🔄 ESSAYER CHAQUE SERVEUR OSRM JUSQU'À CE QU'UN FONCTIONNE
-  for (let i = 0; i < OSRM_SERVERS.length; i++) {
-    const server = OSRM_SERVERS[i];
+  try {
+    // ✅ GOOGLE DIRECTIONS API
+    const route = await GoogleMapsService.getDirections(start, end);
     
-    try {
-      console.log(`🌐 Tentative serveur ${i + 1}/${OSRM_SERVERS.length}: ${server}`);
-      
-      // 🚗 Format OSRM: /route/v1/{profile}/{coordinates}
-      // profile = driving (voiture), walking (piéton), cycling (vélo)
-      const url = `${server}/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&steps=true&continue_straight=false`;
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
-      
-      const response = await fetch(url, {
-        signal: controller.signal,
-        mode: 'cors',
-        headers: {
-          'User-Agent': 'SmartCabb/2.0 (Kinshasa Transport App)',
-          'Accept': 'application/json'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // ✅ VÉRIFIER QUE L'ITINÉRAIRE EST VALIDE
-      if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) {
-        throw new Error(`Code OSRM: ${data.code} - ${data.message || 'Aucun itinéraire'}`);
-      }
-      
-      const route = data.routes[0];
-      
-      // 📍 EXTRAIRE LES COORDONNÉES DE L'ITINÉRAIRE RÉEL
-      const coordinates: RoutePoint[] = route.geometry.coordinates.map((coord: number[]) => ({
-        lng: coord[0],
-        lat: coord[1]
-      }));
-      
-      const distanceKm = route.distance / 1000; // mètres → km
-      const durationMin = route.duration / 60; // secondes → minutes
-      
-      console.log(`✅ ITINÉRAIRE CALCULÉ AVEC SUCCÈS !`);
-      console.log(`   📏 Distance: ${distanceKm.toFixed(1)} km`);
-      console.log(`   ⏱️  Durée: ${Math.round(durationMin)} min`);
-      console.log(`   📍 Points: ${coordinates.length} coordonnées`);
-      console.log(`   🌐 Serveur: ${server}`);
-      
-      return {
-        coordinates,
-        distance: distanceKm,
-        duration: durationMin,
-        geometry: JSON.stringify(route.geometry)
-      };
-      
-    } catch (error) {
-      console.warn(`⚠️ Serveur ${i + 1} échoué:`, error);
-      
-      // Si c'est le dernier serveur, on utilise le fallback
-      if (i === OSRM_SERVERS.length - 1) {
-        console.error('❌ TOUS LES SERVEURS OSRM ONT ÉCHOUÉ');
-        return createFallbackRoute(start, end);
-      }
-      
-      // Sinon, on essaie le serveur suivant
-      continue;
+    if (!route) {
+      console.warn('⚠️ Aucun itinéraire trouvé via Google Maps, utilisation du fallback');
+      return createFallbackRoute(start, end);
     }
+
+    console.log(`✅ ITINÉRAIRE GOOGLE MAPS CALCULÉ AVEC SUCCÈS !`);
+    console.log(`   📏 Distance: ${route.distance.toFixed(1)} km`);
+    console.log(`   ⏱️  Durée: ${Math.round(route.duration)} min`);
+    console.log(`   📍 Points: ${route.coordinates.length} coordonnées`);
+    
+    return {
+      coordinates: route.coordinates,
+      distance: route.distance,
+      duration: route.duration,
+      geometry: route.polyline
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur Google Directions API:', error);
+    return createFallbackRoute(start, end);
   }
-  
-  // 🔙 FALLBACK SI TOUT ÉCHOUE
-  return createFallbackRoute(start, end);
 }
 
 /**
  * 🛡️ CRÉER UN ITINÉRAIRE DE SECOURS (fallback)
- * Utilisé uniquement si OSRM échoue complètement
+ * Utilisé uniquement si Google Directions API échoue complètement
  */
 function createFallbackRoute(start: RoutePoint, end: RoutePoint): RouteResult {
   console.warn('📍 Utilisation d\'un itinéraire de SECOURS (ligne droite avec interpolation)');
@@ -145,7 +77,7 @@ function createFallbackRoute(start: RoutePoint, end: RoutePoint): RouteResult {
   const distanceKm = calculateDistanceAsTheCrowFlies(start, end);
   const durationMin = estimateDuration(distanceKm);
   
-  // ✅ AMÉLIORATION: Au lieu d'une ligne droite, on crée des points intermédiaires
+  // ✅ Au lieu d'une ligne droite, on crée des points intermédiaires
   const intermediatePoints = createIntermediatePoints(start, end, 20);
   
   return {
@@ -280,7 +212,7 @@ export function simplifyRoute(
 }
 
 /**
- * Calculer plusieurs routes alternatives (si disponible)
+ * Calculer plusieurs routes alternatives (si disponible avec Google)
  */
 export async function calculateAlternativeRoutes(
   start: RoutePoint,
@@ -288,39 +220,12 @@ export async function calculateAlternativeRoutes(
   alternatives: number = 3
 ): Promise<RouteResult[]> {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${start.lng},${start.lat};${end.lng},${end.lat}?overview=full&geometries=geojson&alternatives=${alternatives}`;
+    // Google Directions API peut retourner plusieurs routes
+    const mainRoute = await calculateRoute(start, end);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'SmartCabb/1.0 (RDC Transport App)'
-      }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`OSRM API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.code !== 'Ok' || !data.routes) {
-      throw new Error('Aucun itinéraire trouvé');
-    }
-    
-    return data.routes.map((route: any) => ({
-      coordinates: route.geometry.coordinates.map((coord: number[]) => ({
-        lng: coord[0],
-        lat: coord[1]
-      })),
-      distance: route.distance / 1000,
-      duration: route.duration / 60,
-      geometry: route.geometry
-    }));
+    // Pour l'instant, on retourne seulement la route principale
+    // TODO: Implémenter alternatives avec Google Directions API
+    return [mainRoute];
     
   } catch (error) {
     console.warn('⚠️ Erreur calcul routes alternatives:', error);

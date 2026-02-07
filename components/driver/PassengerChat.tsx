@@ -1,8 +1,7 @@
-import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner';
+import { useState, useEffect, useRef } from 'react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { supabase } from '../../lib/supabase';
-import { MessageSquare, User, CheckCheck, Check, Send } from 'lucide-react';
+import { MessageSquare, User, CheckCheck, Check, Send } from '../../lib/icons';
 
 interface Message {
   id: string;

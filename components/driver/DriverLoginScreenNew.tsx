@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
-import { Car, Lock, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
+import { Car, Lock, Eye, EyeOff } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { signIn } from '../../lib/auth-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';

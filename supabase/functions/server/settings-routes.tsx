@@ -1,5 +1,5 @@
 import { Hono } from "npm:hono";
-import * as kv from "./kv_store.tsx";
+import * as kv from "./kv-wrapper.tsx";
 
 const app = new Hono();
 

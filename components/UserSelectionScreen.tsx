@@ -1,4 +1,4 @@
-import { User, Car, Shield } from 'lucide-react';
+import { User, Car, Shield } from '../lib/icons';
 import { useNavigate } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
 import { Button } from './ui/button';

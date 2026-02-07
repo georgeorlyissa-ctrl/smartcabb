@@ -1,15 +1,28 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { ArrowLeft, Wallet, Plus, Check, Gift, TrendingUp, Clock, DollarSign, RefreshCw, Bug } from 'lucide-react';
-import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
-import type { Passenger, WalletTransaction } from '../../types';
-import { formatCDF, getExchangeRate, convertUSDtoCDF } from '../../lib/pricing';
+import { walletService } from '../../lib/wallet-service';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { getExchangeRate, convertUSDtoCDF, formatCDF } from '../../lib/pricing';
+import { WalletTransaction } from '../../types';
 import { RechargeModal } from './RechargeModal';
 import { DebugPaymentModal } from '../DebugPaymentModal';
-import { walletService } from '../../lib/wallet-service';
-import { toast } from 'sonner';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { Button } from '../ui/button';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
+
+// Icônes
+import { 
+  ArrowLeft, 
+  Wallet, 
+  Gift, 
+  Plus, 
+  TrendingUp, 
+  Check, 
+  Clock, 
+  DollarSign,
+  Bug,
+  RefreshCw
+} from '../../lib/icons';
 
 export function WalletScreen() {
   const { setCurrentScreen, state, updateUser } = useAppState();

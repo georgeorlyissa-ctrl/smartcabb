@@ -1,18 +1,19 @@
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react'; // ✅ FIX: Ajout useEffect
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
-import { Card } from '../ui/card';
+import { Card } from '../ui/card'; // ✅ FIX: Ajout Card
+import { Textarea } from '../ui/textarea';
+import { Star, User, Car, ArrowLeft, Send, Home } from '../../lib/icons';
 import { useAppState } from '../../hooks/useAppState';
-import { 
-  Star,
-  Send,
-  Home,
-  ThumbsUp,
-  ThumbsDown,
-  Loader2
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+
+// 🔧 FIX: Loader2 inline pour éviter l'erreur "Loader2 is not defined"
+const Loader2 = ({ className = '' }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+  </svg>
+);
 
 export function RatingScreen() {
   const { state, setCurrentScreen } = useAppState();
@@ -135,12 +136,12 @@ export function RatingScreen() {
   };
 
   const quickComments = [
-    { icon: ThumbsUp, text: 'Excellent conducteur', emoji: '👍' },
-    { icon: ThumbsUp, text: 'Véhicule propre', emoji: '✨' },
-    { icon: ThumbsUp, text: 'Conduite sécuritaire', emoji: '🛡️' },
-    { icon: ThumbsUp, text: 'Très ponctuel', emoji: '⏰' },
-    { icon: ThumbsUp, text: 'Très sympathique', emoji: '😊' },
-    { icon: ThumbsDown, text: 'Pourrait être amélioré', emoji: '⚠️' }
+    { icon: Star, text: 'Excellent conducteur', emoji: '👍' },
+    { icon: Star, text: 'Véhicule propre', emoji: '✨' },
+    { icon: Star, text: 'Conduite sécuritaire', emoji: '🛡️' },
+    { icon: Star, text: 'Très ponctuel', emoji: '⏰' },
+    { icon: Star, text: 'Très sympathique', emoji: '😊' },
+    { icon: Star, text: 'Pourrait être amélioré', emoji: '⚠️' }
   ];
 
   return (
@@ -270,7 +271,7 @@ export function RatingScreen() {
                 <label className="block text-xs sm:text-sm font-medium mb-2">
                   Ajoutez un commentaire (optionnel)
                 </label>
-                <textarea
+                <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Partagez votre expérience..."

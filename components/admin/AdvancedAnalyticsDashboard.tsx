@@ -2,10 +2,10 @@
 
 // 🔥 v311.4 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { TrendingUp, TrendingDown, DollarSign, Users, Car, Calendar, Download, Filter, RefreshCw, ArrowLeft } from 'lucide-react';
+import { motion } from '../../lib/motion';
+import { TrendingUp, TrendingDown, DollarSign, Users, Car, Calendar, Download, Filter, RefreshCw, ArrowLeft } from '../../lib/admin-icons';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';

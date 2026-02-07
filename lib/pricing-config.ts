@@ -9,6 +9,7 @@
 import { 
   PRICING_CONFIG,
   USD_TO_CDF,
+  MINIMUM_CREDITS_BY_CATEGORY,
   type VehicleCategory,
   type ServiceType,
   type TimeOfDay
@@ -145,4 +146,20 @@ export function getDisplayPrice(
   }
   
   return `${priceCDF.toLocaleString('fr-FR')} CDF`;
+}
+
+/**
+ * 💳 Obtenir le crédit minimum requis pour une catégorie de véhicule
+ * Le conducteur doit avoir au moins ce montant pour pouvoir se mettre en ligne
+ */
+export function getMinimumCreditForCategory(category: VehicleCategory): number {
+  return MINIMUM_CREDITS_BY_CATEGORY[category] || 20000; // Default: 20 000 CDF
+}
+
+/**
+ * 💳 Vérifier si le solde d'un conducteur est suffisant pour se mettre en ligne
+ */
+export function hasMinimumCredit(balance: number, category: VehicleCategory): boolean {
+  const minimumCredit = getMinimumCreditForCategory(category);
+  return balance >= minimumCredit;
 }

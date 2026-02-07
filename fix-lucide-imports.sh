@@ -1,115 +1,121 @@
 #!/bin/bash
 
-# 🔧 SCRIPT DE CORRECTION DES IMPORTS LUCIDE-REACT
-# Ce script remplace TOUS les imports directs de lucide-react par des imports depuis /lib/icons.ts
+# 🔧 Script de correction automatique des imports lucide-react vers /lib/icons
+# Utilisation : bash fix-lucide-imports.sh
 
-echo "🔍 Recherche des fichiers avec imports lucide-react..."
+echo "🚀 Début de la correction des imports lucide-react..."
 
-# Compter le nombre de fichiers à corriger
-total=$(grep -rl "from 'lucide-react'" --include="*.tsx" --include="*.ts" . | grep -v node_modules | grep -v .git | wc -l)
-
-echo "📦 $total fichiers trouvés"
-
-if [ $total -eq 0 ]; then
-  echo "✅ Aucune correction nécessaire!"
-  exit 0
-fi
-
-echo "🛠️ Correction en cours..."
-
-# 1. Remplacer tous les imports dans les fichiers .tsx et .ts (sauf /lib/icons.ts lui-même)
-find . -name "*.tsx" -o -name "*.ts" | \
-  grep -v node_modules | \
-  grep -v .git | \
-  grep -v "/lib/icons.ts" | \
-  while read file; do
-    if grep -q "from 'lucide-react'" "$file" 2>/dev/null; then
-      # Remplacer par un chemin temporaire pour éviter les conflits
-      sed -i.bak "s|from 'lucide-react'|from '__LUCIDE_TEMP__|g" "$file"
-    fi
-  done
-
-# 2. Corriger le chemin en fonction de la profondeur du fichier
-
-# Fichiers à la racine (App.tsx, etc.)
-find . -maxdepth 1 -name "*.tsx" -o -name "*.ts" | \
-  while read file; do
+# Fonction pour remplacer dans un fichier
+replace_in_file() {
+    local file=$1
+    local old=$2
+    local new=$3
+    
     if [ -f "$file" ]; then
-      sed -i.bak "s|from '__LUCIDE_TEMP__'|from './lib/icons'|g" "$file"
+        sed -i "s|$old|$new|g" "$file"
+        echo "✅ $file"
     fi
-  done
+}
 
-# Fichiers dans /components/
-find ./components -maxdepth 1 -name "*.tsx" | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans /components/admin/
-find ./components/admin -name "*.tsx" 2>/dev/null | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans /components/ui/
-find ./components/ui -name "*.tsx" 2>/dev/null | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans /components/driver/
-find ./components/driver -name "*.tsx" 2>/dev/null | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans /components/passenger/
-find ./components/passenger -name "*.tsx" 2>/dev/null | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans /components/shared/
-find ./components/shared -name "*.tsx" 2>/dev/null | \
-  while read file; do
-    sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-  done
-
-# Fichiers dans d'autres sous-dossiers de /components/
-find ./components -mindepth 2 -name "*.tsx" | \
-  grep -v "/admin/" | \
-  grep -v "/ui/" | \
-  grep -v "/driver/" | \
-  grep -v "/passenger/" | \
-  grep -v "/shared/" | \
-  while read file; do
-    # Compter la profondeur
-    depth=$(echo "$file" | tr -cd '/' | wc -c)
-    if [ $depth -eq 2 ]; then
-      sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../lib/icons'|g" "$file"
-    elif [ $depth -eq 3 ]; then
-      sed -i.bak "s|from '__LUCIDE_TEMP__'|from '../../../lib/icons'|g" "$file"
+# 1. Corriger les fichiers dans /components/*.tsx (38 fichiers)
+echo ""
+echo "📁 Correction de /components/*.tsx..."
+for file in components/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../lib/motion"|g' "$file"
+        echo "✅ $file"
     fi
-  done
+done
 
-# Nettoyer les fichiers .bak
-find . -name "*.bak" -delete
+# 2. Corriger les fichiers dans /components/ui/*.tsx (7 fichiers)
+echo ""
+echo "📁 Correction de /components/ui/*.tsx..."
+for file in components/ui/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
 
-echo "✅ Correction terminée!"
+# 3. Corriger les fichiers dans /components/admin/*.tsx
+echo ""
+echo "📁 Correction de /components/admin/*.tsx..."
+for file in components/admin/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
 
-# Vérification
-remaining=$(grep -rl "from 'lucide-react'" --include="*.tsx" --include="*.ts" . | grep -v node_modules | grep -v .git | grep -v "/lib/icons.ts" | wc -l)
+# 4. Corriger les fichiers dans /components/driver/*.tsx
+echo ""
+echo "📁 Correction de /components/driver/*.tsx..."
+for file in components/driver/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
 
-if [ $remaining -eq 0 ]; then
-  echo "🎉 Tous les imports ont été corrigés!"
-  echo ""
-  echo "📝 Prochaines étapes:"
-  echo "   1. Vérifiez les changements: git diff"
-  echo "   2. Testez le build: npm run build"
-  echo "   3. Commitez: git add . && git commit -m 'fix: Replace all lucide-react imports with /lib/icons'"
-  echo "   4. Push: git push origin main"
-else
-  echo "⚠️  $remaining fichiers n'ont pas pu être corrigés"
-  echo "Fichiers restants:"
-  grep -rl "from 'lucide-react'" --include="*.tsx" --include="*.ts" . | grep -v node_modules | grep -v .git | grep -v "/lib/icons.ts"
-fi
+# 5. Corriger les fichiers dans /components/passenger/*.tsx
+echo ""
+echo "📁 Correction de /components/passenger/*.tsx..."
+for file in components/passenger/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
+
+# 6. Corriger les fichiers dans /components/shared/*.tsx
+echo ""
+echo "📁 Correction de /components/shared/*.tsx..."
+for file in components/shared/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
+
+# 7. Corriger les fichiers dans /components/test/*.tsx
+echo ""
+echo "📁 Correction de /components/test/*.tsx..."
+for file in components/test/*.tsx; do
+    if [ -f "$file" ]; then
+        sed -i "s|from 'lucide-react'|from '../../lib/icons'|g" "$file"
+        sed -i 's|from "lucide-react"|from "../../lib/icons"|g' "$file"
+        sed -i "s|from 'motion/react'|from '../../lib/motion'|g" "$file"
+        sed -i 's|from "motion/react"|from "../../lib/motion"|g' "$file"
+        echo "✅ $file"
+    fi
+done
+
+echo ""
+echo "✨ Correction terminée !"
+echo ""
+echo "📊 Résumé :"
+echo "  - Tous les imports 'lucide-react' ont été remplacés"
+echo "  - Tous les imports 'motion/react' ont été corrigés"
+echo ""
+echo "🚀 Prochaine étape : Commit et push vers GitHub"
+echo "  git add ."
+echo "  git commit -m 'fix: replace lucide-react imports with local /lib/icons'"
+echo "  git push origin main"

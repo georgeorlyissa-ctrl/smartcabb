@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { Alert, AlertDescription } from './ui/alert';
@@ -12,8 +12,8 @@ import {
   Shield,
   Users,
   X
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 import { sendEmergencyAlert } from '../lib/sms-service';
 
 interface EmergencyAlertProps {

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { Clock, Navigation } from 'lucide-react';
+import { Clock, Navigation } from '../lib/icons';
 
 interface WelcomeDialogProps {
   isOpen: boolean;

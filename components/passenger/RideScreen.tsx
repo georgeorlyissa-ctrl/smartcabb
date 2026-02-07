@@ -1,31 +1,31 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale avec AnimatePresence
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
-import { 
-  ArrowLeft, 
-  MapPin, 
-  Phone, 
-  MessageCircle, 
-  Star,
-  Navigation,
-  Clock,
-  User,
-  Car,
-  X,
-  CreditCard,
-  Smartphone,
-  Banknote,
-  Wallet,
-  TrendingUp, // ✅ FIX #3: Icône pour itinéraire
-  Award // ✅ FIX #4: Icône pour profil chauffeur
-} from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { AlternativeVehicleDialog } from './AlternativeVehicleDialog';
 import { CancelRideReasonModal } from './CancelRideReasonModal';
 import { VehicleCategory } from '../../lib/pricing';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+
+// Icônes SVG inline
+const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>);
+const MapPin = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>);
+const Phone = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>);
+const MessageCircle = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>);
+const Star = ({ className = "w-4 h-4" }: { className?: string }) => (<svg className={className} fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>);
+const Navigation = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>);
+const Clock = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>);
+const User = ({ className = "w-10 h-10" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>);
+const Car = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>);
+const X = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>);
+const CreditCard = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>);
+const Smartphone = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>);
+const Banknote = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>);
+const Wallet = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>);
+const TrendingUp = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
+const Award = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>);
 
 interface DriverData {
   id: string;
@@ -175,9 +175,15 @@ export function RideScreen() {
         );
 
         if (!response.ok) {
+          // Si 404, la course n'existe plus (annulée ou terminée) - c'est normal
+          if (response.status === 404) {
+            console.log('ℹ️ Course non trouvée (probablement terminée ou annulée)');
+            return;
+          }
+          
+          // Pour les autres erreurs, logger un warning
           const errorText = await response.text();
-          console.warn('⚠️ Statut non OK:', response.status, errorText);
-          // Ne pas afficher d'erreur, juste logger
+          console.warn('⚠️ Erreur lors de la vérification du statut:', response.status, errorText);
           return;
         }
 
@@ -205,32 +211,31 @@ export function RideScreen() {
                 startedAt: ride.startedAt || new Date().toISOString()
               });
             }
-            // ✅ Navigation vers l'écran de TRACKING EN TEMPS RÉEL
-            console.log('📍 Navigation vers live-tracking screen');
-            setCurrentScreen('live-tracking');
+            // ✅ Navigation vers l'écran de SUIVI EN TEMPS RÉEL
+            console.log('📍 Navigation vers ride-in-progress screen');
+            setCurrentScreen('ride-in-progress');
             return;
           }
           
           // Si un conducteur a accepté la course
           if (ride.status === 'accepted' && ride.driverId) {
             console.log('✅ Conducteur a accepté la course !');
-            console.log('🔐 Code de confirmation reçu du backend:', ride.confirmationCode);
             console.log('📊 Ride data complète:', ride);
             clearInterval(checkInterval);
             clearTimeout(timeoutTimer);
             
-            // ✅ MISE À JOUR DU STATE AVEC LE CODE PIN
+            // ✅ MISE À JOUR DU STATE (sans code de confirmation)
             if (updateRide && currentRide?.id) {
-              console.log('🔄 Mise à jour du ride avec code PIN...');
+              console.log('🔄 Mise à jour du ride...');
               updateRide(currentRide.id, {
                 status: 'accepted',
                 driverId: ride.driverId,
-                confirmationCode: ride.confirmationCode, // ⭐ IMPORTANT
+                // 🚫 confirmationCode supprimé pour simplifier l'UX
                 driverName: ride.driverName,
                 driverPhone: ride.driverPhone,
                 vehicleInfo: ride.vehicleInfo
               });
-              console.log('✅ Ride mis à jour, confirmationCode:', ride.confirmationCode);
+              console.log('✅ Ride mis à jour');
             } else {
               console.error('❌ Impossible de mettre à jour le ride:', {
                 updateRideExists: !!updateRide,
@@ -311,8 +316,16 @@ export function RideScreen() {
         );
 
         if (!response.ok) {
+          // Si 404, la course n'existe plus - c'est normal
+          if (response.status === 404) {
+            console.log('ℹ️ Course non trouvée lors de la vérification de disponibilité (probablement terminée ou annulée)');
+            setCheckingAlternative(false);
+            return;
+          }
+          
+          // Pour les autres erreurs, logger un warning
           const errorText = await response.text();
-          console.warn('⚠️ Disponibilité non vérifiable:', response.status, errorText);
+          console.warn('⚠️ Erreur lors de la vérification de disponibilité:', response.status, errorText);
           setCheckingAlternative(false);
           return;
         }
@@ -367,12 +380,17 @@ export function RideScreen() {
             setShowAlternativeDialog(true);
             setSearchingDriver(false);
           } 
-          // Aucune alternative disponible
-          else if (!data.available && !data.alternative) {
-            console.log('❌ Aucun conducteur disponible');
+          // ✅ CORRECTION : N'afficher "Aucun conducteur disponible" QUE si AUCUN conducteur n'est en ligne
+          else if (!data.available && !data.alternative && data.noDriversOnlineAtAll) {
+            console.log('❌ AUCUN conducteur en ligne dans toutes les catégories');
             setError('Aucun conducteur disponible pour le moment. Veuillez réessayer plus tard.');
             setSearchingDriver(false);
             clearInterval(checkInterval);
+          }
+          // Des conducteurs sont disponibles dans d'autres catégories, continuer à attendre
+          else if (!data.available && !data.alternative && !data.noDriversOnlineAtAll) {
+            console.log('⏳ Pas de conducteur dans cette catégorie, mais d\'autres conducteurs en ligne - on attend');
+            // Ne rien faire, continuer le polling
           }
           // Des conducteurs sont disponibles, continuer à attendre
           else if (data.available) {
@@ -442,7 +460,18 @@ export function RideScreen() {
   }, [driverArriving, arrivalTime]);
 
   const handleCancelRide = () => {
-    console.log('❌ Ouvrir le modal d\'annulation');
+    // Vérifier qu'il y a bien une course à annuler
+    if (!currentRide?.id) {
+      console.warn('⚠️ Aucune course active à annuler');
+      toast.error('Aucune course active', {
+        description: 'Il n\'y a pas de course en cours à annuler',
+        duration: 3000
+      });
+      setCurrentScreen('map');
+      return;
+    }
+    
+    console.log('❌ Ouvrir le modal d\'annulation pour la course:', currentRide.id);
     setShowCancelModal(true); // ✅ FIX #2: Afficher le modal au lieu d'annuler directement
   };
 
@@ -1038,42 +1067,8 @@ export function RideScreen() {
                 </div>
               )}
 
-              {/* 🔐 PANNEAU CODE PIN */}
-              {currentRide?.confirmationCode ? (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-2xl p-6 border-2 border-orange-300 shadow-lg"
-                >
-                  <div className="text-center space-y-4">
-                    <div className="flex items-center justify-center space-x-2">
-                      <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center">
-                        <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-bold text-orange-800">Code de confirmation</h3>
-                    </div>
-                    
-                    <div className="bg-white rounded-xl p-6 border-2 border-orange-200">
-                      <p className="text-sm text-orange-600 mb-3">Donnez ce code au conducteur</p>
-                      <div className="text-6xl font-mono font-bold text-orange-600 tracking-widest">
-                        {currentRide.confirmationCode}
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-orange-700">
-                      Le conducteur vous demandera ce code avant de démarrer la course
-                    </p>
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                  ⚠️ DEBUG: Pas de code de confirmation dans currentRide
-                  <br/>
-                  currentRide: {JSON.stringify(currentRide, null, 2)}
-                </div>
-              )}
+              {/* 🚫 SUPPRIMÉ : Panneau code de confirmation (simplification UX) */}
+              {/* Le conducteur démarre directement la course sans demander de code */}
 
               {/* Infos de la course */}
               <div className="bg-white rounded-2xl p-5 shadow-lg border border-border space-y-3">
@@ -1338,3 +1333,6 @@ export function RideScreen() {
     </div>
   );
 }
+
+// Export par défaut pour compatibilité Rollup/Vite
+export default RideScreen;

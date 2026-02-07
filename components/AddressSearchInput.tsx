@@ -1,12 +1,34 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, MapPin, X } from '../lib/icons';
 import { Input } from './ui/input';
+import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../lib/motion';
 import { searchQuartiers, findNearbyQuartiers, QUARTIERS_KINSHASA, type Quartier } from '../lib/kinshasa-map-data';
 import { searchLocationsByCommune, getLocationTypeLabel, type Location } from '../lib/kinshasa-locations-database';
 import { searchProfessionalPlaces, getPlaceCoordinates, type ProfessionalPlace } from '../lib/professional-geocoding'; // 🆕 API PROFESSIONNELLE (Mapbox + Google)
+
+// Icônes inline (évite import lucide-react)
+const SearchIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="11" cy="11" r="8" />
+    <path d="m21 21-4.3-4.3" />
+  </svg>
+);
+
+const MapPinIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </svg>
+);
 
 interface Address {
   id: string;
@@ -54,8 +76,6 @@ export function AddressSearchInput({
   }, [value]);
 
   // Calculer la position du dropdown
-   // Calculer la position du dropdown
-   // Calculer la position du dropdown
   const updateDropdownPosition = () => {
     if (searchRef.current) {
       const rect = searchRef.current.getBoundingClientRect();
@@ -129,7 +149,7 @@ export function AddressSearchInput({
         
         console.log(`✅ Résultats professionnels: ${professionalResults.length}`);
         professionalResults.forEach((result, i) => {
-          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance !== undefined ? result.distance.toFixed(1) + ' km' : 'distance inconnue'}`);
+          console.log(`  ${i + 1}. ${result.name} (${result.source}) - ${result.distance !== undefined ? ((result.distance || 0).toFixed(1)) + ' km' : 'distance inconnue'}`);
         });
         
         // Convertir au format Address
@@ -268,7 +288,7 @@ export function AddressSearchInput({
             className="w-full px-4 py-4 text-left hover:bg-green-50 active:bg-green-100 transition-colors border-b border-gray-100 last:border-b-0 focus:outline-none focus:bg-green-50"
           >
             <div className="flex items-start space-x-3">
-              <MapPin className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
+              <MapPinIcon className="w-6 h-6 text-green-600 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-base font-semibold text-gray-900 leading-snug">{address.name}</p>
                 <p className="text-sm text-gray-700 mt-1 leading-relaxed">{address.description}</p>
@@ -276,7 +296,7 @@ export function AddressSearchInput({
               {/* 🆕 DISTANCE COMME YANGO */}
               {address.distance !== undefined && (
                 <div className="flex-shrink-0 ml-2">
-                  <p className="text-sm font-medium text-gray-500">{address.distance.toFixed(1)} km</p>
+                  <p className="text-sm font-medium text-gray-500">{(address.distance || 0).toFixed(1)} km</p>
                 </div>
               )}
             </div>
@@ -287,7 +307,7 @@ export function AddressSearchInput({
       {!isLoading && suggestions.length === 0 && value.length >= 2 && (
         <div className="p-6 text-center text-gray-600">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3">
-            <MapPin className="w-8 h-8 text-red-500" />
+            <MapPinIcon className="w-8 h-8 text-red-500" />
           </div>
           <p className="text-base font-semibold text-gray-900 mb-1">Lieu introuvable</p>
           <p className="text-sm text-gray-600 mb-2">Ce lieu n'existe pas dans notre base de données</p>
@@ -306,7 +326,7 @@ export function AddressSearchInput({
     <>
       <div ref={searchRef} className="relative w-full">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           <Input
             ref={inputRef}
             value={inputValue}
@@ -327,7 +347,7 @@ export function AddressSearchInput({
               onClick={clearSearch}
               className="absolute right-1 top-1/2 transform -translate-y-1/2 w-8 h-8"
             >
-              <X className="w-4 h-4" />
+              <XIcon className="w-4 h-4" />
             </Button>
           )}
         </div>

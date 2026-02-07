@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Banknote, Smartphone, Calculator } from 'lucide-react';
+import { Banknote, Smartphone, Calculator } from '../lib/icons';
 
 interface MixedPaymentSelectorProps {
   totalAmount: number;
@@ -105,7 +105,7 @@ export function MixedPaymentSelector({
       {/* Slider Control - Simplifié */}
       <div className="mb-6">
         <Label className="text-sm font-medium mb-3 block">
-          Pourcentage en espèces : {(splitPercentage || 0).toFixed(0)}%
+          Pourcentage en espèces : {((splitPercentage || 0)).toFixed(0)}%
         </Label>
         <div className="relative w-full">
           <div className="w-full bg-gray-200 rounded-full h-2">

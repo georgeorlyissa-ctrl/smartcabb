@@ -1,13 +1,42 @@
-import { useState } from 'react';
-import { toast } from '../../lib/toast';
-import { useNavigate } from '../../lib/simple-router';
-import { useAppState } from '../../hooks/useAppState';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { supabase } from '../../lib/supabase';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { ArrowLeft, Shield, Eye, EyeOff } from '../../lib/icons';
+import { useState } from 'react';
+import { useAppState } from '../../hooks/useAppState';
+import { useNavigate } from '../../lib/simple-router';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import * as authService from '../../lib/auth-service'; // ✅ Import de toutes les exports nommées
+
+// Icônes inline (évite import lib/icons qui n'existe plus)
+const ArrowLeftIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m12 19-7-7 7-7" />
+    <path d="M19 12H5" />
+  </svg>
+);
+
+const ShieldIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+  </svg>
+);
+
+const EyeIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+const EyeOffIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+    <line x1="2" x2="22" y1="2" y2="22" />
+  </svg>
+);
 
 export function AdminLoginScreen() {
   const { setCurrentScreen, setCurrentView, setIsAdmin, setCurrentUser } = useAppState();
@@ -16,6 +45,7 @@ export function AdminLoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSyncLink, setShowSyncLink] = useState(false);
 
   // ❌ SUPPRIMÉ : Pas de vérification automatique de session
   // L'admin DOIT toujours saisir son mot de passe pour se connecter (sécurité)
@@ -28,53 +58,46 @@ export function AdminLoginScreen() {
     }
 
     setLoading(true);
+    setShowSyncLink(false); // Réinitialiser
 
     try {
-      console.log('👑 Connexion admin...', email);
+      console.log('👑 Connexion admin en mode standalone...', email);
       
-      // ✅ CONNEXION avec Supabase Auth (pour créer la session persistante)
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (authError || !authData.session) {
-        console.error('❌ Erreur authentification:', authError);
-        toast.error('Email ou mot de passe incorrect');
+      // ✅ MODE STANDALONE : Utiliser auth-service directement
+      if (!authService || typeof authService.signIn !== 'function') {
+        console.error('❌ Erreur: authService non disponible ou invalide', authService);
+        toast.error('Erreur système: Service d\'authentification non disponible');
         setLoading(false);
         return;
       }
-
-      console.log('✅ Session Supabase créée, vérification du profil...');
-
-      // Vérifier le profil via l'API
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/session`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${authData.session.access_token}`
-          }
-        }
-      );
-
-      const result = await response.json();
+      
+      const result = await authService.signIn({ identifier: email, password });
 
       if (!result.success) {
-        console.error('❌ Erreur récupération profil:', result.error);
-        toast.error('Erreur lors de la récupération du profil');
+        console.error('❌ Erreur authentification:', result.error || 'Erreur inconnue');
+        
+        // Si c'est une erreur d'identifiants invalides, proposer la synchronisation
+        if (result.error && (
+          result.error.includes('Invalid login credentials') ||
+          result.error.includes('Email ou mot de passe incorrect') ||
+          result.error.includes('incorrect')
+        )) {
+          toast.error('Identifiants incorrects. Vérifiez votre email et mot de passe.');
+          setShowSyncLink(true); // Afficher le lien de synchronisation
+        } else {
+          toast.error(result.error || 'Email ou mot de passe incorrect');
+        }
+        
         setLoading(false);
         return;
       }
 
-      console.log('✅ Profil récupéré, vérification du rôle admin...');
+      console.log('✅ Authentification réussie, vérification du rôle admin...');
 
       // Vérifier que c'est bien un admin
       if (result.profile.role !== 'admin') {
         console.error('❌ Pas un compte admin');
         toast.error('Ce compte n\'a pas les droits d\'administration');
-        // Déconnecter l'utilisateur
-        await supabase.auth.signOut();
         setLoading(false);
         return;
       }
@@ -138,11 +161,11 @@ export function AdminLoginScreen() {
             }}
             className="absolute -top-2 -left-2 w-10 h-10"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeftIcon className="w-5 h-5" />
           </Button>
           
           <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-purple-600" />
+            <ShieldIcon className="w-8 h-8 text-purple-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Administration</h1>
           <p className="text-gray-600">SmartCabb Dashboard</p>
@@ -192,7 +215,7 @@ export function AdminLoginScreen() {
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
               >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
               </button>
             </div>
           </div>
@@ -214,7 +237,12 @@ export function AdminLoginScreen() {
 
           <div className="text-center">
             <button 
-              onClick={() => setCurrentScreen('forgot-password-admin')}
+              type="button"
+              onClick={() => {
+                console.log('🔗 Clic sur "Mot de passe oublié"');
+                console.log('🔗 Redirection vers /admin/forgot-password');
+                navigate('/admin/forgot-password');
+              }}
               className="text-sm text-purple-600 hover:text-purple-700 font-medium transition-colors"
               disabled={loading}
             >
@@ -226,7 +254,12 @@ export function AdminLoginScreen() {
             <p className="text-gray-600">
               Pas de compte admin ?{' '}
               <button 
-                onClick={() => setCurrentScreen('admin-register')}
+                type="button"
+                onClick={() => {
+                  console.log('🔗 Clic sur "Créer un compte"');
+                  console.log('🔗 Redirection vers /admin/signup');
+                  navigate('/admin/signup');
+                }}
                 className="text-purple-600 hover:text-purple-700 font-semibold"
                 disabled={loading}
               >
@@ -234,6 +267,20 @@ export function AdminLoginScreen() {
               </button>
             </p>
           </div>
+
+          {showSyncLink && (
+            <div className="text-center mt-4">
+              <p className="text-gray-600">
+                Votre compte nécessite une synchronisation.{' '}
+                <button 
+                  onClick={() => setCurrentScreen('admin-account-sync')}
+                  className="text-purple-600 hover:text-purple-700 font-semibold"
+                >
+                  Synchroniser
+                </button>
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

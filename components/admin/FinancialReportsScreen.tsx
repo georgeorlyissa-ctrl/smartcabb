@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Download, FileText, Calendar as CalendarIcon, Filter, TrendingUp, DollarSign, Percent, Users, ArrowLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -10,7 +9,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Label } from '../ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
+import {
+  ArrowLeft,
+  FileText,
+  TrendingUp,
+  DollarSign,
+  Calendar as CalendarIcon,
+  Download,
+  Plus,
+  Eye,
+  Archive,
+  RefreshCw,
+  Percent,
+  Users,
+} from '../../lib/icons';
 
 // Fonction de formatage de date simple
 const formatDate = (dateString: string) => {

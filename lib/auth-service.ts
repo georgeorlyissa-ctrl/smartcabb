@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { profileService } from './supabase-services';
 import { normalizePhoneNumber, detectInputType, isValidEmail, generateEmailFromPhone } from './phone-utils';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { apiCache, CACHE_DURATION } from './api-cache'; // ⚡ OPTIMISATION
 
 /**
  * Service d'authentification pour SmartCabb (Version optimisée)
@@ -83,49 +84,9 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       
       console.log('📱 Connexion par téléphone:', normalizedPhone);
       
-      // 🆕 NOUVEAU : Chercher l'email associé au numéro dans la base de données
-      console.log('🔍 Recherche de l\'email associé au numéro...');
-      
-      try {
-        const findEmailResponse = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/auth/get-email-by-phone`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${publicAnonKey}`
-            },
-            body: JSON.stringify({ phoneNumber: normalizedPhone })
-          }
-        );
-        
-        const findEmailResult = await findEmailResponse.json();
-        console.log('📥 Résultat recherche email:', findEmailResult);
-        
-        if (findEmailResult.success && findEmailResult.email) {
-          // Email trouvé ! Utiliser cet email pour la connexion
-          email = findEmailResult.email;
-          console.log('✅ Email trouvé pour le numéro:', email);
-        } else if (findEmailResult.error === 'ORPHAN_PROFILE') {
-          // Profil orphelin détecté
-          console.log('⚠️ Profil orphelin détecté');
-          return {
-            success: false,
-            error: 'ORPHAN_PROFILE',
-            orphanProfile: findEmailResult.profile
-          };
-        } else {
-          // Aucun compte trouvé, essayer le format email généré (ancien système)
-          console.log('⚠️ Aucun email trouvé, utilisation du format email généré (ancien système)');
-          email = `${normalizedPhone}@smartcabb.app`;
-          console.log('🔐 Email généré (ancien format):', email);
-        }
-      } catch (fetchError) {
-        console.error('❌ Erreur lors de la recherche de l\'email:', fetchError);
-        // Fallback : utiliser le format email généré
-        email = `${normalizedPhone}@smartcabb.app`;
-        console.log('🔐 Email généré (fallback):', email);
-      }
+      // MODE STANDALONE : Générer l'email directement sans appel backend
+      email = `${normalizedPhone}@smartcabb.app`;
+      console.log('🔐 Email généré:', email);
     } else if (inputType === 'email') {
       // Vérifier que l'email est valide
       if (!isValidEmail(cleanIdentifier)) {
@@ -149,214 +110,73 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       }
     }
     
-    // Connexion avec Supabase Auth
-    console.log('🔐 Tentative de connexion avec email:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // ✅ CONNEXION DIRECTE SUPABASE (MODE STANDALONE - PAS DE BACKEND)
+    console.log('🔐 Tentative de connexion via Supabase Auth direct...');
+    console.log('🔐 Email/identifier:', email);
+    console.log('🔑 Longueur du mot de passe:', password?.length || 0);
+    
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email,
       password
     });
     
-    if (error) {
-      console.error('❌ Erreur de connexion:', error.message);
+    if (authError) {
+      console.error('❌ Erreur de connexion:', authError.message);
+      console.error('   - Status:', authError.status);
+      console.error('   - Details:', authError);
       
-      // Message d'erreur spécifique pour "Email not confirmed"
-      if (error.message.includes('Email not confirmed')) {
-        console.error('═══════════════════════════════════════════════');
-        console.error('❌ ERREUR: Email non confirmé');
-        console.error('');
-        console.error('Votre compte existe mais lemail nest pas confirmé.');
-        console.error('');
-        console.error('💡 SOLUTION RAPIDE:');
-        console.error('   Ouvrez la console Supabase:');
-        console.error('   https://supabase.com/dashboard/project/YOUR_PROJECT/editor');
-        console.error('');
-        console.error('   Puis exécutez:');
-        console.error('   UPDATE auth.users');
-        console.error('   SET email_confirmed_at = NOW()');
-        console.error('   WHERE email = votre_email_ici;');
-        console.error('═══════════════════════════════════════════════');
+      if (authError.message.includes('Email not confirmed')) {
         return {
           success: false,
           error: 'Compte non activé. Vérifiez vos emails ou contactez le support.'
         };
       }
       
-      // Messages d'erreur personnalisés pour "Invalid login credentials"
-      if (error.message.includes('Invalid login credentials')) {
-        // Si c'était un téléphone et que ça a échoué, essayer les anciens formats
-        if (inputType === 'phone') {
-          const normalizedPhone = normalizePhoneNumber(identifier);
-          
-          if (!normalizedPhone) {
-            return {
-              success: false,
-              error: 'Numéro de téléphone invalide'
-            };
-          }
-          
-          console.log('🔄 Tentative avec autres formats pour:', normalizedPhone);
-          
-          // Liste des formats à essayer
-          const emailFormats = [
-            `${normalizedPhone}@smartcabb.app`,       // Ancien format 1
-            `phone+${normalizedPhone}@smartcabb.app`, // Ancien format 2
-            `${normalizedPhone}@smartcabb.temp`,      // Legacy
-            `sc${normalizedPhone}@temp.mail`,         // Format généré
-          ];
-          
-          for (const testEmail of emailFormats) {
-            console.log('🔄 Test avec:', testEmail);
-            
-            const { data: testData, error: testError } = await supabase.auth.signInWithPassword({
-              email: testEmail,
-              password
-            });
-            
-            if (!testError && testData.session) {
-              console.log('✅ Connexion réussie avec format:', testEmail);
-              
-              const profile = await profileService.getProfile(testData.user.id);
-              return {
-                success: true,
-                user: testData.user,
-                profile,
-                accessToken: testData.session?.access_token
-              };
-            }
-          }
-        }
-        
-        // 🔍 NOUVEAU : Vérifier si un profil orphelin existe (via backend)
-        console.log('🔍 Vérification si un profil orphelin existe...');
-        try {
-          const { projectId, publicAnonKey } = await import('../utils/supabase/info');
-          
-          const checkResponse = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/check-orphan-profile`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${publicAnonKey}`
-              },
-              body: JSON.stringify({ identifier: cleanIdentifier })
-            }
-          );
-          
-          const checkResult = await checkResponse.json();
-          console.log('📥 Résultat vérification profil orphelin:', checkResult);
-          
-          if (checkResult.success && checkResult.hasOrphanProfile && checkResult.profile) {
-            console.log('⚠️ PROFIL ORPHELIN DÉTECTÉ:', checkResult.profile.email);
-            console.error('═══════════════════════════════════════════════');
-            console.error('⚠️ COMPTE INCOMPLET DÉTECTÉ');
-            console.error('');
-            console.error('Votre profil existe mais votre compte d\'authentification n\'a pas été créé.');
-            console.error('');
-            console.error('💡 SOLUTION:');
-            console.error('   Allez sur: /auth/create-auth-from-profile');
-            console.error('   Ou utilisez le bouton "Activer mon compte" sur l\'écran de connexion');
-            console.error('═══════════════════════════════════════════════');
-            
-            return {
-              success: false,
-              error: 'ORPHAN_PROFILE', // Code d'erreur spécial
-              orphanProfile: checkResult.profile // Données du profil
-            };
-          }
-        } catch (profileCheckError) {
-          console.error('❌ Erreur vérification profil:', profileCheckError);
-        }
-        
-        // Si toujours en échec (pas de profil orphelin)
-        console.info('═══════════════════════════════════════════════');
-        console.info('ℹ️ INFO: Identifiants non reconnus');
-        console.info('');
-        console.info('Le numéro/email ou le mot de passe ne correspond pas');
-        console.info('');
-        console.info('💡 SUGGESTIONS:');
-        console.info('   1. Vérifiez votre numéro de téléphone/email');
-        console.info('   2. Vérifiez votre mot de passe');
-        console.info('   3. Si vous n\'avez pas de compte, cliquez sur Inscription');
-        console.info('═══════════════════════════════════════════════');
-        return {
-          success: false,
-          error: inputType === 'phone' 
-            ? `Numéro ou mot de passe incorrect. Si vous n'avez pas de compte, veuillez vous inscrire.`
-            : `Email ou mot de passe incorrect`
-        };
-      }
-      
-      if (error.message.includes('Database error querying schema') || 
-          error.message.includes('relation') || 
-          error.message.includes('does not exist')) {
-        console.error('═══════════════════════════════════════════════');
-        console.error('❌ BASE DE DONNÉES NON INITIALISÉE');
-        console.error('Exécutez SETUP-TOUT-EN-UN.sql dans Supabase');
-        console.error('══════════════════════════════════════════════');
-        
-        return {
-          success: false,
-          error: 'BASE DE DONNÉES NON INITIALISÉE'
-        };
-      }
-      
       return {
         success: false,
-        error: error.message
+        error: authError.message
       };
     }
     
-    if (!data.user) {
+    // ✅ FIX: Supabase signInWithPassword retourne access_token directement dans data
+    if (!data?.user || !data?.access_token) {
+      console.error('❌ [signIn] Réponse Supabase incomplète:');
+      console.error('   - data:', data);
+      console.error('   - data.user:', data?.user);
+      console.error('   - data.access_token:', data?.access_token ? '[présent]' : '[absent]');
+      console.error('   - Authentification échouée sans token valide');
+      
       return {
         success: false,
         error: 'Erreur de connexion. Veuillez réessayer.'
       };
     }
     
-    // Récupérer le profil de l'utilisateur
-    let profile = await profileService.getProfile(data.user.id);
+    console.log('✅ [signIn] Authentification Supabase réussie');
+    console.log('   - User ID:', data.user.id);
+    console.log('   - Email:', data.user.email);
+    console.log('   - Access token:', data.access_token ? '[présent]' : '[absent]');
     
-    // Si le profil n'existe pas, essayer de le créer
+    // ✅ Récupérer le profil depuis Postgres
+    console.log('🔍 [signIn] Récupération du profil depuis Postgres...');
+    const profile = await profileService.getProfile(data.user.id);
+    
     if (!profile) {
-      console.warn('⚠️ Profil non trouvé, tentative de création...');
-      
-      try {
-        const userData = data.user.user_metadata;
-        const email = data.user.email || '';
-        const fullName = userData?.full_name || userData?.name || 'Utilisateur';
-        const phone = userData?.phone || null;
-        const role = userData?.role || 'passenger';
-        
-        profile = await profileService.createProfile({
-          id: data.user.id,
-          email,
-          full_name: fullName,
-          phone: phone || undefined,
-          role
-        });
-        
-        if (profile) {
-          console.log('✅ Profil créé avec succès lors de la connexion');
-        }
-      } catch (profileError: any) {
-        console.error('❌ Erreur création profil:', profileError);
-        
-        // Si l'erreur est une clé dupliquée, essayer de récupérer le profil à nouveau
-        if (profileError.message?.includes('duplicate key') || profileError.code === '23505') {
-          console.log('🔄 Clé dupliquée détectée, récupération du profil existant...');
-          profile = await profileService.getProfile(data.user.id);
-        }
-      }
+      console.error('❌ [signIn] Aucun profil trouvé pour user ID:', data.user.id);
+      return {
+        success: false,
+        error: 'Profil introuvable. Veuillez contacter le support.'
+      };
     }
     
+    console.log('✅ [signIn] Profil récupéré:', profile.role, profile.full_name);
     console.log('✅ Connexion réussie:', data.user.id);
     
     return {
       success: true,
       user: data.user,
       profile,
-      accessToken: data.session?.access_token
+      accessToken: data.access_token
     };
     
   } catch (error) {

@@ -1,70 +1,166 @@
-import { createClient } from '@supabase/supabase-js';
+// ============================================
+// CLIENT SUPABASE - NE PAS UTILISER DIRECTEMENT
+// Utiliser plutôt les appels API vers le serveur
+// ============================================
+
+/**
+ * ⚠️ ATTENTION : Ce fichier est conservé pour la compatibilité
+ * mais ne devrait PAS être utilisé directement dans l'application.
+ * 
+ * Utilisez plutôt les appels API vers le serveur backend :
+ * fetch(`https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/...`)
+ */
+
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 const supabaseAnonKey = publicAnonKey;
 
-// Lazy initialization pour éviter les appels automatiques au chargement
-let supabaseClient: any = null;
-
-function getSupabaseClient() {
-  if (!supabaseClient) {
-    try {
-      // Initialisation silencieuse - pas de logs en mode normal
-      supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: false
+// ✅ CLIENT SUPABASE SIMPLIFIÉ - Sans dépendance externe
+// Fournit uniquement les méthodes d'authentification nécessaires
+export const supabase = {
+  auth: {
+    signInWithPassword: async ({ email, password }: { email: string; password: string }) => {
+      const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
         },
-        global: {
-          fetch: async (url: RequestInfo | URL, options?: RequestInit) => {
-            try {
-              // PAS DE TIMEOUT - Laisser le fetch natif gérer
-              const response = await window.fetch(url, {
-                ...options
-              });
-              
-              return response;
-            } catch (error: any) {
-              // Si c'est une erreur de réseau, la gérer silencieusement
-              if (error.message === 'Failed to fetch' || error.message?.includes('network')) {
-                // Retourner une réponse vide pour éviter de casser l'app
-                return new Response(JSON.stringify({ data: null, error: { message: 'Network error' } }), {
-                  status: 500,
-                  headers: { 'Content-Type': 'application/json' }
-                });
-              }
-              
-              // Pour les autres erreurs, logger en debug uniquement
-              console.debug('Supabase fetch error:', error.message);
-              throw error;
-            }
-          }
-        }
+        body: JSON.stringify({ email, password }),
       });
-    } catch (error) {
-      console.debug('Supabase client initialization failed:', error);
-      supabaseClient = null;
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { data: { user: null, session: null }, error };
+      }
+      
+      return { data: await response.json(), error: null };
+    },
+    
+    signUp: async ({ email, password, options }: { email: string; password: string; options?: any }) => {
+      const response = await fetch(`${supabaseUrl}/auth/v1/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({ email, password, data: options?.data }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { data: { user: null, session: null }, error };
+      }
+      
+      return { data: await response.json(), error: null };
+    },
+    
+    signOut: async () => {
+      // Nettoyer le localStorage
+      localStorage.removeItem('supabase.auth.token');
+      return { error: null };
+    },
+    
+    getSession: async () => {
+      const token = localStorage.getItem('supabase.auth.token');
+      if (!token) {
+        return { data: { session: null }, error: null };
+      }
+      
+      try {
+        const session = JSON.parse(token);
+        return { data: { session }, error: null };
+      } catch {
+        return { data: { session: null }, error: null };
+      }
+    },
+    
+    setSession: async (session: any) => {
+      localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+      return { data: { session }, error: null };
+    },
+    
+    getUser: async (token?: string) => {
+      const accessToken = token || JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').access_token;
+      
+      if (!accessToken) {
+        return { data: { user: null }, error: { message: 'No token' } };
+      }
+      
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': supabaseAnonKey,
+        },
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { data: { user: null }, error };
+      }
+      
+      return { data: { user: await response.json() }, error: null };
+    },
+    
+    resetPasswordForEmail: async (email: string) => {
+      const response = await fetch(`${supabaseUrl}/auth/v1/recover`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify({ email }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { data: null, error };
+      }
+      
+      return { data: {}, error: null };
+    },
+    
+    updateUser: async (attributes: any) => {
+      const token = JSON.parse(localStorage.getItem('supabase.auth.token') || '{}').access_token;
+      
+      const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': supabaseAnonKey,
+        },
+        body: JSON.stringify(attributes),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        return { data: { user: null }, error };
+      }
+      
+      return { data: { user: await response.json() }, error: null };
+    },
+    
+    signInWithOAuth: async ({ provider }: { provider: string }) => {
+      // OAuth n'est pas supporté dans ce client simplifié
+      return { 
+        data: { provider, url: null }, 
+        error: { message: 'OAuth not supported in simplified client' } 
+      };
+    },
+    
+    admin: {
+      createUser: async ({ email, password, user_metadata, email_confirm }: any) => {
+        // Cette fonction nécessite le service role key, donc elle doit être appelée depuis le serveur
+        return {
+          data: null,
+          error: { message: 'Admin functions must be called from server' }
+        };
+      }
     }
   }
-  return supabaseClient;
-}
-
-export const supabase = new Proxy({} as any, {
-  get(target, prop) {
-    const client = getSupabaseClient();
-    if (!client) {
-      // Retourner un objet qui simule l'API Supabase mais ne fait rien
-      // Silencieux - pas de warning si le client n'est pas disponible
-      return () => ({
-        data: null,
-        error: { message: 'Supabase non configuré' }
-      });
-    }
-    return client[prop];
-  }
-});
+};
 
 // ============================================
 // TYPES DE BASE DE DONNÉES

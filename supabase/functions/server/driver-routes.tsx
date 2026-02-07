@@ -1,6 +1,6 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
 
 const driverRoutes = new Hono();
 
@@ -145,9 +145,16 @@ driverRoutes.post('/update-driver-location', async (c) => {
       updated_at: new Date().toISOString()
     };
 
-    await kv.set(locationKey, locationData);
+    try {
+      await kv.set(locationKey, locationData);
+      console.log('✅ Position conducteur mise à jour (KV):', locationKey);
+    } catch (kvError) {
+      console.error('❌ Erreur KV set:', kvError);
+      console.error('❌ KV Error type:', typeof kvError);
+      console.error('❌ KV Error details:', JSON.stringify(kvError, Object.getOwnPropertyNames(kvError)));
+      throw kvError; // Re-throw pour que le catch externe le capture
+    }
     
-    console.log('✅ Position conducteur mise à jour (KV):', locationKey);
     return c.json({ success: true });
 
   } catch (error) {
@@ -223,33 +230,90 @@ driverRoutes.post('/toggle-online-status', async (c) => {
 
     console.log('🔄 Changement statut conducteur:', user.id, 'en ligne:', isOnline);
 
-    // ✅ VÉRIFICATION DU SOLDE AVANT ACTIVATION
+    // ✅ VÉRIFICATION DU SOLDE ET DE LA CATÉGORIE AVANT ACTIVATION
     if (isOnline) {
-      // Récupérer le solde du conducteur
+      // Récupérer le profil du conducteur pour obtenir sa catégorie de véhicule
+      const driverKey = `driver:${user.id}`;
+      const driverData = await kv.get(driverKey);
+      
+      if (!driverData) {
+        console.log('❌ Profil conducteur introuvable');
+        return c.json({
+          success: false,
+          error: 'Profil conducteur introuvable'
+        }, 404);
+      }
+      
+      const vehicleCategory = driverData.vehicle?.category || driverData.vehicleInfo?.type || 'smart_standard';
+      console.log('🚗 Catégorie du véhicule:', vehicleCategory);
+      
+      // Récupérer le crédit minimum requis pour cette catégorie
+      const minimumCredits: Record<string, number> = {
+        smart_standard: 20000,      // ~7-10 USD
+        smart_confort: 25000,        // ~9-15 USD
+        smart_plus: 42000,           // ~15-17 USD
+        smart_plus_plus: 42000,      // ~15-20 USD
+        smart_business: 160000       // ~160 USD (location jour)
+      };
+      
+      const requiredCredit = minimumCredits[vehicleCategory] || 20000;
+      console.log('💳 Crédit minimum requis:', requiredCredit, 'CDF');
+      
+      // 🔥 AMÉLIORATION: Récupérer le solde depuis PLUSIEURS SOURCES
+      let currentBalance = 0;
+      
+      // Source 1: Clé balance dédiée
       const balanceKey = `driver:${user.id}:balance`;
       const balanceData = await kv.get(balanceKey);
       
-      // Gérer différentes structures possibles
-      let currentBalance = 0;
       if (typeof balanceData === 'number') {
         currentBalance = balanceData;
+        console.log('✅ Solde trouvé (balanceKey, number):', currentBalance);
       } else if (balanceData && typeof balanceData === 'object' && 'balance' in balanceData) {
         currentBalance = balanceData.balance;
+        console.log('✅ Solde trouvé (balanceKey, object.balance):', currentBalance);
+      } else {
+        console.warn('⚠️ Solde non trouvé dans balanceKey, tentative autres sources...');
+        
+        // Source 2: Dans le profil driver directement
+        if (driverData.account_balance !== undefined) {
+          currentBalance = driverData.account_balance;
+          console.log('✅ Solde trouvé (driverData.account_balance):', currentBalance);
+        } else if (driverData.balance !== undefined) {
+          currentBalance = driverData.balance;
+          console.log('✅ Solde trouvé (driverData.balance):', currentBalance);
+        } else {
+          // Source 3: Clé alternative (compatibilité ancienne structure)
+          const altBalanceKey = `driver_balance_${user.id}`;
+          const altBalanceData = await kv.get(altBalanceKey);
+          
+          if (typeof altBalanceData === 'number') {
+            currentBalance = altBalanceData;
+            console.log('✅ Solde trouvé (altBalanceKey):', currentBalance);
+          } else if (altBalanceData && typeof altBalanceData === 'object' && 'balance' in altBalanceData) {
+            currentBalance = altBalanceData.balance;
+            console.log('✅ Solde trouvé (altBalanceKey, object):', currentBalance);
+          } else {
+            console.error('❌ Aucun solde trouvé dans aucune source !');
+          }
+        }
       }
 
-      console.log('💰 Solde du conducteur:', currentBalance, 'CDF (type:', typeof balanceData, ')');
+      console.log('💰 Solde final du conducteur:', currentBalance, 'CDF');
 
-      // Si solde = 0, interdire l'activation
-      if (currentBalance <= 0) {
-        console.log('❌ Activation refusée : solde insuffisant');
+      // Vérifier si le solde est suffisant pour cette catégorie
+      if (currentBalance < requiredCredit) {
+        console.log('❌ Activation refusée : solde insuffisant pour la catégorie', vehicleCategory);
         return c.json({
           success: false,
-          error: 'Solde insuffisant pour activer le mode en ligne. Veuillez recharger votre compte.',
-          balance: currentBalance
+          error: `Crédit insuffisant pour ${vehicleCategory}. Minimum requis : ${requiredCredit.toLocaleString('fr-FR')} CDF. Votre solde : ${currentBalance.toLocaleString('fr-FR')} CDF.`,
+          balance: currentBalance,
+          requiredCredit: requiredCredit,
+          category: vehicleCategory
         }, 400);
       }
       
-      console.log('✅ Solde OK pour activation:', currentBalance, 'CDF');
+      console.log('✅ Solde OK pour activation:', currentBalance, 'CDF >=', requiredCredit, 'CDF');
     }
 
     // Stocker le statut dans le KV store
@@ -299,6 +363,72 @@ driverRoutes.post('/toggle-online-status', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur toggle-online-status:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 💓 HEARTBEAT - MAINTENIR LE STATUT EN LIGNE
+// ============================================
+// ✅ v518.52 - Route pour envoyer un signal régulier au backend
+// Le conducteur envoie un heartbeat toutes les 30 secondes pour maintenir son statut
+driverRoutes.post('/heartbeat', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    
+    if (authError || !user) {
+      console.error('❌ Erreur authentification heartbeat:', authError);
+      return c.json({ success: false, error: 'Non autorisé' }, 401);
+    }
+
+    const driverId = user.id;
+    const { isOnline, location, lastSeen } = await c.req.json();
+
+    console.log(`💓 Heartbeat reçu - Conducteur ${driverId}: ${isOnline ? 'EN LIGNE' : 'HORS LIGNE'}`);
+
+    // Mettre à jour le statut dans le KV store
+    const statusKey = `driver:${driverId}:online`;
+    await kv.set(statusKey, isOnline);
+
+    // Mettre à jour la dernière activité
+    const lastSeenKey = `driver:${driverId}:last_seen`;
+    await kv.set(lastSeenKey, lastSeen || new Date().toISOString());
+
+    // Mettre à jour la position si fournie
+    if (location && isOnline) {
+      const locationKey = `driver:${driverId}:location`;
+      await kv.set(locationKey, location);
+      console.log(`📍 Position mise à jour via heartbeat:`, location);
+    }
+
+    // Mettre à jour aussi dans le profil driver complet
+    const driverKey = `driver:${driverId}`;
+    const driver = await kv.get(driverKey) || {};
+    
+    const updatedDriver = {
+      ...driver,
+      isOnline: isOnline,
+      lastSeen: lastSeen || new Date().toISOString(),
+      ...(location && isOnline ? { location } : {})
+    };
+    
+    await kv.set(driverKey, updatedDriver);
+
+    console.log(`✅ Heartbeat traité - Statut: ${isOnline ? 'EN LIGNE ✅' : 'HORS LIGNE ⏸️'}`);
+    
+    return c.json({ 
+      success: true, 
+      isOnline,
+      message: 'Heartbeat reçu'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur heartbeat:', error);
     return c.json({ 
       success: false, 
       error: 'Erreur serveur: ' + String(error)
@@ -848,12 +978,13 @@ driverRoutes.get('/:driverId', async (c) => {
           console.error('❌ Utilisateur introuvable dans Supabase Auth:', driverId);
           return c.json({ 
             success: false, 
-            error: 'Conducteur introuvable. Veuillez vous inscrire en tant que conducteur.',
+            error: 'Profil conducteur introuvable. Veuillez vous inscrire en tant que conducteur.',
             driver: null
           }, 404);
         }
         
         console.log('✅ Utilisateur trouvé dans Auth:', user.email);
+        console.log('📋 User metadata:', user.user_metadata);
         
         // Créer un profil conducteur "pending" par défaut
         console.log('🆕 Création d\'un profil conducteur par défaut (status: pending)...');
@@ -864,24 +995,34 @@ driverRoutes.get('/:driverId', async (c) => {
           email: user.email || '',
           full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
           phone: user.user_metadata?.phone || user.phone || '',
-          status: 'pending', // ⚠️ Statut "pending" par défaut
+          status: 'pending', // ⚠️ Statut "pending" par défaut - ATTEND APPROBATION ADMIN
           is_available: false,
           photo: null,
-          vehicle: null,
-          vehicle_make: '',
-          vehicle_model: '',
-          vehicle_plate: '',
-          vehicle_category: '',
+          vehicle: {
+            make: user.user_metadata?.vehicle_make || '',
+            model: user.user_metadata?.vehicle_model || '',
+            color: user.user_metadata?.vehicle_color || '',
+            license_plate: user.user_metadata?.vehicle_plate || '',
+            category: user.user_metadata?.vehicle_category || 'standard',
+            year: new Date().getFullYear(),
+            seats: 4
+          },
+          vehicle_make: user.user_metadata?.vehicle_make || '',
+          vehicle_model: user.user_metadata?.vehicle_model || '',
+          vehicle_plate: user.user_metadata?.vehicle_plate || '',
+          vehicle_category: user.user_metadata?.vehicle_category || 'standard',
           rating: 0,
           total_rides: 0,
           wallet_balance: 0,
-          created_at: new Date().toISOString(),
+          balance: 0,
+          created_at: user.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
         
         // Sauvegarder le profil dans le KV store
         await kv.set(driverKey, newDriverProfile);
-        console.log('✅ Profil conducteur "pending" créé:', newDriverProfile.email);
+        console.log('✅ Profil conducteur "pending" créé et sauvegardé:', newDriverProfile.email);
+        console.log('⚠️ Le conducteur doit être approuvé par un admin avant de se connecter');
         
         // Utiliser ce nouveau profil
         driverData = newDriverProfile;
@@ -890,13 +1031,14 @@ driverRoutes.get('/:driverId', async (c) => {
         console.error('❌ Erreur lors de la récupération depuis Supabase Auth:', authError);
         return c.json({ 
           success: false, 
-          error: 'Conducteur introuvable',
+          error: 'Profil conducteur introuvable',
           driver: null
         }, 404);
       }
     }
 
     console.log('✅ Conducteur trouvé:', driverData.full_name || driverData.name);
+    console.log('📊 Statut du conducteur:', driverData.status);
 
     return c.json({
       success: true,
@@ -909,6 +1051,61 @@ driverRoutes.get('/:driverId', async (c) => {
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur',
       driver: null
+    }, 500);
+  }
+});
+
+// ============================================
+// METTRE À JOUR LES INFOS D'UN CONDUCTEUR (POUR ADMIN)
+// ============================================
+driverRoutes.post('/:driverId', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    const updates = await c.req.json();
+    
+    console.log('🔄 Mise à jour conducteur:', driverId);
+    console.log('📝 Mises à jour:', updates);
+
+    if (!driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'driverId requis' 
+      }, 400);
+    }
+
+    // Récupérer les données actuelles du conducteur
+    const driverKey = `driver:${driverId}`;
+    const currentDriver = await kv.get(driverKey);
+
+    if (!currentDriver) {
+      console.error('❌ Conducteur introuvable:', driverId);
+      return c.json({ 
+        success: false, 
+        error: 'Conducteur introuvable' 
+      }, 404);
+    }
+
+    // Fusionner les mises à jour
+    const updatedDriver = {
+      ...currentDriver,
+      ...updates,
+      updated_at: new Date().toISOString()
+    };
+
+    // Sauvegarder dans le KV store
+    await kv.set(driverKey, updatedDriver);
+    console.log('✅ Conducteur mis à jour dans KV store');
+
+    return c.json({
+      success: true,
+      driver: updatedDriver
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur mise à jour conducteur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
     }, 500);
   }
 });

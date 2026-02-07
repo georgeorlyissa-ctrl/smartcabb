@@ -1,22 +1,22 @@
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { 
   ArrowLeft, 
   MapPin, 
+  Calendar, 
   Clock, 
   Star, 
-  CreditCard, 
   Smartphone, 
+  CreditCard, 
   Banknote,
-  Calendar,
-  Navigation, // Remplacé Route par Navigation (compatible lucide-react@0.263.1)
+  Navigation,
   Loader2
-} from 'lucide-react';
-import { useState, useEffect } from 'react';
+} from '../../lib/icons';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { useAppState } from '../../hooks/useAppState';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function RideHistoryScreen() {
   const { setCurrentScreen, state } = useAppState();

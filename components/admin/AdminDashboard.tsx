@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { useNavigate } from '../../lib/simple-router';
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
@@ -14,7 +14,10 @@ import { ContactMessagesScreen } from './ContactMessagesScreen';
 import { DataCleanupPanel } from './DataCleanupPanel';
 import { AutoCleanupBanner } from './AutoCleanupBanner';
 import { AdminAnalyticsDashboard } from './AdminAnalyticsDashboard';
+import { CancellationsScreen } from './CancellationsScreen';
 import { SMSBalanceCard } from './SMSBalanceCard';
+import { NotificationTester } from './NotificationTester';
+import FCMTestPanel from './FCMTestPanel';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
@@ -43,9 +46,10 @@ import {
   Wrench,
   MessageCircle,
   Receipt,
-  Search
-} from 'lucide-react';
-import { toast } from 'sonner';
+  Search,
+  XCircle
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import { createAdminUser } from '../../lib/auth-service';
 
 export function AdminDashboard() {
@@ -499,6 +503,16 @@ export function AdminDashboard() {
       color: 'from-blue-500 to-cyan-500'
     },
     {
+      id: 'action-cancellations',
+      title: '🚫 Historique des annulations',
+      description: 'Voir toutes les annulations avec raisons',
+      icon: XCircle,
+      action: () => setCurrentScreen('cancellations'),
+      count: null,
+      highlight: true,
+      color: 'from-red-500 to-orange-500'
+    },
+    {
       id: 'action-financial-reports',
       title: 'Rapports financiers',
       description: 'Générer et consulter les rapports',
@@ -891,6 +905,28 @@ export function AdminDashboard() {
                   );
                 })}
               </div>
+            </motion.div>
+
+            {/* 🔔 Testeur de Notifications Sonores */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+              className="mb-8"
+            >
+              <h2 className="text-lg sm:text-xl mb-4 sm:mb-6">🔔 Testeur de Notifications</h2>
+              <NotificationTester />
+            </motion.div>
+
+            {/* Testeur de FCM */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="mb-8"
+            >
+              <h2 className="text-lg sm:text-xl mb-4 sm:mb-6">🔔 Testeur de FCM</h2>
+              <FCMTestPanel />
             </motion.div>
 
             {/* Recent Activity */}

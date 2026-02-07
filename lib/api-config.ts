@@ -8,9 +8,8 @@ export const apiConfig = {
   isProduction: window.location.hostname === 'smartcabb.com' || window.location.hostname === 'www.smartcabb.com',
   
   // URL de base pour les appels API Supabase Functions
-  baseUrl: isProduction 
-    ? 'https://smartcabb.supabase.co' // Production
-    : `https://${projectId}.supabase.co`, // Dev
+  // ✅ FIX: Utiliser le vrai project ID même en production
+  baseUrl: `https://${projectId}.supabase.co`, // Utilise toujours le vrai project ID
   
   // Préfixe de route pour le serveur Make
   serverPrefix: '/functions/v1/make-server-2eb02e52',

@@ -1,8 +1,11 @@
+import { useState } from 'react';
+import { AlertTriangle, Phone, MapPin, MessageSquare, X, Shield } from '../../lib/icons';
+import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner';
-import { supabase } from '../../lib/supabase';
-import { AlertTriangle, Shield, User, Phone, MapPin, Clock, Navigation } from 'lucide-react';
+import { toast } from '../../lib/toast';
+import { motion, AnimatePresence } from '../../lib/motion';
+import { Card } from '../ui/card';
 
 interface SOSEmergencyButtonProps {
   driverId: string;
@@ -328,7 +331,7 @@ export function SOSEmergencyButton({
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 text-gray-500" />
                       <span className="text-xs">
-                        {currentPosition.lat.toFixed(6)}, {currentPosition.lng.toFixed(6)}
+                        {(currentPosition.lat || 0).toFixed(6)}, {(currentPosition.lng || 0).toFixed(6)}
                       </span>
                     </div>
                   )}

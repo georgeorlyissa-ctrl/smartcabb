@@ -1,10 +1,8 @@
 import { Hono } from 'npm:hono';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
 
 const app = new Hono();
 
-// 🚨 POST /emergency/sos - Déclencher une alerte SOS
-// 🚨 POST /emergency/sos - Déclencher une alerte SOS
 // 🚨 POST /emergency/sos - Déclencher une alerte SOS
 app.post('/sos', async (c) => {
   try {

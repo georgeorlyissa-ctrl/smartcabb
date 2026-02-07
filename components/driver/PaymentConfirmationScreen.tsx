@@ -1,16 +1,17 @@
-import { motion } from 'motion/react';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
+import { motion } from '../../lib/motion'; // ✅ FIX: Import local au lieu de motion/react
 import { 
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign
-} from 'lucide-react';
+  CheckCircle, 
+  XCircle, 
+  DollarSign, 
+  User, 
+  Calendar 
+} from '../../lib/icons'; // ✅ FIX: Import local au lieu de lucide-react
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function PaymentConfirmationScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();
@@ -130,7 +131,7 @@ export function PaymentConfirmationScreen() {
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             className="w-24 h-24 mx-auto mb-4"
           >
-            <Clock className="w-24 h-24 text-blue-600" />
+            <Calendar className="w-24 h-24 text-blue-600" />
           </motion.div>
           <h2 className="text-xl font-semibold mb-2">En attente du paiement</h2>
           <p className="text-gray-600">Le passager est en train de payer...</p>
@@ -154,7 +155,7 @@ export function PaymentConfirmationScreen() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Distance</span>
-                <span className="font-medium">{currentRide.distance?.toFixed(1) || 'N/A'} km</span>
+                <span className="font-medium">{(currentRide.distance || 0).toFixed(1) || 'N/A'} km</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Durée</span>

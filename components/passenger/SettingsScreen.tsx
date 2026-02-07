@@ -1,8 +1,6 @@
-import { useTranslation } from '../../hooks/useTranslation';
-import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
-import { motion } from 'motion/react'; // ✅ FIX: Import manquant
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from '../ui/button'; // ✅ FIX: Import manquant
 import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
 import { Switch } from '../ui/switch'; // ✅ FIX: Import manquant
@@ -24,7 +22,9 @@ import {
   LogOut,
   Settings,
   ChevronRight
-} from 'lucide-react';
+} from '../../lib/icons';
+import { useTranslation } from '../../hooks/useTranslation'; // ✅ FIX: Import manquant
+import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
 
 export function SettingsScreen() {
   const { t, language } = useTranslation();
@@ -238,7 +238,7 @@ export function SettingsScreen() {
         {/* App Info */}
         <div className="text-center py-4">
           <p className="text-sm text-gray-500">SmartCabb v1.0.0</p>
-          <p className="text-xs text-gray-400">© 2024 SmartCabb. Tous droits réservés.</p>
+          <p className="text-xs text-gray-400">© 2026 SmartCabb. Tous droits réservés.</p>
         </div>
       </div>
     </motion.div>

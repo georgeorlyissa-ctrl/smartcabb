@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { CheckCircle, Clock, MapPin, CreditCard } from 'lucide-react';
+import { CheckCircle, Clock, MapPin, CreditCard } from '../lib/icons';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
 
@@ -64,7 +64,7 @@ export function RideCompletionSummary({
             <div className="flex items-center justify-between">
               <span className="text-gray-600">{t('distance_traveled')}</span>
               <span className="font-medium">
-                {ride.distanceKm?.toFixed(1) || '0.0'} {t('km')}
+                {(ride.distanceKm || 0).toFixed(1)} {t('km')}
               </span>
             </div>
 

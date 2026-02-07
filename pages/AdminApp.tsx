@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation, Routes, Route } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle } from '../lib/icons';
 import { AdminDiagnostic } from '../components/admin/AdminDiagnostic';
 import { UsersManagementScreen } from '../components/UsersManagementScreen';
 
@@ -33,8 +33,10 @@ const BudgetDashboard = React.lazy(() => import('../components/admin/BudgetDashb
 const DataCleanupPanel = React.lazy(() => import('../components/admin/DataCleanupPanel').then(m => ({ default: m.DataCleanupPanel })));
 const PendingRechargesScreenNew = React.lazy(() => import('../components/admin/PendingRechargesScreenNew').then(m => ({ default: m.PendingRechargesScreenNew })));
 const AdminAnalyticsDashboard = React.lazy(() => import('../components/admin/AdminAnalyticsDashboard').then(m => ({ default: m.AdminAnalyticsDashboard })));
+const CancellationsScreen = React.lazy(() => import('../components/admin/CancellationsScreen').then(m => ({ default: m.CancellationsScreen })));
 const RLSBlockingScreen = React.lazy(() => import('../components/RLSBlockingScreen').then(m => ({ default: m.RLSBlockingScreen })));
 const RLSFixModal = React.lazy(() => import('../components/RLSFixModal').then(m => ({ default: m.RLSFixModal })));
+const AdminAccountSync = React.lazy(() => import('../components/admin/AdminAccountSync').then(m => ({ default: m.AdminAccountSync })));
 
 function AdminAppContent() {
   const { state, setCurrentScreen, setCurrentView, updateUser } = useAppState();
@@ -81,11 +83,16 @@ function AdminAppContent() {
       // Alias sans préfixe admin-
       'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
       'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
-      'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management'
+      'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
+      'admin-sync', 'admin-account-sync', 'cancellations'
     ];
     
-    if (!state.currentScreen || !validAdminScreens.includes(state.currentScreen)) {
-      console.log('👔 AdminApp - Initialisation avec admin-login');
+    // 🆕 CORRECTION : Ne pas écraser l'écran restauré depuis localStorage s'il est valide
+    if (state.currentScreen && validAdminScreens.includes(state.currentScreen)) {
+      console.log('✅ Écran admin restauré depuis localStorage:', state.currentScreen);
+      // Ne rien faire, l'écran est déjà correct
+    } else if (!state.currentScreen || !validAdminScreens.includes(state.currentScreen)) {
+      console.log('👔 AdminApp - Initialisation avec admin-login (aucun écran valide sauvegardé)');
       setCurrentScreen('admin-login');
     }
   }, [location.pathname]);
@@ -110,7 +117,8 @@ function AdminAppContent() {
     // Alias sans préfixe admin-
     'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
     'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
-    'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management'
+    'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
+    'admin-sync', 'admin-account-sync', 'cancellations'
   ];
   
   // ✅ FALLBACK AMÉLIORÉ : Vérifier si l'écran est dans la liste des écrans admin valides
@@ -172,6 +180,9 @@ function AdminAppContent() {
         {screenToShow === 'global-settings' && <GlobalSettingsScreen />}
         {screenToShow === 'admin-diagnostic' && <AdminDiagnostic />}
         {screenToShow === 'admin-users-management' && <UsersManagementScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
+        {screenToShow === 'admin-account-sync' && <AdminAccountSync />}
+        {screenToShow === 'admin-sync' && <AdminAccountSync />}
+        {screenToShow === 'cancellations' && <CancellationsScreen />}
       </div>
     </>
   );

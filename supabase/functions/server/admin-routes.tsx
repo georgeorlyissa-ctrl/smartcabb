@@ -1,5 +1,6 @@
 import { Hono } from 'npm:hono';
-import * as kv from './kv_store.tsx';
+import * as kv from './kv-wrapper.tsx';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const adminRoutes = new Hono();
 
@@ -8,43 +9,57 @@ const adminRoutes = new Hono();
 // ============================================
 adminRoutes.get('/stats/overview', async (c) => {
   try {
-    console.log('📊 Récupération des statistiques globales...');
+    console.log('📊 Récupération des statistiques globales COMPLÈTES...');
 
-    // Récupérer les stats du jour
-    const today = new Date().toISOString().split('T')[0];
-    const dailyStats = await kv.get(`stats:daily:${today}`) || {
-      totalRides: 0,
-      totalRevenue: 0,
-      totalCommissions: 0,
-      totalDriverEarnings: 0,
-      ridesByCategory: {},
-      activeDrivers: [],
-      activePassengers: []
-    };
+    // ✅ 1. RÉCUPÉRER TOUS LES PASSAGERS
+    const allPassengers = await kv.getByPrefix('passenger:');
+    const passengers = allPassengers.filter(p => p && p.id);
+    console.log(`👥 ${passengers.length} passagers trouvés`);
 
-    // Récupérer toutes les transactions
-    const allTransactions = await kv.getByPrefix('transaction:');
-    const totalTransactions = allTransactions.length;
-
-    // Récupérer tous les conducteurs
+    // ✅ 2. RÉCUPÉRER TOUS LES CONDUCTEURS
     const allDrivers = await kv.getByPrefix('driver:');
     const drivers = allDrivers.filter(d => d && d.id);
+    const onlineDrivers = drivers.filter(d => d.is_available === true);
+    console.log(`🚗 ${drivers.length} conducteurs trouvés (${onlineDrivers.length} en ligne)`);
 
-    // Récupérer toutes les courses complétées
+    // ✅ 3. RÉCUPÉRER TOUTES LES COURSES COMPLÉTÉES
     const allCompletedRides = await kv.getByPrefix('ride_completed_');
+    console.log(`🏁 ${allCompletedRides.length} courses complétées trouvées`);
 
-    // Calculer les stats globales
+    // ✅ 4. RÉCUPÉRER LES COURSES ACTIVES
+    const allActiveRides = await kv.getByPrefix('ride_active_');
+    const activeRides = allActiveRides.filter(r => r && r.id);
+    console.log(`🚕 ${activeRides.length} courses actives`);
+
+    // ✅ 5. CALCULER LES STATISTIQUES RÉELLES
     let totalRevenue = 0;
     let totalCommissions = 0;
     let totalDriverEarnings = 0;
     const ratingsList: number[] = [];
+    const ridesByCategory: Record<string, number> = {
+      smart_standard: 0,
+      smart_confort: 0,
+      smart_plus: 0,
+      smart_business: 0
+    };
 
+    // Parcourir toutes les courses complétées pour calculer les stats
     for (const ride of allCompletedRides) {
       if (ride && ride.finalPrice) {
         totalRevenue += ride.finalPrice;
         totalCommissions += ride.commission || 0;
         totalDriverEarnings += ride.driverEarnings || 0;
-        if (ride.rating) ratingsList.push(ride.rating);
+        
+        // Compter par catégorie
+        const category = ride.vehicleType || ride.vehicle_category;
+        if (category && ridesByCategory[category] !== undefined) {
+          ridesByCategory[category] += 1;
+        }
+        
+        // Collecter les notes
+        if (ride.rating && typeof ride.rating === 'number') {
+          ratingsList.push(ride.rating);
+        }
       }
     }
 
@@ -52,17 +67,43 @@ adminRoutes.get('/stats/overview', async (c) => {
       ? ratingsList.reduce((a, b) => a + b, 0) / ratingsList.length
       : 0;
 
+    console.log(`💰 Revenus totaux: ${totalRevenue} CDF`);
+    console.log(`⭐ Note moyenne: ${averageRating.toFixed(2)}`);
+
+    // ✅ 6. STATISTIQUES DU JOUR (pour compatibilité)
+    const today = new Date().toISOString().split('T')[0];
+    const todayCompletedRides = allCompletedRides.filter(r => {
+      if (!r.completedAt && !r.completed_at && !r.createdAt) return false;
+      const rideDate = new Date(r.completedAt || r.completed_at || r.createdAt).toISOString().split('T')[0];
+      return rideDate === today;
+    });
+
+    let todayRevenue = 0;
+    let todayCommissions = 0;
+    let todayDriverEarnings = 0;
+
+    for (const ride of todayCompletedRides) {
+      if (ride && ride.finalPrice) {
+        todayRevenue += ride.finalPrice;
+        todayCommissions += ride.commission || 0;
+        todayDriverEarnings += ride.driverEarnings || 0;
+      }
+    }
+
+    console.log(`📅 Aujourd'hui: ${todayCompletedRides.length} courses, ${todayRevenue} CDF`);
+
+    // ✅ 7. RETOURNER TOUTES LES STATISTIQUES
     return c.json({
       success: true,
       stats: {
         today: {
-          rides: dailyStats.totalRides || 0,
-          revenue: dailyStats.totalRevenue || 0,
-          commissions: dailyStats.totalCommissions || 0,
-          driverEarnings: dailyStats.totalDriverEarnings || 0,
-          activeDrivers: (dailyStats.activeDrivers || []).length,
-          activePassengers: (dailyStats.activePassengers || []).length,
-          ridesByCategory: dailyStats.ridesByCategory || {}
+          rides: todayCompletedRides.length,
+          revenue: todayRevenue,
+          commissions: todayCommissions,
+          driverEarnings: todayDriverEarnings,
+          activeDrivers: onlineDrivers.length,
+          activePassengers: passengers.length, // Tous les passagers sont considérés actifs
+          ridesByCategory: ridesByCategory
         },
         allTime: {
           totalRides: allCompletedRides.length,
@@ -71,7 +112,11 @@ adminRoutes.get('/stats/overview', async (c) => {
           totalDriverEarnings: totalDriverEarnings,
           averageRating: averageRating,
           totalDrivers: drivers.length,
-          totalTransactions: totalTransactions
+          totalPassengers: passengers.length,
+          onlineDrivers: onlineDrivers.length,
+          activeRides: activeRides.length,
+          completedRides: allCompletedRides.length,
+          ridesByCategory: ridesByCategory
         }
       }
     });
@@ -86,55 +131,62 @@ adminRoutes.get('/stats/overview', async (c) => {
 });
 
 // ============================================
-// 📈 STATISTIQUES PAR PÉRIODE
+// 📊 STATISTIQUES PAR PÉRIODE
 // ============================================
 adminRoutes.get('/stats/period/:days', async (c) => {
   try {
     const days = parseInt(c.req.param('days')) || 7;
-    console.log(`📈 Récupération des stats des ${days} derniers jours...`);
+    console.log(`📊 Récupération statistiques ${days} derniers jours...`);
 
-    const dailyData = [];
-    const today = new Date();
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
+    const allDrivers = await kv.getByPrefix('driver:');
+    const allPassengers = await kv.getByPrefix('passenger:');
 
-    for (let i = 0; i < days; i++) {
-      const date = new Date(today);
+    // Créer un tableau de dates pour la période
+    const now = new Date();
+    const periodData: any[] = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
       date.setDate(date.getDate() - i);
       const dateStr = date.toISOString().split('T')[0];
 
-      const stats = await kv.get(`stats:daily:${dateStr}`) || {
-        date: dateStr,
-        totalRides: 0,
-        totalRevenue: 0,
-        totalCommissions: 0,
-        totalDriverEarnings: 0,
-        ridesByCategory: {},
-        activeDrivers: [],
-        activePassengers: []
-      };
+      // Filtrer les courses de cette journée
+      const dayRides = allCompletedRides.filter(ride => {
+        if (!ride.completedAt && !ride.completed_at) return false;
+        const rideDate = new Date(ride.completedAt || ride.completed_at).toISOString().split('T')[0];
+        return rideDate === dateStr;
+      });
 
-      dailyData.push({
+      // Calculer les stats du jour
+      const dayRevenue = dayRides.reduce((sum, ride) => sum + (ride.finalPrice || 0), 0);
+      const dayCommissions = dayRides.reduce((sum, ride) => sum + (ride.commission || 0), 0);
+
+      // Conducteurs actifs ce jour
+      const activeDriversIds = new Set(dayRides.map(r => r.driverId).filter(Boolean));
+      const activePassengersIds = new Set(dayRides.map(r => r.passengerId).filter(Boolean));
+
+      periodData.push({
         date: dateStr,
-        rides: stats.totalRides || 0,
-        revenue: stats.totalRevenue || 0,
-        commissions: stats.totalCommissions || 0,
-        driverEarnings: stats.totalDriverEarnings || 0,
-        activeDrivers: (stats.activeDrivers || []).length,
-        activePassengers: (stats.activePassengers || []).length,
-        ridesByCategory: stats.ridesByCategory || {}
+        rides: dayRides.length,
+        revenue: dayRevenue,
+        commissions: dayCommissions,
+        activeDrivers: activeDriversIds.size,
+        activePassengers: activePassengersIds.size
       });
     }
 
-    // Inverser pour avoir du plus ancien au plus récent
-    dailyData.reverse();
+    console.log(`✅ ${periodData.length} jours de données calculés`);
 
     return c.json({
       success: true,
-      period: `${days} jours`,
-      data: dailyData
+      period: days,
+      data: periodData
     });
 
   } catch (error) {
-    console.error('❌ Erreur récupération stats période:', error);
+    console.error('❌ Erreur statistiques période:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -143,44 +195,117 @@ adminRoutes.get('/stats/period/:days', async (c) => {
 });
 
 // ============================================
-// 👨‍✈️ CLASSEMENT DES CONDUCTEURS
+// 📊 STATISTIQUES PAR CATÉGORIE
 // ============================================
-adminRoutes.get('/drivers/leaderboard', async (c) => {
+adminRoutes.get('/stats/categories', async (c) => {
   try {
-    console.log('🏆 Récupération du classement des conducteurs...');
+    console.log('📊 Récupération statistiques par catégorie...');
 
-    // Récupérer tous les conducteurs avec leurs stats
-    const allDriverStats = await kv.getByPrefix('driver:');
-    
-    const leaderboard = [];
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
 
-    for (const item of allDriverStats) {
-      // Filtrer pour ne garder que les stats
-      if (item && typeof item === 'object' && 'totalRides' in item) {
-        // Récupérer les infos du conducteur
-        const driverId = Object.keys(item)[0]; // Supposons que l'ID soit dans les clés
-        
-        leaderboard.push({
-          driverId: item.driverId || 'unknown',
-          totalRides: item.totalRides || 0,
-          totalEarnings: item.totalEarnings || 0,
-          totalCommissions: item.totalCommissions || 0,
-          averageRating: item.averageRating || 0,
-          lastRideAt: item.lastRideAt || null
-        });
+    // Grouper par catégorie
+    const categories: Record<string, { rides: number; revenue: number }> = {
+      smart_standard: { rides: 0, revenue: 0 },
+      smart_confort: { rides: 0, revenue: 0 },
+      smart_plus: { rides: 0, revenue: 0 },
+      smart_business: { rides: 0, revenue: 0 }
+    };
+
+    for (const ride of allCompletedRides) {
+      if (!ride || !ride.vehicleType) continue;
+
+      // Normaliser le nom de la catégorie
+      let category = ride.vehicleType.toLowerCase().replace(/\s+/g, '_');
+      
+      // Mapping des différents noms possibles
+      if (category.includes('standard')) {
+        category = 'smart_standard';
+      } else if (category.includes('confort') || category.includes('comfort')) {
+        category = 'smart_confort';
+      } else if (category.includes('plus')) {
+        category = 'smart_plus';
+      } else if (category.includes('business')) {
+        category = 'smart_business';
+      }
+
+      if (categories[category]) {
+        categories[category].rides += 1;
+        categories[category].revenue += ride.finalPrice || 0;
       }
     }
 
-    // Trier par nombre de courses
-    leaderboard.sort((a, b) => b.totalRides - a.totalRides);
+    console.log('✅ Statistiques par catégorie calculées:', categories);
 
     return c.json({
       success: true,
-      leaderboard: leaderboard.slice(0, 50) // Top 50
+      categories
     });
 
   } catch (error) {
-    console.error('❌ Erreur récupération classement:', error);
+    console.error('❌ Erreur statistiques catégories:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🏆 LEADERBOARD DES CONDUCTEURS
+// ============================================
+adminRoutes.get('/drivers/leaderboard', async (c) => {
+  try {
+    console.log('🏆 Récupération leaderboard conducteurs...');
+
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    const drivers = allDrivers.filter(d => d && d.id);
+
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
+
+    // Calculer les statistiques de chaque conducteur
+    const driverStats = drivers.map(driver => {
+      const driverRides = allCompletedRides.filter(r => r.driverId === driver.id);
+      
+      const totalRides = driverRides.length;
+      const totalEarnings = driverRides.reduce((sum, r) => sum + ((r.finalPrice || 0) - (r.commission || 0)), 0);
+      const totalCommissions = driverRides.reduce((sum, r) => sum + (r.commission || 0), 0);
+      
+      const ratings = driverRides
+        .filter(r => r.rating && typeof r.rating === 'number')
+        .map(r => r.rating);
+      const averageRating = ratings.length > 0 
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
+        : 0;
+
+      return {
+        driverId: driver.id,
+        driverName: driver.full_name || driver.name || 'Conducteur inconnu',
+        driverPhone: driver.phone || 'N/A',
+        totalRides,
+        totalEarnings,
+        totalCommissions,
+        averageRating
+      };
+    });
+
+    // Trier par nombre de courses (décroissant)
+    const leaderboard = driverStats
+      .filter(d => d.totalRides > 0) // Seulement les conducteurs avec des courses
+      .sort((a, b) => b.totalRides - a.totalRides);
+
+    console.log(`✅ Leaderboard calculé: ${leaderboard.length} conducteurs`);
+
+    return c.json({
+      success: true,
+      total: leaderboard.length,
+      leaderboard
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur leaderboard:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -264,48 +389,6 @@ adminRoutes.get('/rides', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur récupération courses:', error);
-    return c.json({
-      success: false,
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// 📊 STATISTIQUES PAR CATÉGORIE
-// ============================================
-adminRoutes.get('/stats/categories', async (c) => {
-  try {
-    console.log('📊 Récupération des stats par catégorie...');
-
-    const allCompletedRides = await kv.getByPrefix('ride_completed_');
-
-    const categoryStats = {
-      smart_standard: { rides: 0, revenue: 0, commissions: 0 },
-      smart_confort: { rides: 0, revenue: 0, commissions: 0 },
-      smart_plus: { rides: 0, revenue: 0, commissions: 0 },
-      smart_business: { rides: 0, revenue: 0, commissions: 0 }
-    };
-
-    for (const ride of allCompletedRides) {
-      if (ride && ride.vehicleType) {
-        const category = ride.vehicleType;
-        if (!categoryStats[category]) {
-          categoryStats[category] = { rides: 0, revenue: 0, commissions: 0 };
-        }
-        categoryStats[category].rides += 1;
-        categoryStats[category].revenue += ride.finalPrice || 0;
-        categoryStats[category].commissions += ride.commission || 0;
-      }
-    }
-
-    return c.json({
-      success: true,
-      categories: categoryStats
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur récupération stats catégories:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -674,15 +757,15 @@ adminRoutes.get('/sms/balance', async (c) => {
         balance: {
           amount: balance,
           currency: currency,
-          formattedBalance: `${balance.toFixed(2)} ${currency}`
+          formattedBalance: `${(balance || 0).toFixed(2)} ${currency}`
         },
         estimation: {
           costPerSms: costPerSms,
           remainingSms: remainingSms,
           estimatedCost: {
             perSms: `${costPerSms} USD`,
-            per100Sms: `${(costPerSms * 100).toFixed(2)} USD`,
-            per1000Sms: `${(costPerSms * 1000).toFixed(2)} USD`
+            per100Sms: `${((costPerSms || 0) * 100).toFixed(2)} USD`,
+            per1000Sms: `${((costPerSms || 0) * 1000).toFixed(2)} USD`
           }
         },
         usage: {
@@ -690,7 +773,7 @@ adminRoutes.get('/sms/balance', async (c) => {
           totalFailed: failedSms.length,
           totalAttempted: allSmsLogs.length,
           successRate: allSmsLogs.length > 0 
-            ? ((successfulSms.length / allSmsLogs.length) * 100).toFixed(2) + '%'
+            ? (((successfulSms.length / allSmsLogs.length) * 100) || 0).toFixed(2) + '%'
             : '0%',
           byType: smsByType
         },
@@ -726,7 +809,7 @@ adminRoutes.get('/sms/balance', async (c) => {
           totalFailed: failedSms.length,
           totalAttempted: allSmsLogs.length,
           successRate: allSmsLogs.length > 0 
-            ? ((successfulSms.length / allSmsLogs.length) * 100).toFixed(2) + '%'
+            ? (((successfulSms.length / allSmsLogs.length) * 100) || 0).toFixed(2) + '%'
             : '0%'
         },
         lastUpdated: new Date().toISOString()
@@ -749,26 +832,79 @@ adminRoutes.get('/users/all', async (c) => {
   try {
     console.log('👥 Récupération de tous les utilisateurs...');
 
-    // Récupérer tous les passagers
-    const allPassengers = await kv.getByPrefix('passenger:');
-    console.log(`📥 ${allPassengers.length} passagers trouvés`);
-    
-    const passengers = allPassengers
-      .filter(p => p && p.id) // Filtrer les entrées invalides
-      .map(passenger => ({
-        id: passenger.id,
-        role: 'Passager',
-        name: passenger.name || passenger.full_name || 'N/A',
-        phone: passenger.phone || 'N/A',
-        email: passenger.email || 'N/A',
-        password: passenger.password || '******',
-        balance: passenger.balance || 0,
-        accountType: passenger.account_type || 'prepaid',
-        createdAt: passenger.created_at || new Date().toISOString(),
-        lastLoginAt: passenger.last_login_at,
-        status: 'active'
-      }));
+    // Créer le client Supabase pour récupérer aussi depuis la table profiles
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
+    // ============= RÉCUPÉRATION DES PASSAGERS =============
+    
+    // 1️⃣ Récupérer depuis le KV store
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    console.log(`📥 ${kvPassengers.length} passagers trouvés dans le KV store`);
+    
+    // 2️⃣ Récupérer depuis la table Supabase profiles (pour les anciens utilisateurs)
+    const { data: supabasePassengers, error: passengersError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'passenger');
+    
+    if (passengersError) {
+      console.error('⚠️ Erreur récupération passagers depuis Supabase:', passengersError);
+    }
+    
+    console.log(`📥 ${supabasePassengers?.length || 0} passagers trouvés dans Supabase`);
+    
+    // Fusionner les passagers (éviter les doublons)
+    const passengersMap = new Map();
+    
+    // Ajouter les passagers du KV store
+    kvPassengers
+      .filter(p => p && p.id)
+      .forEach(passenger => {
+        passengersMap.set(passenger.id, {
+          id: passenger.id,
+          role: 'Passager',
+          name: passenger.name || passenger.full_name || 'N/A',
+          phone: passenger.phone || 'N/A',
+          email: passenger.email || 'N/A',
+          password: passenger.password || '******',
+          balance: passenger.balance || 0,
+          accountType: passenger.account_type || 'prepaid',
+          createdAt: passenger.created_at || new Date().toISOString(),
+          lastLoginAt: passenger.last_login_at,
+          status: 'active',
+          source: 'KV'
+        });
+      });
+    
+    // Ajouter les passagers de Supabase (sans écraser ceux du KV)
+    if (supabasePassengers && supabasePassengers.length > 0) {
+      supabasePassengers.forEach(passenger => {
+        if (!passengersMap.has(passenger.id)) {
+          passengersMap.set(passenger.id, {
+            id: passenger.id,
+            role: 'Passager',
+            name: passenger.full_name || passenger.name || 'N/A',
+            phone: passenger.phone || 'N/A',
+            email: passenger.email || 'N/A',
+            password: '******', // Pas de mot de passe dans Supabase profiles
+            balance: passenger.balance || 0,
+            accountType: passenger.account_type || 'prepaid',
+            createdAt: passenger.created_at || new Date().toISOString(),
+            lastLoginAt: passenger.last_login_at,
+            status: 'active',
+            source: 'Supabase'
+          });
+        }
+      });
+    }
+    
+    const passengers = Array.from(passengersMap.values());
+
+    // ============= RÉCUPÉRATION DES CONDUCTEURS =============
+    
     // Récupérer tous les conducteurs
     const allDrivers = await kv.getByPrefix('driver:');
     console.log(`📥 ${allDrivers.length} conducteurs trouvés`);
@@ -799,10 +935,13 @@ adminRoutes.get('/users/all', async (c) => {
           lastLoginAt: driver.last_login_at,
           // Infos supplémentaires
           isAvailable: driver.is_available || false,
-          licenseNumber: driver.license_number || 'N/A'
+          licenseNumber: driver.license_number || 'N/A',
+          source: 'KV'
         };
       });
 
+    // ============= RÉCUPÉRATION DES ADMINS =============
+    
     // Récupérer tous les admins
     const allAdmins = await kv.getByPrefix('admin:');
     console.log(`📥 ${allAdmins.length} admins trouvés`);
@@ -818,7 +957,8 @@ adminRoutes.get('/users/all', async (c) => {
         password: admin.password || '******',
         createdAt: admin.created_at || new Date().toISOString(),
         lastLoginAt: admin.last_login_at,
-        status: 'active'
+        status: 'active',
+        source: 'KV'
       }));
 
     // Combiner tous les utilisateurs
@@ -832,6 +972,7 @@ adminRoutes.get('/users/all', async (c) => {
     });
 
     console.log(`✅ ${allUsers.length} utilisateurs récupérés (${passengers.length} passagers, ${drivers.length} conducteurs, ${admins.length} admins)`);
+    console.log(`📊 Sources: KV=${kvPassengers.length} passagers KV, Supabase=${supabasePassengers?.length || 0} passagers Supabase`);
 
     return c.json({
       success: true,
@@ -846,6 +987,128 @@ adminRoutes.get('/users/all', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur récupération utilisateurs:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📋 HISTORIQUE DES ANNULATIONS
+// ============================================
+adminRoutes.get('/cancellations', async (c) => {
+  try {
+    console.log('📋 Récupération de l\'historique des annulations...');
+
+    // Récupérer toutes les annulations des passagers
+    const passengerCancellations = await kv.getByPrefix('passenger_cancellation:');
+    console.log(`🚫 ${passengerCancellations.length} annulations passagers trouvées`);
+
+    // Récupérer toutes les annulations des conducteurs
+    const driverCancellations = await kv.getByPrefix('driver_cancellation:');
+    console.log(`🚫 ${driverCancellations.length} annulations conducteurs trouvées`);
+
+    // Enrichir avec les infos utilisateurs
+    const enrichedPassengerCancellations = await Promise.all(
+      passengerCancellations.map(async (cancellation) => {
+        const passenger = await kv.get(`passenger:${cancellation.userId}`);
+        return {
+          ...cancellation,
+          userName: passenger?.full_name || passenger?.name || 'Passager inconnu',
+          userPhone: passenger?.phone || 'N/A'
+        };
+      })
+    );
+
+    const enrichedDriverCancellations = await Promise.all(
+      driverCancellations.map(async (cancellation) => {
+        const driver = await kv.get(`driver:${cancellation.userId}`);
+        return {
+          ...cancellation,
+          userName: driver?.full_name || driver?.name || 'Conducteur inconnu',
+          userPhone: driver?.phone || 'N/A'
+        };
+      })
+    );
+
+    // Combiner et trier par date (plus récent en premier)
+    const allCancellations = [
+      ...enrichedPassengerCancellations,
+      ...enrichedDriverCancellations
+    ].sort((a, b) => {
+      const dateA = new Date(a.cancelledAt || 0).getTime();
+      const dateB = new Date(b.cancelledAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    // Calculer les statistiques
+    const stats = {
+      total: allCancellations.length,
+      byPassengers: passengerCancellations.length,
+      byDrivers: driverCancellations.length,
+      withPenalty: allCancellations.filter(c => c.penaltyApplied).length,
+      totalPenalties: allCancellations.reduce((sum, c) => sum + (c.penaltyAmount || 0), 0)
+    };
+
+    // Grouper par raison
+    const byReason: Record<string, number> = {};
+    allCancellations.forEach(c => {
+      const reason = c.reason || 'Non spécifiée';
+      byReason[reason] = (byReason[reason] || 0) + 1;
+    });
+
+    console.log(`✅ ${allCancellations.length} annulations récupérées`);
+    console.log(`📊 Statistiques:`, stats);
+
+    return c.json({
+      success: true,
+      total: allCancellations.length,
+      stats,
+      byReason,
+      cancellations: allCancellations
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération annulations:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📋 ANNULATIONS D'UN UTILISATEUR SPÉCIFIQUE
+// ============================================
+adminRoutes.get('/cancellations/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId');
+    console.log(`📋 Récupération des annulations de l'utilisateur: ${userId}`);
+
+    // Récupérer les annulations du passager
+    const passengerCancellations = await kv.getByPrefix(`passenger_cancellation:${userId}:`);
+    
+    // Récupérer les annulations du conducteur
+    const driverCancellations = await kv.getByPrefix(`driver_cancellation:${userId}:`);
+
+    const allUserCancellations = [...passengerCancellations, ...driverCancellations]
+      .sort((a, b) => {
+        const dateA = new Date(a.cancelledAt || 0).getTime();
+        const dateB = new Date(b.cancelledAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+    console.log(`✅ ${allUserCancellations.length} annulations trouvées pour ${userId}`);
+
+    return c.json({
+      success: true,
+      total: allUserCancellations.length,
+      cancellations: allUserCancellations
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération annulations utilisateur:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)

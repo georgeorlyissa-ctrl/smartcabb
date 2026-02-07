@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -22,9 +22,10 @@ import {
   Eye,
   RefreshCw,
   Download
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import type { Vehicle } from '../../lib/supabase';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 interface DriversListScreenProps {
   onBack?: () => void;
@@ -91,6 +92,40 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
     toast.success(`Exportation de ${filteredDrivers.length} conducteur(s) terminée !`);
   };
 
+  const cleanInvalidDrivers = async () => {
+    if (!confirm('⚠️ Voulez-vous vraiment supprimer tous les conducteurs invalides (sans nom, sans email, ou données incomplètes) ?\n\nCette action est irréversible.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/invalid-drivers`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Nettoyage réussi:', data);
+        toast.success(`${data.details.drivers} conducteur(s) invalide(s) supprimé(s) avec succès !`);
+        
+        // Rafraîchir la liste
+        await refresh();
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Erreur nettoyage:', errorData);
+        toast.error(errorData.message || 'Erreur lors du nettoyage');
+      }
+    } catch (error) {
+      console.error('❌ Erreur nettoyage:', error);
+      toast.error('Erreur lors du nettoyage des conducteurs invalides');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -133,6 +168,14 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               >
                 <Download className="w-4 h-4 mr-2" />
                 Exporter CSV
+              </Button>
+              <Button
+                onClick={cleanInvalidDrivers}
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Nettoyer invalides
               </Button>
             </div>
           </div>

@@ -162,6 +162,19 @@ export const PRICING_CONFIG = {
 } as const;
 
 /**
+ * 💳 CRÉDITS MINIMUMS PAR CATÉGORIE DE VÉHICULE
+ * Montant minimum requis en CDF pour qu'un conducteur puisse se mettre en ligne
+ * Basé sur le coût moyen d'une course d'une heure
+ */
+export const MINIMUM_CREDITS_BY_CATEGORY = {
+  smart_standard: 20000,      // ~7-10 USD
+  smart_confort: 25000,        // ~9-15 USD
+  smart_plus: 42000,           // ~15-17 USD
+  smart_plus_plus: 42000,      // ~15-20 USD
+  smart_business: 160000       // ~160 USD (location jour)
+} as const;
+
+/**
  * Constante USD_TO_CDF (deprecated)
  */
 export const USD_TO_CDF = 2800;

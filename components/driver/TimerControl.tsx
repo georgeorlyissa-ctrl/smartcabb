@@ -10,8 +10,8 @@ import {
   DollarSign,
   Timer,
   Ban
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 interface TimerControlProps {
   isTimerActive: boolean;
@@ -23,20 +23,24 @@ interface TimerControlProps {
   elapsedTime: number;
   freeWaitingDisabled?: boolean;
   waitingTime?: number;
+  waitingTimeFrozen?: number | null;
   billingElapsedTime?: number;
+  isBillingActive?: boolean;
 }
 
 export function TimerControl({ 
-  isTimerActive, 
-  isTimerDisabled, 
-  onTimerToggle, 
+  isTimerActive,
+  isTimerDisabled,
+  onTimerToggle,
   onOfferPostpaid,
   onDisableFreeWaiting,
   currentCost,
   elapsedTime,
   freeWaitingDisabled = false,
   waitingTime = 0,
-  billingElapsedTime = 0
+  waitingTimeFrozen = null,
+  billingElapsedTime = 0,
+  isBillingActive = false
 }: TimerControlProps) {
   const [showPostpaidOption, setShowPostpaidOption] = useState(false);
 
@@ -79,10 +83,7 @@ export function TimerControl({
   const isWaitingPeriod = waitingTime < 600; // 10 minutes en secondes
   const remainingFreeTime = Math.max(0, 600 - waitingTime); // Temps gratuit restant
   
-  // La facturation est EN COURS si :
-  // 1. Le temps d'attente >= 600 secondes (10 minutes épuisées) OU
-  // 2. L'attente gratuite a été désactivée manuellement
-  const isBillingActive = waitingTime >= 600 || freeWaitingDisabled;
+  // Note: isBillingActive est déjà reçu en prop depuis le parent
 
   return (
     <Card className="p-4 bg-gradient-to-r from-blue-50 to-green-50 border-blue-200">

@@ -26,7 +26,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle
-} from 'lucide-react';
+} from '../../lib/admin-icons';
 import { toast } from '../../lib/toast';
 import type { Profile } from '../../lib/supabase';
 import type { EnrichedRide } from '../../hooks/useSupabaseData';

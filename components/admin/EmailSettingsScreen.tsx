@@ -8,14 +8,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 // ✅ IMPORT CORRECT POUR PRODUCTION
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 import { 
   Mail, 
@@ -31,7 +31,7 @@ import {
   Eye,
   EyeOff,
   ArrowLeft
-} from 'lucide-react';
+} from '../../lib/admin-icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
   Select,

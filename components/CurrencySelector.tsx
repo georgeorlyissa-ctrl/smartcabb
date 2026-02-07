@@ -1,5 +1,5 @@
-import { motion } from 'motion/react';
-import { Card } from './ui/card';
+import React, { useState } from 'react';
+import { motion } from '../lib/motion';
 import { DollarSign, Banknote } from '../lib/icons';
 
 interface CurrencySelectorProps {
@@ -69,7 +69,7 @@ export function CurrencySelector({
                   <p className="font-semibold text-sm">{currency.title}</p>
                   <p className="text-lg font-bold">
                     {currency.id === 'USD' 
-                      ? `$${(currency.amount || 0).toFixed(2)}`
+                      ? `$${((currency.amount || 0)).toFixed(2)}`
                       : `${Math.round(currency.amount || 0).toLocaleString()} CDF`
                     }
                   </p>

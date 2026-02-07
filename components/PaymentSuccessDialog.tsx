@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
-import { CheckCircle, Clock, Star } from 'lucide-react';
+import { CheckCircle, Clock, Star } from '../lib/icons';
 import { useTranslation } from '../hooks/useTranslation';
 import { Ride } from '../types';
 
@@ -87,7 +87,7 @@ export function PaymentSuccessDialog({
 
           {/* Trip details */}
           <div className="text-sm text-gray-600 space-y-1">
-            <p><strong>Distance:</strong> {ride.distanceKm?.toFixed(1) || '0.0'} km</p>
+            <p><strong>Distance:</strong> {(ride.distanceKm || 0).toFixed(1)} km</p>
             <p><strong>Date:</strong> {new Date().toLocaleDateString('fr-FR')}</p>
           </div>
 

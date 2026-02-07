@@ -73,6 +73,99 @@ async function fetchDriversFromKV(): Promise<Driver[]> {
   }
 }
 
+// Fonction pour récupérer les courses depuis le KV store
+async function fetchRidesFromKV(): Promise<Ride[]> {
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/rides?limit=1000`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('Erreur fetch rides KV:', response.statusText);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.rides) {
+      console.log('✅ Courses chargées depuis KV store:', data.count);
+      // Convertir les courses du KV store au format attendu
+      return data.rides.map((ride: any) => ({
+        id: ride.id,
+        passenger_id: ride.passengerId || ride.passenger_id,
+        driver_id: ride.driverId || ride.driver_id,
+        pickup_address: ride.pickup?.address || ride.pickupAddress,
+        pickup_lat: ride.pickup?.lat || ride.pickupLat,
+        pickup_lng: ride.pickup?.lng || ride.pickupLng,
+        dropoff_address: ride.destination?.address || ride.destinationAddress,
+        dropoff_lat: ride.destination?.lat || ride.destinationLat,
+        dropoff_lng: ride.destination?.lng || ride.destinationLng,
+        total_amount: ride.finalPrice || ride.total_amount || ride.estimatedPrice,
+        duration_minutes: ride.duration || ride.duration_minutes,
+        status: ride.status,
+        created_at: ride.createdAt || ride.created_at,
+        vehicle_category: ride.vehicleType || ride.vehicle_category,
+        rating: ride.rating,
+        payment_method: ride.paymentMethod || ride.payment_method
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('❌ Erreur récupération courses depuis KV:', error);
+    return [];
+  }
+}
+
+// Fonction pour récupérer les passagers depuis le KV store
+async function fetchPassengersFromKV(): Promise<Profile[]> {
+  try {
+    const response = await fetch(
+      `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      console.error('Erreur fetch passengers KV:', response.statusText);
+      return [];
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.passengers) {
+      console.log('✅ Passagers chargés depuis KV store:', data.count);
+      // Convertir les passagers du KV store au format Profile
+      return data.passengers.map((passenger: any) => ({
+        id: passenger.id,
+        email: passenger.email,
+        full_name: passenger.name || passenger.full_name,
+        phone: passenger.phone,
+        role: 'passenger' as const,
+        balance: passenger.balance || 0,
+        account_type: passenger.account_type || 'prepaid',
+        created_at: passenger.created_at || new Date().toISOString(),
+        updated_at: passenger.updated_at || new Date().toISOString()
+      }));
+    }
+    
+    return [];
+  } catch (error) {
+    console.error('❌ Erreur récupération passagers depuis KV:', error);
+    return [];
+  }
+}
+
 export function useSupabaseData() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [rawDrivers, setRawDrivers] = useState<Driver[]>([]);
@@ -121,7 +214,7 @@ export function useSupabaseData() {
         createTimeoutPromise(profileService.getAllProfiles(), 0, 'Profiles'),
         createTimeoutPromise(fetchDriversFromKV(), 0, 'Drivers'),
         createTimeoutPromise(vehicleService.getAllVehicles(), 0, 'Vehicles'),
-        createTimeoutPromise(rideService.getAllRides(), 0, 'Rides'),
+        createTimeoutPromise(fetchRidesFromKV(), 0, 'Rides'),
         createTimeoutPromise(promoCodeService.getAllPromoCodes(), 0, 'PromoCodes'),
         createTimeoutPromise(settingService.getAllSettings(), 0, 'Settings'),
       ]);

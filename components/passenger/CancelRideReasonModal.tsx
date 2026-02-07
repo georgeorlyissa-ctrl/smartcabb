@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react'; // ✅ FIX: Ajout useEffect
+import { motion } from '../../lib/motion'; // ✅ FIX: Ajout motion
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Textarea } from '../ui/textarea';
-import { X, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { Textarea } from '../ui/textarea'; // ✅ FIX: Ajout Textarea
+import { toast } from '../../lib/toast'; // ✅ FIX: Ajout toast
+import { X, AlertTriangle, CheckCircle2 } from '../../lib/icons';
 
 interface CancelRideReasonModalProps {
   isOpen: boolean;
