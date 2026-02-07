@@ -1116,4 +1116,331 @@ adminRoutes.get('/cancellations/:userId', async (c) => {
   }
 });
 
+// ============================================
+// 🔍 DIAGNOSTIC DES UTILISATEURS (KV vs Supabase Auth)
+// ============================================
+adminRoutes.get('/users/diagnostic', async (c) => {
+  try {
+    console.log('🔍 Diagnostic des utilisateurs - Comparaison KV Store vs Supabase Auth...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // ============= KV STORE =============
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    const kvDrivers = await kv.getByPrefix('driver:');
+    const kvAdmins = await kv.getByPrefix('admin:');
+
+    console.log(`📦 KV Store: ${kvPassengers.length} passagers, ${kvDrivers.length} conducteurs, ${kvAdmins.length} admins`);
+
+    // ============= SUPABASE AUTH =============
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('❌ Erreur récupération Supabase Auth:', authError);
+    }
+
+    const realAuthUsers = authUsers?.users || [];
+    console.log(`🔐 Supabase Auth: ${realAuthUsers.length} utilisateurs réels`);
+
+    // ============= SUPABASE PROFILES TABLE =============
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*');
+    
+    if (profilesError) {
+      console.error('⚠️ Erreur récupération profiles:', profilesError);
+    }
+
+    const profilesUsers = profilesData || [];
+    console.log(`👤 Table Profiles: ${profilesUsers.length} profils`);
+
+    // ============= ANALYSE =============
+    const kvUserIds = new Set([
+      ...kvPassengers.map(p => p.id),
+      ...kvDrivers.map(d => d.id),
+      ...kvAdmins.map(a => a.id)
+    ]);
+
+    const authUserIds = new Set(realAuthUsers.map(u => u.id));
+    const profileUserIds = new Set(profilesUsers.map(p => p.id));
+
+    // Utilisateurs dans KV mais pas dans Auth (données de test/mockées)
+    const orphanedKvUsers = Array.from(kvUserIds).filter(id => !authUserIds.has(id));
+    
+    // Utilisateurs dans Auth mais pas dans KV (manquants dans KV)
+    const missingInKv = Array.from(authUserIds).filter(id => !kvUserIds.has(id));
+
+    console.log(`⚠️ ${orphanedKvUsers.length} utilisateurs orphelins dans KV (données de test)`);
+    console.log(`📝 ${missingInKv.length} utilisateurs Auth manquants dans KV`);
+
+    // Détails des utilisateurs orphelins
+    const orphanedDetails = [];
+    for (const id of orphanedKvUsers) {
+      const passenger = kvPassengers.find(p => p.id === id);
+      const driver = kvDrivers.find(d => d.id === id);
+      const admin = kvAdmins.find(a => a.id === id);
+      
+      const user = passenger || driver || admin;
+      if (user) {
+        orphanedDetails.push({
+          id: user.id,
+          name: user.name || user.full_name || 'N/A',
+          phone: user.phone || 'N/A',
+          email: user.email || 'N/A',
+          role: passenger ? 'Passager' : (driver ? 'Conducteur' : 'Admin'),
+          createdAt: user.created_at,
+          source: 'KV Store (orphelin)'
+        });
+      }
+    }
+
+    // Détails des vrais utilisateurs Auth
+    const authUsersDetails = realAuthUsers.map(u => ({
+      id: u.id,
+      email: u.email,
+      phone: u.phone,
+      createdAt: u.created_at,
+      lastSignIn: u.last_sign_in_at,
+      inKV: kvUserIds.has(u.id),
+      inProfiles: profileUserIds.has(u.id)
+    }));
+
+    return c.json({
+      success: true,
+      diagnostic: {
+        kvStore: {
+          total: kvUserIds.size,
+          passengers: kvPassengers.length,
+          drivers: kvDrivers.length,
+          admins: kvAdmins.length,
+          orphaned: orphanedKvUsers.length
+        },
+        supabaseAuth: {
+          total: realAuthUsers.length,
+          missingInKv: missingInKv.length
+        },
+        profiles: {
+          total: profilesUsers.length
+        }
+      },
+      orphanedUsers: orphanedDetails,
+      authUsers: authUsersDetails,
+      recommendations: {
+        shouldCleanup: orphanedKvUsers.length > 0,
+        shouldSync: missingInKv.length > 0,
+        message: orphanedKvUsers.length > 0
+          ? `🧹 Vous avez ${orphanedKvUsers.length} utilisateurs de test dans le KV Store. Il est recommandé de les nettoyer.`
+          : '✅ Votre KV Store est propre !'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur diagnostic:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧹 NETTOYER LES DONNÉES DE TEST DU KV STORE
+// ============================================
+adminRoutes.post('/users/cleanup', async (c) => {
+  try {
+    console.log('🧹 Nettoyage des données de test du KV Store...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Récupérer les vrais utilisateurs Auth
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      throw new Error(`Erreur Supabase Auth: ${authError.message}`);
+    }
+
+    const realAuthUserIds = new Set((authUsers?.users || []).map(u => u.id));
+    console.log(`🔐 ${realAuthUserIds.size} utilisateurs réels dans Supabase Auth`);
+
+    // Récupérer tous les utilisateurs du KV Store
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    const kvDrivers = await kv.getByPrefix('driver:');
+    const kvAdmins = await kv.getByPrefix('admin:');
+
+    console.log(`📦 KV Store avant nettoyage: ${kvPassengers.length} passagers, ${kvDrivers.length} conducteurs, ${kvAdmins.length} admins`);
+
+    // Supprimer les utilisateurs orphelins (données de test)
+    let deletedCount = 0;
+    const deletedUsers = [];
+
+    for (const passenger of kvPassengers) {
+      if (passenger.id && !realAuthUserIds.has(passenger.id)) {
+        await kv.del(`passenger:${passenger.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: passenger.id,
+          name: passenger.name || passenger.full_name,
+          role: 'Passager'
+        });
+        console.log(`🗑️ Supprimé passager: ${passenger.name} (${passenger.id})`);
+      }
+    }
+
+    for (const driver of kvDrivers) {
+      if (driver.id && !realAuthUserIds.has(driver.id)) {
+        await kv.del(`driver:${driver.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: driver.id,
+          name: driver.name || driver.full_name,
+          role: 'Conducteur'
+        });
+        console.log(`🗑️ Supprimé conducteur: ${driver.name} (${driver.id})`);
+      }
+    }
+
+    for (const admin of kvAdmins) {
+      if (admin.id && !realAuthUserIds.has(admin.id)) {
+        await kv.del(`admin:${admin.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: admin.id,
+          name: admin.name || admin.full_name,
+          role: 'Admin'
+        });
+        console.log(`🗑️ Supprimé admin: ${admin.name} (${admin.id})`);
+      }
+    }
+
+    console.log(`✅ Nettoyage terminé: ${deletedCount} utilisateurs de test supprimés`);
+
+    return c.json({
+      success: true,
+      deleted: deletedCount,
+      deletedUsers: deletedUsers,
+      message: `🧹 ${deletedCount} utilisateurs de test ont été supprimés du KV Store`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur nettoyage:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔄 SYNCHRONISER DEPUIS SUPABASE AUTH
+// ============================================
+adminRoutes.post('/users/sync-from-auth', async (c) => {
+  try {
+    console.log('🔄 Synchronisation depuis Supabase Auth...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Récupérer les vrais utilisateurs Auth
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      throw new Error(`Erreur Supabase Auth: ${authError.message}`);
+    }
+
+    const realAuthUsers = authUsers?.users || [];
+    console.log(`🔐 ${realAuthUsers.length} utilisateurs trouvés dans Supabase Auth`);
+
+    // Récupérer les profils pour enrichir les données
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('*');
+
+    const profilesMap = new Map();
+    (profilesData || []).forEach(p => profilesMap.set(p.id, p));
+
+    let syncedCount = 0;
+    const syncedUsers = [];
+
+    // Synchroniser chaque utilisateur Auth dans le KV Store
+    for (const user of realAuthUsers) {
+      const profile = profilesMap.get(user.id);
+      const role = profile?.role || 'passenger'; // Par défaut passager
+
+      let kvKey = '';
+      let userData: any = {
+        id: user.id,
+        email: user.email || '',
+        phone: user.phone || profile?.phone || '',
+        name: profile?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+        full_name: profile?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+        created_at: user.created_at,
+        last_login_at: user.last_sign_in_at,
+        balance: profile?.balance || 0
+      };
+
+      if (role === 'passenger') {
+        kvKey = `passenger:${user.id}`;
+        userData.account_type = profile?.account_type || 'prepaid';
+      } else if (role === 'driver') {
+        kvKey = `driver:${user.id}`;
+        userData.vehicle = profile?.vehicle || {};
+        userData.license_number = profile?.license_number || '';
+        userData.is_available = false;
+        userData.status = 'offline';
+        userData.rating = profile?.rating || 0;
+        userData.total_trips = profile?.total_trips || 0;
+      } else if (role === 'admin') {
+        kvKey = `admin:${user.id}`;
+      }
+
+      // Vérifier si l'utilisateur existe déjà dans KV
+      const existingUser = await kv.get(kvKey);
+      
+      if (existingUser) {
+        // Fusionner avec les données existantes
+        userData = { ...existingUser, ...userData };
+        console.log(`🔄 Mis à jour: ${userData.name} (${role})`);
+      } else {
+        console.log(`➕ Ajouté: ${userData.name} (${role})`);
+      }
+
+      await kv.set(kvKey, userData);
+      syncedCount++;
+      syncedUsers.push({
+        id: user.id,
+        name: userData.name,
+        role: role,
+        action: existingUser ? 'updated' : 'created'
+      });
+    }
+
+    console.log(`✅ Synchronisation terminée: ${syncedCount} utilisateurs synchronisés`);
+
+    return c.json({
+      success: true,
+      synced: syncedCount,
+      syncedUsers: syncedUsers,
+      message: `🔄 ${syncedCount} utilisateurs ont été synchronisés depuis Supabase Auth`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur synchronisation:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
 export default adminRoutes;

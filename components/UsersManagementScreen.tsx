@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw } from '../lib/icons';
+import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw, Activity } from '../lib/icons';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from '../lib/toast';
+import { useAppState } from '../hooks/useAppState';
 
 interface User {
   id: string;
@@ -34,6 +35,7 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
   const [roleFilter, setRoleFilter] = useState<'all' | 'Passager' | 'Conducteur' | 'Administrateur'>('all');
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
   const [stats, setStats] = useState({ passengers: 0, drivers: 0, admins: 0 });
+  const { setCurrentScreen } = useAppState();
 
   // Charger tous les utilisateurs
   const loadUsers = async () => {
@@ -204,6 +206,13 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
               <p className="text-gray-600">Visualisez tous les comptes SmartCabb avec leurs identifiants</p>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={() => setCurrentScreen('admin-users-diagnostic')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Activity className="w-4 h-4" />
+                Diagnostic & Nettoyage
+              </button>
               <button
                 onClick={loadUsers}
                 className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"

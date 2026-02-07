@@ -4,6 +4,7 @@ import { useAppState } from '../hooks/useAppState';
 import { AlertCircle } from '../lib/icons';
 import { AdminDiagnostic } from '../components/admin/AdminDiagnostic';
 import { UsersManagementScreen } from '../components/UsersManagementScreen';
+import { UsersDiagnosticScreen } from '../components/admin/UsersDiagnosticScreen';
 
 // Import lazy des écrans admin pour optimisation
 const AdminLoginScreen = React.lazy(() => import('../components/admin/AdminLoginScreen').then(m => ({ default: m.AdminLoginScreen })));
@@ -180,6 +181,7 @@ function AdminAppContent() {
         {screenToShow === 'global-settings' && <GlobalSettingsScreen />}
         {screenToShow === 'admin-diagnostic' && <AdminDiagnostic />}
         {screenToShow === 'admin-users-management' && <UsersManagementScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
+        {screenToShow === 'admin-users-diagnostic' && <UsersDiagnosticScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'admin-account-sync' && <AdminAccountSync />}
         {screenToShow === 'admin-sync' && <AdminAccountSync />}
         {screenToShow === 'cancellations' && <CancellationsScreen />}
