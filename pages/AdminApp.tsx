@@ -7,6 +7,8 @@ import { UsersManagementScreen } from '../components/UsersManagementScreen';
 import { UsersDiagnosticScreen } from '../components/admin/UsersDiagnosticScreen';
 
 // Import lazy des écrans admin pour optimisation
+// Import lazy des écrans admin pour optimisation
+// Import lazy des écrans admin pour optimisation
 const AdminLoginScreen = React.lazy(() => import('../components/admin/AdminLoginScreen').then(m => ({ default: m.AdminLoginScreen })));
 const AdminRegisterScreen = React.lazy(() => import('../components/admin/AdminRegisterScreen').then(m => ({ default: m.AdminRegisterScreen })));
 const AdminDashboard = React.lazy(() => import('../components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
