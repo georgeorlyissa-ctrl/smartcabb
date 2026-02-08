@@ -14,10 +14,6 @@ const supabase = createClient(
 // RÉCUPÉRER LES CONDUCTEURS EN LIGNE
 // ⚠️ AUCUNE SIMULATION - Données réelles uniquement
 // ============================================
-// ============================================
-// RÉCUPÉRER LES CONDUCTEURS EN LIGNE
-// ⚠️ AUCUNE SIMULATION - Données réelles uniquement
-// ============================================
 driverRoutes.get('/online-drivers', async (c) => {
   try {
     console.log('🚗 Récupération des conducteurs en ligne...');
@@ -1103,13 +1099,18 @@ driverRoutes.get('/:driverId', async (c) => {
         // Créer un profil conducteur "pending" par défaut
         console.log('🆕 Création d\'un profil conducteur par défaut (status: pending)...');
         
+        // ✅ CORRECTION : Utiliser le status depuis user_metadata si disponible
+        // Cela permet de récupérer le statut "approved" si l'admin a déjà approuvé le compte
+        const driverStatus = user.user_metadata?.status || user.user_metadata?.driver_status || 'pending';
+        console.log('📊 Statut détecté depuis user_metadata:', driverStatus);
+        
         const newDriverProfile = {
           id: user.id,
           user_id: user.id,
           email: user.email || '',
           full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
           phone: user.user_metadata?.phone || user.phone || '',
-          status: 'pending', // ⚠️ Statut "pending" par défaut - ATTEND APPROBATION ADMIN
+          status: driverStatus, // ✅ Utiliser le statut depuis user_metadata
           is_available: false,
           photo: null,
           vehicle: {
@@ -1135,8 +1136,14 @@ driverRoutes.get('/:driverId', async (c) => {
         
         // Sauvegarder le profil dans le KV store
         await kv.set(driverKey, newDriverProfile);
-        console.log('✅ Profil conducteur "pending" créé et sauvegardé:', newDriverProfile.email);
-        console.log('⚠️ Le conducteur doit être approuvé par un admin avant de se connecter');
+        console.log('✅ Profil conducteur créé et sauvegardé:', newDriverProfile.email);
+        console.log('📊 Statut du profil créé:', newDriverProfile.status);
+        
+        if (newDriverProfile.status === 'pending') {
+          console.log('⚠️ Le conducteur doit être approuvé par un admin avant de se connecter');
+        } else if (newDriverProfile.status === 'approved') {
+          console.log('✅ Le conducteur a déjà été approuvé par un admin');
+        }
         
         // Utiliser ce nouveau profil
         driverData = newDriverProfile;
@@ -1210,6 +1217,33 @@ driverRoutes.post('/update/:driverId', async (c) => {
     await kv.set(driverKey, updatedDriver);
     console.log('✅ Conducteur mis à jour dans KV store');
 
+    // ✅ CORRECTION CRITIQUE : Synchroniser le statut dans Supabase Auth user_metadata
+    // Cela permet de garder la cohérence entre KV store et Auth
+    if (updates.status) {
+      try {
+        console.log('🔄 Synchronisation du statut dans Supabase Auth:', updates.status);
+        
+        const { error: updateMetadataError } = await supabase.auth.admin.updateUserById(
+          driverId,
+          {
+            user_metadata: {
+              status: updates.status,
+              driver_status: updates.status  // Aussi en tant que driver_status pour compatibilité
+            }
+          }
+        );
+        
+        if (updateMetadataError) {
+          console.error('⚠️ Erreur synchronisation statut dans Auth:', updateMetadataError);
+        } else {
+          console.log('✅ Statut synchronisé dans Supabase Auth user_metadata');
+        }
+      } catch (syncError) {
+        console.error('⚠️ Erreur synchronisation Auth:', syncError);
+        // Continue même si la synchro échoue, le KV store est la source de vérité
+      }
+    }
+
     return c.json({
       success: true,
       driver: updatedDriver
@@ -1230,7 +1264,10 @@ driverRoutes.post('/update/:driverId', async (c) => {
 driverRoutes.get('/:driverId/stats', async (c) => {
   try {
     const driverId = c.req.param('driverId');
-    console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
+   // ============================================
+// RÉCUPÉRER LES CONDUCTEURS EN LIGNE
+// ⚠️ AUCUNE SIMULATION - Données réelles uniquement
+// ============================================ console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
 
     // Récupérer les stats depuis le KV store
     const statsKey = `driver:${driverId}:stats`;
