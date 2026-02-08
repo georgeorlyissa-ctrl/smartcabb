@@ -122,6 +122,82 @@ driverRoutes.get('/online-drivers', async (c) => {
 });
 
 // ============================================
+// CRÉER UN PROFIL CONDUCTEUR
+// ============================================
+driverRoutes.post('/drivers/create', async (c) => {
+  try {
+    const { 
+      userId, 
+      vehicleType, 
+      licensePlate, 
+      vehicleBrand, 
+      vehicleModel, 
+      vehicleYear, 
+      vehicleColor,
+      documents 
+    } = await c.req.json();
+
+    if (!userId) {
+      return c.json({ 
+        success: false, 
+        error: 'ID utilisateur requis' 
+      }, 400);
+    }
+
+    console.log('🚗 Création profil conducteur pour:', userId);
+
+    // Récupérer le profil utilisateur existant
+    const profileKey = `profile:${userId}`;
+    const existingProfile = await kv.get(profileKey);
+
+    if (!existingProfile) {
+      return c.json({ 
+        success: false, 
+        error: 'Profil utilisateur introuvable' 
+      }, 404);
+    }
+
+    // Créer le profil conducteur complet
+    const driverProfile = {
+      ...existingProfile,
+      role: 'driver',
+      vehicleType: vehicleType || 'economique',
+      licensePlate: licensePlate || '',
+      vehicleBrand: vehicleBrand || '',
+      vehicleModel: vehicleModel || '',
+      vehicleYear: vehicleYear || '',
+      vehicleColor: vehicleColor || '',
+      documents: documents || {},
+      status: 'pending', // En attente de validation
+      isOnline: false,
+      balance: 0,
+      totalRides: 0,
+      rating: 5.0,
+      updated_at: new Date().toISOString()
+    };
+
+    // Sauvegarder le profil conducteur
+    await kv.set(`driver:${userId}`, driverProfile);
+    await kv.set(profileKey, driverProfile);
+
+    console.log('✅ Profil conducteur créé avec succès:', userId);
+
+    return c.json({
+      success: true,
+      driver: driverProfile,
+      message: 'Profil conducteur créé avec succès'
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur création profil conducteur:', error);
+    return c.json({ 
+      success: false, 
+      error: 'Erreur serveur lors de la création du profil conducteur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // METTRE À JOUR LA POSITION D'UN CONDUCTEUR
 // ============================================
 driverRoutes.post('/update-driver-location', async (c) => {
