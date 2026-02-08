@@ -146,15 +146,49 @@ driverRoutes.post('/create', async (c) => {
 
     console.log('🚗 Création profil conducteur pour:', userId);
 
-    // Récupérer le profil utilisateur existant
+    // Récupérer le profil utilisateur existant (ou depuis Auth si absent du KV)
     const profileKey = `profile:${userId}`;
-    const existingProfile = await kv.get(profileKey);
+    let existingProfile = await kv.get(profileKey);
 
+    // ✅ Si pas de profil dans KV, essayer de le récupérer depuis Supabase Auth
     if (!existingProfile) {
-      return c.json({ 
-        success: false, 
-        error: 'Profil utilisateur introuvable' 
-      }, 404);
+      console.log('⚠️ Profil absent du KV, récupération depuis Supabase Auth...');
+      
+      try {
+        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
+        
+        if (userError || !user) {
+          console.error('❌ Utilisateur introuvable dans Supabase Auth:', userId);
+          return c.json({ 
+            success: false, 
+            error: 'Profil utilisateur introuvable. Veuillez d\'abord créer un compte.' 
+          }, 404);
+        }
+        
+        console.log('✅ Utilisateur trouvé dans Auth, création du profil KV...');
+        
+        // Créer le profil de base dans le KV store
+        existingProfile = {
+          id: user.id,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
+          phone: user.user_metadata?.phone || user.phone || '',
+          role: 'driver',
+          created_at: user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Sauvegarder le profil de base
+        await kv.set(profileKey, existingProfile);
+        console.log('✅ Profil de base créé dans KV');
+        
+      } catch (authError) {
+        console.error('❌ Erreur Supabase Auth:', authError);
+        return c.json({ 
+          success: false, 
+          error: 'Erreur lors de la récupération du profil utilisateur' 
+        }, 500);
+      }
     }
 
     // Créer le profil conducteur complet
@@ -192,7 +226,7 @@ driverRoutes.post('/create', async (c) => {
     console.error('❌ Erreur création profil conducteur:', error);
     return c.json({ 
       success: false, 
-      error: 'Erreur serveur lors de la création du profil conducteur' 
+      error: 'Erreur serveur lors de la création du profil conducteur: ' + String(error)
     }, 500);
   }
 });
