@@ -124,7 +124,7 @@ driverRoutes.get('/online-drivers', async (c) => {
 // ============================================
 // CRÉER UN PROFIL CONDUCTEUR
 // ============================================
-driverRoutes.post('/drivers/create', async (c) => {
+driverRoutes.post('/create', async (c) => {
   try {
     const { 
       userId, 
