@@ -1443,4 +1443,61 @@ adminRoutes.post('/users/sync-from-auth', async (c) => {
   }
 });
 
+// ============================================
+// ✅ METTRE À JOUR LE STATUS DANS AUTH METADATA
+// ============================================
+adminRoutes.post('/update-driver-auth-metadata', async (c) => {
+  try {
+    const { driverId, status } = await c.req.json();
+    
+    console.log('🔄 Synchronisation statut conducteur dans Auth:', { driverId, status });
+    
+    if (!driverId || !status) {
+      return c.json({
+        success: false,
+        error: 'driverId et status requis'
+      }, 400);
+    }
+    
+    // Créer le client Supabase avec SERVICE_ROLE_KEY
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    // Mettre à jour le user_metadata
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      driverId,
+      {
+        user_metadata: {
+          status: status,
+          driver_status: status
+        }
+      }
+    );
+    
+    if (updateError) {
+      console.error('❌ Erreur mise à jour Auth metadata:', updateError);
+      return c.json({
+        success: false,
+        error: updateError.message
+      }, 500);
+    }
+    
+    console.log('✅ Statut synchronisé dans Auth user_metadata');
+    
+    return c.json({
+      success: true,
+      message: 'Statut synchronisé avec succès'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur update-driver-auth-metadata:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
 export default adminRoutes;
