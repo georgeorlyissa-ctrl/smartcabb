@@ -49,7 +49,7 @@ export async function signUp(userData: {
   phone: string;
 }) {
   try {
-    const response = await fetch(`${API_BASE}/auth/register`, {
+    const response = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${publicAnonKey}`,
@@ -85,7 +85,7 @@ export async function createAdminUser(userData: {
   phone: string;
 }) {
   try {
-    const response = await fetch(`${API_BASE}/auth/register`, {
+    const response = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${publicAnonKey}`,
