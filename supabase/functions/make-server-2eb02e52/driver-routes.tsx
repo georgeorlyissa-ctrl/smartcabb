@@ -1168,7 +1168,7 @@ driverRoutes.get('/:driverId', async (c) => {
 // ============================================
 // METTRE À JOUR LES INFOS D'UN CONDUCTEUR (POUR ADMIN)
 // ============================================
-driverRoutes.post('/:driverId', async (c) => {
+driverRoutes.post('/update/:driverId', async (c) => {
   try {
     const driverId = c.req.param('driverId');
     const updates = await c.req.json();
