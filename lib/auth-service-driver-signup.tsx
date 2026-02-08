@@ -41,7 +41,7 @@ export async function signUpDriver(driverData: DriverSignUpData) {
     console.log('🚗 Inscription conducteur...', driverData.email);
     
     // 1. Créer le compte utilisateur
-    const registerResponse = await fetch(`${API_BASE}/auth/register`, {
+    const registerResponse = await fetch(`${API_BASE}/auth/signup`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${publicAnonKey}`,
