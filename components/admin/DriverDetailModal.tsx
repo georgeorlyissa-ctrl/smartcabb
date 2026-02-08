@@ -114,7 +114,7 @@ export function DriverDetailModal({
           console.log('📊 Statut à synchroniser:', formData.status);
           console.log('🆔 Driver ID:', driver.id);
           
-          const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/update-driver-auth-metadata`;
+          const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/update-driver-auth-metadata`;
           console.log('🌐 URL appelée:', url);
           
           const response = await fetch(url, {
