@@ -11,6 +11,41 @@ const supabase = createClient(
 );
 
 // ============================================
+// 📋 RÉCUPÉRER TOUS LES CONDUCTEURS (pour l'admin)
+// ============================================
+driverRoutes.get('/', async (c) => {
+  try {
+    console.log('📋 Récupération de TOUS les conducteurs depuis KV store...');
+
+    // Récupérer tous les conducteurs depuis le KV store
+    const allDrivers = await kv.getByPrefix('driver:');
+    
+    // Filtrer pour ne garder que les objets conducteurs valides (pas les sous-clés comme driver:xxx:balance)
+    const drivers = allDrivers.filter(d => {
+      // Un conducteur valide doit avoir un champ 'id' ou 'user_id'
+      return d && (d.id || d.user_id) && !d.lat; // Exclure les objets de localisation
+    });
+
+    console.log(`✅ ${drivers.length} conducteur(s) trouvé(s) dans le KV store`);
+
+    return c.json({
+      success: true,
+      drivers: drivers,
+      count: drivers.length
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération conducteurs:', error);
+    return c.json({
+      success: false,
+      drivers: [],
+      count: 0,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
 // RÉCUPÉRER LES CONDUCTEURS EN LIGNE
 // ⚠️ AUCUNE SIMULATION - Données réelles uniquement
 // ============================================
@@ -1184,10 +1219,12 @@ driverRoutes.post('/update/:driverId', async (c) => {
     const driverId = c.req.param('driverId');
     const updates = await c.req.json();
     
+    console.log('🔥🔥🔥 ========== DÉBUT UPDATE CONDUCTEUR (Admin) ==========');
     console.log('🔄 Mise à jour conducteur:', driverId);
-    console.log('📝 Mises à jour:', updates);
+    console.log('📝 Mises à jour reçues:', JSON.stringify(updates, null, 2));
 
     if (!driverId) {
+      console.error('❌ driverId manquant !');
       return c.json({ 
         success: false, 
         error: 'driverId requis' 
@@ -1196,15 +1233,22 @@ driverRoutes.post('/update/:driverId', async (c) => {
 
     // Récupérer les données actuelles du conducteur
     const driverKey = `driver:${driverId}`;
+    console.log(`🔍 Recherche du conducteur avec la clé: ${driverKey}`);
+    
     const currentDriver = await kv.get(driverKey);
 
     if (!currentDriver) {
-      console.error('❌ Conducteur introuvable:', driverId);
+      console.error('❌ Conducteur introuvable dans KV store:', driverId);
+      console.error('   Clé recherchée:', driverKey);
       return c.json({ 
         success: false, 
         error: 'Conducteur introuvable' 
       }, 404);
     }
+
+    console.log('✅ Conducteur trouvé dans KV store');
+    console.log('📊 Statut ACTUEL:', currentDriver.status);
+    console.log('📊 Nouveau statut:', updates.status);
 
     // Fusionner les mises à jour
     const updatedDriver = {
@@ -1213,15 +1257,30 @@ driverRoutes.post('/update/:driverId', async (c) => {
       updated_at: new Date().toISOString()
     };
 
+    console.log('🔄 Objet conducteur fusionné:', JSON.stringify(updatedDriver, null, 2));
+
     // Sauvegarder dans le KV store
+    console.log(`💾 Sauvegarde dans KV store avec la clé: ${driverKey}`);
     await kv.set(driverKey, updatedDriver);
     console.log('✅ Conducteur mis à jour dans KV store');
+    
+    // Vérifier immédiatement que la sauvegarde a fonctionné
+    const verifyDriver = await kv.get(driverKey);
+    if (verifyDriver && verifyDriver.status === updates.status) {
+      console.log('✅ VÉRIFICATION : Statut correctement sauvegardé dans KV !');
+      console.log('   Statut vérifié:', verifyDriver.status);
+    } else {
+      console.error('❌ ERREUR CRITIQUE : Le statut n\'a PAS été sauvegardé correctement !');
+      console.error('   Statut attendu:', updates.status);
+      console.error('   Statut trouvé:', verifyDriver?.status);
+    }
 
     // ✅ CORRECTION CRITIQUE : Synchroniser le statut dans Supabase Auth user_metadata
     // Cela permet de garder la cohérence entre KV store et Auth
     if (updates.status) {
       try {
         console.log('🔄 Synchronisation du statut dans Supabase Auth:', updates.status);
+        console.log('   Driver ID (pour Auth):', driverId);
         
         const { error: updateMetadataError } = await supabase.auth.admin.updateUserById(
           driverId,
@@ -1235,14 +1294,25 @@ driverRoutes.post('/update/:driverId', async (c) => {
         
         if (updateMetadataError) {
           console.error('⚠️ Erreur synchronisation statut dans Auth:', updateMetadataError);
+          console.error('   Code:', updateMetadataError.code);
+          console.error('   Message:', updateMetadataError.message);
         } else {
           console.log('✅ Statut synchronisé dans Supabase Auth user_metadata');
+          
+          // Vérifier la synchronisation
+          const { data: { user: verifyUser } } = await supabase.auth.admin.getUserById(driverId);
+          if (verifyUser) {
+            console.log('✅ VÉRIFICATION Auth : user_metadata.status =', verifyUser.user_metadata?.status);
+            console.log('✅ VÉRIFICATION Auth : user_metadata.driver_status =', verifyUser.user_metadata?.driver_status);
+          }
         }
       } catch (syncError) {
-        console.error('⚠️ Erreur synchronisation Auth:', syncError);
+        console.error('⚠️ Exception lors de la synchronisation Auth:', syncError);
         // Continue même si la synchro échoue, le KV store est la source de vérité
       }
     }
+
+    console.log('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========');
 
     return c.json({
       success: true,
@@ -1250,7 +1320,9 @@ driverRoutes.post('/update/:driverId', async (c) => {
     });
 
   } catch (error) {
+    console.error('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (ERREUR) ==========');
     console.error('❌ Erreur mise à jour conducteur:', error);
+    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
     return c.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Erreur serveur' 
