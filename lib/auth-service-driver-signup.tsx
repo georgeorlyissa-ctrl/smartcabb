@@ -14,17 +14,20 @@ const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-2eb0
 export interface DriverSignUpData {
   // Informations personnelles
   fullName: string;
-  email: string;
+  email?: string; // ✅ Optionnel maintenant
   phone: string;
   password: string;
   
-  // Informations du véhicule
-  vehicleType: 'economique' | 'confort' | 'premium' | 'van';
-  licensePlate: string;
-  vehicleBrand: string;
-  vehicleModel: string;
-  vehicleYear: string;
-  vehicleColor: string;
+  // Informations du véhicule - ✅ Support des deux formats
+  vehicleType?: 'economique' | 'confort' | 'premium' | 'van';
+  vehicleCategory?: 'standard' | 'comfort' | 'luxury' | 'van'; // ✅ Nouveau format
+  licensePlate?: string;
+  vehiclePlate?: string; // ✅ Alias
+  vehicleBrand?: string;
+  vehicleMake?: string; // ✅ Alias
+  vehicleModel?: string;
+  vehicleYear?: string;
+  vehicleColor?: string;
   
   // Documents (optionnels selon l'implémentation)
   driverLicense?: string;
@@ -38,7 +41,18 @@ export interface DriverSignUpData {
  */
 export async function signUpDriver(driverData: DriverSignUpData) {
   try {
-    console.log('🚗 Inscription conducteur...', driverData.email);
+    console.log('🚗 Inscription conducteur...', driverData.phone);
+    
+    // ✅ Générer un email automatique si non fourni
+    // ✅ UNIFORMISATION : Utiliser @smartcabb.app au lieu de @smartcabb.local
+    const email = driverData.email || `${driverData.phone.replace(/[^0-9]/g, '')}_${Date.now()}@smartcabb.app`;
+    
+    // ✅ Normaliser les champs du véhicule
+    const vehicleType = driverData.vehicleType || driverData.vehicleCategory || 'economique';
+    const licensePlate = driverData.licensePlate || driverData.vehiclePlate || '';
+    const vehicleBrand = driverData.vehicleBrand || driverData.vehicleMake || '';
+    
+    console.log('📋 Données normalisées:', { email, vehicleType, licensePlate, vehicleBrand });
     
     // 1. Créer le compte utilisateur
     const registerResponse = await fetch(`${API_BASE}/auth/signup`, {
@@ -48,7 +62,7 @@ export async function signUpDriver(driverData: DriverSignUpData) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        email: driverData.email,
+        email: email,
         password: driverData.password,
         full_name: driverData.fullName,
         phone: driverData.phone,
@@ -74,12 +88,12 @@ export async function signUpDriver(driverData: DriverSignUpData) {
       },
       body: JSON.stringify({
         userId: registerResult.profile.id,
-        vehicleType: driverData.vehicleType,
-        licensePlate: driverData.licensePlate,
-        vehicleBrand: driverData.vehicleBrand,
-        vehicleModel: driverData.vehicleModel,
-        vehicleYear: driverData.vehicleYear,
-        vehicleColor: driverData.vehicleColor,
+        vehicleType: vehicleType,
+        licensePlate: licensePlate,
+        vehicleBrand: vehicleBrand,
+        vehicleModel: driverData.vehicleModel || '',
+        vehicleYear: driverData.vehicleYear || new Date().getFullYear().toString(),
+        vehicleColor: driverData.vehicleColor || '',
         // Documents optionnels
         documents: {
           driverLicense: driverData.driverLicense,
