@@ -283,7 +283,7 @@ export const driverService = {
       console.log('📝 Updates:', updates);
       
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driverId}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update/${driverId}`,
         {
           method: 'POST',
           headers: {
