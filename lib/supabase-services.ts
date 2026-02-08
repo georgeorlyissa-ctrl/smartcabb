@@ -280,6 +280,7 @@ export const driverService = {
     // Utiliser l'API KV store au lieu de la table Supabase
     try {
       console.log('🔄 Updating driver in KV store:', driverId);
+      console.log('📝 Updates:', updates);
       
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driverId}`,
@@ -296,15 +297,16 @@ export const driverService = {
       const result = await response.json();
       
       if (!result.success) {
-        console.error('Error updating driver:', result.error);
+        console.error('❌ Error updating driver:', result.error);
         return null;
       }
       
-      console.log('✅ Driver updated successfully');
+      console.log('✅ Driver updated successfully in KV store');
+      console.log('📊 Updated status:', result.driver?.status);
       return result.driver;
       
     } catch (error) {
-      console.error('Error updating driver:', error);
+      console.error('❌ Error updating driver:', error);
       return null;
     }
   },
