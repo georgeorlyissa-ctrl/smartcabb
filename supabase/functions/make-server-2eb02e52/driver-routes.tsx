@@ -14,6 +14,10 @@ const supabase = createClient(
 // RÉCUPÉRER LES CONDUCTEURS EN LIGNE
 // ⚠️ AUCUNE SIMULATION - Données réelles uniquement
 // ============================================
+// ============================================
+// RÉCUPÉRER LES CONDUCTEURS EN LIGNE
+// ⚠️ AUCUNE SIMULATION - Données réelles uniquement
+// ============================================
 driverRoutes.get('/online-drivers', async (c) => {
   try {
     console.log('🚗 Récupération des conducteurs en ligne...');
