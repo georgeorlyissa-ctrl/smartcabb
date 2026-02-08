@@ -107,6 +107,40 @@ export function DriverDetailModal({
       if (profileUpdated && driverUpdated) {
         toast.success('Profil mis à jour avec succès');
         
+        // ✅ CORRECTION CRITIQUE : Mettre à jour AUSSI le user_metadata dans Supabase Auth
+        // Cela permet au backend de récupérer le bon statut lors du login
+        if (statusChanged) {
+          try {
+            console.log('🔄 Synchronisation du statut dans Supabase Auth user_metadata...');
+            
+            const response = await fetch(
+              `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/update-driver-auth-metadata`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${publicAnonKey}`
+                },
+                body: JSON.stringify({
+                  driverId: driver.id,
+                  status: formData.status
+                })
+              }
+            );
+            
+            const result = await response.json();
+            
+            if (result.success) {
+              console.log('✅ Statut synchronisé dans Auth user_metadata');
+            } else {
+              console.warn('⚠️ Erreur synchronisation Auth:', result.error);
+            }
+          } catch (authSyncError) {
+            console.error('❌ Erreur synchronisation Auth:', authSyncError);
+            // Continue même si la synchro échoue
+          }
+        }
+        
         // 📱 Envoyer SMS de notification au conducteur
         if (driver.phone) {
           try {
