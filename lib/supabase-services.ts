@@ -279,34 +279,58 @@ export const driverService = {
   async updateDriver(driverId: string, updates: Partial<Driver>): Promise<Driver | null> {
     // Utiliser l'API KV store au lieu de la table Supabase
     try {
+      console.log('🔥🔥🔥 ========== FRONTEND: DÉBUT UPDATE DRIVER ==========');
       console.log('🔄 Updating driver in KV store:', driverId);
-      console.log('📝 Updates:', updates);
+      console.log('📝 Updates:', JSON.stringify(updates, null, 2));
       
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update/${driverId}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
-          },
-          body: JSON.stringify(updates)
-        }
-      );
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update/${driverId}`;
+      console.log('🌐 URL complète:', url);
+      console.log('🔑 Authorization:', `Bearer ${publicAnonKey.substring(0, 20)}...`);
       
-      const result = await response.json();
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`
+        },
+        body: JSON.stringify(updates)
+      });
+      
+      console.log('📡 Response status:', response.status, response.statusText);
+      console.log('📡 Response ok:', response.ok);
+      
+      const responseText = await response.text();
+      console.log('📄 Response text (raw):', responseText);
+      
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ Erreur parsing JSON:', parseError);
+        console.error('   Raw response:', responseText);
+        return null;
+      }
+      
+      console.log('📋 Result parsed:', JSON.stringify(result, null, 2));
       
       if (!result.success) {
         console.error('❌ Error updating driver:', result.error);
+        console.log('🔥🔥🔥 ========== FRONTEND: FIN UPDATE DRIVER (ERREUR) ==========');
         return null;
       }
       
       console.log('✅ Driver updated successfully in KV store');
       console.log('📊 Updated status:', result.driver?.status);
+      console.log('📊 Full updated driver:', JSON.stringify(result.driver, null, 2));
+      console.log('🔥🔥🔥 ========== FRONTEND: FIN UPDATE DRIVER (SUCCÈS) ==========');
       return result.driver;
       
     } catch (error) {
+      console.error('🔥🔥🔥 ========== FRONTEND: FIN UPDATE DRIVER (EXCEPTION) ==========');
       console.error('❌ Error updating driver:', error);
+      console.error('❌ Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'N/A');
       return null;
     }
   },
