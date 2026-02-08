@@ -396,16 +396,42 @@ export async function securityMiddleware(c: Context, next: Next) {
   // Ajouter l'en-tête de rate limit restant
   c.header('X-RateLimit-Remaining', rateLimit.remaining.toString());
 
-  // Bloquer les User-Agents suspects
-  const suspiciousUserAgents = ['sqlmap', 'nikto', 'nmap', 'masscan', 'bot'];
-  if (suspiciousUserAgents.some(ua => userAgent.toLowerCase().includes(ua))) {
-    securityLog('critical', 'SUSPICIOUS_USER_AGENT', { ip, userAgent, path });
-    
-    return c.json({
-      success: false,
-      error: 'Accès refusé',
-      code: 'FORBIDDEN'
-    }, 403);
+  // ✅ WHITELIST pour les bots légitimes (SEO)
+  const legitimateBots = [
+    'googlebot',
+    'bingbot',
+    'slurp', // Yahoo
+    'duckduckbot',
+    'baiduspider',
+    'yandexbot',
+    'facebookexternalhit',
+    'twitterbot',
+    'linkedinbot',
+    'whatsapp'
+  ];
+
+  const isLegitimateBot = legitimateBots.some(bot => 
+    userAgent.toLowerCase().includes(bot)
+  );
+
+  // Bloquer les User-Agents suspects (sauf les bots légitimes)
+  const suspiciousUserAgents = ['sqlmap', 'nikto', 'nmap', 'masscan'];
+  const hasSuspiciousPattern = suspiciousUserAgents.some(ua => 
+    userAgent.toLowerCase().includes(ua)
+  );
+
+  // ✅ Bloquer uniquement si suspect ET pas un bot légitime
+  if (hasSuspiciousPattern || (userAgent.toLowerCase().includes('bot') && !isLegitimateBot)) {
+    // ⚠️ Log seulement si vraiment suspect (pas Googlebot)
+    if (!isLegitimateBot) {
+      securityLog('critical', 'SUSPICIOUS_USER_AGENT', { ip, userAgent, path });
+      
+      return c.json({
+        success: false,
+        error: 'Accès refusé',
+        code: 'FORBIDDEN'
+      }, 403);
+    }
   }
 
   // Log de la requête
