@@ -112,31 +112,39 @@ export function DriverDetailModal({
         if (statusChanged) {
           try {
             console.log('🔄 Synchronisation du statut dans Supabase Auth user_metadata...');
+            console.log('📊 Statut à synchroniser:', formData.status);
+            console.log('🆔 Driver ID:', driver.id);
             
-            const response = await fetch(
-              `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/update-driver-auth-metadata`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${publicAnonKey}`
-                },
-                body: JSON.stringify({
-                  driverId: driver.id,
-                  status: formData.status
-                })
-              }
-            );
+            const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/update-driver-auth-metadata`;
+            console.log('🌐 URL appelée:', url);
+            
+            const response = await fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${publicAnonKey}`
+              },
+              body: JSON.stringify({
+                driverId: driver.id,
+                status: formData.status
+              })
+            });
+            
+            console.log('📡 Réponse HTTP:', response.status, response.statusText);
             
             const result = await response.json();
+            console.log('📋 Résultat:', result);
             
             if (result.success) {
               console.log('✅ Statut synchronisé dans Auth user_metadata');
+              toast.success('✅ Statut synchronisé dans Auth');
             } else {
               console.warn('⚠️ Erreur synchronisation Auth:', result.error);
+              toast.warning(`⚠️ Erreur synchro Auth: ${result.error}`);
             }
           } catch (authSyncError) {
             console.error('❌ Erreur synchronisation Auth:', authSyncError);
+            toast.error(`❌ Erreur synchro Auth: ${authSyncError}`);
             // Continue même si la synchro échoue
           }
         }
