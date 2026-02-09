@@ -11,6 +11,105 @@ const supabase = createClient(
 );
 
 // ============================================
+// 🐛 DEBUG: VÉRIFIER L'ÉTAT D'UN CONDUCTEUR
+// ============================================
+driverRoutes.get('/:driverId/debug', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log('🐛 ========== DEBUG CONDUCTEUR ==========');
+    console.log('🆔 Driver ID:', driverId);
+
+    const debugInfo: any = {
+      driverId,
+      timestamp: new Date().toISOString(),
+      sources: {}
+    };
+
+    // 1. Vérifier dans le KV store
+    try {
+      const driverKey = `driver:${driverId}`;
+      const kvDriver = await kv.get(driverKey);
+      debugInfo.sources.kv_store = {
+        exists: !!kvDriver,
+        status: kvDriver?.status || 'N/A',
+        full_name: kvDriver?.full_name || 'N/A',
+        phone: kvDriver?.phone || 'N/A',
+        email: kvDriver?.email || 'N/A',
+        created_at: kvDriver?.created_at || 'N/A',
+        raw_data: kvDriver
+      };
+      console.log('✅ KV Store:', debugInfo.sources.kv_store);
+    } catch (kvError) {
+      debugInfo.sources.kv_store = { error: String(kvError) };
+      console.error('❌ Erreur KV:', kvError);
+    }
+
+    // 2. Vérifier dans Supabase Auth
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(driverId);
+      if (authError || !user) {
+        debugInfo.sources.auth = { exists: false, error: authError?.message };
+        console.log('❌ Auth: Utilisateur introuvable');
+      } else {
+        debugInfo.sources.auth = {
+          exists: true,
+          email: user.email,
+          phone: user.phone,
+          user_metadata: user.user_metadata,
+          status_in_metadata: user.user_metadata?.status || user.user_metadata?.driver_status || 'N/A'
+        };
+        console.log('✅ Auth:', debugInfo.sources.auth);
+      }
+    } catch (authError) {
+      debugInfo.sources.auth = { error: String(authError) };
+      console.error('❌ Erreur Auth:', authError);
+    }
+
+    // 3. Vérifier dans Postgres table drivers
+    try {
+      const { data: driverRecord, error: driverError } = await supabase
+        .from('drivers')
+        .select('*')
+        .eq('id', driverId)
+        .maybeSingle();
+      
+      if (driverError || !driverRecord) {
+        debugInfo.sources.postgres_drivers = { exists: false, error: driverError?.message };
+        console.log('❌ Postgres: Conducteur introuvable dans table drivers');
+      } else {
+        debugInfo.sources.postgres_drivers = {
+          exists: true,
+          full_name: driverRecord.full_name,
+          email: driverRecord.email,
+          phone: driverRecord.phone,
+          status: driverRecord.status,
+          vehicle_type: driverRecord.vehicle_type,
+          license_plate: driverRecord.license_plate
+        };
+        console.log('✅ Postgres drivers:', debugInfo.sources.postgres_drivers);
+      }
+    } catch (pgError) {
+      debugInfo.sources.postgres_drivers = { error: String(pgError) };
+      console.error('❌ Erreur Postgres:', pgError);
+    }
+
+    console.log('🐛 ========== FIN DEBUG CONDUCTEUR ==========');
+
+    return c.json({
+      success: true,
+      debug: debugInfo
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur debug conducteur:', error);
+    return c.json({
+      success: false,
+      error: String(error)
+    }, 500);
+  }
+});
+
+// ============================================
 // 📋 RÉCUPÉRER TOUS LES CONDUCTEURS (pour l'admin)
 // ============================================
 driverRoutes.get('/', async (c) => {
@@ -1275,41 +1374,54 @@ driverRoutes.post('/update/:driverId', async (c) => {
       console.error('   Statut trouvé:', verifyDriver?.status);
     }
 
-    // ✅ CORRECTION CRITIQUE : Synchroniser le statut dans Supabase Auth user_metadata
-    // Cela permet de garder la cohérence entre KV store et Auth
+    // ✅ SYNCHRONISATION CRITIQUE : Mettre à jour le statut dans Auth user_metadata
     if (updates.status) {
       try {
-        console.log('🔄 Synchronisation du statut dans Supabase Auth:', updates.status);
-        console.log('   Driver ID (pour Auth):', driverId);
+        console.log('🔄 Synchronisation du statut dans Auth user_metadata...');
+        console.log('📊 Statut à synchroniser:', updates.status);
         
-        const { error: updateMetadataError } = await supabase.auth.admin.updateUserById(
+        const { data, error: authError } = await supabase.auth.admin.updateUserById(
           driverId,
           {
             user_metadata: {
               status: updates.status,
-              driver_status: updates.status  // Aussi en tant que driver_status pour compatibilité
+              driver_status: updates.status,
+              updated_at: new Date().toISOString()
             }
           }
         );
         
-        if (updateMetadataError) {
-          console.error('⚠️ Erreur synchronisation statut dans Auth:', updateMetadataError);
-          console.error('   Code:', updateMetadataError.code);
-          console.error('   Message:', updateMetadataError.message);
+        if (authError) {
+          console.error('❌ Erreur synchro Auth:', authError);
         } else {
-          console.log('✅ Statut synchronisé dans Supabase Auth user_metadata');
-          
-          // Vérifier la synchronisation
-          const { data: { user: verifyUser } } = await supabase.auth.admin.getUserById(driverId);
-          if (verifyUser) {
-            console.log('✅ VÉRIFICATION Auth : user_metadata.status =', verifyUser.user_metadata?.status);
-            console.log('✅ VÉRIFICATION Auth : user_metadata.driver_status =', verifyUser.user_metadata?.driver_status);
-          }
+          console.log('✅ Statut synchronisé dans Auth user_metadata');
+          console.log('📋 Auth user_metadata:', data.user?.user_metadata);
         }
-      } catch (syncError) {
-        console.error('⚠️ Exception lors de la synchronisation Auth:', syncError);
-        // Continue même si la synchro échoue, le KV store est la source de vérité
+      } catch (authSyncError) {
+        console.error('❌ Exception synchro Auth:', authSyncError);
+        // Continue même si la synchro échoue
       }
+    }
+    
+    // ✅ SYNCHRONISATION POSTGRES : Mettre à jour la table drivers
+    try {
+      console.log('🔄 Synchronisation dans table Postgres drivers...');
+      const { error: pgError } = await supabase
+        .from('drivers')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', driverId);
+      
+      if (pgError) {
+        console.error('❌ Erreur synchro Postgres:', pgError);
+      } else {
+        console.log('✅ Table drivers synchronisée dans Postgres');
+      }
+    } catch (pgSyncError) {
+      console.error('❌ Exception synchro Postgres:', pgSyncError);
+      // Continue même si la synchro échoue
     }
 
     console.log('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========');
@@ -1336,10 +1448,7 @@ driverRoutes.post('/update/:driverId', async (c) => {
 driverRoutes.get('/:driverId/stats', async (c) => {
   try {
     const driverId = c.req.param('driverId');
-   // ============================================
-// RÉCUPÉRER LES CONDUCTEURS EN LIGNE
-// ⚠️ AUCUNE SIMULATION - Données réelles uniquement
-// ============================================ console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
+    console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
 
     // Récupérer les stats depuis le KV store
     const statsKey = `driver:${driverId}:stats`;
