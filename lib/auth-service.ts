@@ -125,16 +125,27 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       console.error('   - Status:', authError.status);
       console.error('   - Details:', authError);
       
-      if (authError.message.includes('Email not confirmed')) {
+      // ✅ FIX: Vérifier que authError.message existe avant d'utiliser .includes()
+      const errorMessage = authError.message || '';
+      
+      if (errorMessage.includes('Email not confirmed')) {
         return {
           success: false,
           error: 'Compte non activé. Vérifiez vos emails ou contactez le support.'
         };
       }
       
+      // Messages d'erreur plus clairs
+      if (errorMessage.includes('Invalid login credentials') || authError.status === 400) {
+        return {
+          success: false,
+          error: 'Identifiants incorrects. Vérifiez votre numéro de téléphone et votre mot de passe.'
+        };
+      }
+      
       return {
         success: false,
-        error: authError.message
+        error: errorMessage || 'Erreur de connexion. Veuillez réessayer.'
       };
     }
     
