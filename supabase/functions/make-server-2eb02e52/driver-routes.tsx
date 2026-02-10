@@ -1,6 +1,7 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
+import { isValidUUID } from './uuid-validator.ts';
 
 const driverRoutes = new Hono();
 
@@ -18,6 +19,15 @@ driverRoutes.get('/:driverId/debug', async (c) => {
     const driverId = c.req.param('driverId');
     console.log('🐛 ========== DEBUG CONDUCTEUR ==========');
     console.log('🆔 Driver ID:', driverId);
+
+    // ✅ VALIDATION UUID
+    if (!isValidUUID(driverId)) {
+      console.error('❌ ID invalide (pas un UUID):', driverId);
+      return c.json({
+        success: false,
+        error: 'ID invalide - doit être un UUID'
+      }, 400);
+    }
 
     const debugInfo: any = {
       driverId,
@@ -287,6 +297,15 @@ driverRoutes.post('/create', async (c) => {
     // ✅ Si pas de profil dans KV, essayer de le récupérer depuis Supabase Auth
     if (!existingProfile) {
       console.log('⚠️ Profil absent du KV, récupération depuis Supabase Auth...');
+      
+      // ✅ Validation UUID
+      if (!isValidUUID(userId)) {
+        console.error('❌ ID invalide (pas un UUID):', userId);
+        return c.json({ 
+          success: false, 
+          error: 'ID utilisateur invalide' 
+        }, 400);
+      }
       
       try {
         const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
@@ -1213,6 +1232,15 @@ driverRoutes.get('/:driverId', async (c) => {
     if (!driverData) {
       console.warn('⚠️ Conducteur introuvable dans le KV store:', driverId);
       console.log('🔄 Tentative de récupération depuis auth.users via Supabase...');
+      
+      // ✅ Validation UUID
+      if (!isValidUUID(driverId)) {
+        console.error('❌ ID invalide (pas un UUID):', driverId);
+        return c.json({ 
+          success: false, 
+          error: 'ID conducteur invalide' 
+        }, 400);
+      }
       
       // 🆕 NOUVEAU : Essayer de récupérer l'utilisateur depuis Supabase Auth
       try {
