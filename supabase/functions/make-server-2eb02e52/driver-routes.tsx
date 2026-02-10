@@ -77,10 +77,11 @@ driverRoutes.get('/:driverId/debug', async (c) => {
 
     // 3. Vérifier dans Postgres table drivers
     try {
+      // ✅ FIX: Utiliser user_id au lieu de id pour chercher dans la table drivers
       const { data: driverRecord, error: driverError } = await supabase
         .from('drivers')
         .select('*')
-        .eq('id', driverId)
+        .eq('user_id', driverId)
         .maybeSingle();
       
       if (driverError || !driverRecord) {
@@ -112,6 +113,131 @@ driverRoutes.get('/:driverId/debug', async (c) => {
 
   } catch (error) {
     console.error('❌ Erreur debug conducteur:', error);
+    return c.json({
+      success: false,
+      error: String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔥 FORCER LA SYNCHRONISATION DES 3 SOURCES
+// ============================================
+driverRoutes.post('/:driverId/force-sync', async (c) => {
+  try {
+    const driverId = c.req.param('driverId');
+    console.log('🔥 ========== FORCE SYNC CONDUCTEUR ==========');
+    console.log('🆔 Driver ID:', driverId);
+
+    // ✅ VALIDATION UUID
+    if (!isValidUUID(driverId)) {
+      console.error('❌ ID invalide (pas un UUID):', driverId);
+      return c.json({
+        success: false,
+        error: 'ID invalide - doit être un UUID'
+      }, 400);
+    }
+
+    // 1. Lire depuis KV store (source de vérité)
+    const driverKey = `driver:${driverId}`;
+    const driverData = await kv.get(driverKey);
+    
+    if (!driverData) {
+      console.error('❌ Conducteur non trouvé dans KV store');
+      return c.json({
+        success: false,
+        error: 'Conducteur non trouvé'
+      }, 404);
+    }
+
+    console.log('✅ Conducteur trouvé dans KV, statut:', driverData.status);
+
+    // 2. Forcer synchronisation vers profile:
+    const profileKey = `profile:${driverId}`;
+    console.log('🔄 Synchronisation forcée vers profile:');
+    await kv.set(profileKey, driverData);
+    console.log('✅ profile: synchronisé');
+
+    // 3. Forcer synchronisation vers Auth user_metadata
+    console.log('🔄 Synchronisation forcée vers Auth user_metadata');
+    const { error: authError } = await supabase.auth.admin.updateUserById(
+      driverId,
+      {
+        user_metadata: {
+          status: driverData.status,
+          driver_status: driverData.status,
+          full_name: driverData.full_name,
+          phone: driverData.phone,
+          updated_at: new Date().toISOString()
+        }
+      }
+    );
+    
+    if (authError) {
+      console.error('❌ Erreur synchro Auth:', authError);
+    } else {
+      console.log('✅ Auth user_metadata synchronisé');
+    }
+
+    // 4. Forcer synchronisation vers PostgreSQL table drivers
+    console.log('🔄 Synchronisation forcée vers Postgres drivers');
+    const { data: existingDriver } = await supabase
+      .from('drivers')
+      .select('id')
+      .eq('user_id', driverId)
+      .maybeSingle();
+    
+    if (existingDriver) {
+      // UPDATE
+      const { error: pgError } = await supabase
+        .from('drivers')
+        .update({
+          status: driverData.status,
+          full_name: driverData.full_name,
+          email: driverData.email,
+          phone: driverData.phone,
+          is_available: driverData.is_available,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', driverId);
+      
+      if (pgError) {
+        console.error('❌ Erreur UPDATE Postgres:', pgError);
+      } else {
+        console.log('✅ Postgres drivers UPDATE réussi');
+      }
+    } else {
+      // INSERT
+      const { error: insertError } = await supabase
+        .from('drivers')
+        .insert({
+          user_id: driverId,
+          status: driverData.status,
+          full_name: driverData.full_name,
+          email: driverData.email,
+          phone: driverData.phone,
+          is_available: driverData.is_available || false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+      
+      if (insertError) {
+        console.error('❌ Erreur INSERT Postgres:', insertError);
+      } else {
+        console.log('✅ Postgres drivers INSERT réussi');
+      }
+    }
+
+    console.log('🔥 ========== FORCE SYNC TERMINÉ ==========');
+
+    return c.json({
+      success: true,
+      message: 'Synchronisation forcée réussie',
+      status: driverData.status
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur force sync:', error);
     return c.json({
       success: false,
       error: String(error)
