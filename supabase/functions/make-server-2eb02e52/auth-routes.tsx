@@ -1,6 +1,7 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
+import { isValidUUID } from './uuid-validator.tsx';
 
 const authRoutes = new Hono();
 
@@ -1823,6 +1824,16 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
               Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             );
             
+            // ✅ Validation UUID avant appel
+            if (!isValidUUID(profileData.id)) {
+              console.log('⚠️ ID profil invalide (pas un UUID), utilisation email profil');
+              return c.json({
+                success: true,
+                email: profileData.email,
+                userId: profileData.id
+              });
+            }
+            
             const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profileData.id);
             
             if (authError || !authUser || !authUser.user || !authUser.user.email) {
@@ -1875,6 +1886,16 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
               Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             );
             
+            // ✅ Validation UUID
+            if (!isValidUUID(userData.id)) {
+              console.log('⚠️ ID user invalide, skip Auth check');
+              return c.json({
+                success: true,
+                email: userData.email,
+                userId: userData.id
+              });
+            }
+            
             const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
             
             if (authError || !authUser || !authUser.user || !authUser.user.email) {
@@ -1921,6 +1942,16 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
               Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             );
             
+            // ✅ Validation UUID
+            if (!isValidUUID(passengerData.id)) {
+              console.log('⚠️ ID passenger invalide, skip Auth check');
+              return c.json({
+                success: true,
+                email: passengerData.email,
+                userId: passengerData.id
+              });
+            }
+            
             const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(passengerData.id);
             
             if (authError || !authUser || !authUser.user || !authUser.user.email) {
@@ -1966,6 +1997,16 @@ authRoutes.post('/auth/get-email-by-phone', async (c) => {
               Deno.env.get('SUPABASE_URL') ?? '',
               Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
             );
+            
+            // ✅ Validation UUID
+            if (!isValidUUID(driverData.id)) {
+              console.log('⚠️ ID driver invalide, skip Auth check');
+              return c.json({
+                success: true,
+                email: driverData.email,
+                userId: driverData.id
+              });
+            }
             
             const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(driverData.id);
             
@@ -2241,6 +2282,15 @@ authRoutes.post('/create-auth-from-profile', async (c) => {
     const profile = profiles[0];
     console.log('✅ Profil trouvé:', profile.id);
 
+    // ✅ Validation UUID avant appel getUserById
+    if (!isValidUUID(profile.id)) {
+      console.error('❌ ID profil invalide (pas un UUID):', profile.id);
+      return c.json({ 
+        success: false, 
+        error: 'ID de profil invalide. Veuillez créer un nouveau compte.' 
+      }, 400);
+    }
+
     // Vérifier si le compte auth.users existe déjà
     const { data: existingUser } = await supabase.auth.admin.getUserById(profile.id);
     
@@ -2337,6 +2387,17 @@ authRoutes.post('/check-orphan-profile', async (c) => {
     const profile = profiles[0];
     console.log('✅ Profil trouvé:', profile.id);
 
+    // ✅ Validation UUID avant appel getUserById
+    if (!isValidUUID(profile.id)) {
+      console.error('❌ ID profil invalide (pas un UUID):', profile.id);
+      return c.json({ 
+        success: true, 
+        hasOrphanProfile: true,
+        hasAuthAccount: false,
+        reason: 'invalid_uuid'
+      });
+    }
+
     // Vérifier si le compte auth.users existe
     const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(profile.id);
     
@@ -2431,6 +2492,15 @@ authRoutes.post('/find-email-by-phone', async (c) => {
 
     const profile = profiles[0];
     console.log('✅ Profil trouvé:', profile.email);
+
+    // ✅ Validation UUID avant appel getUserById
+    if (!isValidUUID(profile.id)) {
+      console.error('❌ ID profil invalide (pas un UUID):', profile.id);
+      return c.json({ 
+        success: false, 
+        error: 'ID de profil invalide. Veuillez créer un nouveau compte.' 
+      }, 400);
+    }
 
     // Vérifier que le compte auth.users existe
     const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
@@ -2630,6 +2700,12 @@ authRoutes.post('/auth/debug-account', async (c) => {
 
       // Vérifier dans Supabase Auth
       for (const profile of matchingProfiles) {
+        // ✅ Validation UUID avant appel getUserById
+        if (!isValidUUID(profile.id)) {
+          console.warn('⚠️ ID profil invalide ignoré:', profile.id);
+          continue;
+        }
+        
         const { data: authUser, error } = await supabase.auth.admin.getUserById(profile.id);
         if (authUser?.user) {
           debugInfo.authUsers.push({
@@ -2840,6 +2916,19 @@ authRoutes.post('/auth/diagnostic-login', async (c) => {
     
     // 2. Vérifier si l'utilisateur existe dans Supabase Auth
     try {
+      // ✅ Validation UUID avant appel getUserById
+      if (!isValidUUID(matchingProfile.id)) {
+        console.error('❌ ID profil invalide (pas un UUID):', matchingProfile.id);
+        diagnostic.issues.push('ID de profil invalide (pas un UUID)');
+        diagnostic.suggestions.push('Ce profil doit être recréé avec un ID valide');
+        
+        return c.json({
+          success: false,
+          diagnostic,
+          message: 'Profil invalide détecté. Veuillez créer un nouveau compte.'
+        });
+      }
+      
       const { data: authUser } = await supabase.auth.admin.getUserById(matchingProfile.id);
       
       if (authUser && authUser.user) {
