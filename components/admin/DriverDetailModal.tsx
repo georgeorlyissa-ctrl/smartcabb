@@ -272,6 +272,42 @@ export function DriverDetailModal({
       if (updated) {
         toast.success('Conducteur approuvé');
         
+        // 🐛 DEBUG : Appeler la route de debug pour vérifier la synchronisation
+        try {
+          console.log('🐛 Appel de la route de debug pour vérifier la synchronisation...');
+          const debugResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/debug`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (debugResponse.ok) {
+            const debugData = await debugResponse.json();
+            console.log('🐛 ========== RÉSULTAT DEBUG ==========');
+            console.log('📊 KV Store status:', debugData.debug?.sources?.kv_store?.status);
+            console.log('📊 Auth user_metadata status:', debugData.debug?.sources?.auth?.status_in_metadata);
+            console.log('📊 Postgres drivers status:', debugData.debug?.sources?.postgres_drivers?.status);
+            console.log('🐛 =====================================');
+            
+            // Vérifier les incohérences
+            const kvStatus = debugData.debug?.sources?.kv_store?.status;
+            const authStatus = debugData.debug?.sources?.auth?.status_in_metadata;
+            const pgStatus = debugData.debug?.sources?.postgres_drivers?.status;
+            
+            if (kvStatus !== 'approved' || authStatus !== 'approved' || pgStatus !== 'approved') {
+              console.error('❌ INCOHÉRENCE DÉTECTÉE !');
+              toast.warning(`Incohérence détectée - KV: ${kvStatus}, Auth: ${authStatus}, PG: ${pgStatus}`);
+            } else {
+              console.log('✅ Toutes les sources sont synchronisées !');
+            }
+          }
+        } catch (debugError) {
+          console.error('❌ Erreur debug:', debugError);
+        }
+        
         // 📱 Envoyer SMS de validation au conducteur
         if (driver.phone) {
           console.log('📱 Envoi SMS de validation au conducteur:', driver.phone);
