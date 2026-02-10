@@ -349,11 +349,21 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
                     onError={(e) => {
                       // Fallback si l'image ne charge pas
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      const nextSibling = e.currentTarget.nextElementSibling;
+                      if (nextSibling instanceof HTMLElement) {
+                        nextSibling.classList.remove('hidden');
+                      }
                     }}
                   />
                 ) : null}
-                <User className={`w-10 h-10 text-primary ${driverData.photo_url ? 'hidden' : ''}`} />
+                {/* Avatar avec initiales si pas de photo */}
+                {!driverData.photo_url && driverData.full_name ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-2xl">
+                    {driverData.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                ) : null}
+                {/* Icône User en fallback final */}
+                <User className={`w-10 h-10 text-primary ${driverData.photo_url || driverData.full_name ? 'hidden' : ''}`} />
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold">{driverData.full_name}</h3>
