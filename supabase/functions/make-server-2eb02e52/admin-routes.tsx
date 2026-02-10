@@ -1,738 +1,128 @@
 import { Hono } from 'npm:hono';
-import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
+import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const driverRoutes = new Hono();
-
-// Initialiser le client Supabase
-const supabase = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-);
+const adminRoutes = new Hono();
 
 // ============================================
-// 🐛 DEBUG: VÉRIFIER L'ÉTAT D'UN CONDUCTEUR
+// 📊 STATISTIQUES GLOBALES
 // ============================================
-driverRoutes.get('/:driverId/debug', async (c) => {
+adminRoutes.get('/stats/overview', async (c) => {
   try {
-    const driverId = c.req.param('driverId');
-    console.log('🐛 ========== DEBUG CONDUCTEUR ==========');
-    console.log('🆔 Driver ID:', driverId);
+    console.log('📊 Récupération des statistiques globales COMPLÈTES...');
 
-    const debugInfo: any = {
-      driverId,
-      timestamp: new Date().toISOString(),
-      sources: {}
-    };
+    // ✅ 1. RÉCUPÉRER TOUS LES PASSAGERS
+    const allPassengers = await kv.getByPrefix('passenger:');
+    const passengers = allPassengers.filter(p => p && p.id);
+    console.log(`👥 ${passengers.length} passagers trouvés`);
 
-    // 1. Vérifier dans le KV store
-    try {
-      const driverKey = `driver:${driverId}`;
-      const kvDriver = await kv.get(driverKey);
-      debugInfo.sources.kv_store = {
-        exists: !!kvDriver,
-        status: kvDriver?.status || 'N/A',
-        full_name: kvDriver?.full_name || 'N/A',
-        phone: kvDriver?.phone || 'N/A',
-        email: kvDriver?.email || 'N/A',
-        created_at: kvDriver?.created_at || 'N/A',
-        raw_data: kvDriver
-      };
-      console.log('✅ KV Store:', debugInfo.sources.kv_store);
-    } catch (kvError) {
-      debugInfo.sources.kv_store = { error: String(kvError) };
-      console.error('❌ Erreur KV:', kvError);
-    }
-
-    // 2. Vérifier dans Supabase Auth
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(driverId);
-      if (authError || !user) {
-        debugInfo.sources.auth = { exists: false, error: authError?.message };
-        console.log('❌ Auth: Utilisateur introuvable');
-      } else {
-        debugInfo.sources.auth = {
-          exists: true,
-          email: user.email,
-          phone: user.phone,
-          user_metadata: user.user_metadata,
-          status_in_metadata: user.user_metadata?.status || user.user_metadata?.driver_status || 'N/A'
-        };
-        console.log('✅ Auth:', debugInfo.sources.auth);
-      }
-    } catch (authError) {
-      debugInfo.sources.auth = { error: String(authError) };
-      console.error('❌ Erreur Auth:', authError);
-    }
-
-    // 3. Vérifier dans Postgres table drivers
-    try {
-      const { data: driverRecord, error: driverError } = await supabase
-        .from('drivers')
-        .select('*')
-        .eq('id', driverId)
-        .maybeSingle();
-      
-      if (driverError || !driverRecord) {
-        debugInfo.sources.postgres_drivers = { exists: false, error: driverError?.message };
-        console.log('❌ Postgres: Conducteur introuvable dans table drivers');
-      } else {
-        debugInfo.sources.postgres_drivers = {
-          exists: true,
-          full_name: driverRecord.full_name,
-          email: driverRecord.email,
-          phone: driverRecord.phone,
-          status: driverRecord.status,
-          vehicle_type: driverRecord.vehicle_type,
-          license_plate: driverRecord.license_plate
-        };
-        console.log('✅ Postgres drivers:', debugInfo.sources.postgres_drivers);
-      }
-    } catch (pgError) {
-      debugInfo.sources.postgres_drivers = { error: String(pgError) };
-      console.error('❌ Erreur Postgres:', pgError);
-    }
-
-    console.log('🐛 ========== FIN DEBUG CONDUCTEUR ==========');
-
-    return c.json({
-      success: true,
-      debug: debugInfo
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur debug conducteur:', error);
-    return c.json({
-      success: false,
-      error: String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// 📋 RÉCUPÉRER TOUS LES CONDUCTEURS (pour l'admin)
-// ============================================
-driverRoutes.get('/', async (c) => {
-  try {
-    console.log('📋 Récupération de TOUS les conducteurs depuis KV store...');
-
-    // Récupérer tous les conducteurs depuis le KV store
+    // ✅ 2. RÉCUPÉRER TOUS LES CONDUCTEURS
     const allDrivers = await kv.getByPrefix('driver:');
-    
-    // Filtrer pour ne garder que les objets conducteurs valides (pas les sous-clés comme driver:xxx:balance)
-    const drivers = allDrivers.filter(d => {
-      // Un conducteur valide doit avoir un champ 'id' ou 'user_id'
-      return d && (d.id || d.user_id) && !d.lat; // Exclure les objets de localisation
+    const drivers = allDrivers.filter(d => d && d.id);
+    const onlineDrivers = drivers.filter(d => d.is_available === true);
+    console.log(`🚗 ${drivers.length} conducteurs trouvés (${onlineDrivers.length} en ligne)`);
+
+    // ✅ 3. RÉCUPÉRER TOUTES LES COURSES COMPLÉTÉES
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
+    console.log(`🏁 ${allCompletedRides.length} courses complétées trouvées`);
+
+    // ✅ 4. RÉCUPÉRER LES COURSES ACTIVES
+    const allActiveRides = await kv.getByPrefix('ride_active_');
+    const activeRides = allActiveRides.filter(r => r && r.id);
+    console.log(`🚕 ${activeRides.length} courses actives`);
+
+    // ✅ 5. CALCULER LES STATISTIQUES RÉELLES
+    let totalRevenue = 0;
+    let totalCommissions = 0;
+    let totalDriverEarnings = 0;
+    const ratingsList: number[] = [];
+    const ridesByCategory: Record<string, number> = {
+      smart_standard: 0,
+      smart_confort: 0,
+      smart_plus: 0,
+      smart_business: 0
+    };
+
+    // Parcourir toutes les courses complétées pour calculer les stats
+    for (const ride of allCompletedRides) {
+      if (ride && ride.finalPrice) {
+        totalRevenue += ride.finalPrice;
+        totalCommissions += ride.commission || 0;
+        totalDriverEarnings += ride.driverEarnings || 0;
+        
+        // Compter par catégorie
+        const category = ride.vehicleType || ride.vehicle_category;
+        if (category && ridesByCategory[category] !== undefined) {
+          ridesByCategory[category] += 1;
+        }
+        
+        // Collecter les notes
+        if (ride.rating && typeof ride.rating === 'number') {
+          ratingsList.push(ride.rating);
+        }
+      }
+    }
+
+    const averageRating = ratingsList.length > 0
+      ? ratingsList.reduce((a, b) => a + b, 0) / ratingsList.length
+      : 0;
+
+    console.log(`💰 Revenus totaux: ${totalRevenue} CDF`);
+    console.log(`⭐ Note moyenne: ${averageRating.toFixed(2)}`);
+
+    // ✅ 6. STATISTIQUES DU JOUR (pour compatibilité)
+    const today = new Date().toISOString().split('T')[0];
+    const todayCompletedRides = allCompletedRides.filter(r => {
+      if (!r.completedAt && !r.completed_at && !r.createdAt) return false;
+      const rideDate = new Date(r.completedAt || r.completed_at || r.createdAt).toISOString().split('T')[0];
+      return rideDate === today;
     });
 
-    console.log(`✅ ${drivers.length} conducteur(s) trouvé(s) dans le KV store`);
+    let todayRevenue = 0;
+    let todayCommissions = 0;
+    let todayDriverEarnings = 0;
 
+    for (const ride of todayCompletedRides) {
+      if (ride && ride.finalPrice) {
+        todayRevenue += ride.finalPrice;
+        todayCommissions += ride.commission || 0;
+        todayDriverEarnings += ride.driverEarnings || 0;
+      }
+    }
+
+    console.log(`📅 Aujourd'hui: ${todayCompletedRides.length} courses, ${todayRevenue} CDF`);
+
+    // ✅ 7. RETOURNER TOUTES LES STATISTIQUES
     return c.json({
       success: true,
-      drivers: drivers,
-      count: drivers.length
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur récupération conducteurs:', error);
-    return c.json({
-      success: false,
-      drivers: [],
-      count: 0,
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// RÉCUPÉRER LES CONDUCTEURS EN LIGNE
-// ⚠️ AUCUNE SIMULATION - Données réelles uniquement
-// ============================================
-driverRoutes.get('/online-drivers', async (c) => {
-  try {
-    console.log('🚗 Récupération des conducteurs en ligne...');
-
-    // Récupérer tous les conducteurs (la table profiles ne contient que les colonnes de base)
-    const { data: drivers, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone, email, role')
-      .eq('role', 'driver');
-
-    if (error) {
-      console.error('❌ Erreur récupération conducteurs:', error);
-      console.error('❌ Détails:', JSON.stringify(error, null, 2));
-      
-      return c.json({ 
-        success: false, 
-        drivers: [],
-        count: 0,
-        error: error.message || 'Erreur lors de la récupération des conducteurs'
-      }, 500);
-    }
-
-    console.log(`✅ ${drivers?.length || 0} conducteur(s) trouvé(s)`);
-
-    // Si aucun conducteur n'est trouvé, retourner une liste vide
-    if (!drivers || drivers.length === 0) {
-      console.log('⚠️ Aucun conducteur trouvé dans la base de données');
-      return c.json({ 
-        success: true, 
-        drivers: [],
-        count: 0,
-        message: 'Aucun conducteur disponible pour le moment'
-      });
-    }
-
-    // ✅ FILTRER LES CONDUCTEURS EN LIGNE AVEC SOLDE > 0
-    const onlineDriversPromises = drivers.map(async (driver) => {
-      // Vérifier le statut en ligne
-      const statusKey = `driver:${driver.id}:status`;
-      const statusData = await kv.get(statusKey);
-      const isOnline = statusData?.isOnline || false;
-
-      // Vérifier le solde
-      const balanceKey = `driver:${driver.id}:balance`;
-      const balanceData = await kv.get(balanceKey);
-      const balance = balanceData?.balance || 0;
-
-      // Ne retourner que les conducteurs en ligne avec solde > 0
-      if (!isOnline || balance <= 0) {
-        return null;
-      }
-
-      // ✅ UTILISER LA VRAIE POSITION GPS DU CONDUCTEUR (pas de simulation)
-      const locationKey = `driver:${driver.id}:location`;
-      const locationData = await kv.get(locationKey);
-      
-      console.log(`🔍 Conducteur ${driver.full_name} - Position KV:`, locationData);
-      
-      // Si pas de position GPS enregistrée, ne pas afficher ce conducteur
-      if (!locationData || !locationData.lat || !locationData.lng) {
-        console.log(`⚠️ Conducteur ${driver.full_name} en ligne mais sans position GPS`);
-        return null;
-      }
-      
-      console.log(`✅ Position GPS du conducteur ${driver.full_name}: ${locationData.lat}, ${locationData.lng}`);
-      
-      return {
-        id: driver.id,
-        name: driver.full_name || 'Conducteur',
-        phone: driver.phone || 'N/A',
-        location: { lat: locationData.lat, lng: locationData.lng }, // ✅ Position GPS réelle
-        vehicleInfo: { 
-          make: 'Toyota',
-          model: 'Corolla',
-          color: 'Blanc',
-          plate: 'CD-' + Math.floor(Math.random() * 9999).toString().padStart(4, '0')
+      stats: {
+        today: {
+          rides: todayCompletedRides.length,
+          revenue: todayRevenue,
+          commissions: todayCommissions,
+          driverEarnings: todayDriverEarnings,
+          activeDrivers: onlineDrivers.length,
+          activePassengers: passengers.length, // Tous les passagers sont considérés actifs
+          ridesByCategory: ridesByCategory
         },
-        rating: 4.5 + Math.random() * 0.5,
-        totalRides: Math.floor(Math.random() * 500) + 50,
-        balance: balance // Inclure le solde pour info
-      };
-    });
-
-    const onlineDriversWithNulls = await Promise.all(onlineDriversPromises);
-    const onlineDrivers = onlineDriversWithNulls.filter(d => d !== null);
-
-    console.log(`✅ ${onlineDrivers.length} conducteur(s) en ligne avec solde suffisant`);
-
-    return c.json({ 
-      success: true, 
-      drivers: onlineDrivers,
-      count: onlineDrivers.length
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur online-drivers:', error);
-    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
-    
-    return c.json({ 
-      success: false, 
-      drivers: [],
-      count: 0,
-      error: String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// CRÉER UN PROFIL CONDUCTEUR
-// ============================================
-driverRoutes.post('/create', async (c) => {
-  try {
-    const { 
-      userId, 
-      vehicleType, 
-      licensePlate, 
-      vehicleBrand, 
-      vehicleModel, 
-      vehicleYear, 
-      vehicleColor,
-      documents 
-    } = await c.req.json();
-
-    if (!userId) {
-      return c.json({ 
-        success: false, 
-        error: 'ID utilisateur requis' 
-      }, 400);
-    }
-
-    console.log('🚗 Création profil conducteur pour:', userId);
-
-    // Récupérer le profil utilisateur existant (ou depuis Auth si absent du KV)
-    const profileKey = `profile:${userId}`;
-    let existingProfile = await kv.get(profileKey);
-
-    // ✅ Si pas de profil dans KV, essayer de le récupérer depuis Supabase Auth
-    if (!existingProfile) {
-      console.log('⚠️ Profil absent du KV, récupération depuis Supabase Auth...');
-      
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(userId);
-        
-        if (userError || !user) {
-          console.error('❌ Utilisateur introuvable dans Supabase Auth:', userId);
-          return c.json({ 
-            success: false, 
-            error: 'Profil utilisateur introuvable. Veuillez d\'abord créer un compte.' 
-          }, 404);
-        }
-        
-        console.log('✅ Utilisateur trouvé dans Auth, création du profil KV...');
-        
-        // Créer le profil de base dans le KV store
-        existingProfile = {
-          id: user.id,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
-          phone: user.user_metadata?.phone || user.phone || '',
-          role: 'driver',
-          created_at: user.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        // Sauvegarder le profil de base
-        await kv.set(profileKey, existingProfile);
-        console.log('✅ Profil de base créé dans KV');
-        
-      } catch (authError) {
-        console.error('❌ Erreur Supabase Auth:', authError);
-        return c.json({ 
-          success: false, 
-          error: 'Erreur lors de la récupération du profil utilisateur' 
-        }, 500);
-      }
-    }
-
-    // Créer le profil conducteur complet
-    const driverProfile = {
-      ...existingProfile,
-      role: 'driver',
-      vehicleType: vehicleType || 'economique',
-      licensePlate: licensePlate || '',
-      vehicleBrand: vehicleBrand || '',
-      vehicleModel: vehicleModel || '',
-      vehicleYear: vehicleYear || '',
-      vehicleColor: vehicleColor || '',
-      documents: documents || {},
-      status: 'pending', // En attente de validation
-      isOnline: false,
-      balance: 0,
-      totalRides: 0,
-      rating: 5.0,
-      updated_at: new Date().toISOString()
-    };
-
-    // Sauvegarder le profil conducteur
-    await kv.set(`driver:${userId}`, driverProfile);
-    await kv.set(profileKey, driverProfile);
-
-    console.log('✅ Profil conducteur créé avec succès:', userId);
-
-    return c.json({
-      success: true,
-      driver: driverProfile,
-      message: 'Profil conducteur créé avec succès'
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur création profil conducteur:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur lors de la création du profil conducteur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// METTRE À JOUR LA POSITION D'UN CONDUCTEUR
-// ============================================
-driverRoutes.post('/update-driver-location', async (c) => {
-  try {
-    const { driverId, location } = await c.req.json();
-
-    if (!driverId || !location || !location.lat || !location.lng) {
-      return c.json({ 
-        success: false, 
-        error: 'ID conducteur et position requis' 
-      }, 400);
-    }
-
-    console.log('📍 Mise à jour position conducteur:', driverId, `(${location.lat}, ${location.lng})`);
-
-    // Stocker la position dans le KV store
-    const locationKey = `driver:${driverId}:location`;
-    const locationData = {
-      lat: location.lat,
-      lng: location.lng,
-      updated_at: new Date().toISOString()
-    };
-
-    try {
-      await kv.set(locationKey, locationData);
-      console.log('✅ Position conducteur mise à jour (KV):', locationKey);
-    } catch (kvError) {
-      console.error('❌ Erreur KV set:', kvError);
-      console.error('❌ KV Error type:', typeof kvError);
-      console.error('❌ KV Error details:', JSON.stringify(kvError, Object.getOwnPropertyNames(kvError)));
-      throw kvError; // Re-throw pour que le catch externe le capture
-    }
-    
-    return c.json({ success: true });
-
-  } catch (error) {
-    console.error('❌ Erreur update-driver-location:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// RÉCUPÉRER LA POSITION D'UN CONDUCTEUR
-// ============================================
-driverRoutes.get('/location/:driverId', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    
-    if (!driverId) {
-      return c.json({ 
-        success: false, 
-        error: 'ID conducteur requis' 
-      }, 400);
-    }
-
-    // Récupérer la position depuis le KV store
-    const locationKey = `driver:${driverId}:location`;
-    const locationData = await kv.get(locationKey);
-    
-    if (!locationData || !locationData.lat || !locationData.lng) {
-      console.warn('⚠️ Position conducteur non trouvée:', driverId);
-      return c.json({ 
-        success: false, 
-        error: 'Position non disponible' 
-      }, 404);
-    }
-
-    console.log('✅ Position conducteur récupérée:', driverId, locationData);
-    return c.json({ 
-      success: true, 
-      location: {
-        lat: locationData.lat,
-        lng: locationData.lng
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur get-driver-location:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// METTRE À JOUR LE STATUT EN LIGNE D'UN CONDUCTEUR
-// ============================================
-driverRoutes.post('/toggle-online-status', async (c) => {
-  try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    
-    if (authError || !user?.id) {
-      return c.json({ 
-        success: false, 
-        error: 'Non autorisé' 
-      }, 401);
-    }
-
-    const { isOnline, location } = await c.req.json();
-
-    console.log('🔄 Changement statut conducteur:', user.id, 'en ligne:', isOnline);
-
-    // ✅ VÉRIFICATION DU SOLDE ET DE LA CATÉGORIE AVANT ACTIVATION
-    if (isOnline) {
-      // Récupérer le profil du conducteur pour obtenir sa catégorie de véhicule
-      const driverKey = `driver:${user.id}`;
-      const driverData = await kv.get(driverKey);
-      
-      if (!driverData) {
-        console.log('❌ Profil conducteur introuvable');
-        return c.json({
-          success: false,
-          error: 'Profil conducteur introuvable'
-        }, 404);
-      }
-      
-      const vehicleCategory = driverData.vehicle?.category || driverData.vehicleInfo?.type || 'smart_standard';
-      console.log('🚗 Catégorie du véhicule:', vehicleCategory);
-      
-      // Récupérer le crédit minimum requis pour cette catégorie
-      const minimumCredits: Record<string, number> = {
-        smart_standard: 20000,      // ~7-10 USD
-        smart_confort: 25000,        // ~9-15 USD
-        smart_plus: 42000,           // ~15-17 USD
-        smart_plus_plus: 42000,      // ~15-20 USD
-        smart_business: 160000       // ~160 USD (location jour)
-      };
-      
-      const requiredCredit = minimumCredits[vehicleCategory] || 20000;
-      console.log('💳 Crédit minimum requis:', requiredCredit, 'CDF');
-      
-      // 🔥 AMÉLIORATION: Récupérer le solde depuis PLUSIEURS SOURCES
-      let currentBalance = 0;
-      
-      // Source 1: Clé balance dédiée
-      const balanceKey = `driver:${user.id}:balance`;
-      const balanceData = await kv.get(balanceKey);
-      
-      if (typeof balanceData === 'number') {
-        currentBalance = balanceData;
-        console.log('✅ Solde trouvé (balanceKey, number):', currentBalance);
-      } else if (balanceData && typeof balanceData === 'object' && 'balance' in balanceData) {
-        currentBalance = balanceData.balance;
-        console.log('✅ Solde trouvé (balanceKey, object.balance):', currentBalance);
-      } else {
-        console.warn('⚠️ Solde non trouvé dans balanceKey, tentative autres sources...');
-        
-        // Source 2: Dans le profil driver directement
-        if (driverData.account_balance !== undefined) {
-          currentBalance = driverData.account_balance;
-          console.log('✅ Solde trouvé (driverData.account_balance):', currentBalance);
-        } else if (driverData.balance !== undefined) {
-          currentBalance = driverData.balance;
-          console.log('✅ Solde trouvé (driverData.balance):', currentBalance);
-        } else {
-          // Source 3: Clé alternative (compatibilité ancienne structure)
-          const altBalanceKey = `driver_balance_${user.id}`;
-          const altBalanceData = await kv.get(altBalanceKey);
-          
-          if (typeof altBalanceData === 'number') {
-            currentBalance = altBalanceData;
-            console.log('✅ Solde trouvé (altBalanceKey):', currentBalance);
-          } else if (altBalanceData && typeof altBalanceData === 'object' && 'balance' in altBalanceData) {
-            currentBalance = altBalanceData.balance;
-            console.log('✅ Solde trouvé (altBalanceKey, object):', currentBalance);
-          } else {
-            console.error('❌ Aucun solde trouvé dans aucune source !');
-          }
+        allTime: {
+          totalRides: allCompletedRides.length,
+          totalRevenue: totalRevenue,
+          totalCommissions: totalCommissions,
+          totalDriverEarnings: totalDriverEarnings,
+          averageRating: averageRating,
+          totalDrivers: drivers.length,
+          totalPassengers: passengers.length,
+          onlineDrivers: onlineDrivers.length,
+          activeRides: activeRides.length,
+          completedRides: allCompletedRides.length,
+          ridesByCategory: ridesByCategory
         }
       }
-
-      console.log('💰 Solde final du conducteur:', currentBalance, 'CDF');
-
-      // Vérifier si le solde est suffisant pour cette catégorie
-      if (currentBalance < requiredCredit) {
-        console.log('❌ Activation refusée : solde insuffisant pour la catégorie', vehicleCategory);
-        return c.json({
-          success: false,
-          error: `Crédit insuffisant pour ${vehicleCategory}. Minimum requis : ${requiredCredit.toLocaleString('fr-FR')} CDF. Votre solde : ${currentBalance.toLocaleString('fr-FR')} CDF.`,
-          balance: currentBalance,
-          requiredCredit: requiredCredit,
-          category: vehicleCategory
-        }, 400);
-      }
-      
-      console.log('✅ Solde OK pour activation:', currentBalance, 'CDF >=', requiredCredit, 'CDF');
-    }
-
-    // Stocker le statut dans le KV store
-    const statusKey = `driver:${user.id}:status`;
-    const statusData = {
-      isOnline,
-      location: location || null,
-      updated_at: new Date().toISOString()
-    };
-
-    await kv.set(statusKey, statusData);
-    
-    // ✅ CRITIQUE: Si une location est fournie, l'enregistrer dans la clé séparée
-    if (location && location.lat && location.lng) {
-      const locationKey = `driver:${user.id}:location`;
-      const locationData = {
-        lat: location.lat,
-        lng: location.lng,
-        updated_at: new Date().toISOString()
-      };
-      await kv.set(locationKey, locationData);
-      console.log(`📍 Position GPS enregistrée: ${location.lat}, ${location.lng}`);
-    }
-    
-    // ✅ CORRECTION CRITIQUE : Aussi mettre à jour le profil conducteur principal
-    // Récupérer le profil conducteur complet
-    const driverKey = `driver:${user.id}`;
-    const driverData = await kv.get(driverKey);
-    
-    if (driverData) {
-      // Mettre à jour is_available dans le profil principal
-      const updatedDriver = {
-        ...driverData,
-        is_available: isOnline,
-        last_seen: new Date().toISOString(),
-        location: location || driverData.location || null
-      };
-      
-      await kv.set(driverKey, updatedDriver);
-      console.log('✅ Profil conducteur principal mis à jour avec is_available:', isOnline);
-    } else {
-      console.warn('⚠️ Profil conducteur introuvable:', driverKey);
-    }
-
-    console.log('✅ Statut conducteur mis à jour (KV):', statusKey, isOnline);
-    return c.json({ success: true, isOnline });
-
-  } catch (error) {
-    console.error('❌ Erreur toggle-online-status:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// 💓 HEARTBEAT - MAINTENIR LE STATUT EN LIGNE
-// ============================================
-// ✅ v518.52 - Route pour envoyer un signal régulier au backend
-// Le conducteur envoie un heartbeat toutes les 30 secondes pour maintenir son statut
-driverRoutes.post('/heartbeat', async (c) => {
-  try {
-    const accessToken = c.req.header('Authorization')?.split(' ')[1];
-    
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-    
-    if (authError || !user) {
-      console.error('❌ Erreur authentification heartbeat:', authError);
-      return c.json({ success: false, error: 'Non autorisé' }, 401);
-    }
-
-    const driverId = user.id;
-    const { isOnline, location, lastSeen } = await c.req.json();
-
-    console.log(`💓 Heartbeat reçu - Conducteur ${driverId}: ${isOnline ? 'EN LIGNE' : 'HORS LIGNE'}`);
-
-    // Mettre à jour le statut dans le KV store
-    const statusKey = `driver:${driverId}:online`;
-    await kv.set(statusKey, isOnline);
-
-    // Mettre à jour la dernière activité
-    const lastSeenKey = `driver:${driverId}:last_seen`;
-    await kv.set(lastSeenKey, lastSeen || new Date().toISOString());
-
-    // Mettre à jour la position si fournie
-    if (location && isOnline) {
-      const locationKey = `driver:${driverId}:location`;
-      await kv.set(locationKey, location);
-      console.log(`📍 Position mise à jour via heartbeat:`, location);
-    }
-
-    // Mettre à jour aussi dans le profil driver complet
-    const driverKey = `driver:${driverId}`;
-    const driver = await kv.get(driverKey) || {};
-    
-    const updatedDriver = {
-      ...driver,
-      isOnline: isOnline,
-      lastSeen: lastSeen || new Date().toISOString(),
-      ...(location && isOnline ? { location } : {})
-    };
-    
-    await kv.set(driverKey, updatedDriver);
-
-    console.log(`✅ Heartbeat traité - Statut: ${isOnline ? 'EN LIGNE ✅' : 'HORS LIGNE ⏸️'}`);
-    
-    return c.json({ 
-      success: true, 
-      isOnline,
-      message: 'Heartbeat reçu'
     });
 
   } catch (error) {
-    console.error('❌ Erreur heartbeat:', error);
-    return c.json({ 
-      success: false, 
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
-
-// ============================================
-// 💰 RÉCUPÉRER LE SOLDE D'UN CONDUCTEUR
-// ============================================
-driverRoutes.get('/:driverId/balance', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    console.log('💰 Récupération du solde du conducteur:', driverId);
-
-    // Récupérer le solde depuis le KV store
-    const balanceKey = `driver:${driverId}:balance`;
-    const balance = await kv.get(balanceKey);
-
-    // Si pas de solde trouvé, initialiser à 0
-    if (balance === null || balance === undefined) {
-      console.log('⚠️ Aucun solde trouvé, initialisation à 0 CDF');
-      await kv.set(balanceKey, 0);
-      return c.json({
-        success: true,
-        balance: 0
-      });
-    }
-
-    // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
-    let balanceValue = 0;
-    
-    if (typeof balance === 'number') {
-      balanceValue = balance;
-    } else if (balance && typeof balance === 'object' && 'balance' in balance) {
-      // Extraire la propriété .balance de l'objet
-      balanceValue = balance.balance;
-      console.log(`🔧 v517.89 - Structure objet détectée, extraction de .balance: ${balanceValue}`);
-    } else {
-      balanceValue = parseFloat(String(balance));
-    }
-    
-    if (isNaN(balanceValue)) {
-      console.error('❌ v517.89 - Solde invalide (NaN) après extraction, initialisation à 0');
-      console.error('   Données reçues du KV:', balance, 'Type:', typeof balance);
-      await kv.set(balanceKey, 0);
-      return c.json({
-        success: true,
-        balance: 0
-      });
-    }
-    
-    console.log(`✅ Solde récupéré: ${balanceValue} CDF`);
-    return c.json({
-      success: true,
-      balance: balanceValue
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur get-balance:', error);
+    console.error('❌ Erreur récupération stats:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -741,170 +131,62 @@ driverRoutes.get('/:driverId/balance', async (c) => {
 });
 
 // ============================================
-// 💰 METTRE À JOUR LE SOLDE D'UN CONDUCTEUR
+// 📊 STATISTIQUES PAR PÉRIODE
 // ============================================
-driverRoutes.post('/:driverId/balance', async (c) => {
+adminRoutes.get('/stats/period/:days', async (c) => {
   try {
-    const driverId = c.req.param('driverId');
-    const { balance, operation, amount } = await c.req.json();
+    const days = parseInt(c.req.param('days')) || 7;
+    console.log(`📊 Récupération statistiques ${days} derniers jours...`);
 
-    console.log('💰 Mise à jour du solde du conducteur:', driverId, { operation, amount });
-    
-    // ✅ v517.86: Validation stricte de l'amount reçu
-    if (amount !== undefined && (isNaN(amount) || amount < 0)) {
-      console.error('❌ v517.86 - Amount invalide reçu:', amount);
-      return c.json({
-        success: false,
-        error: 'Montant invalide (NaN ou négatif)'
-      }, 400);
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
+    const allDrivers = await kv.getByPrefix('driver:');
+    const allPassengers = await kv.getByPrefix('passenger:');
+
+    // Créer un tableau de dates pour la période
+    const now = new Date();
+    const periodData: any[] = [];
+
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      // Filtrer les courses de cette journée
+      const dayRides = allCompletedRides.filter(ride => {
+        if (!ride.completedAt && !ride.completed_at) return false;
+        const rideDate = new Date(ride.completedAt || ride.completed_at).toISOString().split('T')[0];
+        return rideDate === dateStr;
+      });
+
+      // Calculer les stats du jour
+      const dayRevenue = dayRides.reduce((sum, ride) => sum + (ride.finalPrice || 0), 0);
+      const dayCommissions = dayRides.reduce((sum, ride) => sum + (ride.commission || 0), 0);
+
+      // Conducteurs actifs ce jour
+      const activeDriversIds = new Set(dayRides.map(r => r.driverId).filter(Boolean));
+      const activePassengersIds = new Set(dayRides.map(r => r.passengerId).filter(Boolean));
+
+      periodData.push({
+        date: dateStr,
+        rides: dayRides.length,
+        revenue: dayRevenue,
+        commissions: dayCommissions,
+        activeDrivers: activeDriversIds.size,
+        activePassengers: activePassengersIds.size
+      });
     }
 
-    const balanceKey = `driver:${driverId}:balance`;
+    console.log(`✅ ${periodData.length} jours de données calculés`);
 
-    if (operation === 'add' && amount) {
-      // Ajouter au solde existant
-      const currentBalance = await kv.get(balanceKey) || 0;
-      
-      // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
-      let currentBalanceValue = 0;
-      
-      if (typeof currentBalance === 'number') {
-        currentBalanceValue = currentBalance;
-      } else if (currentBalance && typeof currentBalance === 'object' && 'balance' in currentBalance) {
-        // Extraire la propriété .balance de l'objet
-        currentBalanceValue = currentBalance.balance;
-        console.log(`🔧 v517.89 - Structure objet détectée (add), extraction de .balance: ${currentBalanceValue}`);
-      } else {
-        currentBalanceValue = parseFloat(String(currentBalance));
-      }
-      
-      if (isNaN(currentBalanceValue)) {
-        console.error('❌ v517.89 - Solde actuel invalide (NaN) après extraction, initialisation avec amount');
-        console.error('   Données KV:', currentBalance, 'Type:', typeof currentBalance);
-        await kv.set(balanceKey, amount);
-        return c.json({
-          success: true,
-          balance: amount
-        });
-      }
-      
-      const newBalance = currentBalanceValue + amount;
-      
-      // ✅ v517.89: Vérifier que newBalance n'est pas NaN avant de sauvegarder
-      if (isNaN(newBalance)) {
-        console.error('❌ v517.89 - Nouveau solde invalide (NaN)');
-        console.error('   currentBalanceValue:', currentBalanceValue, 'amount:', amount);
-        return c.json({
-          success: false,
-          error: 'Erreur de calcul du solde'
-        }, 400);
-      }
-      
-      await kv.set(balanceKey, newBalance);
-      
-      console.log(`✅ Solde augmenté: ${currentBalanceValue} + ${amount} = ${newBalance} CDF`);
-      
-      // Enregistrer l'historique
-      const historyKey = `driver:${driverId}:balance_history:${Date.now()}`;
-      await kv.set(historyKey, {
-        operation: 'recharge',
-        amount: amount,
-        previous_balance: currentBalanceValue, // ✅ FIX: Utiliser la valeur numérique, pas currentBalance qui peut être null
-        new_balance: newBalance,
-        timestamp: new Date().toISOString()
-      });
-
-      return c.json({
-        success: true,
-        balance: newBalance
-      });
-      
-    } else if (operation === 'subtract' && amount) {
-      // Déduire du solde existant
-      const currentBalance = await kv.get(balanceKey) || 0;
-      
-      // ✅ v517.89: Gérer la structure objet {balance: X, updated_at: ...}
-      let currentBalanceValue = 0;
-      
-      if (typeof currentBalance === 'number') {
-        currentBalanceValue = currentBalance;
-      } else if (currentBalance && typeof currentBalance === 'object' && 'balance' in currentBalance) {
-        // Extraire la propriété .balance de l'objet
-        currentBalanceValue = currentBalance.balance;
-        console.log(`🔧 v517.89 - Structure objet détectée (subtract), extraction de .balance: ${currentBalanceValue}`);
-      } else {
-        currentBalanceValue = parseFloat(String(currentBalance));
-      }
-      
-      if (isNaN(currentBalanceValue)) {
-        console.error('❌ v517.89 - Solde actuel invalide (NaN) après extraction, impossible de déduire');
-        console.error('   Données KV:', currentBalance, 'Type:', typeof currentBalance);
-        return c.json({
-          success: false,
-          error: 'Solde invalide'
-        }, 400);
-      }
-      
-      const newBalance = Math.max(0, currentBalanceValue - amount);
-      
-      // ✅ v517.89: Vérifier que newBalance n'est pas NaN avant de sauvegarder
-      if (isNaN(newBalance)) {
-        console.error('❌ v517.89 - Nouveau solde invalide (NaN)');
-        console.error('   currentBalanceValue:', currentBalanceValue, 'amount:', amount);
-        return c.json({
-          success: false,
-          error: 'Erreur de calcul du solde'
-        }, 400);
-      }
-      
-      await kv.set(balanceKey, newBalance);
-      
-      console.log(`✅ Solde déduit: ${currentBalanceValue} - ${amount} = ${newBalance} CDF`);
-      
-      // Enregistrer l'historique
-      const historyKey = `driver:${driverId}:balance_history:${Date.now()}`;
-      await kv.set(historyKey, {
-        operation: 'deduction',
-        amount: amount,
-        previous_balance: currentBalanceValue, // ✅ FIX: Utiliser la valeur numérique, pas currentBalance qui peut être null
-        new_balance: newBalance,
-        timestamp: new Date().toISOString()
-      });
-
-      return c.json({
-        success: true,
-        balance: newBalance
-      });
-      
-    } else if (balance !== undefined && balance !== null) {
-      // ✅ FIX: Vérifier que balance n'est pas null avant de le définir
-      // Définir directement le solde
-      const balanceValue = typeof balance === 'number' ? balance : parseFloat(String(balance));
-      
-      if (isNaN(balanceValue)) {
-        console.error('❌ Balance invalide (NaN):', balance);
-        return c.json({
-          success: false,
-          error: 'Valeur de solde invalide'
-        }, 400);
-      }
-      
-      await kv.set(balanceKey, balanceValue);
-      console.log(`✅ Solde défini: ${balanceValue} CDF`);
-      
-      return c.json({
-        success: true,
-        balance: balanceValue
-      });
-    } else {
-      return c.json({
-        success: false,
-        error: 'Paramètres invalides'
-      }, 400);
-    }
+    return c.json({
+      success: true,
+      period: days,
+      data: periodData
+    });
 
   } catch (error) {
-    console.error('❌ Erreur update-balance:', error);
+    console.error('❌ Erreur statistiques période:', error);
     return c.json({
       success: false,
       error: 'Erreur serveur: ' + String(error)
@@ -913,576 +195,216 @@ driverRoutes.post('/:driverId/balance', async (c) => {
 });
 
 // ============================================
-// 💾 METTRE À JOUR LE PROFIL D'UN CONDUCTEUR
+// 📊 STATISTIQUES PAR CATÉGORIE
 // ============================================
-driverRoutes.post('/update-profile/:driverId', async (c) => {
+adminRoutes.get('/stats/categories', async (c) => {
   try {
-    const driverId = c.req.param('driverId');
-    const updates = await c.req.json();
-    
-    console.log(`🔥🔥🔥 ========== DÉBUT UPDATE CONDUCTEUR ==========`);
-    console.log(`💾 ID:`, driverId);
-    console.log('📝 Nouvelles données:', JSON.stringify(updates, null, 2));
-    
-    // 🔥 NORMALISER LE TÉLÉPHONE avant de sauvegarder
-    let normalizedPhone = updates.phone;
-    if (updates.phone) {
-      // Fonction de normalisation (même logique que le frontend)
-      const normalizePhone = (phone: string): string => {
-        const cleaned = phone.replace(/[\s\-+]/g, '');
-        
-        // Cas 1: 9 chiffres → 243XXXXXXXXX
-        if (cleaned.length === 9) {
-          return `243${cleaned}`;
-        }
-        
-        // Cas 2: 10 chiffres avec 0 → 243XXXXXXXXX (enlever le 0)
-        if (cleaned.length === 10 && cleaned.startsWith('0')) {
-          return `243${cleaned.substring(1)}`;
-        }
-        
-        // Cas 3: 12 chiffres avec 243 → 243XXXXXXXXX
-        if (cleaned.length === 12 && cleaned.startsWith('243')) {
-          return cleaned;
-        }
-        
-        // Cas 4: 13 chiffres avec 2430 → 243XXXXXXXXX (enlever le 0 après 243)
-        if (cleaned.length === 13 && cleaned.startsWith('2430')) {
-          return `243${cleaned.substring(4)}`;
-        }
-        
-        // Si aucun cas ne correspond, retourner tel quel
-        return phone;
-      };
-      
-      normalizedPhone = normalizePhone(updates.phone);
-      console.log(`📱 Téléphone normalisé: ${updates.phone} → ${normalizedPhone}`);
-    }
-    
-    // 🔥 Récupérer le profil depuis TOUTES les clés possibles
-    let currentDriver = await kv.get(`driver:${driverId}`) || {};
-    const currentProfile = await kv.get(`profile:${driverId}`);
-    const currentUser = await kv.get(`user:${driverId}`);
-    
-    console.log("📖 Données existantes:");
-    console.log("  - driver:", currentDriver && Object.keys(currentDriver).length > 0 ? "✅" : "❌");
-    console.log("  - profile:", currentProfile ? "✅" : "❌");
-    console.log("  - user:", currentUser ? "✅" : "❌");
-    
-    // Fusionner les mises à jour avec le téléphone normalisé
-    const updatedDriver = {
-      ...currentDriver,
-      ...updates,
-      phone: normalizedPhone || currentDriver.phone,
-      updatedAt: new Date().toISOString()
-    };
-    
-    console.log("🔄 Conducteur mis à jour:", JSON.stringify(updatedDriver, null, 2));
-    
-    // 🔥 SAUVEGARDER DANS TOUTES LES CLÉS DU KV STORE
-    // 1. Sauvegarder dans driver:
-    await kv.set(`driver:${driverId}`, updatedDriver);
-    console.log('✅ 1/5 - driver: mis à jour');
-    
-    // 2. Sauvegarder dans profile: (si existe)
-    if (currentProfile) {
-      const updatedProfile = {
-        ...currentProfile,
-        full_name: updates.name || currentProfile.full_name,
-        email: updates.email || currentProfile.email,
-        phone: normalizedPhone || currentProfile.phone,
-        updated_at: new Date().toISOString()
-      };
-      await kv.set(`profile:${driverId}`, updatedProfile);
-      console.log('✅ 2/5 - profile: mis à jour');
-    } else {
-      console.log("⏭️ 2/5 - profile: n'existe pas, ignoré");
-    }
-    
-    // 3. Sauvegarder dans user: (si existe)
-    if (currentUser) {
-      const updatedUser = {
-        ...currentUser,
-        name: updates.name || currentUser.name,
-        full_name: updates.name || currentUser.full_name,
-        email: updates.email || currentUser.email,
-        phone: normalizedPhone || currentUser.phone,
-        updated_at: new Date().toISOString()
-      };
-      await kv.set(`user:${driverId}`, updatedUser);
-      console.log('✅ 3/5 - user: mis à jour');
-    } else {
-      console.log("⏭️ 3/5 - user: n'existe pas, ignoré");
-    }
-    
-    // 4. 🔥 METTRE À JOUR SUPABASE AUTH si l'email a changé OU si le téléphone a changé
-    console.log("🔥 4/5 - Mise à jour Supabase Auth...");
-    try {
-      let authUpdated = false;
-      
-      // 🔥 CAS 1: L'email a changé (email réel, pas généré)
-      if (updates.email && currentDriver.email !== updates.email) {
-        console.log(`📧 Email changé: ${currentDriver.email} → ${updates.email}`);
-        const { error: updateError } = await supabase.auth.admin.updateUserById(
-          driverId,
-          { email: updates.email }
-        );
-        
-        if (updateError) {
-          console.error("⚠️ Erreur mise à jour email Supabase Auth:", updateError);
-        } else {
-          console.log("✅ Supabase Auth: email mis à jour");
-          authUpdated = true;
-        }
-      }
-      
-      // 🔥 CAS 2: Le téléphone a changé
-      // ⚠️ CORRECTION CRITIQUE : NE PAS MODIFIER L'EMAIL DANS SUPABASE AUTH
-      // L'email dans Auth sert uniquement pour l'authentification et doit rester stable
-      // On met seulement à jour les user_metadata pour garder la trace du nouveau téléphone
-      if (normalizedPhone && currentDriver.phone !== normalizedPhone) {
-        console.log(`📱 Téléphone changé: ${currentDriver.phone} → ${normalizedPhone}`);
-        console.log(`🔄 Mise à jour des user_metadata uniquement (sans changer l'email Auth)...`);
-        
-        const { error: updatePhoneError } = await supabase.auth.admin.updateUserById(
-          driverId,
-          { 
-            user_metadata: {
-              phone: normalizedPhone
-            }
-          }
-        );
-        
-        if (updatePhoneError) {
-          console.error("⚠️ Erreur mise à jour téléphone dans Supabase Auth:", updatePhoneError);
-        } else {
-          console.log("✅ Supabase Auth: user_metadata.phone mis à jour (email Auth inchangé)");
-          authUpdated = true;
-        }
-      }
-      
-      if (!authUpdated) {
-        console.log("⏭️ 4/5 - Supabase Auth: aucun changement, ignoré");
-      } else {
-        console.log("✅ 4/5 - Supabase Auth: mis à jour avec succès!");
-      }
-    } catch (error) {
-      console.error("⚠️ Erreur Supabase Auth:", error);
-    }
-    
-    // 5. 🔥🔥🔥 METTRE À JOUR LA TABLE PROFILES (CRITIQUE POUR LA CONNEXION)
-    console.log("🔥 5/5 - Mise à jour table profiles...");
-    try {
-      // 📖 D'abord, lire les données actuelles
-      const { data: currentProfileData, error: selectError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', driverId)
-        .single();
-      
-      if (selectError) {
-        console.error("❌ Erreur lecture table profiles:", selectError);
-        console.error("   Code:", selectError.code);
-        console.error("   Message:", selectError.message);
-        console.error("   Details:", selectError.details);
-        console.log("⏭️ 5/5 - Table profiles: erreur de lecture, mise à jour ignorée pour éviter les conflits");
-        // ⚠️ NE PAS continuer si on ne peut pas lire les données actuelles
-      } else if (!currentProfileData) {
-        console.error("❌ currentProfileData est null/undefined");
-        console.log("⏭️ 5/5 - Table profiles: données actuelles introuvables, mise à jour ignorée");
-      } else {
-        console.log("📖 Données actuelles dans profiles:", JSON.stringify(currentProfileData, null, 2));
-        
-        const updateData: any = {};
-        
-        // ✅ Ne mettre à jour QUE les champs qui ont changé
-        if (updates.name && updates.name !== currentProfileData.full_name) {
-          updateData.full_name = updates.name;
-          console.log(`   → full_name: "${currentProfileData.full_name}" → "${updates.name}"`);
-        }
-        
-        if (updates.email && updates.email !== currentProfileData.email) {
-          updateData.email = updates.email;
-          console.log(`   → email: "${currentProfileData.email}" → "${updates.email}"`);
-        }
-        
-        if (normalizedPhone && normalizedPhone !== currentProfileData.phone) {
-          updateData.phone = normalizedPhone;
-          console.log(`   → phone: "${currentProfileData.phone}" → "${normalizedPhone}"`);
-        }
-        
-        // ✅ Seulement si on a des changements
-        if (Object.keys(updateData).length === 0) {
-          console.log("⏭️ 5/5 - Table profiles: aucun changement détecté, ignoré");
-        } else {
-          console.log("🔄 updateData à envoyer:", JSON.stringify(updateData, null, 2));
-          
-          const { data: updatedData, error: profileError } = await supabase
-            .from('profiles')
-            .update(updateData)
-            .eq('id', driverId)
-            .select();
-          
-          if (profileError) {
-            console.error("❌ Erreur mise à jour table profiles:", profileError);
-            console.error("   Code:", profileError.code);
-            console.error("   Message:", profileError.message);
-            console.error("   Details:", profileError.details);
-          } else {
-            console.log("✅ 5/5 - Table profiles mise à jour avec succès !");
-            console.log("✅ Nouvelles données:", JSON.stringify(updatedData, null, 2));
-          }
-        }
-      }
-    } catch (error) {
-      console.error("❌ Exception table profiles:", error);
-      console.error("   Stack:", error instanceof Error ? error.stack : 'N/A');
-    }
-    
-    console.log(`🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========`);
-    
-    return c.json({
-      success: true,
-      message: 'Profil mis à jour avec succès',
-      driver: updatedDriver
-    });
-  } catch (error) {
-    console.error('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (ERREUR) ==========');
-    console.error('❌ Erreur mise à jour profil conducteur:', error);
-    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
-    return c.json({
-      success: false,
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
+    console.log('📊 Récupération statistiques par catégorie...');
 
-// ============================================
-// 📖 RÉCUPÉRER LE PROFIL D'UN CONDUCTEUR
-// ============================================
-driverRoutes.get('/profile/:driverId', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    
-    console.log(`📖 Récupération du profil du conducteur ${driverId}...`);
-    
-    // Récupérer depuis le KV store
-    const driver = await kv.get(`driver:${driverId}`);
-    
-    if (!driver) {
-      return c.json({
-        success: false,
-        error: 'Conducteur non trouvé'
-      }, 404);
-    }
-    
-    console.log(`✅ Profil du conducteur ${driverId} récupéré`);
-    
-    return c.json({
-      success: true,
-      driver: driver
-    });
-  } catch (error) {
-    console.error('❌ Erreur récupération profil conducteur:', error);
-    return c.json({
-      success: false,
-      error: 'Erreur serveur: ' + String(error)
-    }, 500);
-  }
-});
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
 
-// ============================================
-// RÉCUPÉRER LES INFOS D'UN CONDUCTEUR SPÉCIFIQUE
-// ============================================
-driverRoutes.get('/:driverId', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    console.log('🔍 Récupération info conducteur:', driverId);
-
-    if (!driverId) {
-      return c.json({ 
-        success: false, 
-        error: 'driverId requis' 
-      }, 400);
-    }
-
-    // Récupérer les données du conducteur depuis le KV store
-    const driverKey = `driver:${driverId}`;
-    let driverData = await kv.get(driverKey);
-
-    if (!driverData) {
-      console.warn('⚠️ Conducteur introuvable dans le KV store:', driverId);
-      console.log('🔄 Tentative de récupération depuis auth.users via Supabase...');
-      
-      // 🆕 NOUVEAU : Essayer de récupérer l'utilisateur depuis Supabase Auth
-      try {
-        const { data: { user }, error: userError } = await supabase.auth.admin.getUserById(driverId);
-        
-        if (userError || !user) {
-          console.error('❌ Utilisateur introuvable dans Supabase Auth:', driverId);
-          return c.json({ 
-            success: false, 
-            error: 'Profil conducteur introuvable. Veuillez vous inscrire en tant que conducteur.',
-            driver: null
-          }, 404);
-        }
-        
-        console.log('✅ Utilisateur trouvé dans Auth:', user.email);
-        console.log('📋 User metadata:', user.user_metadata);
-        
-        // Créer un profil conducteur "pending" par défaut
-        console.log('🆕 Création d\'un profil conducteur par défaut (status: pending)...');
-        
-        // ✅ CORRECTION : Utiliser le status depuis user_metadata si disponible
-        // Cela permet de récupérer le statut "approved" si l'admin a déjà approuvé le compte
-        const driverStatus = user.user_metadata?.status || user.user_metadata?.driver_status || 'pending';
-        console.log('📊 Statut détecté depuis user_metadata:', driverStatus);
-        
-        const newDriverProfile = {
-          id: user.id,
-          user_id: user.id,
-          email: user.email || '',
-          full_name: user.user_metadata?.full_name || user.user_metadata?.name || 'Conducteur',
-          phone: user.user_metadata?.phone || user.phone || '',
-          status: driverStatus, // ✅ Utiliser le statut depuis user_metadata
-          is_available: false,
-          photo: null,
-          vehicle: {
-            make: user.user_metadata?.vehicle_make || '',
-            model: user.user_metadata?.vehicle_model || '',
-            color: user.user_metadata?.vehicle_color || '',
-            license_plate: user.user_metadata?.vehicle_plate || '',
-            category: user.user_metadata?.vehicle_category || 'standard',
-            year: new Date().getFullYear(),
-            seats: 4
-          },
-          vehicle_make: user.user_metadata?.vehicle_make || '',
-          vehicle_model: user.user_metadata?.vehicle_model || '',
-          vehicle_plate: user.user_metadata?.vehicle_plate || '',
-          vehicle_category: user.user_metadata?.vehicle_category || 'standard',
-          rating: 0,
-          total_rides: 0,
-          wallet_balance: 0,
-          balance: 0,
-          created_at: user.created_at || new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        // Sauvegarder le profil dans le KV store
-        await kv.set(driverKey, newDriverProfile);
-        console.log('✅ Profil conducteur créé et sauvegardé:', newDriverProfile.email);
-        console.log('📊 Statut du profil créé:', newDriverProfile.status);
-        
-        if (newDriverProfile.status === 'pending') {
-          console.log('⚠️ Le conducteur doit être approuvé par un admin avant de se connecter');
-        } else if (newDriverProfile.status === 'approved') {
-          console.log('✅ Le conducteur a déjà été approuvé par un admin');
-        }
-        
-        // Utiliser ce nouveau profil
-        driverData = newDriverProfile;
-        
-      } catch (authError) {
-        console.error('❌ Erreur lors de la récupération depuis Supabase Auth:', authError);
-        return c.json({ 
-          success: false, 
-          error: 'Profil conducteur introuvable',
-          driver: null
-        }, 404);
-      }
-    }
-
-    console.log('✅ Conducteur trouvé:', driverData.full_name || driverData.name);
-    console.log('📊 Statut du conducteur:', driverData.status);
-
-    return c.json({
-      success: true,
-      driver: driverData
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur récupération conducteur:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur serveur',
-      driver: null
-    }, 500);
-  }
-});
-
-// ============================================
-// METTRE À JOUR LES INFOS D'UN CONDUCTEUR (POUR ADMIN)
-// ============================================
-driverRoutes.post('/update/:driverId', async (c) => {
-  try {
-    const driverId = c.req.param('driverId');
-    const updates = await c.req.json();
-    
-    console.log('🔥🔥🔥 ========== DÉBUT UPDATE CONDUCTEUR (Admin) ==========');
-    console.log('🔄 Mise à jour conducteur:', driverId);
-    console.log('📝 Mises à jour reçues:', JSON.stringify(updates, null, 2));
-
-    if (!driverId) {
-      console.error('❌ driverId manquant !');
-      return c.json({ 
-        success: false, 
-        error: 'driverId requis' 
-      }, 400);
-    }
-
-    // Récupérer les données actuelles du conducteur
-    const driverKey = `driver:${driverId}`;
-    console.log(`🔍 Recherche du conducteur avec la clé: ${driverKey}`);
-    
-    const currentDriver = await kv.get(driverKey);
-
-    if (!currentDriver) {
-      console.error('❌ Conducteur introuvable dans KV store:', driverId);
-      console.error('   Clé recherchée:', driverKey);
-      return c.json({ 
-        success: false, 
-        error: 'Conducteur introuvable' 
-      }, 404);
-    }
-
-    console.log('✅ Conducteur trouvé dans KV store');
-    console.log('📊 Statut ACTUEL:', currentDriver.status);
-    console.log('📊 Nouveau statut:', updates.status);
-
-    // Fusionner les mises à jour
-    const updatedDriver = {
-      ...currentDriver,
-      ...updates,
-      updated_at: new Date().toISOString()
+    // Grouper par catégorie
+    const categories: Record<string, { rides: number; revenue: number }> = {
+      smart_standard: { rides: 0, revenue: 0 },
+      smart_confort: { rides: 0, revenue: 0 },
+      smart_plus: { rides: 0, revenue: 0 },
+      smart_business: { rides: 0, revenue: 0 }
     };
 
-    console.log('🔄 Objet conducteur fusionné:', JSON.stringify(updatedDriver, null, 2));
+    for (const ride of allCompletedRides) {
+      if (!ride || !ride.vehicleType) continue;
 
-    // Sauvegarder dans le KV store
-    console.log(`💾 Sauvegarde dans KV store avec la clé: ${driverKey}`);
-    await kv.set(driverKey, updatedDriver);
-    console.log('✅ Conducteur mis à jour dans KV store');
-    
-    // Vérifier immédiatement que la sauvegarde a fonctionné
-    const verifyDriver = await kv.get(driverKey);
-    if (verifyDriver && verifyDriver.status === updates.status) {
-      console.log('✅ VÉRIFICATION : Statut correctement sauvegardé dans KV !');
-      console.log('   Statut vérifié:', verifyDriver.status);
-    } else {
-      console.error('❌ ERREUR CRITIQUE : Le statut n\'a PAS été sauvegardé correctement !');
-      console.error('   Statut attendu:', updates.status);
-      console.error('   Statut trouvé:', verifyDriver?.status);
-    }
+      // Normaliser le nom de la catégorie
+      let category = ride.vehicleType.toLowerCase().replace(/\s+/g, '_');
+      
+      // Mapping des différents noms possibles
+      if (category.includes('standard')) {
+        category = 'smart_standard';
+      } else if (category.includes('confort') || category.includes('comfort')) {
+        category = 'smart_confort';
+      } else if (category.includes('plus')) {
+        category = 'smart_plus';
+      } else if (category.includes('business')) {
+        category = 'smart_business';
+      }
 
-    // ✅ SYNCHRONISATION CRITIQUE : Mettre à jour le statut dans Auth user_metadata
-    if (updates.status) {
-      try {
-        console.log('🔄 Synchronisation du statut dans Auth user_metadata...');
-        console.log('📊 Statut à synchroniser:', updates.status);
-        
-        const { data, error: authError } = await supabase.auth.admin.updateUserById(
-          driverId,
-          {
-            user_metadata: {
-              status: updates.status,
-              driver_status: updates.status,
-              updated_at: new Date().toISOString()
-            }
-          }
-        );
-        
-        if (authError) {
-          console.error('❌ Erreur synchro Auth:', authError);
-        } else {
-          console.log('✅ Statut synchronisé dans Auth user_metadata');
-          console.log('📋 Auth user_metadata:', data.user?.user_metadata);
-        }
-      } catch (authSyncError) {
-        console.error('❌ Exception synchro Auth:', authSyncError);
-        // Continue même si la synchro échoue
+      if (categories[category]) {
+        categories[category].rides += 1;
+        categories[category].revenue += ride.finalPrice || 0;
       }
     }
-    
-    // ✅ SYNCHRONISATION POSTGRES : Mettre à jour la table drivers
-    try {
-      console.log('🔄 Synchronisation dans table Postgres drivers...');
-      
-      // ✅ FIX CRITIQUE : Utiliser user_id au lieu de id pour la table drivers
-      // La table drivers utilise user_id comme référence à l'utilisateur Auth
-      const { data: existingDriver, error: checkError } = await supabase
-        .from('drivers')
-        .select('id, user_id')
-        .eq('user_id', driverId)
-        .maybeSingle();
-      
-      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
-        console.error('❌ Erreur vérification Postgres:', checkError);
-      } else if (existingDriver) {
-        // Le conducteur existe, faire un UPDATE
-        console.log('✅ Conducteur trouvé dans Postgres, UPDATE...');
-        const { error: pgError } = await supabase
-          .from('drivers')
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', driverId); // ✅ FIX: Utiliser user_id au lieu de id
-        
-        if (pgError) {
-          console.error('❌ Erreur UPDATE Postgres:', pgError);
-        } else {
-          console.log('✅ Table drivers mise à jour dans Postgres (UPDATE)');
-        }
-      } else {
-        // Le conducteur n'existe pas, faire un INSERT
-        console.log('⚠️ Conducteur absent de Postgres, INSERT...');
-        const { error: insertError } = await supabase
-          .from('drivers')
-          .insert({
-            user_id: driverId,
-            ...updates,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-        
-        if (insertError) {
-          console.error('❌ Erreur INSERT Postgres:', insertError);
-        } else {
-          console.log('✅ Conducteur créé dans Postgres (INSERT)');
-        }
-      }
-    } catch (pgSyncError) {
-      console.error('❌ Exception synchro Postgres:', pgSyncError);
-      // Continue même si la synchro échoue
-    }
 
-    console.log('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (SUCCÈS) ==========');
+    console.log('✅ Statistiques par catégorie calculées:', categories);
 
     return c.json({
       success: true,
-      driver: updatedDriver
+      categories
     });
 
   } catch (error) {
-    console.error('🔥🔥🔥 ========== FIN UPDATE CONDUCTEUR (ERREUR) ==========');
-    console.error('❌ Erreur mise à jour conducteur:', error);
-    console.error('❌ Stack:', error instanceof Error ? error.stack : 'N/A');
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    console.error('❌ Erreur statistiques catégories:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
     }, 500);
   }
 });
 
 // ============================================
-// 📊 RÉCUPÉRER LES STATISTIQUES D'UN CONDUCTEUR
+// 🏆 LEADERBOARD DES CONDUCTEURS
 // ============================================
-driverRoutes.get('/:driverId/stats', async (c) => {
+adminRoutes.get('/drivers/leaderboard', async (c) => {
+  try {
+    console.log('🏆 Récupération leaderboard conducteurs...');
+
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    const drivers = allDrivers.filter(d => d && d.id);
+
+    // Récupérer toutes les courses complétées
+    const allCompletedRides = await kv.getByPrefix('ride_completed_');
+
+    // Calculer les statistiques de chaque conducteur
+    const driverStats = drivers.map(driver => {
+      const driverRides = allCompletedRides.filter(r => r.driverId === driver.id);
+      
+      const totalRides = driverRides.length;
+      const totalEarnings = driverRides.reduce((sum, r) => sum + ((r.finalPrice || 0) - (r.commission || 0)), 0);
+      const totalCommissions = driverRides.reduce((sum, r) => sum + (r.commission || 0), 0);
+      
+      const ratings = driverRides
+        .filter(r => r.rating && typeof r.rating === 'number')
+        .map(r => r.rating);
+      const averageRating = ratings.length > 0 
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
+        : 0;
+
+      return {
+        driverId: driver.id,
+        driverName: driver.full_name || driver.name || 'Conducteur inconnu',
+        driverPhone: driver.phone || 'N/A',
+        totalRides,
+        totalEarnings,
+        totalCommissions,
+        averageRating
+      };
+    });
+
+    // Trier par nombre de courses (décroissant)
+    const leaderboard = driverStats
+      .filter(d => d.totalRides > 0) // Seulement les conducteurs avec des courses
+      .sort((a, b) => b.totalRides - a.totalRides);
+
+    console.log(`✅ Leaderboard calculé: ${leaderboard.length} conducteurs`);
+
+    return c.json({
+      success: true,
+      total: leaderboard.length,
+      leaderboard
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur leaderboard:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 💰 HISTORIQUE DES TRANSACTIONS
+// ============================================
+adminRoutes.get('/transactions', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '100');
+    console.log(`💰 Récupération des ${limit} dernières transactions...`);
+
+    const allTransactions = await kv.getByPrefix('transaction:');
+    
+    // Trier par date décroissante
+    allTransactions.sort((a, b) => {
+      const dateA = new Date(a.timestamp || 0).getTime();
+      const dateB = new Date(b.timestamp || 0).getTime();
+      return dateB - dateA;
+    });
+
+    const transactions = allTransactions.slice(0, limit);
+
+    return c.json({
+      success: true,
+      count: transactions.length,
+      total: allTransactions.length,
+      transactions: transactions
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération transactions:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🚗 LISTE DES COURSES
+// ============================================
+adminRoutes.get('/rides', async (c) => {
+  try {
+    const status = c.req.query('status'); // pending, accepted, completed
+    const limit = parseInt(c.req.query('limit') || '100');
+    
+    console.log(`🚗 Récupération des courses (status: ${status || 'all'}, limit: ${limit})...`);
+
+    let rides = [];
+
+    if (status === 'completed') {
+      rides = await kv.getByPrefix('ride_completed_');
+    } else if (status === 'active') {
+      rides = await kv.getByPrefix('ride_active_');
+    } else if (status === 'pending') {
+      rides = await kv.getByPrefix('ride_pending_');
+    } else {
+      // Toutes les courses
+      rides = await kv.getByPrefix('ride_request_');
+    }
+
+    // Trier par date décroissante
+    rides.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    const limitedRides = rides.slice(0, limit);
+
+    return c.json({
+      success: true,
+      count: limitedRides.length,
+      total: rides.length,
+      rides: limitedRides
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération courses:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📱 STATISTIQUES D'UN CONDUCTEUR SPÉCIFIQUE
+// ============================================
+adminRoutes.get('/driver/:driverId/stats', async (c) => {
   try {
     const driverId = c.req.param('driverId');
-    console.log(`📊 Récupération des stats du conducteur ${driverId}...`);
+    console.log(`📱 Récupération des stats du conducteur ${driverId}...`);
 
-    // Récupérer les stats depuis le KV store
+    // Récupérer les stats du conducteur
     const statsKey = `driver:${driverId}:stats`;
     const stats = await kv.get(statsKey) || {
       totalRides: 0,
@@ -1492,37 +414,1090 @@ driverRoutes.get('/:driverId/stats', async (c) => {
       ratings: []
     };
 
-    console.log(`✅ Stats récupérées:`, {
-      totalRides: stats.totalRides,
-      averageRating: stats.averageRating,
-      totalRatings: stats.ratings?.length || 0
-    });
+    // Récupérer le solde
+    const balanceKey = `driver:${driverId}:balance`;
+    const balanceData = await kv.get(balanceKey) || { balance: 0 };
+    const balance = typeof balanceData === 'number' ? balanceData : balanceData.balance;
+
+    // Récupérer l'historique des transactions
+    const allTransactions = await kv.getByPrefix('transaction:');
+    const driverTransactions = allTransactions.filter(t => t && t.driverId === driverId);
 
     return c.json({
       success: true,
+      driverId: driverId,
       stats: {
-        totalRides: stats.totalRides || 0,
-        totalEarnings: stats.totalEarnings || 0,
-        totalCommissions: stats.totalCommissions || 0,
-        averageRating: stats.averageRating || 0,
-        ratingsCount: stats.ratings?.length || 0
-      }
+        ...stats,
+        currentBalance: balance,
+        transactionCount: driverTransactions.length
+      },
+      recentTransactions: driverTransactions.slice(0, 10)
     });
 
   } catch (error) {
-    console.error('❌ Erreur get-stats:', error);
+    console.error('❌ Erreur récupération stats conducteur:', error);
     return c.json({
       success: false,
-      error: 'Erreur serveur: ' + String(error),
-      stats: {
-        totalRides: 0,
-        totalEarnings: 0,
-        totalCommissions: 0,
-        averageRating: 0,
-        ratingsCount: 0
-      }
+      error: 'Erreur serveur: ' + String(error)
     }, 500);
   }
 });
 
-export default driverRoutes;
+// ============================================
+// 💾 SAUVEGARDER LES PARAMÈTRES ADMIN (Commission, Taux, Codes promo, etc.)
+// ============================================
+adminRoutes.post('/settings/save', async (c) => {
+  try {
+    console.log('💾 Sauvegarde des paramètres admin...');
+    
+    const settings = await c.req.json();
+    
+    // Sauvegarder dans le KV store avec la clé 'admin_settings'
+    await kv.set('admin_settings', settings);
+    
+    console.log('✅ Paramètres admin sauvegardés:', settings);
+    
+    return c.json({
+      success: true,
+      message: 'Paramètres enregistrés avec succès',
+      settings: settings
+    });
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde paramètres admin:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📖 CHARGER LES PARAMÈTRES ADMIN
+// ============================================
+adminRoutes.get('/settings/load', async (c) => {
+  try {
+    console.log('📖 Chargement des paramètres admin...');
+    
+    // Charger depuis le KV store
+    const settings = await kv.get('admin_settings') || {
+      commissionEnabled: true,
+      commissionRate: 15,
+      minimumCommission: 500,
+      paymentFrequency: 'immediate',
+      autoDeduction: true,
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log('✅ Paramètres admin chargés:', settings);
+    
+    return c.json({
+      success: true,
+      settings: settings
+    });
+  } catch (error) {
+    console.error('❌ Erreur chargement paramètres admin:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🎟️ SAUVEGARDER UN CODE PROMO
+// ============================================
+adminRoutes.post('/promo/save', async (c) => {
+  try {
+    console.log('🎟️ Sauvegarde du code promo...');
+    
+    const promo = await c.req.json();
+    const promoCode = promo.code.toUpperCase();
+    
+    // Sauvegarder avec la clé 'promo:CODE'
+    await kv.set(`promo:${promoCode}`, promo);
+    
+    console.log(`✅ Code promo ${promoCode} sauvegardé:`, promo);
+    
+    return c.json({
+      success: true,
+      message: `Code promo ${promoCode} créé avec succès`,
+      promo: promo
+    });
+  } catch (error) {
+    console.error('❌ Erreur sauvegarde code promo:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🎟️ RÉCUPÉRER TOUS LES CODES PROMOS
+// ============================================
+adminRoutes.get('/promo/list', async (c) => {
+  try {
+    console.log('🎟️ Récupération de tous les codes promos...');
+    
+    // Récupérer tous les promos
+    const allPromos = await kv.getByPrefix('promo:');
+    
+    console.log(`✅ ${allPromos.length} codes promos trouvés`);
+    
+    return c.json({
+      success: true,
+      promos: allPromos
+    });
+  } catch (error) {
+    console.error('❌ Erreur récupération codes promos:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🎟️ VÉRIFIER UN CODE PROMO (pour les passagers)
+// ============================================
+adminRoutes.post('/promo/check', async (c) => {
+  try {
+    const { code } = await c.req.json();
+    const promoCode = code.toUpperCase();
+    
+    console.log(`🎟️ Vérification du code promo: ${promoCode}`);
+    
+    // Récupérer le promo
+    const promo = await kv.get(`promo:${promoCode}`);
+    
+    if (!promo) {
+      return c.json({
+        success: false,
+        error: 'Code promo invalide'
+      }, 404);
+    }
+    
+    // Vérifier si le promo est actif
+    if (!promo.active) {
+      return c.json({
+        success: false,
+        error: 'Ce code promo est désactivé'
+      }, 400);
+    }
+    
+    // Vérifier la date d'expiration
+    if (promo.expirationDate) {
+      const now = new Date();
+      const expiration = new Date(promo.expirationDate);
+      
+      if (now > expiration) {
+        return c.json({
+          success: false,
+          error: 'Ce code promo a expiré'
+        }, 400);
+      }
+    }
+    
+    // Vérifier le nombre d'utilisations
+    if (promo.maxUses && promo.usedCount >= promo.maxUses) {
+      return c.json({
+        success: false,
+        error: 'Ce code promo a atteint sa limite d\'utilisation'
+      }, 400);
+    }
+    
+    console.log(`✅ Code promo ${promoCode} valide:`, promo);
+    
+    return c.json({
+      success: true,
+      promo: promo
+    });
+  } catch (error) {
+    console.error('❌ Erreur vérification code promo:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🎟️ INCRÉMENTER L'UTILISATION D'UN CODE PROMO
+// ============================================
+adminRoutes.post('/promo/use', async (c) => {
+  try {
+    const { code } = await c.req.json();
+    const promoCode = code.toUpperCase();
+    
+    console.log(`🎟️ Incrémentation utilisation du code promo: ${promoCode}`);
+    
+    // Récupérer le promo
+    const promo = await kv.get(`promo:${promoCode}`);
+    
+    if (!promo) {
+      return c.json({
+        success: false,
+        error: 'Code promo invalide'
+      }, 404);
+    }
+    
+    // Incrémenter le compteur
+    promo.usedCount = (promo.usedCount || 0) + 1;
+    
+    // Sauvegarder
+    await kv.set(`promo:${promoCode}`, promo);
+    
+    console.log(`✅ Code promo ${promoCode} utilisé (${promo.usedCount}/${promo.maxUses || '∞'})`);
+    
+    return c.json({
+      success: true,
+      promo: promo
+    });
+  } catch (error) {
+    console.error('❌ Erreur incrémentation code promo:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🗑️ SUPPRIMER UN CODE PROMO
+// ============================================
+adminRoutes.delete('/promo/delete/:code', async (c) => {
+  try {
+    const promoCode = c.req.param('code').toUpperCase();
+    
+    console.log(`🗑️ Suppression du code promo: ${promoCode}`);
+    
+    // Supprimer du KV store
+    await kv.del(`promo:${promoCode}`);
+    
+    console.log(`✅ Code promo ${promoCode} supprimé`);
+    
+    return c.json({
+      success: true,
+      message: `Code promo ${promoCode} supprimé avec succès`
+    });
+  } catch (error) {
+    console.error('❌ Erreur suppression code promo:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📱 STATISTIQUES SMS (AFRICA'S TALKING)
+// ============================================
+adminRoutes.get('/sms/balance', async (c) => {
+  try {
+    console.log('📱 Récupération de la balance SMS Africa\'s Talking...');
+
+    const username = Deno.env.get('AFRICAS_TALKING_USERNAME') ?? '';
+    const apiKey = Deno.env.get('AFRICAS_TALKING_API_KEY') ?? '';
+
+    if (!username || !apiKey) {
+      return c.json({
+        success: false,
+        error: 'Configuration Africa\'s Talking manquante'
+      }, 500);
+    }
+
+    // Récupérer la balance depuis Africa's Talking
+    try {
+      const balanceResponse = await fetch('https://api.africastalking.com/version1/user', {
+        method: 'GET',
+        headers: {
+          'apiKey': apiKey,
+          'Accept': 'application/json'
+        }
+      });
+
+      const balanceData = await balanceResponse.json();
+      console.log('💰 Données balance AT:', balanceData);
+
+      // Récupérer les statistiques de SMS envoyés depuis notre KV store
+      const smsStats = await kv.get('sms_stats') || {
+        totalSent: 0,
+        totalFailed: 0,
+        lastUpdated: new Date().toISOString()
+      };
+
+      // Compter les SMS dans les logs
+      const allSmsLogs = await kv.getByPrefix('sms_log:');
+      const successfulSms = allSmsLogs.filter((log: any) => log.status === 'Success' || log.status === 'Sent');
+      const failedSms = allSmsLogs.filter((log: any) => log.status !== 'Success' && log.status !== 'Sent');
+
+      // Calculer les stats par type
+      const smsByType = {
+        otp_code: 0,
+        reset_password_otp: 0,
+        ride_notification: 0,
+        other: 0
+      };
+
+      for (const log of allSmsLogs) {
+        const type = log.type || 'other';
+        smsByType[type] = (smsByType[type] || 0) + 1;
+      }
+
+      // Estimation du coût par SMS en RDC (Africa's Talking)
+      const costPerSms = 0.0084; // USD par SMS
+      const balance = parseFloat(balanceData.UserData?.balance || '0');
+      const currency = balanceData.UserData?.currency || 'USD';
+      
+      // Calculer le nombre de SMS restants
+      const remainingSms = balance > 0 ? Math.floor(balance / costPerSms) : 0;
+
+      return c.json({
+        success: true,
+        balance: {
+          amount: balance,
+          currency: currency,
+          formattedBalance: `${(balance || 0).toFixed(2)} ${currency}`
+        },
+        estimation: {
+          costPerSms: costPerSms,
+          remainingSms: remainingSms,
+          estimatedCost: {
+            perSms: `${costPerSms} USD`,
+            per100Sms: `${((costPerSms || 0) * 100).toFixed(2)} USD`,
+            per1000Sms: `${((costPerSms || 0) * 1000).toFixed(2)} USD`
+          }
+        },
+        usage: {
+          totalSent: successfulSms.length,
+          totalFailed: failedSms.length,
+          totalAttempted: allSmsLogs.length,
+          successRate: allSmsLogs.length > 0 
+            ? (((successfulSms.length / allSmsLogs.length) * 100) || 0).toFixed(2) + '%'
+            : '0%',
+          byType: smsByType
+        },
+        lastUpdated: new Date().toISOString()
+      });
+
+    } catch (apiError) {
+      console.error('❌ Erreur appel API Africa\'s Talking:', apiError);
+      
+      // En cas d'erreur API, retourner au moins les stats locales
+      const allSmsLogs = await kv.getByPrefix('sms_log:');
+      const successfulSms = allSmsLogs.filter((log: any) => log.status === 'Success' || log.status === 'Sent');
+      const failedSms = allSmsLogs.filter((log: any) => log.status !== 'Success' && log.status !== 'Sent');
+
+      return c.json({
+        success: true,
+        balance: {
+          amount: 0,
+          currency: 'USD',
+          error: 'Impossible de récupérer la balance depuis Africa\'s Talking'
+        },
+        estimation: {
+          costPerSms: 0.0084,
+          remainingSms: 0,
+          estimatedCost: {
+            perSms: '0.0084 USD',
+            per100Sms: '0.84 USD',
+            per1000Sms: '8.40 USD'
+          }
+        },
+        usage: {
+          totalSent: successfulSms.length,
+          totalFailed: failedSms.length,
+          totalAttempted: allSmsLogs.length,
+          successRate: allSmsLogs.length > 0 
+            ? (((successfulSms.length / allSmsLogs.length) * 100) || 0).toFixed(2) + '%'
+            : '0%'
+        },
+        lastUpdated: new Date().toISOString()
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Erreur récupération balance SMS:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 👥 RÉCUPÉRER TOUS LES UTILISATEURS (avec mots de passe)
+// ============================================
+adminRoutes.get('/users/all', async (c) => {
+  try {
+    console.log('👥 Récupération de tous les utilisateurs...');
+
+    // Créer le client Supabase pour récupérer aussi depuis la table profiles
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // ============= RÉCUPÉRATION DES PASSAGERS =============
+    
+    // 1️⃣ Récupérer depuis le KV store
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    console.log(`📥 ${kvPassengers.length} passagers trouvés dans le KV store`);
+    
+    // 2️⃣ Récupérer depuis la table Supabase profiles (pour les anciens utilisateurs)
+    const { data: supabasePassengers, error: passengersError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'passenger');
+    
+    if (passengersError) {
+      console.error('⚠️ Erreur récupération passagers depuis Supabase:', passengersError);
+    }
+    
+    console.log(`📥 ${supabasePassengers?.length || 0} passagers trouvés dans Supabase`);
+    
+    // Fusionner les passagers (éviter les doublons)
+    const passengersMap = new Map();
+    
+    // Ajouter les passagers du KV store
+    kvPassengers
+      .filter(p => p && p.id)
+      .forEach(passenger => {
+        passengersMap.set(passenger.id, {
+          id: passenger.id,
+          role: 'Passager',
+          name: passenger.name || passenger.full_name || 'N/A',
+          phone: passenger.phone || 'N/A',
+          email: passenger.email || 'N/A',
+          password: passenger.password || '******',
+          balance: passenger.balance || 0,
+          accountType: passenger.account_type || 'prepaid',
+          createdAt: passenger.created_at || new Date().toISOString(),
+          lastLoginAt: passenger.last_login_at,
+          status: 'active',
+          source: 'KV'
+        });
+      });
+    
+    // Ajouter les passagers de Supabase (sans écraser ceux du KV)
+    if (supabasePassengers && supabasePassengers.length > 0) {
+      supabasePassengers.forEach(passenger => {
+        if (!passengersMap.has(passenger.id)) {
+          passengersMap.set(passenger.id, {
+            id: passenger.id,
+            role: 'Passager',
+            name: passenger.full_name || passenger.name || 'N/A',
+            phone: passenger.phone || 'N/A',
+            email: passenger.email || 'N/A',
+            password: '******', // Pas de mot de passe dans Supabase profiles
+            balance: passenger.balance || 0,
+            accountType: passenger.account_type || 'prepaid',
+            createdAt: passenger.created_at || new Date().toISOString(),
+            lastLoginAt: passenger.last_login_at,
+            status: 'active',
+            source: 'Supabase'
+          });
+        }
+      });
+    }
+    
+    const passengers = Array.from(passengersMap.values());
+
+    // ============= RÉCUPÉRATION DES CONDUCTEURS =============
+    
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    console.log(`📥 ${allDrivers.length} conducteurs trouvés`);
+    
+    const drivers = allDrivers
+      .filter(d => d && d.id) // Filtrer les entrées invalides
+      .map(driver => {
+        // ✅ CORRECTION : Extraire les données du véhicule depuis l'objet imbriqué 'vehicle'
+        const vehicle = driver.vehicle || {};
+        
+        return {
+          id: driver.id,
+          role: 'Conducteur',
+          name: driver.name || driver.full_name || 'N/A',
+          phone: driver.phone || 'N/A',
+          email: driver.email || 'N/A',
+          password: driver.password || '******',
+          balance: driver.balance || 0,
+          // ✅ Extraire depuis driver.vehicle
+          vehicleCategory: vehicle.category || driver.vehicle_category || driver.vehicleCategory || 'N/A',
+          vehiclePlate: vehicle.license_plate || driver.vehicle_plate || driver.vehiclePlate || 'N/A',
+          vehicleModel: `${vehicle.make || driver.vehicle_make || ''} ${vehicle.model || driver.vehicle_model || ''}`.trim() || 'N/A',
+          vehicleColor: vehicle.color || driver.vehicle_color || driver.vehicleColor || 'N/A',
+          status: driver.status || 'offline',
+          rating: driver.rating || 0,
+          totalTrips: driver.total_trips || driver.totalTrips || 0,
+          createdAt: driver.created_at || new Date().toISOString(),
+          lastLoginAt: driver.last_login_at,
+          // Infos supplémentaires
+          isAvailable: driver.is_available || false,
+          licenseNumber: driver.license_number || 'N/A',
+          source: 'KV'
+        };
+      });
+
+    // ============= RÉCUPÉRATION DES ADMINS =============
+    
+    // Récupérer tous les admins
+    const allAdmins = await kv.getByPrefix('admin:');
+    console.log(`📥 ${allAdmins.length} admins trouvés`);
+    
+    const admins = allAdmins
+      .filter(a => a && a.id) // Filtrer les entrées invalides
+      .map(admin => ({
+        id: admin.id,
+        role: 'Administrateur',
+        name: admin.name || admin.full_name || 'N/A',
+        phone: admin.phone || 'N/A',
+        email: admin.email || 'N/A',
+        password: admin.password || '******',
+        createdAt: admin.created_at || new Date().toISOString(),
+        lastLoginAt: admin.last_login_at,
+        status: 'active',
+        source: 'KV'
+      }));
+
+    // Combiner tous les utilisateurs
+    const allUsers = [...passengers, ...drivers, ...admins];
+
+    // Trier par date de création (plus récent en premier)
+    allUsers.sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    console.log(`✅ ${allUsers.length} utilisateurs récupérés (${passengers.length} passagers, ${drivers.length} conducteurs, ${admins.length} admins)`);
+    console.log(`📊 Sources: KV=${kvPassengers.length} passagers KV, Supabase=${supabasePassengers?.length || 0} passagers Supabase`);
+
+    return c.json({
+      success: true,
+      total: allUsers.length,
+      stats: {
+        passengers: passengers.length,
+        drivers: drivers.length,
+        admins: admins.length
+      },
+      users: allUsers
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération utilisateurs:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📋 HISTORIQUE DES ANNULATIONS
+// ============================================
+adminRoutes.get('/cancellations', async (c) => {
+  try {
+    console.log('📋 Récupération de l\'historique des annulations...');
+
+    // Récupérer toutes les annulations des passagers
+    const passengerCancellations = await kv.getByPrefix('passenger_cancellation:');
+    console.log(`🚫 ${passengerCancellations.length} annulations passagers trouvées`);
+
+    // Récupérer toutes les annulations des conducteurs
+    const driverCancellations = await kv.getByPrefix('driver_cancellation:');
+    console.log(`🚫 ${driverCancellations.length} annulations conducteurs trouvées`);
+
+    // Enrichir avec les infos utilisateurs
+    const enrichedPassengerCancellations = await Promise.all(
+      passengerCancellations.map(async (cancellation) => {
+        const passenger = await kv.get(`passenger:${cancellation.userId}`);
+        return {
+          ...cancellation,
+          userName: passenger?.full_name || passenger?.name || 'Passager inconnu',
+          userPhone: passenger?.phone || 'N/A'
+        };
+      })
+    );
+
+    const enrichedDriverCancellations = await Promise.all(
+      driverCancellations.map(async (cancellation) => {
+        const driver = await kv.get(`driver:${cancellation.userId}`);
+        return {
+          ...cancellation,
+          userName: driver?.full_name || driver?.name || 'Conducteur inconnu',
+          userPhone: driver?.phone || 'N/A'
+        };
+      })
+    );
+
+    // Combiner et trier par date (plus récent en premier)
+    const allCancellations = [
+      ...enrichedPassengerCancellations,
+      ...enrichedDriverCancellations
+    ].sort((a, b) => {
+      const dateA = new Date(a.cancelledAt || 0).getTime();
+      const dateB = new Date(b.cancelledAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    // Calculer les statistiques
+    const stats = {
+      total: allCancellations.length,
+      byPassengers: passengerCancellations.length,
+      byDrivers: driverCancellations.length,
+      withPenalty: allCancellations.filter(c => c.penaltyApplied).length,
+      totalPenalties: allCancellations.reduce((sum, c) => sum + (c.penaltyAmount || 0), 0)
+    };
+
+    // Grouper par raison
+    const byReason: Record<string, number> = {};
+    allCancellations.forEach(c => {
+      const reason = c.reason || 'Non spécifiée';
+      byReason[reason] = (byReason[reason] || 0) + 1;
+    });
+
+    console.log(`✅ ${allCancellations.length} annulations récupérées`);
+    console.log(`📊 Statistiques:`, stats);
+
+    return c.json({
+      success: true,
+      total: allCancellations.length,
+      stats,
+      byReason,
+      cancellations: allCancellations
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération annulations:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 📋 ANNULATIONS D'UN UTILISATEUR SPÉCIFIQUE
+// ============================================
+adminRoutes.get('/cancellations/:userId', async (c) => {
+  try {
+    const userId = c.req.param('userId');
+    console.log(`📋 Récupération des annulations de l'utilisateur: ${userId}`);
+
+    // Récupérer les annulations du passager
+    const passengerCancellations = await kv.getByPrefix(`passenger_cancellation:${userId}:`);
+    
+    // Récupérer les annulations du conducteur
+    const driverCancellations = await kv.getByPrefix(`driver_cancellation:${userId}:`);
+
+    const allUserCancellations = [...passengerCancellations, ...driverCancellations]
+      .sort((a, b) => {
+        const dateA = new Date(a.cancelledAt || 0).getTime();
+        const dateB = new Date(b.cancelledAt || 0).getTime();
+        return dateB - dateA;
+      });
+
+    console.log(`✅ ${allUserCancellations.length} annulations trouvées pour ${userId}`);
+
+    return c.json({
+      success: true,
+      total: allUserCancellations.length,
+      cancellations: allUserCancellations
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération annulations utilisateur:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔍 DIAGNOSTIC DES UTILISATEURS (KV vs Supabase Auth)
+// ============================================
+adminRoutes.get('/users/diagnostic', async (c) => {
+  try {
+    console.log('🔍 Diagnostic des utilisateurs - Comparaison KV Store vs Supabase Auth...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // ============= KV STORE =============
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    const kvDrivers = await kv.getByPrefix('driver:');
+    const kvAdmins = await kv.getByPrefix('admin:');
+
+    console.log(`📦 KV Store: ${kvPassengers.length} passagers, ${kvDrivers.length} conducteurs, ${kvAdmins.length} admins`);
+
+    // ============= SUPABASE AUTH =============
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      console.error('❌ Erreur récupération Supabase Auth:', authError);
+    }
+
+    const realAuthUsers = authUsers?.users || [];
+    console.log(`🔐 Supabase Auth: ${realAuthUsers.length} utilisateurs réels`);
+
+    // ============= SUPABASE PROFILES TABLE =============
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*');
+    
+    if (profilesError) {
+      console.error('⚠️ Erreur récupération profiles:', profilesError);
+    }
+
+    const profilesUsers = profilesData || [];
+    console.log(`👤 Table Profiles: ${profilesUsers.length} profils`);
+
+    // ============= ANALYSE =============
+    const kvUserIds = new Set([
+      ...kvPassengers.map(p => p.id),
+      ...kvDrivers.map(d => d.id),
+      ...kvAdmins.map(a => a.id)
+    ]);
+
+    const authUserIds = new Set(realAuthUsers.map(u => u.id));
+    const profileUserIds = new Set(profilesUsers.map(p => p.id));
+
+    // Utilisateurs dans KV mais pas dans Auth (données de test/mockées)
+    const orphanedKvUsers = Array.from(kvUserIds).filter(id => !authUserIds.has(id));
+    
+    // Utilisateurs dans Auth mais pas dans KV (manquants dans KV)
+    const missingInKv = Array.from(authUserIds).filter(id => !kvUserIds.has(id));
+
+    console.log(`⚠️ ${orphanedKvUsers.length} utilisateurs orphelins dans KV (données de test)`);
+    console.log(`📝 ${missingInKv.length} utilisateurs Auth manquants dans KV`);
+
+    // Détails des utilisateurs orphelins
+    const orphanedDetails = [];
+    for (const id of orphanedKvUsers) {
+      const passenger = kvPassengers.find(p => p.id === id);
+      const driver = kvDrivers.find(d => d.id === id);
+      const admin = kvAdmins.find(a => a.id === id);
+      
+      const user = passenger || driver || admin;
+      if (user) {
+        orphanedDetails.push({
+          id: user.id,
+          name: user.name || user.full_name || 'N/A',
+          phone: user.phone || 'N/A',
+          email: user.email || 'N/A',
+          role: passenger ? 'Passager' : (driver ? 'Conducteur' : 'Admin'),
+          createdAt: user.created_at,
+          source: 'KV Store (orphelin)'
+        });
+      }
+    }
+
+    // Détails des vrais utilisateurs Auth
+    const authUsersDetails = realAuthUsers.map(u => ({
+      id: u.id,
+      email: u.email,
+      phone: u.phone,
+      createdAt: u.created_at,
+      lastSignIn: u.last_sign_in_at,
+      inKV: kvUserIds.has(u.id),
+      inProfiles: profileUserIds.has(u.id)
+    }));
+
+    return c.json({
+      success: true,
+      diagnostic: {
+        kvStore: {
+          total: kvUserIds.size,
+          passengers: kvPassengers.length,
+          drivers: kvDrivers.length,
+          admins: kvAdmins.length,
+          orphaned: orphanedKvUsers.length
+        },
+        supabaseAuth: {
+          total: realAuthUsers.length,
+          missingInKv: missingInKv.length
+        },
+        profiles: {
+          total: profilesUsers.length
+        }
+      },
+      orphanedUsers: orphanedDetails,
+      authUsers: authUsersDetails,
+      recommendations: {
+        shouldCleanup: orphanedKvUsers.length > 0,
+        shouldSync: missingInKv.length > 0,
+        message: orphanedKvUsers.length > 0
+          ? `🧹 Vous avez ${orphanedKvUsers.length} utilisateurs de test dans le KV Store. Il est recommandé de les nettoyer.`
+          : '✅ Votre KV Store est propre !'
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur diagnostic:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧹 NETTOYER LES DONNÉES DE TEST DU KV STORE
+// ============================================
+adminRoutes.post('/users/cleanup', async (c) => {
+  try {
+    console.log('🧹 Nettoyage des données de test du KV Store...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Récupérer les vrais utilisateurs Auth
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      throw new Error(`Erreur Supabase Auth: ${authError.message}`);
+    }
+
+    const realAuthUserIds = new Set((authUsers?.users || []).map(u => u.id));
+    console.log(`🔐 ${realAuthUserIds.size} utilisateurs réels dans Supabase Auth`);
+
+    // Récupérer tous les utilisateurs du KV Store
+    const kvPassengers = await kv.getByPrefix('passenger:');
+    const kvDrivers = await kv.getByPrefix('driver:');
+    const kvAdmins = await kv.getByPrefix('admin:');
+
+    console.log(`📦 KV Store avant nettoyage: ${kvPassengers.length} passagers, ${kvDrivers.length} conducteurs, ${kvAdmins.length} admins`);
+
+    // Supprimer les utilisateurs orphelins (données de test)
+    let deletedCount = 0;
+    const deletedUsers = [];
+
+    for (const passenger of kvPassengers) {
+      if (passenger.id && !realAuthUserIds.has(passenger.id)) {
+        await kv.del(`passenger:${passenger.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: passenger.id,
+          name: passenger.name || passenger.full_name,
+          role: 'Passager'
+        });
+        console.log(`🗑️ Supprimé passager: ${passenger.name} (${passenger.id})`);
+      }
+    }
+
+    for (const driver of kvDrivers) {
+      if (driver.id && !realAuthUserIds.has(driver.id)) {
+        await kv.del(`driver:${driver.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: driver.id,
+          name: driver.name || driver.full_name,
+          role: 'Conducteur'
+        });
+        console.log(`🗑️ Supprimé conducteur: ${driver.name} (${driver.id})`);
+      }
+    }
+
+    for (const admin of kvAdmins) {
+      if (admin.id && !realAuthUserIds.has(admin.id)) {
+        await kv.del(`admin:${admin.id}`);
+        deletedCount++;
+        deletedUsers.push({
+          id: admin.id,
+          name: admin.name || admin.full_name,
+          role: 'Admin'
+        });
+        console.log(`🗑️ Supprimé admin: ${admin.name} (${admin.id})`);
+      }
+    }
+
+    console.log(`✅ Nettoyage terminé: ${deletedCount} utilisateurs de test supprimés`);
+
+    return c.json({
+      success: true,
+      deleted: deletedCount,
+      deletedUsers: deletedUsers,
+      message: `🧹 ${deletedCount} utilisateurs de test ont été supprimés du KV Store`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur nettoyage:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// 🔄 SYNCHRONISER DEPUIS SUPABASE AUTH
+// ============================================
+adminRoutes.post('/users/sync-from-auth', async (c) => {
+  try {
+    console.log('🔄 Synchronisation depuis Supabase Auth...');
+
+    // Créer le client Supabase
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Récupérer les vrais utilisateurs Auth
+    const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+    
+    if (authError) {
+      throw new Error(`Erreur Supabase Auth: ${authError.message}`);
+    }
+
+    const realAuthUsers = authUsers?.users || [];
+    console.log(`🔐 ${realAuthUsers.length} utilisateurs trouvés dans Supabase Auth`);
+
+    // Récupérer les profils pour enrichir les données
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('*');
+
+    const profilesMap = new Map();
+    (profilesData || []).forEach(p => profilesMap.set(p.id, p));
+
+    let syncedCount = 0;
+    const syncedUsers = [];
+
+    // Synchroniser chaque utilisateur Auth dans le KV Store
+    for (const user of realAuthUsers) {
+      const profile = profilesMap.get(user.id);
+      const role = profile?.role || 'passenger'; // Par défaut passager
+
+      let kvKey = '';
+      let userData: any = {
+        id: user.id,
+        email: user.email || '',
+        phone: user.phone || profile?.phone || '',
+        name: profile?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+        full_name: profile?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+        created_at: user.created_at,
+        last_login_at: user.last_sign_in_at,
+        balance: profile?.balance || 0
+      };
+
+      if (role === 'passenger') {
+        kvKey = `passenger:${user.id}`;
+        userData.account_type = profile?.account_type || 'prepaid';
+      } else if (role === 'driver') {
+        kvKey = `driver:${user.id}`;
+        userData.vehicle = profile?.vehicle || {};
+        userData.license_number = profile?.license_number || '';
+        userData.is_available = false;
+        userData.status = 'offline';
+        userData.rating = profile?.rating || 0;
+        userData.total_trips = profile?.total_trips || 0;
+      } else if (role === 'admin') {
+        kvKey = `admin:${user.id}`;
+      }
+
+      // Vérifier si l'utilisateur existe déjà dans KV
+      const existingUser = await kv.get(kvKey);
+      
+      if (existingUser) {
+        // Fusionner avec les données existantes
+        userData = { ...existingUser, ...userData };
+        console.log(`🔄 Mis à jour: ${userData.name} (${role})`);
+      } else {
+        console.log(`➕ Ajouté: ${userData.name} (${role})`);
+      }
+
+      await kv.set(kvKey, userData);
+      syncedCount++;
+      syncedUsers.push({
+        id: user.id,
+        name: userData.name,
+        role: role,
+        action: existingUser ? 'updated' : 'created'
+      });
+    }
+
+    console.log(`✅ Synchronisation terminée: ${syncedCount} utilisateurs synchronisés`);
+
+    return c.json({
+      success: true,
+      synced: syncedCount,
+      syncedUsers: syncedUsers,
+      message: `🔄 ${syncedCount} utilisateurs ont été synchronisés depuis Supabase Auth`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur synchronisation:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+// ============================================
+// ✅ METTRE À JOUR LE STATUS DANS AUTH METADATA
+// ============================================
+adminRoutes.post('/update-driver-auth-metadata', async (c) => {
+  try {
+    const { driverId, status } = await c.req.json();
+    
+    console.log('🔄 Synchronisation statut conducteur dans Auth:', { driverId, status });
+    
+    if (!driverId || !status) {
+      return c.json({
+        success: false,
+        error: 'driverId et status requis'
+      }, 400);
+    }
+    
+    // Créer le client Supabase avec SERVICE_ROLE_KEY
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    
+    // Mettre à jour le user_metadata
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      driverId,
+      {
+        user_metadata: {
+          status: status,
+          driver_status: status
+        }
+      }
+    );
+    
+    if (updateError) {
+      console.error('❌ Erreur mise à jour Auth metadata:', updateError);
+      return c.json({
+        success: false,
+        error: updateError.message
+      }, 500);
+    }
+    
+    console.log('✅ Statut synchronisé dans Auth user_metadata');
+    
+    return c.json({
+      success: true,
+      message: 'Statut synchronisé avec succès'
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur update-driver-auth-metadata:', error);
+    return c.json({
+      success: false,
+      error: 'Erreur serveur: ' + String(error)
+    }, 500);
+  }
+});
+
+export default adminRoutes;
