@@ -340,18 +340,17 @@ export function DriverDashboard() {
     // 2. Envoyer au backend pour persistance
     const updateOnlineStatus = async () => {
       try {
-        const session = await supabase.auth.getSession();
-        const accessToken = session.data.session?.access_token;
-        
+        // ✅ FIX CRITIQUE: Utiliser publicAnonKey au lieu de accessToken
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/heartbeat`,
           {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`
+              'Authorization': `Bearer ${publicAnonKey}` // ✅ Utiliser publicAnonKey
             },
             body: JSON.stringify({
+              driverId: driver?.id, // ✅ AJOUTER l'ID du conducteur
               isOnline: isOnline,
               location: driverLocation || null,
               lastSeen: new Date().toISOString()
@@ -1026,18 +1025,17 @@ export function DriverDashboard() {
 
     // Appeler l'API backend pour mettre à jour le statut
     try {
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-
+      // ✅ FIX CRITIQUE: Utiliser publicAnonKey au lieu de accessToken
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/toggle-online-status`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${publicAnonKey}` // ✅ Utiliser publicAnonKey
           },
           body: JSON.stringify({
+            driverId: driver?.id, // ✅ AJOUTER l'ID du conducteur
             isOnline: newStatus,
             location: driverLocation || null
           })
