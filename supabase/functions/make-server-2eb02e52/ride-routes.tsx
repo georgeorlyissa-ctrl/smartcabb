@@ -1,7 +1,7 @@
 import { Hono } from "npm:hono@4";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv-wrapper.tsx";
-import * as matching from "./ride-matching.ts";
+import * as matching from "./ride-matching.tsx";
 import { checkDriversAvailability, getCategoryName } from "./ride-availability-helper.tsx";
 
 const app = new Hono();
