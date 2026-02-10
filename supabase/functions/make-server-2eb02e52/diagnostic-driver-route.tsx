@@ -1,6 +1,7 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
+import { isValidUUID } from './uuid-validator.tsx';
 
 const diagnosticRoute = new Hono();
 
@@ -184,6 +185,17 @@ diagnosticRoute.post('/diagnostic-driver', async (c) => {
 
     // CHECK 3: Vérifier dans Supabase Auth
     console.log('📊 CHECK 3: Vérification dans Supabase Auth...');
+    
+    // ✅ Validation UUID
+    if (!isValidUUID(foundInKV.id)) {
+      console.log('❌ ID invalide (pas un UUID):', foundInKV.id);
+      results.checks.push({
+        check: 'Présence dans Supabase Auth',
+        result: { found: false, error: 'ID invalide (pas un UUID)' },
+        status: 'error'
+      });
+      return c.json(results);
+    }
     
     const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(foundInKV.id);
 
