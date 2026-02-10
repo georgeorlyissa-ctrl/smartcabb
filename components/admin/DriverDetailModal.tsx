@@ -272,28 +272,8 @@ export function DriverDetailModal({
       if (updated) {
         toast.success('Conducteur approuvé');
         
-        // 🔥 FORCE SYNC : Forcer la synchronisation des 3 sources immédiatement
-        try {
-          console.log('🔥 Appel de force-sync pour synchroniser toutes les sources...');
-          const syncResponse = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/force-sync`,
-            {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          
-          if (syncResponse.ok) {
-            console.log('✅ Force sync réussi');
-          } else {
-            console.error('❌ Erreur force sync');
-          }
-        } catch (syncError) {
-          console.error('❌ Exception force sync:', syncError);
-        }
+        // ⏳ ATTENDRE 2 SECONDES pour que le backend synchronise les 3 sources
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // 🐛 DEBUG : Appeler la route de debug pour vérifier la synchronisation
         try {
