@@ -1621,33 +1621,63 @@ driverRoutes.post('/update/:driverId', async (c) => {
       } else if (existingDriver) {
         // Le conducteur existe, faire un UPDATE
         console.log('✅ Conducteur trouvé dans Postgres, UPDATE...');
+        
+        // 🔥 FIX: Construire l'objet UPDATE avec SEULEMENT les champs que PostgreSQL accepte
+        const pgUpdateData: any = {
+          updated_at: new Date().toISOString()
+        };
+        
+        // Ajouter les champs seulement s'ils sont présents dans updates
+        if (updates.status) pgUpdateData.status = updates.status;
+        if (updates.full_name) pgUpdateData.full_name = updates.full_name;
+        if (updates.email) pgUpdateData.email = updates.email;
+        if (updates.phone) pgUpdateData.phone = updates.phone;
+        if (updates.is_available !== undefined) pgUpdateData.is_available = updates.is_available;
+        
+        console.log('📝 Données à UPDATE dans Postgres:', JSON.stringify(pgUpdateData, null, 2));
+        
         const { error: pgError } = await supabase
           .from('drivers')
-          .update({
-            ...updates,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', driverId); // ✅ FIX: Utiliser user_id au lieu de id
+          .update(pgUpdateData)
+          .eq('user_id', driverId);
         
         if (pgError) {
           console.error('❌ Erreur UPDATE Postgres:', pgError);
+          console.error('   Code:', pgError.code);
+          console.error('   Message:', pgError.message);
+          console.error('   Details:', pgError.details);
         } else {
           console.log('✅ Table drivers mise à jour dans Postgres (UPDATE)');
         }
       } else {
         // Le conducteur n'existe pas, faire un INSERT
         console.log('⚠️ Conducteur absent de Postgres, INSERT...');
+        
+        // 🔥 FIX: Construire l'objet INSERT avec les champs de base
+        const pgInsertData: any = {
+          user_id: driverId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Ajouter les champs depuis updatedDriver (pas updates!)
+        if (updatedDriver.status) pgInsertData.status = updatedDriver.status;
+        if (updatedDriver.full_name) pgInsertData.full_name = updatedDriver.full_name;
+        if (updatedDriver.email) pgInsertData.email = updatedDriver.email;
+        if (updatedDriver.phone) pgInsertData.phone = updatedDriver.phone;
+        if (updatedDriver.is_available !== undefined) pgInsertData.is_available = updatedDriver.is_available;
+        
+        console.log('📝 Données à INSERT dans Postgres:', JSON.stringify(pgInsertData, null, 2));
+        
         const { error: insertError } = await supabase
           .from('drivers')
-          .insert({
-            user_id: driverId,
-            ...updates,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
+          .insert(pgInsertData);
         
         if (insertError) {
           console.error('❌ Erreur INSERT Postgres:', insertError);
+          console.error('   Code:', insertError.code);
+          console.error('   Message:', insertError.message);
+          console.error('   Details:', insertError.details);
         } else {
           console.log('✅ Conducteur créé dans Postgres (INSERT)');
         }
