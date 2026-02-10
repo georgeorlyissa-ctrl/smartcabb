@@ -3,6 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv-wrapper.tsx";
+import { isValidUUID } from "./uuid-validator.tsx";
 import smsRoutes from "./sms-routes.tsx";
 import backupRoutes from "./backup-routes.tsx";
 import exportRoutes from "./export-routes.tsx";
@@ -20,11 +21,11 @@ import emailRoutes from "./email-routes.tsx";
 import emergencyRoutes from "./emergency-routes.tsx";
 import { testRoutes } from "./test-routes.tsx";
 import diagnosticRoute from "./diagnostic-driver-route.tsx";
-import geocodingApp from "./geocoding-api.ts";
-import analyticsApp from "./analytics-api.ts";
-import nominatimApp from "./nominatim-enriched-api.ts";
-import fcmRoutes from "./fcm-routes.ts";
-import googleMapsApp from "./google-maps-api.ts";
+import geocodingApp from "./geocoding-api.tsx";
+import analyticsApp from "./analytics-api.tsx";
+import nominatimApp from "./nominatim-enriched-api.tsx";
+import fcmRoutes from "./fcm-routes.tsx";
+import googleMapsApp from "./google-maps-api.tsx";
 import configRoutes from "./config-routes.tsx";
 import resetDatabaseRoutes from "./reset-database-routes.tsx";
 import { securityMiddleware } from "./security-middleware.tsx";
@@ -239,6 +240,12 @@ app.post("/make-server-2eb02e52/clean-orphan-profile", async (c) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+    
+    // ✅ Validation UUID
+    if (!isValidUUID(userId)) {
+      console.log('❌ ID invalide (pas un UUID):', userId);
+      return c.json({ success: false, error: 'ID invalide' }, 400);
+    }
     
     // Vérifier si l'utilisateur existe dans auth.users
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userId);
@@ -1335,7 +1342,7 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       // Vérifier si l'utilisateur auth correspondant existe
       const existingDriver = existingDrivers?.find((driver: any) => driver.phone === phone);
       
-      if (existingDriver) {
+      if (existingDriver && isValidUUID(existingDriver.id)) {
         const { data: authUser, error: authCheckError } = await supabase.auth.admin.getUserById(existingDriver.id);
         
         if (authCheckError || !authUser) {
@@ -1470,6 +1477,15 @@ app.post("/make-server-2eb02e52/signup-driver", async (c) => {
       if (existingDriver) {
         console.log('⚠️ Conducteur trouvé dans KV avec ce téléphone:', existingDriver.id);
         console.log('📅 Créé le:', existingDriver.created_at);
+        
+        // ✅ Validation UUID avant appel
+        if (!isValidUUID(existingDriver.id)) {
+          console.log('🧹 ID invalide, suppression du conducteur orphelin...');
+          await kv.del(`driver:${existingDriver.id}`);
+          console.log('✅ Profil KV orphelin supprimé');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return;
+        }
         
         // Essayer de récupérer son profil auth
         const { data: existingAuthUser, error: getUserError } = await supabase.auth.admin.getUserById(existingDriver.id);
@@ -1631,6 +1647,15 @@ app.post("/make-server-2eb02e52/clean-orphan-profile", async (c) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // ✅ Validation UUID
+    if (!isValidUUID(userId)) {
+      console.log('❌ ID invalide (pas un UUID):', userId);
+      return c.json({ 
+        success: false, 
+        error: 'ID invalide - doit être un UUID' 
+      }, 400);
+    }
 
     // Vérifier si l'utilisateur existe dans auth.users
     const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userId);
