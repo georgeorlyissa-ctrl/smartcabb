@@ -2774,6 +2774,9 @@ app.get("/make-server-2eb02e52/drivers/:driverId", async (c) => {
 /**
  * ✅ FIX #3: Récupère la localisation GPS en temps réel d'un conducteur
  */
+/**
+ * ✅ FIX #3: Récupère la localisation GPS en temps réel d'un conducteur
+ */
 app.get("/make-server-2eb02e52/drivers/:driverId/location", async (c) => {
   try {
     const driverId = c.req.param('driverId');
