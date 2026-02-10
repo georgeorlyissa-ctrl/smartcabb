@@ -1,5 +1,6 @@
 import { Hono } from "npm:hono";
 import * as kv from "./kv-wrapper.tsx";
+import { isValidUUID } from "./uuid-validator.tsx";
 
 const app = new Hono();
 
@@ -333,10 +334,7 @@ app.get("/:id", async (c) => {
     console.log("⚠️ Passager non trouvé dans KV, tentative Supabase Auth...");
 
     // 🔧 FIX: Vérifier si l'ID est un UUID valide avant d'appeler getUserById
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isValidUUID = uuidRegex.test(passengerId);
-
-    if (!isValidUUID) {
+    if (!isValidUUID(passengerId)) {
       console.error("❌ ID invalide: pas un UUID, pas un téléphone et pas trouvé dans KV store");
       return c.json({ 
         success: false, 
