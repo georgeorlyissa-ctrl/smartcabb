@@ -1406,18 +1406,50 @@ driverRoutes.post('/update/:driverId', async (c) => {
     // ✅ SYNCHRONISATION POSTGRES : Mettre à jour la table drivers
     try {
       console.log('🔄 Synchronisation dans table Postgres drivers...');
-      const { error: pgError } = await supabase
-        .from('drivers')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', driverId);
       
-      if (pgError) {
-        console.error('❌ Erreur synchro Postgres:', pgError);
+      // ✅ FIX CRITIQUE : Utiliser user_id au lieu de id pour la table drivers
+      // La table drivers utilise user_id comme référence à l'utilisateur Auth
+      const { data: existingDriver, error: checkError } = await supabase
+        .from('drivers')
+        .select('id, user_id')
+        .eq('user_id', driverId)
+        .maybeSingle();
+      
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 = not found
+        console.error('❌ Erreur vérification Postgres:', checkError);
+      } else if (existingDriver) {
+        // Le conducteur existe, faire un UPDATE
+        console.log('✅ Conducteur trouvé dans Postgres, UPDATE...');
+        const { error: pgError } = await supabase
+          .from('drivers')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', driverId); // ✅ FIX: Utiliser user_id au lieu de id
+        
+        if (pgError) {
+          console.error('❌ Erreur UPDATE Postgres:', pgError);
+        } else {
+          console.log('✅ Table drivers mise à jour dans Postgres (UPDATE)');
+        }
       } else {
-        console.log('✅ Table drivers synchronisée dans Postgres');
+        // Le conducteur n'existe pas, faire un INSERT
+        console.log('⚠️ Conducteur absent de Postgres, INSERT...');
+        const { error: insertError } = await supabase
+          .from('drivers')
+          .insert({
+            user_id: driverId,
+            ...updates,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (insertError) {
+          console.error('❌ Erreur INSERT Postgres:', insertError);
+        } else {
+          console.log('✅ Conducteur créé dans Postgres (INSERT)');
+        }
       }
     } catch (pgSyncError) {
       console.error('❌ Exception synchro Postgres:', pgSyncError);
