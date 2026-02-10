@@ -1,7 +1,7 @@
 import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
-import { isValidUUID } from './uuid-validator.ts';
+import { isValidUUID } from './uuid-validator.tsx';
 
 const driverRoutes = new Hono();
 
@@ -1225,12 +1225,42 @@ driverRoutes.get('/:driverId', async (c) => {
       }, 400);
     }
 
-    // Récupérer les données du conducteur depuis le KV store
+    // 🔥 FIX CRITIQUE : Récupérer depuis PLUSIEURS sources pour trouver le statut approuvé
     const driverKey = `driver:${driverId}`;
+    const profileKey = `profile:${driverId}`;
+    
+    console.log('🔍 Recherche dans driver:', driverKey);
     let driverData = await kv.get(driverKey);
+    
+    // 🔥 FALLBACK 1 : Chercher aussi dans profile: si pas trouvé dans driver:
+    if (!driverData) {
+      console.log('⚠️ Pas trouvé dans driver:, tentative avec profile:', profileKey);
+      driverData = await kv.get(profileKey);
+      
+      if (driverData) {
+        console.log('✅ TROUVÉ dans profile: avec statut:', driverData.status);
+        // 🔥 SYNCHRONISER : Copier profile: vers driver:
+        console.log('🔄 SYNCHRONISATION: Copie de profile: vers driver:');
+        await kv.set(driverKey, driverData);
+        console.log('✅ driver: synchronisé depuis profile:');
+      }
+    } else {
+      console.log('✅ Trouvé dans driver: avec statut:', driverData.status);
+      
+      // 🔥 DOUBLE-CHECK : Vérifier si profile: a un statut différent (plus récent)
+      const profileData = await kv.get(profileKey);
+      if (profileData && profileData.status && profileData.status !== driverData.status) {
+        console.log(`⚠️ CONFLIT DÉTECTÉ! driver: status="${driverData.status}" vs profile: status="${profileData.status}"`);
+        console.log('🔄 Utilisation du statut de profile: (plus récent)');
+        driverData = profileData;
+        // Synchroniser driver: avec le bon statut
+        await kv.set(driverKey, driverData);
+        console.log('✅ driver: mis à jour avec le statut de profile:');
+      }
+    }
 
     if (!driverData) {
-      console.warn('⚠️ Conducteur introuvable dans le KV store:', driverId);
+      console.warn('⚠️ Conducteur introuvable dans driver: ET profile:', driverId);
       console.log('🔄 Tentative de récupération depuis auth.users via Supabase...');
       
       // ✅ Validation UUID
@@ -1391,15 +1421,32 @@ driverRoutes.post('/update/:driverId', async (c) => {
     await kv.set(driverKey, updatedDriver);
     console.log('✅ Conducteur mis à jour dans KV store');
     
+    // 🔥 FIX CRITIQUE : SYNCHRONISER AUSSI profile:${driverId}
+    const profileKey = `profile:${driverId}`;
+    console.log(`💾 SYNCHRONISATION CRITIQUE : Sauvegarde AUSSI dans ${profileKey}`);
+    await kv.set(profileKey, updatedDriver);
+    console.log('✅ Profil synchronisé dans KV store');
+    
     // Vérifier immédiatement que la sauvegarde a fonctionné
     const verifyDriver = await kv.get(driverKey);
+    const verifyProfile = await kv.get(profileKey);
+    
     if (verifyDriver && verifyDriver.status === updates.status) {
-      console.log('✅ VÉRIFICATION : Statut correctement sauvegardé dans KV !');
+      console.log('✅ VÉRIFICATION : Statut correctement sauvegardé dans driver: KV !');
       console.log('   Statut vérifié:', verifyDriver.status);
     } else {
-      console.error('❌ ERREUR CRITIQUE : Le statut n\'a PAS été sauvegardé correctement !');
+      console.error('❌ ERREUR CRITIQUE : Le statut n\'a PAS été sauvegardé dans driver: !');
       console.error('   Statut attendu:', updates.status);
       console.error('   Statut trouvé:', verifyDriver?.status);
+    }
+    
+    if (verifyProfile && verifyProfile.status === updates.status) {
+      console.log('✅ VÉRIFICATION : Statut correctement sauvegardé dans profile: KV !');
+      console.log('   Statut vérifié:', verifyProfile.status);
+    } else {
+      console.error('❌ ERREUR CRITIQUE : Le statut n\'a PAS été sauvegardé dans profile: !');
+      console.error('   Statut attendu:', updates.status);
+      console.error('   Statut trouvé:', verifyProfile?.status);
     }
 
     // ✅ SYNCHRONISATION CRITIQUE : Mettre à jour le statut dans Auth user_metadata
