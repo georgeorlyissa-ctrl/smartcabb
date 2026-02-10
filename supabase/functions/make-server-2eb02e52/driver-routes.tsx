@@ -509,6 +509,105 @@ app.post('/heartbeat', async (c) => {
 });
 
 // ============================================
+// 🔄 TOGGLE ONLINE STATUS - Activer/Désactiver le statut en ligne
+// ============================================
+app.post('/toggle-online-status', async (c) => {
+  try {
+    const body = await c.req.json();
+    const { driverId, isOnline, location } = body;
+
+    console.log('🔄 Toggle online status:', driverId, 'isOnline:', isOnline);
+
+    if (!driverId) {
+      return c.json({ 
+        success: false, 
+        error: 'ID conducteur manquant' 
+      }, 400);
+    }
+
+    // Récupérer le conducteur
+    const driverKey = `driver:${driverId}`;
+    let driver = await kv.get(driverKey);
+
+    if (!driver) {
+      console.log('⚠️ Driver non trouvé dans KV avec clé:', driverKey);
+      // Essayer avec profile:
+      driver = await kv.get(`profile:${driverId}`);
+      
+      if (!driver) {
+        console.error('❌ Driver non trouvé:', driverId);
+        return c.json({ 
+          success: false, 
+          error: 'Conducteur non trouvé' 
+        }, 404);
+      }
+    }
+
+    // ✅ VÉRIFIER LE SOLDE AVANT D'ACTIVER
+    if (isOnline === true) {
+      const balance = driver.wallet_balance || driver.balance || 0;
+      console.log('💰 Solde conducteur:', balance, 'CDF');
+      
+      // Minimum requis : 200 CDF pour activer
+      const minimumBalance = 200;
+      
+      if (balance < minimumBalance) {
+        console.warn('⚠️ Solde insuffisant pour activation:', balance, 'CDF (minimum:', minimumBalance, 'CDF)');
+        return c.json({ 
+          success: false, 
+          error: `Solde insuffisant. Minimum requis : ${minimumBalance} CDF`,
+          balance: balance,
+          requiredBalance: minimumBalance
+        }, 400);
+      }
+    }
+
+    // Mettre à jour le statut en ligne
+    driver.isOnline = isOnline;
+    driver.is_available = isOnline;
+    driver.lastSeen = new Date().toISOString();
+    
+    // Mettre à jour la position si fournie
+    if (location && location.lat && location.lng) {
+      driver.location = {
+        lat: location.lat,
+        lng: location.lng,
+        address: location.address || '',
+        updated_at: new Date().toISOString()
+      };
+    }
+    
+    driver.updated_at = new Date().toISOString();
+
+    // Sauvegarder dans les deux clés
+    await kv.set(driverKey, driver);
+    await kv.set(`profile:${driverId}`, driver);
+
+    console.log(`✅ Statut changé: ${isOnline ? 'EN LIGNE ✅' : 'HORS LIGNE ❌'}`);
+
+    return c.json({
+      success: true,
+      message: isOnline ? 'Vous êtes maintenant en ligne' : 'Vous êtes maintenant hors ligne',
+      isOnline: driver.isOnline,
+      driver: {
+        id: driver.id,
+        isOnline: driver.isOnline,
+        is_available: driver.is_available,
+        location: driver.location,
+        balance: driver.wallet_balance || driver.balance || 0
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur toggle online status:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ============================================
 // 🚗 RÉCUPÉRER TOUS LES CONDUCTEURS
 // ============================================
 app.get('/', async (c) => {
