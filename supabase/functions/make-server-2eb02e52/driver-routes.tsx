@@ -543,25 +543,6 @@ app.post('/toggle-online-status', async (c) => {
       }
     }
 
-    // ✅ VÉRIFIER LE SOLDE AVANT D'ACTIVER
-    if (isOnline === true) {
-      const balance = driver.wallet_balance || driver.balance || 0;
-      console.log('💰 Solde conducteur:', balance, 'CDF');
-      
-      // Minimum requis : 200 CDF pour activer
-      const minimumBalance = 200;
-      
-      if (balance < minimumBalance) {
-        console.warn('⚠️ Solde insuffisant pour activation:', balance, 'CDF (minimum:', minimumBalance, 'CDF)');
-        return c.json({ 
-          success: false, 
-          error: `Solde insuffisant. Minimum requis : ${minimumBalance} CDF`,
-          balance: balance,
-          requiredBalance: minimumBalance
-        }, 400);
-      }
-    }
-
     // Mettre à jour le statut en ligne
     driver.isOnline = isOnline;
     driver.is_available = isOnline;
@@ -593,8 +574,7 @@ app.post('/toggle-online-status', async (c) => {
         id: driver.id,
         isOnline: driver.isOnline,
         is_available: driver.is_available,
-        location: driver.location,
-        balance: driver.wallet_balance || driver.balance || 0
+        location: driver.location
       }
     });
 
