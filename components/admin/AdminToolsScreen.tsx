@@ -1,8 +1,3 @@
-import { useState } from 'react';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import { useAppState } from '../../hooks/useAppState';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import {
   ArrowLeft,
   Trash2,
@@ -11,6 +6,7 @@ import {
   CheckCircle
 } from '../../lib/admin-icons';
 import { toast } from '../../lib/toast';
+import { Link } from '../../lib/simple-router';
 
 export function AdminToolsScreen() {
   const { setCurrentScreen } = useAppState();
@@ -327,6 +323,48 @@ export function AdminToolsScreen() {
                 </div>
               </div>
             )}
+          </Card>
+        </div>
+
+        {/* NEW: System Cleanup Tool */}
+        <div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mt-6"
+        >
+          <Card className="p-6">
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-6 h-6 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl mb-2">🧹 Nettoyage Système Complet</h2>
+                <p className="text-gray-600 text-sm mb-4">
+                  Interface avancée pour nettoyer toutes les courses en attente, supprimer les conducteurs, 
+                  et voir le statut complet du système en temps réel.
+                </p>
+                
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-purple-900 mb-2">Fonctionnalités :</h4>
+                  <ul className="space-y-1 text-sm text-purple-700">
+                    <li>✓ Voir le nombre exact de courses en attente</li>
+                    <li>✓ Supprimer TOUTES les courses d'un clic</li>
+                    <li>✓ Supprimer TOUS les conducteurs (si nécessaire)</li>
+                    <li>✓ Surveiller le statut des conducteurs en ligne</li>
+                  </ul>
+                </div>
+
+                <Link to="/admin/clean-system">
+                  <Button className="bg-purple-600 hover:bg-purple-700">
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      <span>Ouvrir l'outil de nettoyage</span>
+                    </div>
+                  </Button>
+                </Link>
+              </div>
+            </div>
           </Card>
         </div>
 
