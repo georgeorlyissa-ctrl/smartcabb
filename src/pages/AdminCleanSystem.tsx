@@ -1,6 +1,7 @@
 import { useState } from 'react';
 
 const BASE_URL = 'https://zaerjqchzqmcxqblkfkg.supabase.co/functions/v1/make-server-2eb02e52';
+const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphZXJqcWNoenFtY3hxYmxrZmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxNDMyOTgsImV4cCI6MjA3NTcxOTI5OH0.qwFRKsi9Gw4VVYoEGBBCIj0-lAZOxtqlGQ0eT6cPhik';
 
 interface SystemStatus {
   success: boolean;
@@ -52,7 +53,12 @@ export default function AdminCleanSystem() {
       setLoading(true);
       setResult('⏳ Récupération du statut système...');
       
-      const response = await fetch(`${BASE_URL}/admin/system-status`);
+      const response = await fetch(`${BASE_URL}/admin/system-status`, {
+        headers: {
+          'Authorization': `Bearer ${ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data: SystemStatus = await response.json();
       
       setSystemStatus(data);
@@ -100,7 +106,11 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
       setResult('⏳ Suppression de toutes les courses...');
       
       const response = await fetch(`${BASE_URL}/admin/delete-all-rides`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
       const data: DeleteResponse = await response.json();
       
@@ -128,7 +138,11 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
       setResult('⏳ Suppression de tous les conducteurs...');
       
       const response = await fetch(`${BASE_URL}/admin/delete-all-drivers`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
       });
       const data: DeleteResponse = await response.json();
       
