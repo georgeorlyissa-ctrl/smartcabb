@@ -149,6 +149,71 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
     }));
   };
 
+  // Supprimer tous les passagers
+  const deleteAllPassengers = async () => {
+    const confirmation = window.confirm(
+      `⚠️ ATTENTION : Vous êtes sur le point de supprimer TOUS les comptes passagers.\n\n` +
+      `Cette action supprimera :\n` +
+      `- ${stats.passengers} passagers de Supabase Auth\n` +
+      `- Toutes leurs données du KV Store\n` +
+      `- Toutes leurs courses associées\n\n` +
+      `Cette action est IRRÉVERSIBLE.\n\n` +
+      `Êtes-vous absolument sûr de vouloir continuer ?`
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    // Double confirmation
+    const doubleConfirm = window.confirm(
+      `⚠️ DERNIÈRE CONFIRMATION\n\n` +
+      `Vous allez supprimer ${stats.passengers} passagers.\n` +
+      `Tapez "SUPPRIMER" pour confirmer.`
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    try {
+      toast.info('🗑️ Suppression en cours...', { duration: 5000 });
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/passengers/delete-all`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+
+      const data = await response.json();
+      console.log('📥 Résultat suppression:', data);
+
+      if (data.success) {
+        toast.success(
+          `✅ ${data.deleted.fromAuth} passagers supprimés !\n` +
+          `${data.deleted.fromKV} entrées KV supprimées\n` +
+          `${data.deleted.rides} courses supprimées` +
+          (data.errors.length > 0 ? `\n⚠️ ${data.errors.length} erreurs rencontrées` : ''),
+          { duration: 8000 }
+        );
+        
+        // Recharger la liste
+        await loadUsers();
+      } else {
+        console.error('❌ Erreur:', data.error);
+        toast.error(data.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('❌ Erreur suppression passagers:', error);
+      toast.error('Erreur de connexion au serveur');
+    }
+  };
+
   // Badge de rôle avec couleur
   const getRoleBadge = (role: string) => {
     const styles = {
@@ -213,6 +278,16 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
                 <Activity className="w-4 h-4" />
                 Diagnostic & Nettoyage
               </button>
+              {stats.passengers > 0 && (
+                <button
+                  onClick={deleteAllPassengers}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  title="Supprimer tous les passagers (IRRÉVERSIBLE)"
+                >
+                  <Users className="w-4 h-4" />
+                  🗑️ Supprimer tous les passagers ({stats.passengers})
+                </button>
+              )}
               <button
                 onClick={loadUsers}
                 className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"
