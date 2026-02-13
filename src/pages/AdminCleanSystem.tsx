@@ -43,6 +43,8 @@ interface DeleteResponse {
   message: string;
   count: number;
   totalKeysDeleted?: number;
+  deletionReport?: Record<string, number>;
+  summary?: string;
 }
 
 export default function AdminCleanSystem() {
@@ -182,6 +184,79 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
     }
   };
 
+  const cleanAllSystem = async () => {
+    if (!confirm('🚨 ATTENTION DANGER ! 🚨\n\nVoulez-vous vraiment NETTOYER TOUT LE SYSTÈME ?\n\n⚠️ CETTE ACTION VA SUPPRIMER :\n✗ Tous les conducteurs\n✗ Tous les passagers\n✗ Toutes les courses\n✗ Tous les profils\n✗ Tous les wallets\n✗ Toutes les localisations\n✗ Tous les tokens FCM\n\n⚠️ Les comptes Supabase Auth ne seront PAS supprimés.\n\n⚠️ CETTE ACTION EST IRRÉVERSIBLE !\n\nTapez "CONFIRMER" pour continuer.')) {
+      return;
+    }
+
+    const confirmation = prompt('Tapez "CONFIRMER" pour procéder au nettoyage total :');
+    if (confirmation !== 'CONFIRMER') {
+      alert('❌ Nettoyage annulé');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setResult('⏳ NETTOYAGE TOTAL EN COURS... Cela peut prendre plusieurs minutes...');
+      
+      console.log('🧹 Début nettoyage total du système...');
+      console.log('📡 URL:', `${BASE_URL}/admin/clean-all-system`);
+      
+      const response = await fetch(`${BASE_URL}/admin/clean-all-system`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${ANON_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('📡 Status:', response.status);
+      console.log('📡 Status Text:', response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur HTTP:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const data: DeleteResponse = await response.json();
+      
+      console.log('✅ Réponse:', data);
+      setResult(data.summary || JSON.stringify(data, null, 2));
+      
+      if (data.success) {
+        const report = data.deletionReport;
+        let alertMsg = `✅ NETTOYAGE TOTAL TERMINÉ !\n\n📊 RAPPORT DE SUPPRESSION:\n`;
+        if (report) {
+          alertMsg += `- Conducteurs: ${report.drivers || 0}\n`;
+          alertMsg += `- Passagers: ${report.passengers || 0}\n`;
+          alertMsg += `- Courses: ${report.rides || 0}\n`;
+          alertMsg += `- Profils: ${report.profiles || 0}\n`;
+          alertMsg += `- Wallets: ${report.wallets || 0}\n`;
+          alertMsg += `- Localisations: ${report.locations || 0}\n`;
+          alertMsg += `- Tokens FCM: ${report.fcmTokens || 0}\n`;
+          alertMsg += `- Stats: ${report.stats || 0}\n`;
+        }
+        alertMsg += `\n🔢 TOTAL: ${data.totalKeysDeleted || 0} clés supprimées`;
+        
+        alert(alertMsg);
+        
+        // Rafraîchir le statut
+        console.log('🔄 Rafraîchissement du statut...');
+        await getSystemStatus();
+      } else {
+        alert(`❌ ERREUR: ${data.message || 'Erreur inconnue'}`);
+      }
+    } catch (error: any) {
+      console.error('❌ Exception:', error);
+      const errorMsg = `❌ ERREUR: ${error.message}`;
+      setResult(errorMsg);
+      alert(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
@@ -225,6 +300,26 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
               className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               🗑️ Supprimer Tous les Conducteurs
+            </button>
+          </div>
+
+          {/* Danger Zone */}
+          <div className="bg-red-50 border-2 border-red-300 rounded-lg p-6 mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-2xl">🚨</span>
+              <h3 className="text-xl font-bold text-red-700">ZONE DANGEREUSE</h3>
+              <span className="text-2xl">🚨</span>
+            </div>
+            <p className="text-red-600 mb-4 text-sm">
+              ⚠️ Cette action supprimera TOUTES les données (conducteurs, passagers, courses, profils, wallets, localisations, tokens FCM).
+              Les comptes Supabase Auth ne seront PAS supprimés.
+            </p>
+            <button
+              onClick={cleanAllSystem}
+              disabled={loading}
+              className="bg-red-700 hover:bg-red-800 text-white px-8 py-4 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transition-all w-full"
+            >
+              🧹 NETTOYAGE TOTAL DU SYSTÈME
             </button>
           </div>
 
