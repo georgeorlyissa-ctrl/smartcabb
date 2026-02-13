@@ -169,7 +169,7 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
     const doubleConfirm = window.confirm(
       `⚠️ DERNIÈRE CONFIRMATION\n\n` +
       `Vous allez supprimer ${stats.passengers} passagers.\n` +
-      `Tapez "SUPPRIMER" pour confirmer.`
+      `Cliquez sur OK pour confirmer.`
     );
 
     if (!doubleConfirm) {
@@ -194,16 +194,35 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
       console.log('📥 Résultat suppression:', data);
 
       if (data.success) {
-        toast.success(
-          `✅ ${data.deleted.fromAuth} passagers supprimés !\n` +
-          `${data.deleted.fromKV} entrées KV supprimées\n` +
-          `${data.deleted.rides} courses supprimées` +
-          (data.errors.length > 0 ? `\n⚠️ ${data.errors.length} erreurs rencontrées` : ''),
-          { duration: 8000 }
-        );
+        // Afficher les erreurs détaillées dans la console
+        if (data.errors && data.errors.length > 0) {
+          console.error('⚠️ Erreurs détaillées:', data.errors);
+          data.errors.forEach((err: any, idx: number) => {
+            console.error(`  ${idx + 1}. ${err.name} (${err.id}): ${err.error}`);
+          });
+        }
+
+        // Afficher le résumé
+        const successMessage = 
+          `✅ Suppression terminée :\n` +
+          `• ${data.deleted.fromAuth} passagers supprimés de Supabase Auth\n` +
+          `• ${data.deleted.fromKV} entrées KV supprimées\n` +
+          `• ${data.deleted.rides} courses supprimées`;
+        
+        const errorMessage = data.errors.length > 0 
+          ? `\n\n⚠️ ${data.errors.length} erreurs (voir console pour détails)`
+          : '';
+        
+        if (data.errors.length > 0) {
+          toast.error(successMessage + errorMessage, { duration: 10000 });
+        } else {
+          toast.success(successMessage, { duration: 8000 });
+        }
         
         // Recharger la liste
-        await loadUsers();
+        setTimeout(() => {
+          loadUsers();
+        }, 1000);
       } else {
         console.error('❌ Erreur:', data.error);
         toast.error(data.error || 'Erreur lors de la suppression');
