@@ -42,6 +42,7 @@ interface DeleteResponse {
   success: boolean;
   message: string;
   count: number;
+  totalKeysDeleted?: number;
 }
 
 export default function AdminCleanSystem() {
@@ -138,6 +139,9 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
       setLoading(true);
       setResult('⏳ Suppression de tous les conducteurs...');
       
+      console.log('🗑️ Début suppression conducteurs...');
+      console.log('📡 URL:', `${BASE_URL}/admin/delete-all-drivers`);
+      
       const response = await fetch(`${BASE_URL}/admin/delete-all-drivers`, {
         method: 'DELETE',
         headers: {
@@ -145,17 +149,34 @@ ${data.status.drivers.details.length > 0 ? '\n📋 DÉTAILS DES CONDUCTEURS:\n' 
           'Content-Type': 'application/json'
         }
       });
+      
+      console.log('📡 Status:', response.status);
+      console.log('📡 Status Text:', response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur HTTP:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
       const data: DeleteResponse = await response.json();
       
+      console.log('✅ Réponse:', data);
       setResult(JSON.stringify(data, null, 2));
       
       if (data.success) {
-        alert(`✅ ${data.count} conducteur(s) supprimé(s) avec succès !`);
+        alert(`✅ ${data.count} conducteur(s) supprimé(s) avec succès !\n\n${data.totalKeysDeleted || 0} clés nettoyées au total.`);
         // Rafraîchir le statut
+        console.log('🔄 Rafraîchissement du statut...');
         await getSystemStatus();
+      } else {
+        alert(`❌ ERREUR: ${data.message || 'Erreur inconnue'}`);
       }
     } catch (error: any) {
-      setResult(`❌ ERREUR: ${error.message}`);
+      console.error('❌ Exception:', error);
+      const errorMsg = `❌ ERREUR: ${error.message}`;
+      setResult(errorMsg);
+      alert(errorMsg);
     } finally {
       setLoading(false);
     }
