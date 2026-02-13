@@ -47,6 +47,7 @@ console.log('');
 
 // 🌐 Landing Page (Site Vitrine) - Import direct pour fiabilité
 import { LandingPage } from './pages/LandingPage';
+import AdminCleanSystem from './src/pages/AdminCleanSystem';
 
 // 🚀 LandingScreen (Sélection Passager/Conducteur) - Import direct
 import { LandingScreen } from './components/LandingScreen';
@@ -431,6 +432,7 @@ function App() {
                   <Route path="/admin/sync" element={<AdminAccountSync />} />
                   <Route path="/admin/signup" element={<QuickAdminSignup />} />
                   <Route path="/admin/forgot-password" element={<AdminForgotPasswordScreen />} />
+                  <Route path="/admin/clean-system" element={<AdminCleanSystem />} />
                   
                   {/* Admin Panel - Route générique APRÈS les routes spécifiques */}
                   <Route path="/admin/*" element={<AdminApp />} />
