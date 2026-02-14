@@ -272,36 +272,9 @@ export function DriverDashboard() {
     loadBalanceFromBackend();
   }, [driver?.id]);
   
-  // 🔄 Synchroniser le solde avec le backend toutes les 5 secondes
-  useEffect(() => {
-    if (!driver?.id) return;
-    
-    const syncInterval = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/balance`,
-          {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`
-            }
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.balance !== accountBalance) {
-            setAccountBalance(data.balance);
-            setBalanceRenderKey(prev => prev + 1);
-            console.log(`🔄 Solde synchronisé: ${data.balance.toLocaleString()} CDF`);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erreur sync solde:', error);
-      }
-    }, 5000); // Toutes les 5 secondes
-    
-    return () => clearInterval(syncInterval);
-  }, [driver?.id, accountBalance]);
+  // ✅ SUPPRIMÉ : La synchronisation automatique toutes les 5 secondes causait des conflits
+  // Le solde est maintenant géré uniquement par le backend comme source de vérité
+  // Les mises à jour se font explicitement via updateBalanceInBackend()
 
   // Auto-activer le post-payé si le solde est suffisant au chargement
   useEffect(() => {
@@ -906,23 +879,8 @@ export function DriverDashboard() {
         console.error('❌ Erreur récupération stats:', response.status);
       }
       
-      // Synchroniser le solde depuis localStorage
-      const savedBalance = localStorage.getItem(`driver_balance_${driver.id}`);
-      if (savedBalance) {
-        // ✅ v517.88: Validation stricte après parseFloat
-        const balance = parseFloat(savedBalance);
-        
-        if (isNaN(balance)) {
-          console.error('❌ v517.88 - Solde localStorage invalide (NaN) lors du refresh, initialisation à 0');
-          console.error('   Valeur localStorage:', savedBalance);
-          localStorage.setItem(`driver_balance_${driver.id}`, '0');
-          setAccountBalance(0);
-        } else {
-          setAccountBalance(balance);
-          setBalanceRenderKey(prev => prev + 1);
-          console.log(`💰 Solde synchronisé: ${balance.toLocaleString()} CDF`);
-        }
-      }
+      // ✅ SUPPRIMÉ : Ne plus lire le solde depuis localStorage
+      // Le solde est maintenant chargé UNIQUEMENT depuis le backend (source de vérité unique)
       
       console.log('✅ v517.83 - Données du conducteur rafraîchies depuis KV store !');
       
