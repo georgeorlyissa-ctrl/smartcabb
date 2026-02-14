@@ -42,8 +42,12 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const handleBackClick = () => {
-    // ✅ Fix: Utiliser setCurrentScreen directement au lieu de onBack
-    setCurrentScreen('dashboard');
+    // ✅ Fix: Utiliser onBack() si disponible, sinon fallback vers setCurrentScreen
+    if (onBack) {
+      onBack();
+    } else {
+      setCurrentScreen('dashboard');
+    }
   };
 
   const filteredDrivers = drivers.filter(driver => {
