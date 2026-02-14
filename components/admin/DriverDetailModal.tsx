@@ -38,25 +38,39 @@ function formatName(name: string): string {
 }
 
 interface DriverDetailModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void; // ✅ Support ancienne syntaxe
   driver: EnrichedDriver | null;
   vehicle: Vehicle | null;
-  rides: EnrichedRide[];
-  onUpdate: () => void;
+  rides?: EnrichedRide[]; // ✅ Rendre optionnel
+  onUpdate?: () => void;
+  onRefresh?: () => void; // ✅ Support ancienne syntaxe
 }
 
 export function DriverDetailModal({ 
-  open, 
+  open = true, // ✅ Par défaut true si non fourni
   onOpenChange, 
+  onClose, // ✅ Support ancienne syntaxe
   driver,
   vehicle,
-  rides,
-  onUpdate 
+  rides = [], // ✅ Par défaut tableau vide
+  onUpdate,
+  onRefresh // ✅ Support ancienne syntaxe
 }: DriverDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // ✅ Fonction helper pour appeler le bon callback de rafraîchissement
+  const handleRefresh = () => {
+    if (onUpdate) {
+      onUpdate();
+    } else if (onRefresh) {
+      onRefresh();
+    }
+  };
+  
   const [formData, setFormData] = useState({
     full_name: driver?.full_name || '',
     email: driver?.email || '',
@@ -171,7 +185,7 @@ export function DriverDetailModal({
         }
         
         setIsEditing(false);
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la mise à jour');
       }
@@ -215,7 +229,7 @@ export function DriverDetailModal({
         }
         
         setIsEditingVehicle(false);
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la mise à jour du véhicule');
       }
@@ -250,7 +264,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la modification du statut');
       }
@@ -328,7 +342,7 @@ export function DriverDetailModal({
           toast.warning('Conducteur approuvé, mais pas de numéro de téléphone pour envoyer le SMS');
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de l\'approbation');
       }
@@ -370,7 +384,7 @@ export function DriverDetailModal({
           console.warn('⚠️ Pas de numéro de téléphone pour le conducteur');
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors du rejet');
       }
@@ -415,7 +429,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la suspension');
       }
@@ -456,7 +470,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la réactivation');
       }
@@ -530,8 +544,8 @@ export function DriverDetailModal({
       console.log('🗑️ Détails suppression:', data);
       
       // Fermer le modal et rafraîchir
-      onOpenChange(false);
-      onUpdate();
+      onOpenChange?.(false);
+      handleRefresh();
     } catch (error) {
       toast.error(`❌ Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       console.error('Erreur suppression:', error);
@@ -554,7 +568,15 @@ export function DriverDetailModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      // ✅ Support des deux syntaxes : onOpenChange ET onClose
+      if (onOpenChange) {
+        onOpenChange(isOpen);
+      }
+      if (onClose && !isOpen) {
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
