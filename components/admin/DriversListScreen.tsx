@@ -231,6 +231,40 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
     }
   };
 
+  const fixDriverStatuses = async () => {
+    try {
+      toast.success('🔧 Correction des statuts en cours...');
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/fix-driver-statuses`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Correction statuts réussie:', data);
+        
+        const fixedCount = data.data?.fixed || 0;
+        toast.success(`✅ ${fixedCount} conducteur(s) corrigé(s) ! Tous les statuts sont maintenant "En attente".`);
+        
+        // Rafraîchir la liste
+        await refresh();
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Erreur correction statuts:', errorData);
+        toast.error(errorData.message || 'Erreur lors de la correction');
+      }
+    } catch (error) {
+      console.error('❌ Erreur correction statuts:', error);
+      toast.error('Erreur lors de la correction des statuts');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -292,6 +326,14 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 💥 SUPPRIMER TOUS
+              </Button>
+              <Button
+                onClick={fixDriverStatuses}
+                variant="outline"
+                className="text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Fixer statuts
               </Button>
             </div>
           </div>
@@ -466,7 +508,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
                             </Badge>
                           ) : (
                             <Badge className="bg-red-100 text-red-800 text-xs">
-                              ✕ Rejeté
+                              ✕ {driver.status || 'Statut inconnu'} {/* 🔍 DEBUG : Afficher le vrai statut */}
                             </Badge>
                           )}
                           {driver.is_available && (
