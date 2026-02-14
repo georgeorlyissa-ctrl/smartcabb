@@ -376,6 +376,7 @@ export function useSupabaseData() {
     console.log('🔄 Manual refresh requested - Forcing data reload');
     // Réinitialiser le flag de protection pour forcer le rechargement
     isLoadingRef.current = false;
+    hasLoadedRef.current = false; // ✅ Réinitialiser aussi ce flag pour forcer le rechargement
     setLoading(true);
     loadAllData();
   }, [loadAllData]);
