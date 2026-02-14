@@ -156,6 +156,50 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
     }
   };
 
+  const deleteAllDrivers = async () => {
+    // PREMIÈRE CONFIRMATION
+    if (!confirm('💥 ATTENTION : Voulez-vous vraiment supprimer TOUS LES CONDUCTEURS sans exception ?\n\n⚠️ Cette action supprimera :\n- Tous les conducteurs (même ceux avec des données valides)\n- Tous leurs véhicules\n- Tous leurs profils\n- Tous leurs comptes utilisateurs\n\n❌ CETTE ACTION EST IRRÉVERSIBLE !\n\nCliquez OK pour continuer ou Annuler pour arrêter.')) {
+      return;
+    }
+
+    // DEUXIÈME CONFIRMATION
+    if (!confirm('🔴 DERNIÈRE CHANCE !\n\nÊtes-vous ABSOLUMENT SÛR de vouloir supprimer TOUS les conducteurs ?\n\nTapez "OUI" dans votre tête et cliquez OK uniquement si vous êtes certain.')) {
+      return;
+    }
+
+    try {
+      toast.success('💥 Suppression en cours... Cela peut prendre quelques secondes...');
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/delete-all-drivers`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Suppression nucléaire réussie:', data);
+        
+        const deletedCount = data.data?.drivers || 0;
+        toast.success(`💥 ${deletedCount} conducteur(s) supprimé(s) avec succès ! Base de données nettoyée.`);
+        
+        // Rafraîchir la liste
+        await refresh();
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Erreur suppression:', errorData);
+        toast.error(errorData.message || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('❌ Erreur suppression:', error);
+      toast.error('Erreur lors de la suppression de tous les conducteurs');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -205,10 +249,18 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               <Button
                 onClick={cleanInvalidDrivers}
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50"
+                className="text-orange-600 border-orange-200 hover:bg-orange-50"
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 Nettoyer invalides
+              </Button>
+              <Button
+                onClick={deleteAllDrivers}
+                variant="outline"
+                className="text-red-600 border-red-200 hover:bg-red-50 font-bold"
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                💥 SUPPRIMER TOUS
               </Button>
             </div>
           </div>
