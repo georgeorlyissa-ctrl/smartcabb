@@ -73,9 +73,10 @@ export function DatabaseResetPanel() {
 
   // Exécuter une réinitialisation
   const executeReset = async (endpoint: string, actionName: string) => {
+    setLoading(true);
+    const toastId = toast.loading(`${actionName} en cours...`);
+    
     try {
-      setLoading(true);
-      toast.loading(`${actionName} en cours...`);
 
       const response = await fetch(`${API_BASE}/reset/${endpoint}`, {
         method: 'POST',
@@ -93,6 +94,7 @@ export function DatabaseResetPanel() {
 
       if (result.success) {
         toast.success(`✅ ${actionName} réussie !`, {
+          id: toastId,
           description: `${result.summary.totalDeleted} lignes supprimées dans ${result.summary.tablesCleared} tables`
         });
         
@@ -100,6 +102,7 @@ export function DatabaseResetPanel() {
         await loadStats();
       } else {
         toast.error(`⚠️ ${actionName} partielle`, {
+          id: toastId,
           description: `${result.errors.length} erreurs détectées`
         });
       }
@@ -108,7 +111,7 @@ export function DatabaseResetPanel() {
       setConfirmAction(null);
     } catch (error) {
       console.error('❌ Erreur:', error);
-      toast.error('Échec de la réinitialisation');
+      toast.error('Échec de la réinitialisation', { id: toastId });
     } finally {
       setLoading(false);
     }
