@@ -72,411 +72,6 @@ cleanupRoutes.get('/debug-drivers', async (c) => {
 });
 
 /**
- * 🧹 Nettoyer TOUTES les données de simulation
- * Garde uniquement les comptes admins
- * 
- * DELETE /cleanup/all
- */
-cleanupRoutes.delete('/all', async (c) => {
-  try {
-    console.log('🧹 Début du nettoyage complet des données...');
-    
-    const deletedData = {
-      rides: 0,
-      passengers: 0,
-      drivers: 0,
-      vehicles: 0,
-      promoCodes: 0,
-      campaigns: 0,
-      walletTransactions: 0,
-      notifications: 0,
-      messages: 0,
-      sms: 0,
-      contacts: 0,
-      backups: 0,
-      profiles: 0,
-      authUsers: 0
-    };
-
-    // 1. Récupérer tous les profils pour identifier les admins
-    console.log('🔍 Identification des comptes admins...');
-    const profilesKeys = await kv.getByPrefix('profile:');
-    const adminIds = new Set<string>();
-    const nonAdminIds = new Set<string>();
-    
-    for (const profile of profilesKeys) {
-      if (profile && profile.id) {
-        if (profile.role === 'admin') {
-          adminIds.add(profile.id);
-          console.log(`✅ Admin conservé: ${profile.full_name || profile.email || profile.id}`);
-        } else {
-          nonAdminIds.add(profile.id);
-        }
-      }
-    }
-
-    // 2. Supprimer toutes les courses
-    console.log('🗑️ Suppression des courses...');
-    const ridesKeys = await kv.getByPrefix('ride:');
-    for (const ride of ridesKeys) {
-      if (ride && ride.id) {
-        await kv.del(`ride:${ride.id}`);
-        deletedData.rides++;
-      }
-    }
-
-    // 3. Supprimer tous les passagers
-    console.log('🗑️ Suppression des passagers...');
-    const passengersKeys = await kv.getByPrefix('passenger:');
-    for (const passenger of passengersKeys) {
-      if (passenger && passenger.id) {
-        await kv.del(`passenger:${passenger.id}`);
-        deletedData.passengers++;
-      }
-    }
-
-    // 4. Supprimer tous les chauffeurs
-    console.log('🗑️ Suppression des chauffeurs...');
-    const driversKeys = await kv.getByPrefix('driver:');
-    for (const driver of driversKeys) {
-      if (driver && driver.id) {
-        await kv.del(`driver:${driver.id}`);
-        deletedData.drivers++;
-      }
-    }
-
-    // 5. Supprimer tous les véhicules
-    console.log('🗑️ Suppression des véhicules...');
-    const vehiclesKeys = await kv.getByPrefix('vehicle:');
-    for (const vehicle of vehiclesKeys) {
-      if (vehicle && vehicle.id) {
-        await kv.del(`vehicle:${vehicle.id}`);
-        deletedData.vehicles++;
-      }
-    }
-
-    // 6. Supprimer tous les codes promo
-    console.log('🗑️ Suppression des codes promo...');
-    const promoKeys = await kv.getByPrefix('promo:');
-    for (const promo of promoKeys) {
-      if (promo && promo.code) {
-        await kv.del(`promo:${promo.code}`);
-        deletedData.promoCodes++;
-      }
-    }
-
-    // 7. Supprimer toutes les campagnes
-    console.log('🗑️ Suppression des campagnes...');
-    const campaignKeys = await kv.getByPrefix('campaign:');
-    for (const campaign of campaignKeys) {
-      if (campaign && campaign.id) {
-        await kv.del(`campaign:${campaign.id}`);
-        deletedData.campaigns++;
-      }
-    }
-
-    // 8. Supprimer toutes les transactions wallet
-    console.log('🗑️ Suppression des transactions wallet...');
-    const walletKeys = await kv.getByPrefix('wallet:');
-    for (const wallet of walletKeys) {
-      if (wallet && wallet.id) {
-        await kv.del(`wallet:${wallet.id}`);
-        deletedData.walletTransactions++;
-      }
-    }
-
-    // 9. Supprimer toutes les notifications
-    console.log('🗑️ Suppression des notifications...');
-    const notificationKeys = await kv.getByPrefix('notification:');
-    for (const notif of notificationKeys) {
-      if (notif && notif.id) {
-        await kv.del(`notification:${notif.id}`);
-        deletedData.notifications++;
-      }
-    }
-
-    // 10. Supprimer tous les messages
-    console.log('🗑️ Suppression des messages...');
-    const messageKeys = await kv.getByPrefix('message:');
-    for (const message of messageKeys) {
-      if (message && message.id) {
-        await kv.del(`message:${message.id}`);
-        deletedData.messages++;
-      }
-    }
-
-    // 11. Supprimer tous les SMS
-    console.log('🗑️ Suppression des SMS...');
-    const smsKeys = await kv.getByPrefix('sms:');
-    for (const sms of smsKeys) {
-      if (sms && sms.id) {
-        await kv.del(`sms:${sms.id}`);
-        deletedData.sms++;
-      }
-    }
-
-    // 12. Supprimer tous les contacts
-    console.log('🗑️ Suppression des contacts...');
-    const contactKeys = await kv.getByPrefix('contact:');
-    for (const contact of contactKeys) {
-      if (contact && contact.id) {
-        await kv.del(`contact:${contact.id}`);
-        deletedData.contacts++;
-      }
-    }
-
-    // 13. Supprimer tous les backups
-    console.log('🗑️ Suppression des backups...');
-    const backupKeys = await kv.getByPrefix('backup:');
-    for (const backup of backupKeys) {
-      if (backup && backup.id) {
-        await kv.del(`backup:${backup.id}`);
-        deletedData.backups++;
-      }
-    }
-
-    // 14. Supprimer les profils non-admin du KV
-    console.log('🗑️ Suppression des profils non-admin du KV...');
-    for (const userId of nonAdminIds) {
-      await kv.del(`profile:${userId}`);
-      deletedData.profiles++;
-    }
-
-    // 15. Supprimer les profils de la table Supabase (sauf admins)
-    console.log('🗑️ Suppression des profils de la table Supabase...');
-    const adminIdsArray = Array.from(adminIds);
-    if (adminIdsArray.length > 0) {
-      const { error: profilesError } = await supabase
-        .from('profiles')
-        .delete()
-        .not('id', 'in', `(${adminIdsArray.map(id => `'${id}'`).join(',')})`);
-      
-      if (profilesError) {
-        console.error('⚠️ Erreur suppression profiles Supabase:', profilesError);
-      }
-    }
-
-    // 16. Supprimer les utilisateurs de Supabase Auth (sauf admins)
-    console.log('🗑️ Suppression des utilisateurs Supabase Auth...');
-    for (const userId of nonAdminIds) {
-      try {
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(userId);
-        if (!deleteError) {
-          deletedData.authUsers++;
-        }
-      } catch (authError) {
-        console.log(`⚠️ Impossible de supprimer l'utilisateur Auth: ${userId}`);
-      }
-    }
-
-    console.log('✅ Nettoyage complet terminé');
-    console.log('📊 Résumé:', deletedData);
-
-    return c.json({
-      success: true,
-      message: 'Toutes les données ont été nettoyées avec succès',
-      data: deletedData
-    });
-
-  } catch (error: any) {
-    console.error('❌ Erreur lors du nettoyage:', error);
-    return c.json({
-      success: false,
-      message: 'Erreur lors du nettoyage des données',
-      error: error.message
-    }, 500);
-  }
-});
-
-/**
- * 🗑️ Supprimer tous les chauffeurs et leurs données
- * 
- * DELETE /cleanup/drivers
- */
-cleanupRoutes.delete('/drivers', async (c) => {
-  try {
-    console.log('🧹 Suppression de tous les chauffeurs...');
-    
-    // Supprimer tous les chauffeurs
-    const driversKeys = await kv.getByPrefix('driver:');
-    for (const driver of driversKeys) {
-      if (driver && driver.id) {
-        await kv.del(`driver:${driver.id}`);
-      }
-    }
-    
-    // Supprimer tous les véhicules
-    const vehiclesKeys = await kv.getByPrefix('vehicle:');
-    for (const vehicle of vehiclesKeys) {
-      if (vehicle && vehicle.id) {
-        await kv.del(`vehicle:${vehicle.id}`);
-      }
-    }
-    
-    const count = driversKeys.length;
-    console.log(`✅ ${count} chauffeurs supprimés`);
-
-    return c.json({
-      success: true,
-      message: `${count} chauffeurs et leurs véhicules supprimés avec succès`
-    });
-
-  } catch (error: any) {
-    console.error('❌ Erreur lors du nettoyage des chauffeurs:', error);
-    return c.json({
-      success: false,
-      message: 'Erreur lors du nettoyage des chauffeurs',
-      error: error.message
-    }, 500);
-  }
-});
-
-/**
- * 🧹 Nettoyer les conducteurs invalides
- * Supprime les conducteurs sans nom valide, sans données, ou avec des données vides
- * 
- * DELETE /cleanup/invalid-drivers
- */
-cleanupRoutes.delete('/invalid-drivers', async (c) => {
-  try {
-    console.log('🧹 Début du nettoyage des conducteurs invalides...');
-    
-    const deletedCount = {
-      drivers: 0,
-      profiles: 0,
-      vehicles: 0
-    };
-    const invalidDriverIds = [];
-
-    // 1. Récupérer tous les conducteurs
-    console.log('🔍 Récupération des conducteurs...');
-    const driversKeys = await kv.getByPrefix('driver:');
-    
-    console.log(`📊 Total conducteurs trouvés: ${driversKeys.length}`);
-
-    // 2. Identifier les conducteurs invalides
-    for (const driver of driversKeys) {
-      // Vérifier que le conducteur est valide
-      if (!driver || !driver.id) {
-        console.log('⚠️ Conducteur sans ID ignoré:', driver);
-        continue;
-      }
-      
-      const driverId = driver.id;
-      
-      // Fonction pour vérifier si une valeur est vide ou invalide
-      const isEmptyOrInvalid = (value: any) => {
-        if (!value) return true; // null, undefined, false, 0, ''
-        if (typeof value !== 'string') return true; // pas une string
-        const trimmed = value.trim();
-        if (trimmed === '') return true; // string vide
-        if (trimmed === 'null') return true; // string "null"
-        if (trimmed === 'undefined') return true; // string "undefined"
-        if (trimmed === 'Non renseigné') return true; // valeur par défaut
-        if (trimmed === '()') return true; // valeur vide entre parenthèses
-        if (trimmed === 'Conducteur inconnu') return true; // nom par défaut
-        if (trimmed === 'N/A') return true; // non applicable
-        return false;
-      };
-      
-      // CRITÈRE PRINCIPAL : Le nom contient "Conducteur inconnu" = INVALIDE
-      const hasInvalidName = isEmptyOrInvalid(driver.full_name) || 
-                             isEmptyOrInvalid(driver.name) ||
-                             (driver.full_name && driver.full_name.includes('Conducteur inconnu')) ||
-                             (driver.name && driver.name.includes('Conducteur inconnu'));
-      
-      // Critères secondaires
-      const hasInvalidEmail = isEmptyOrInvalid(driver.email);
-      const hasInvalidPhone = isEmptyOrInvalid(driver.phone);
-      
-      // Un conducteur est invalide SI :
-      // - Son nom est invalide OU contient "Conducteur inconnu"
-      // - OU il n'a ni email ni téléphone valides
-      const isInvalid = hasInvalidName || (hasInvalidEmail && hasInvalidPhone);
-
-      if (isInvalid) {
-        invalidDriverIds.push(driverId);
-        console.log(`❌ Conducteur invalide trouvé: ${driverId}`);
-        console.log(`   - Nom (full_name): ${JSON.stringify(driver?.full_name)}`);
-        console.log(`   - Nom (name): ${JSON.stringify(driver?.name)}`);
-        console.log(`   - Email: ${JSON.stringify(driver?.email)}`);
-        console.log(`   - Phone: ${JSON.stringify(driver?.phone)}`);
-        console.log(`   - Invalide car: name=${hasInvalidName}, email=${hasInvalidEmail}, phone=${hasInvalidPhone}`);
-      } else {
-        // Logger aussi les conducteurs VALIDES pour debug
-        console.log(`✅ Conducteur valide: ${driverId} - ${driver?.full_name || driver?.name}`);
-      }
-    }
-
-    console.log(`📊 Conducteurs invalides identifiés: ${invalidDriverIds.length}`);
-
-    // 3. Supprimer les conducteurs invalides et leurs données associées
-    for (const driverId of invalidDriverIds) {
-      // Supprimer le conducteur
-      await kv.del(`driver:${driverId}`);
-      deletedCount.drivers++;
-      
-      // Supprimer le profil associé
-      await kv.del(`profile:${driverId}`);
-      deletedCount.profiles++;
-      
-      // Supprimer de la table profiles Supabase
-      try {
-        const { error: profileDeleteError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', driverId);
-        
-        if (!profileDeleteError) {
-          console.log(`  ✅ Supprimé de table profiles Supabase`);
-        }
-      } catch (profileError) {
-        console.log(`  ⚠️ Erreur suppression profiles Supabase: ${profileError}`);
-      }
-      
-      // Supprimer les véhicules associés
-      const vehiclesKeys = await kv.getByPrefix('vehicle:');
-      for (const vehicle of vehiclesKeys) {
-        if (vehicle && vehicle.driverId === driverId) {
-          await kv.del(`vehicle:${vehicle.id}`);
-          deletedCount.vehicles++;
-          console.log(`🗑️ Véhicule supprimé: vehicle:${vehicle.id}`);
-        }
-      }
-      
-      // Supprimer l'utilisateur de Supabase Auth si possible
-      try {
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(driverId);
-        if (!deleteError) {
-          console.log(`🗑️ Utilisateur Auth supprimé: ${driverId}`);
-        }
-      } catch (authError) {
-        console.log(`⚠️ Impossible de supprimer l'utilisateur Auth: ${driverId}`);
-      }
-      
-      console.log(`✅ Conducteur supprimé: ${driverId}`);
-    }
-
-    console.log('✅ Nettoyage des conducteurs invalides terminé');
-    console.log(`📊 Résumé: ${deletedCount.drivers} conducteurs, ${deletedCount.profiles} profils, ${deletedCount.vehicles} véhicules supprimés`);
-
-    return c.json({
-      success: true,
-      message: `${deletedCount.drivers} conducteur(s) invalide(s) supprimé(s) avec succès`,
-      data: deletedCount
-    });
-
-  } catch (error: any) {
-    console.error('❌ Erreur lors du nettoyage des conducteurs invalides:', error);
-    return c.json({
-      success: false,
-      message: 'Erreur lors du nettoyage des conducteurs invalides',
-      error: error.message
-    }, 500);
-  }
-});
-
-/**
  * 💥 OPTION NUCLÉAIRE : Supprimer TOUS LES CONDUCTEURS sans exception
  * ⚠️ Cette route supprime TOUS les conducteurs, même ceux avec des données valides
  * 
@@ -487,80 +82,179 @@ cleanupRoutes.delete('/delete-all-drivers', async (c) => {
     console.log('💥💥💥 OPTION NUCLÉAIRE : Suppression de TOUS les conducteurs...');
     
     const deletedCount = {
-      drivers: 0,
-      profiles: 0,
-      vehicles: 0,
+      driversKV: 0,
+      driversPostgres: 0,
+      profilesKV: 0,
+      profilesPostgres: 0,
+      vehiclesKV: 0,
+      vehiclesPostgres: 0,
       authUsers: 0
     };
 
-    // 1. Récupérer TOUS les conducteurs
-    console.log('🔍 Récupération de tous les conducteurs...');
-    const driversKeys = await kv.getByPrefix('driver:');
+    // 🔥 ÉTAPE 1 : SUPPRIMER TOUS LES CONDUCTEURS DE POSTGRES EN PREMIER
+    console.log('🔥 ÉTAPE 1 : Suppression de TOUS les conducteurs de Postgres...');
     
-    console.log(`📊 Total conducteurs à supprimer: ${driversKeys.length}`);
-
-    // 2. Supprimer chaque conducteur et ses données associées
-    for (const driver of driversKeys) {
-      if (!driver || !driver.id) {
-        console.log('⚠️ Conducteur sans ID ignoré');
-        continue;
-      }
+    // 1A. Supprimer de la table "drivers"
+    try {
+      const { data: allDriversPostgres, error: fetchError } = await supabase
+        .from('drivers')
+        .select('id, user_id');
       
-      const driverId = driver.id;
-      console.log(`🗑️ Suppression conducteur: ${driverId} - ${driver?.full_name || 'Sans nom'}`);
-      
-      // Supprimer le conducteur du KV
-      await kv.del(`driver:${driverId}`);
-      deletedCount.drivers++;
-      
-      // Supprimer le profil du KV
-      await kv.del(`profile:${driverId}`);
-      deletedCount.profiles++;
-      
-      // Supprimer de la table profiles Supabase
-      try {
-        const { error: profileDeleteError } = await supabase
-          .from('profiles')
-          .delete()
-          .eq('id', driverId);
+      if (!fetchError && allDriversPostgres) {
+        console.log(`📊 Postgres - Table drivers : ${allDriversPostgres.length} conducteurs trouvés`);
         
-        if (!profileDeleteError) {
-          console.log(`  ✅ Profil Supabase supprimé`);
-        }
-      } catch (profileError) {
-        console.log(`  ⚠️ Erreur suppression profil Supabase:`, profileError);
-      }
-      
-      // Supprimer TOUS les véhicules associés
-      const vehiclesKeys = await kv.getByPrefix('vehicle:');
-      for (const vehicle of vehiclesKeys) {
-        if (vehicle && vehicle.driverId === driverId) {
-          await kv.del(`vehicle:${vehicle.id}`);
-          deletedCount.vehicles++;
-          console.log(`  🗑️ Véhicule supprimé: ${vehicle.id}`);
+        const { error: deleteDriversError } = await supabase
+          .from('drivers')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        
+        if (!deleteDriversError) {
+          deletedCount.driversPostgres = allDriversPostgres.length;
+          console.log(`✅ ${allDriversPostgres.length} conducteurs supprimés de la table drivers`);
+        } else {
+          console.error('❌ Erreur suppression table drivers:', deleteDriversError);
         }
       }
-      
-      // Supprimer l'utilisateur de Supabase Auth
-      try {
-        const { error: deleteError } = await supabase.auth.admin.deleteUser(driverId);
-        if (!deleteError) {
-          deletedCount.authUsers++;
-          console.log(`  🗑️ Utilisateur Auth supprimé`);
-        }
-      } catch (authError) {
-        console.log(`  ⚠️ Impossible de supprimer l'utilisateur Auth:`, authError);
-      }
-      
-      console.log(`✅ Conducteur ${driverId} entièrement supprimé`);
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression des drivers Postgres:', error);
     }
 
+    // 1B. Supprimer les profiles avec role='driver'
+    try {
+      const { data: driverProfiles, error: fetchProfilesError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'driver');
+      
+      if (!fetchProfilesError && driverProfiles) {
+        console.log(`📊 Postgres - Profiles (role=driver) : ${driverProfiles.length} profils trouvés`);
+        
+        const { error: deleteProfilesError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('role', 'driver');
+        
+        if (!deleteProfilesError) {
+          deletedCount.profilesPostgres = driverProfiles.length;
+          console.log(`✅ ${driverProfiles.length} profils conducteurs supprimés de la table profiles`);
+        } else {
+          console.error('❌ Erreur suppression profils conducteurs:', deleteProfilesError);
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression des profils conducteurs Postgres:', error);
+    }
+
+    // 1C. Supprimer TOUS les véhicules de Postgres
+    try {
+      const { data: allVehicles, error: fetchVehiclesError } = await supabase
+        .from('vehicles')
+        .select('id');
+      
+      if (!fetchVehiclesError && allVehicles) {
+        console.log(`📊 Postgres - Table vehicles : ${allVehicles.length} véhicules trouvés`);
+        
+        const { error: deleteVehiclesError } = await supabase
+          .from('vehicles')
+          .delete()
+          .neq('id', '00000000-0000-0000-0000-000000000000');
+        
+        if (!deleteVehiclesError) {
+          deletedCount.vehiclesPostgres = allVehicles.length;
+          console.log(`✅ ${allVehicles.length} véhicules supprimés de la table vehicles`);
+        } else {
+          console.error('❌ Erreur suppression véhicules:', deleteVehiclesError);
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression des véhicules Postgres:', error);
+    }
+
+    // 🧹 ÉTAPE 2 : SUPPRIMER TOUS LES CONDUCTEURS DU KV STORE
+    console.log('🧹 ÉTAPE 2 : Suppression de tous les conducteurs du KV store...');
+    const driversKeys = await kv.getByPrefix('driver:');
+    console.log(`📊 KV Store - Total conducteurs : ${driversKeys.length}`);
+    
+    // 🔥 SOLUTION RADICALE : Supprimer DIRECTEMENT dans la table kv_store_2eb02e52
+    // Car les objets corrompus n'ont pas d'ID, on ne peut pas les supprimer un par un
+    console.log('💣 Suppression DIRECTE dans la table kv_store_2eb02e52...');
+    
+    try {
+      // Supprimer TOUTES les clés commençant par "driver:"
+      const { data: deletedDrivers, error: errorDrivers } = await supabase
+        .from('kv_store_2eb02e52')
+        .delete()
+        .like('key', 'driver:%')
+        .select();
+      
+      if (!errorDrivers) {
+        const driversDeleted = deletedDrivers?.length || 0;
+        deletedCount.driversKV = driversDeleted;
+        console.log(`✅ ${driversDeleted} clés "driver:*" supprimées directement de la table KV`);
+      } else {
+        console.error('❌ Erreur suppression drivers du KV:', errorDrivers);
+      }
+      
+      // Supprimer TOUTES les clés commençant par "profile:"
+      const { data: deletedProfiles, error: errorProfiles } = await supabase
+        .from('kv_store_2eb02e52')
+        .delete()
+        .like('key', 'profile:%')
+        .select();
+      
+      if (!errorProfiles) {
+        const profilesDeleted = deletedProfiles?.length || 0;
+        deletedCount.profilesKV = profilesDeleted;
+        console.log(`✅ ${profilesDeleted} clés "profile:*" supprimées directement de la table KV`);
+      } else {
+        console.error('❌ Erreur suppression profiles du KV:', errorProfiles);
+      }
+      
+      // Supprimer TOUTES les clés commençant par "vehicle:"
+      const { data: deletedVehicles, error: errorVehicles } = await supabase
+        .from('kv_store_2eb02e52')
+        .delete()
+        .like('key', 'vehicle:%')
+        .select();
+      
+      if (!errorVehicles) {
+        const vehiclesDeleted = deletedVehicles?.length || 0;
+        deletedCount.vehiclesKV = vehiclesDeleted;
+        console.log(`✅ ${vehiclesDeleted} clés "vehicle:*" supprimées directement de la table KV`);
+      } else {
+        console.error('❌ Erreur suppression vehicles du KV:', errorVehicles);
+      }
+      
+      // Supprimer les utilisateurs Auth (si on a récupéré des IDs)
+      console.log('🗑️ Tentative de suppression des utilisateurs Auth...');
+      for (const driver of driversKeys) {
+        if (driver?.id) {
+          try {
+            const { error: deleteError } = await supabase.auth.admin.deleteUser(driver.id);
+            if (!deleteError) {
+              deletedCount.authUsers++;
+              console.log(`  ✅ Utilisateur Auth supprimé: ${driver.id}`);
+            }
+          } catch (authError) {
+            console.log(`  ⚠️ Impossible de supprimer l'utilisateur Auth: ${driver.id}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Erreur lors de la suppression directe dans la table KV:', error);
+    }
+
+    const totalDeleted = deletedCount.driversKV + deletedCount.driversPostgres;
     console.log('💥 SUPPRESSION NUCLÉAIRE TERMINÉE');
-    console.log(`📊 Résumé: ${deletedCount.drivers} conducteurs, ${deletedCount.profiles} profils, ${deletedCount.vehicles} véhicules, ${deletedCount.authUsers} utilisateurs Auth supprimés`);
+    console.log(`📊 Résumé:`);
+    console.log(`   - KV Store: ${deletedCount.driversKV} conducteurs, ${deletedCount.profilesKV} profils, ${deletedCount.vehiclesKV} véhicules`);
+    console.log(`   - Postgres: ${deletedCount.driversPostgres} conducteurs, ${deletedCount.profilesPostgres} profils, ${deletedCount.vehiclesPostgres} véhicules`);
+    console.log(`   - Auth: ${deletedCount.authUsers} utilisateurs`);
+    console.log(`   - TOTAL: ${totalDeleted} conducteurs supprimés`);
 
     return c.json({
       success: true,
-      message: `TOUS les conducteurs ont été supprimés (${deletedCount.drivers} conducteurs)`,
+      message: `TOUS les conducteurs ont été supprimés (${totalDeleted} au total)`,
       data: deletedCount
     });
 
