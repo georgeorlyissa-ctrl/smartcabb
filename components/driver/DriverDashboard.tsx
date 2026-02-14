@@ -156,8 +156,8 @@ export function DriverDashboard() {
   const vehicleInfo = useMemo(() => {
     if (!driver) return null;
     
-    // Si l'objet vehicle existe déjà, l'utiliser
-    if (driver.vehicle) {
+    // Si l'objet vehicle existe ET n'est pas vide, l'utiliser
+    if (driver.vehicle && (driver.vehicle.make || driver.vehicle.category || driver.vehicle.license_plate)) {
       return {
         make: driver.vehicle.make || driver.vehicle_make || '',
         model: driver.vehicle.model || driver.vehicle_model || '',
@@ -198,13 +198,13 @@ export function DriverDashboard() {
     }
   }, [driver, vehicleInfo]);
   
-  // ✅ FIX: Rafraîchir le profil du conducteur au montage pour récupérer les infos véhicule
+  // ✅ FIX: Rafraîchir le profil du conducteur pour récupérer les infos véhicule normalisées
   useEffect(() => {
     const refreshDriverProfile = async () => {
       if (!driver?.id) return;
       
       try {
-        console.log('🔄 Rafraîchissement du profil conducteur...');
+        console.log('🔄 Rafraîchissement du profil conducteur depuis le backend...');
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}`,
           {
@@ -219,19 +219,20 @@ export function DriverDashboard() {
           if (data.success && data.driver) {
             const driverData = data.driver;
             
-            // Mettre à jour le driver avec les infos complètes
+            // Mettre à jour le driver avec les infos complètes normalisées du backend
             const updatedDriver = {
               ...driver,
-              vehicle_make: driverData.vehicle?.make || driverData.vehicle_make || driver.vehicle_make || '',
-              vehicle_model: driverData.vehicle?.model || driverData.vehicle_model || driver.vehicle_model || '',
-              vehicle_plate: driverData.vehicle?.license_plate || driverData.vehicle_plate || driver.vehicle_plate || '',
-              vehicle_category: driverData.vehicle?.category || driverData.vehicle_category || driver.vehicle_category || '',
-              vehicle_color: driverData.vehicle?.color || driverData.vehicle_color || driver.vehicle_color || '',
-              vehicle_year: driverData.vehicle?.year || driverData.vehicle_year || driver.vehicle_year || new Date().getFullYear()
+              vehicle_make: driverData.vehicle_make || '',
+              vehicle_model: driverData.vehicle_model || '',
+              vehicle_plate: driverData.vehicle_plate || '',
+              vehicle_category: driverData.vehicle_category || 'smart_standard',
+              vehicle_color: driverData.vehicle_color || '',
+              vehicle_year: driverData.vehicle_year || new Date().getFullYear(),
+              vehicle: driverData.vehicle || {}
             };
             
             updateDriver(updatedDriver);
-            console.log('✅ Profil conducteur rafraîchi avec infos véhicule:', {
+            console.log('✅ Profil conducteur rafraîchi avec infos véhicule normalisées:', {
               vehicle_make: updatedDriver.vehicle_make,
               vehicle_model: updatedDriver.vehicle_model,
               vehicle_plate: updatedDriver.vehicle_plate,
@@ -244,8 +245,9 @@ export function DriverDashboard() {
       }
     };
     
+    // Déclencher immédiatement si driver.id change
     refreshDriverProfile();
-  }, []); // Une seule fois au montage
+  }, [driver?.id]); // Se déclenche quand l'ID change (notamment au montage)
   
   // ✅ v517.81: Utiliser le taux de change du panel admin (par défaut 2850)
   const exchangeRate = state.systemSettings?.exchangeRate || 2850;
