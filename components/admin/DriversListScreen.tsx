@@ -63,8 +63,9 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
   const handleOpenDriverDetails = async (driver: EnrichedDriver) => {
     setSelectedDriver(driver);
     
-    // Charger le véhicule du conducteur
-    const vehicle = await vehicleService.getVehicleByDriverId(driver.id);
+    // ✅ FIX : Le véhicule est déjà dans driver.vehicle du KV store
+    // Pas besoin de faire un appel séparé
+    const vehicle = driver.vehicle || null;
     setSelectedVehicle(vehicle);
     
     setShowDetailModal(true);
