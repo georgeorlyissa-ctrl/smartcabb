@@ -255,7 +255,7 @@ export function DriverDashboard() {
   console.log(`💱 Taux de change actuel: 1 USD = ${exchangeRate} CDF`);
   
   // ✅ v518.52 - PERSISTANCE DU STATUT EN LIGNE
-  // Restaurer le statut depuis localStorage au démarrage
+  // Restaurer le statut depuis localStorage au d��marrage
   const [isOnline, setIsOnline] = useState(() => {
     if (driver?.id) {
       const savedStatus = localStorage.getItem(`driver_online_${driver.id}`);
@@ -1233,10 +1233,11 @@ export function DriverDashboard() {
         setPaymentOperator('');
         setRechargeAmount('');
         
-        // Dismiss le toast de loading et afficher le succès
+        // ✅ Fermer les toasts de loading et afficher le succès
+        toast.dismiss(toastId);
         toast.success(
           `✅ Recharge de ${amountToPay.toLocaleString()} CDF réussie via ${operatorNames[paymentOperator]} !`,
-          { id: toastId, duration: 5000 }
+          { duration: 5000 }
         );
         toast.info('Vous pouvez maintenant activer le mode Post-Payé et recevoir des courses.', {
           duration: 4000
