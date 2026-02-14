@@ -50,7 +50,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
     }
   };
 
-  const filteredDrivers = drivers.filter(driver => {
+  const filteredDrivers = (drivers || []).filter(driver => {
     const matchesSearch = (driver.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (driver.email || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'all' || 
@@ -141,7 +141,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
   const debugDrivers = async () => {
     try {
       console.log('🔍 ========== DIAGNOSTIC COMPLET ==========');
-      console.log('📊 Nombre de conducteurs affichés dans le frontend:', drivers.length);
+      console.log('📊 Nombre de conducteurs affichés dans le frontend:', (drivers || []).length);
       console.log('📋 Liste des conducteurs dans le state:', drivers);
       
       const response = await fetch(
@@ -162,12 +162,12 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
         
         // Comparaison détaillée
         console.log('⚖️ COMPARAISON DÉTAILLÉE:');
-        console.log('  - Frontend affiche:', drivers.length, 'conducteurs');
+        console.log('  - Frontend affiche:', (drivers || []).length, 'conducteurs');
         console.log('  - KV Store contient:', data.kv?.total || 0, 'conducteurs');
         console.log('  - Postgres drivers table:', data.postgres?.drivers?.total || 0, 'conducteurs');
         console.log('  - Postgres profiles (role=driver):', data.postgres?.profiles?.total || 0, 'profils');
         
-        if (drivers.length > (data.kv?.total || 0)) {
+        if ((drivers || []).length > (data.kv?.total || 0)) {
           console.warn('🚨 PROBLÈME DÉTECTÉ: Le frontend affiche PLUS de conducteurs que le KV store !');
           console.warn('   Les conducteurs affichés viennent probablement de Supabase Postgres.');
           console.warn('   👉 Postgres drivers:', data.postgres?.drivers?.total || 0);
@@ -175,7 +175,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
           console.warn('   👉 Il faut supprimer ces données de Postgres !');
         }
         
-        toast.success(`KV: ${data.kv?.total || 0} | Postgres drivers: ${data.postgres?.drivers?.total || 0} | Postgres profiles: ${data.postgres?.profiles?.total || 0} | Frontend: ${drivers.length} - Consultez F12`);
+        toast.success(`KV: ${data.kv?.total || 0} | Postgres drivers: ${data.postgres?.drivers?.total || 0} | Postgres profiles: ${data.postgres?.profiles?.total || 0} | Frontend: ${(drivers || []).length} - Consultez F12`);
       } else {
         const errorData = await response.json();
         console.error('❌ Erreur debug:', errorData);
@@ -365,7 +365,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Total conducteurs</p>
-                <p className="text-2xl font-bold">{drivers.length}</p>
+                <p className="text-2xl font-bold">{(drivers || []).length}</p>
               </div>
             </div>
           </Card>
@@ -378,7 +378,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               <div>
                 <p className="text-sm text-gray-600">Courses totales</p>
                 <p className="text-2xl font-bold">
-                  {drivers.reduce((total, driver) => total + (driver.total_rides || 0), 0)}
+                  {(drivers || []).reduce((total, driver) => total + (driver.total_rides || 0), 0)}
                 </p>
               </div>
             </div>
@@ -392,7 +392,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               <div>
                 <p className="text-sm text-gray-600">Conducteurs actifs</p>
                 <p className="text-2xl font-bold">
-                  {drivers.filter(d => d.is_available).length}
+                  {(drivers || []).filter(d => d.is_available).length}
                 </p>
               </div>
             </div>
@@ -406,8 +406,8 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               <div>
                 <p className="text-sm text-gray-600">Note moyenne</p>
                 <p className="text-2xl font-bold">
-                  {drivers.length > 0 
-                    ? (drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length).toFixed(1)
+                  {(drivers || []).length > 0 
+                    ? ((drivers || []).reduce((sum, d) => sum + (d.rating || 0), 0) / (drivers || []).length).toFixed(1)
                     : '0.0'
                   }
                 </p>
