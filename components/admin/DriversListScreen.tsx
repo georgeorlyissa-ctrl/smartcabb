@@ -152,21 +152,26 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 DEBUG - Conducteurs dans le KV store (backend):', data);
-        console.log('📊 Total dans KV:', data.total);
-        console.log('📋 Détails:', data.drivers);
+        console.log('🔍 DEBUG - Réponse complète du backend:', data);
+        console.log('📊 KV Store:', data.kv);
+        console.log('📊 Postgres:', data.postgres);
         
-        // Comparaison
-        console.log('⚖️ COMPARAISON:');
+        // Comparaison détaillée
+        console.log('⚖️ COMPARAISON DÉTAILLÉE:');
         console.log('  - Frontend affiche:', drivers.length, 'conducteurs');
-        console.log('  - Backend KV store contient:', data.total, 'conducteurs');
+        console.log('  - KV Store contient:', data.kv?.total || 0, 'conducteurs');
+        console.log('  - Postgres drivers table:', data.postgres?.drivers?.total || 0, 'conducteurs');
+        console.log('  - Postgres profiles (role=driver):', data.postgres?.profiles?.total || 0, 'profils');
         
-        if (drivers.length > data.total) {
-          console.warn('⚠️ PROBLÈME DÉTECTÉ: Le frontend affiche PLUS de conducteurs que le backend !');
-          console.warn('   Cela signifie que les données viennent probablement de Supabase Postgres et non du KV store.');
+        if (drivers.length > (data.kv?.total || 0)) {
+          console.warn('🚨 PROBLÈME DÉTECTÉ: Le frontend affiche PLUS de conducteurs que le KV store !');
+          console.warn('   Les conducteurs affichés viennent probablement de Supabase Postgres.');
+          console.warn('   👉 Postgres drivers:', data.postgres?.drivers?.total || 0);
+          console.warn('   👉 Postgres profiles (driver):', data.postgres?.profiles?.total || 0);
+          console.warn('   👉 Il faut supprimer ces données de Postgres !');
         }
         
-        toast.success(`Backend: ${data.total} conducteurs | Frontend: ${drivers.length} conducteurs - Consultez F12`);
+        toast.success(`KV: ${data.kv?.total || 0} | Postgres drivers: ${data.postgres?.drivers?.total || 0} | Postgres profiles: ${data.postgres?.profiles?.total || 0} | Frontend: ${drivers.length} - Consultez F12`);
       } else {
         const errorData = await response.json();
         console.error('❌ Erreur debug:', errorData);
