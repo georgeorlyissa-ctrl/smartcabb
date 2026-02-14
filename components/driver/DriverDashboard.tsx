@@ -152,6 +152,52 @@ export function DriverDashboard() {
   const { state, setCurrentScreen, updateDriver, setCurrentDriver, setCurrentView, setCurrentRide, updateRide, clearCurrentRide } = useAppState();
   const driver = state.currentDriver; // Récupérer le conducteur actuel
   
+  // ✅ FIX: Construire l'objet vehicleInfo depuis les champs individuels du driver
+  const vehicleInfo = useMemo(() => {
+    if (!driver) return null;
+    
+    // Si l'objet vehicle existe déjà, l'utiliser
+    if (driver.vehicle) {
+      return {
+        make: driver.vehicle.make || driver.vehicle_make || '',
+        model: driver.vehicle.model || driver.vehicle_model || '',
+        color: driver.vehicle.color || driver.vehicle_color || '',
+        plate: driver.vehicle.license_plate || driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle.category || driver.vehicle_category || driver.vehicle_type || 'standard',
+        year: driver.vehicle.year || driver.vehicle_year || new Date().getFullYear(),
+        seats: driver.vehicle.seats || 4
+      };
+    }
+    
+    // Sinon, construire depuis les champs individuels
+    if (driver.vehicle_category || driver.vehicle_make || driver.vehicle_plate) {
+      return {
+        make: driver.vehicle_make || '',
+        model: driver.vehicle_model || '',
+        color: driver.vehicle_color || '',
+        plate: driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle_category || driver.vehicle_type || 'standard',
+        year: driver.vehicle_year || new Date().getFullYear(),
+        seats: 4
+      };
+    }
+    
+    return null;
+  }, [driver]);
+  
+  // ✅ DEBUG: Logger les infos du véhicule
+  useEffect(() => {
+    if (driver) {
+      console.log('🚗 Informations véhicule du conducteur:');
+      console.log('   - vehicle (objet):', driver.vehicle);
+      console.log('   - vehicle_category:', driver.vehicle_category);
+      console.log('   - vehicle_make:', driver.vehicle_make);
+      console.log('   - vehicle_model:', driver.vehicle_model);
+      console.log('   - vehicle_plate:', driver.vehicle_plate);
+      console.log('   - vehicleInfo construit:', vehicleInfo);
+    }
+  }, [driver, vehicleInfo]);
+  
   // ✅ v517.81: Utiliser le taux de change du panel admin (par défaut 2850)
   const exchangeRate = state.systemSettings?.exchangeRate || 2850;
   console.log(`💱 Taux de change actuel: 1 USD = ${exchangeRate} CDF`);
@@ -913,7 +959,7 @@ export function DriverDashboard() {
 
   // Fonction helper pour obtenir le tarif horaire correct selon le type de véhicule
   const getHourlyRate = (): number => {
-    const vehicleType = driver.vehicleInfo?.type as VehicleCategory;
+    const vehicleType = vehicleInfo?.type as VehicleCategory;
     if (!vehicleType || !VEHICLE_PRICING[vehicleType]) {
       return 7; // Fallback au tarif Smart Flex jour
     }
@@ -1326,10 +1372,10 @@ export function DriverDashboard() {
           driver.phone || '+243999999999',
           driver.name,
           rideRequest.passengerName || 'Passager',
-          `${driver.vehicleInfo?.make} ${driver.vehicleInfo?.model} - ${driver.vehicleInfo?.plate}`,
+          `${vehicleInfo?.make} ${vehicleInfo?.model} - ${vehicleInfo?.plate}`,
           rideRequest.pickup?.address || rideRequest.pickupAddress || 'Point de depart',
           rideRequest.destination?.address || rideRequest.dropoffAddress || 'Destination',
-          driver.vehicleInfo?.type || 'Standard',
+          vehicleInfo?.type || 'Standard',
           '5'
         );
         console.log('✅ SMS confirmation envoyé au passager et conducteur');
@@ -1544,7 +1590,7 @@ export function DriverDashboard() {
               pickup: rideRequest?.pickup || state.currentRide.pickup,
               destination: rideRequest?.destination || state.currentRide.destination,
               distance: rideRequest?.distance || state.currentRide.distance || 0,
-              vehicleType: driver.vehicleInfo?.type || 'economic',
+              vehicleType: vehicleInfo?.type || 'economic',
               completedAt: new Date().toISOString(),
               createdAt: rideRequest?.createdAt || state.currentRide.createdAt || new Date().toISOString()
             })
@@ -2098,12 +2144,12 @@ export function DriverDashboard() {
               <Car className="w-5 h-5 text-gray-600" />
             </div>
             <div className="flex-1 min-w-0">
-              {driver?.vehicleInfo ? (
+              {vehicleInfo ? (
                 <>
                   <h3 className="font-semibold truncate">
-                    {driver.vehicleInfo.color} {driver.vehicleInfo.make} {driver.vehicleInfo.model}
+                    {vehicleInfo.color} {vehicleInfo.make} {vehicleInfo.model}
                   </h3>
-                  <p className="text-sm text-gray-600 font-mono truncate">{driver.vehicleInfo.plate}</p>
+                  <p className="text-sm text-gray-600 font-mono truncate">{vehicleInfo.plate}</p>
                 </>
               ) : (
                 <div className="min-w-0">
