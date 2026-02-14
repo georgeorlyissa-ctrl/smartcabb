@@ -5,6 +5,7 @@ import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
 import { useState, useMemo } from 'react';
+import { getVehicleDisplayName } from '../../lib/vehicle-helpers';
 
 // Icônes SVG inline
 const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>);
@@ -251,10 +252,7 @@ export function DriverSettingsScreen() {
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">{state.currentDriver?.name}</h2>
                 <p className="text-gray-600">
-                  {vehicleInfo 
-                    ? `${vehicleInfo.make} ${vehicleInfo.model}`
-                    : 'Véhicule non configuré'
-                  }
+                  {getVehicleDisplayName(vehicleInfo)}
                 </p>
                 <div className="flex items-center space-x-4 mt-2 text-sm">
                   <span className="text-green-600">● En ligne</span>
