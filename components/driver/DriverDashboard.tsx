@@ -18,6 +18,7 @@ import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, isDayTime, VehicleCategory } from '../../lib/pricing';
 import { useDriverLocation, isNearPickupLocation, calculateDistance } from '../../lib/gps-utils';
 import { reverseGeocodeWithCache } from '../../lib/geocoding';
+import { getVehicleDisplayName } from '../../lib/vehicle-helpers';
 import { toast } from '../../lib/toast';
 
 // Icônes SVG inline
@@ -2198,9 +2199,9 @@ export function DriverDashboard() {
               {vehicleInfo ? (
                 <>
                   <h3 className="font-semibold truncate">
-                    {vehicleInfo.color} {vehicleInfo.make} {vehicleInfo.model}
+                    {getVehicleDisplayName(vehicleInfo)}
                   </h3>
-                  <p className="text-sm text-gray-600 font-mono truncate">{vehicleInfo.plate}</p>
+                  <p className="text-sm text-gray-600 font-mono truncate">{vehicleInfo.plate || vehicleInfo.license_plate || 'Plaque non configurée'}</p>
                 </>
               ) : (
                 <div className="min-w-0">
