@@ -112,7 +112,7 @@ export function DriverLoginScreen() {
           is_available: driverData.is_available || false,
           photo: driverData.photo,
           // ✅ FIX CRITIQUE : Construire vehicleInfo depuis l'objet vehicle OU depuis les champs individuels
-          vehicleInfo: driverData.vehicle ? {
+          vehicleInfo: (driverData.vehicle && (driverData.vehicle.make || driverData.vehicle.category || driverData.vehicle.license_plate)) ? {
             make: driverData.vehicle.make || '',
             model: driverData.vehicle.model || '',
             color: driverData.vehicle.color || '',
@@ -121,8 +121,8 @@ export function DriverLoginScreen() {
             type: driverData.vehicle.category || '',
             year: driverData.vehicle.year || new Date().getFullYear(),
             seats: driverData.vehicle.seats || 4
-          } : (driverData.vehicle_make || driverData.vehicle_model || driverData.vehicle_plate) ? {
-            // FALLBACK : Construire depuis les champs individuels si vehicle n'existe pas
+          } : (driverData.vehicle_make || driverData.vehicle_model || driverData.vehicle_plate || driverData.vehicle_category) ? {
+            // FALLBACK : Construire depuis les champs individuels si vehicle n'existe pas ou est vide
             make: driverData.vehicle_make || '',
             model: driverData.vehicle_model || '',
             color: driverData.vehicle_color || '',
