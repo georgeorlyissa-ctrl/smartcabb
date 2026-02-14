@@ -234,21 +234,21 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
               <Button
-                onClick={handleBackClick}
                 variant="ghost"
                 size="sm"
+                onClick={handleBackClick}
+                className="p-2"
               >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Retour
+                <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Conducteurs</h1>
-                <p className="text-sm text-gray-500">{filteredDrivers.length} conducteur(s)</p>
+                <h1 className="text-2xl">Conducteurs</h1>
+                <p className="text-sm text-gray-600">{filteredDrivers.length} conducteur(s)</p>
               </div>
             </div>
             <div className="flex items-center space-x-3">
@@ -288,7 +288,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
               <Button
                 onClick={deleteAllDrivers}
                 variant="outline"
-                className="text-red-600 border-red-200 hover:bg-red-50 font-bold"
+                className="text-red-600 border-red-200 hover:bg-red-50"
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 💥 SUPPRIMER TOUS
@@ -298,99 +298,175 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Filtres et recherche */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <Card className="p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
+              <div className="relative flex-1 lg:w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <Input
-                  type="text"
                   placeholder="Rechercher par nom ou email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
+              
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => setFilterStatus('all')}
+                  variant={filterStatus === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  Tous
+                </Button>
+                <Button
+                  onClick={() => setFilterStatus('online')}
+                  variant={filterStatus === 'online' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  En ligne
+                </Button>
+                <Button
+                  onClick={() => setFilterStatus('offline')}
+                  variant={filterStatus === 'offline' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  Hors ligne
+                </Button>
+                <Button
+                  onClick={() => setFilterStatus('pending')}
+                  variant={filterStatus === 'pending' ? 'default' : 'outline'}
+                  size="sm"
+                >
+                  En attente
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setFilterStatus('all')}
-                variant={filterStatus === 'all' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Tous
-              </Button>
-              <Button
-                onClick={() => setFilterStatus('online')}
-                variant={filterStatus === 'online' ? 'default' : 'outline'}
-                size="sm"
-              >
-                En ligne
-              </Button>
-              <Button
-                onClick={() => setFilterStatus('offline')}
-                variant={filterStatus === 'offline' ? 'default' : 'outline'}
-                size="sm"
-              >
-                Hors ligne
-              </Button>
-              <Button
-                onClick={() => setFilterStatus('pending')}
-                variant={filterStatus === 'pending' ? 'default' : 'outline'}
-                size="sm"
-              >
-                En attente
-              </Button>
-            </div>
-          </div>
-        </div>
+          </Card>
+        </motion.div>
 
-        {/* Drivers List */}
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-500">Chargement des conducteurs...</p>
-          </div>
-        ) : filteredDrivers.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun conducteur trouvé</h3>
-            <p className="text-gray-500">Aucun conducteur ne correspond à vos critères de recherche.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredDrivers.map((driver) => (
+        {/* Statistiques rapides */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+        >
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <Users className="w-6 h-6 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total conducteurs</p>
+                <p className="text-2xl font-bold">{drivers.length}</p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Car className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Courses totales</p>
+                <p className="text-2xl font-bold">
+                  {drivers.reduce((total, driver) => total + (driver.total_rides || 0), 0)}
+                </p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Conducteurs actifs</p>
+                <p className="text-2xl font-bold">
+                  {drivers.filter(d => d.is_available).length}
+                </p>
+              </div>
+            </div>
+          </Card>
+          
+          <Card className="p-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <Star className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Note moyenne</p>
+                <p className="text-2xl font-bold">
+                  {drivers.length > 0 
+                    ? (drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / drivers.length).toFixed(1)
+                    : '0.0'
+                  }
+                </p>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        {/* Liste des conducteurs */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-4"
+        >
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <p className="mt-4 text-gray-500">Chargement des conducteurs...</p>
+            </div>
+          ) : filteredDrivers.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg shadow">
+              <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg mb-2">Aucun conducteur trouvé</h3>
+              <p className="text-gray-600">
+                {searchTerm ? 'Aucun conducteur ne correspond à votre recherche' : 'Aucun conducteur enregistré'}
+              </p>
+            </div>
+          ) : (
+            filteredDrivers.map((driver, index) => (
               <motion.div
                 key={driver.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ delay: index * 0.05 }}
               >
-                <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleOpenDriverDetails(driver)}>
-                  <div className="p-6">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
+                <Card className="p-6 hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-4">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Car className="w-8 h-8 text-blue-600" />
+                      </div>
+                      
                       <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900 mb-1">
-                          {driver.full_name || 'Conducteur inconnu'}
-                        </h3>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold">{driver.full_name || 'Conducteur inconnu'}</h3>
                           {driver.status === 'approved' ? (
                             <Badge className="bg-green-100 text-green-800 text-xs">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Approuvé
+                              ✓ Approuvé
                             </Badge>
                           ) : driver.status === 'pending' ? (
                             <Badge className="bg-yellow-100 text-yellow-800 text-xs">
-                              <Filter className="w-3 h-3 mr-1" />
-                              En attente
+                              ⏳ En attente
                             </Badge>
                           ) : (
                             <Badge className="bg-red-100 text-red-800 text-xs">
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Rejeté
+                              ✕ Rejeté
                             </Badge>
                           )}
                           {driver.is_available && (
@@ -399,60 +475,72 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
                             </Badge>
                           )}
                         </div>
-                      </div>
-                      {driver.rating && (
-                        <div className="flex items-center bg-yellow-50 px-2 py-1 rounded">
-                          <Star className="w-4 h-4 text-yellow-500 mr-1" />
-                          <span className="text-sm font-semibold text-yellow-700">
-                            {driver.rating.toFixed(1)}
-                          </span>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                          <div className="flex items-center space-x-2">
+                            <Mail className="w-4 h-4 text-gray-500" />
+                            <span>{driver.email || 'Non renseigné'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Phone className="w-4 h-4 text-gray-500" />
+                            <span>{driver.phone || 'Non renseigné'}</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Car className="w-4 h-4 text-gray-500" />
+                            <span>
+                              {driver.vehicle_color} {driver.vehicle_make} {driver.vehicle_model} 
+                              {driver.vehicle_plate && ` (${driver.vehicle_plate})`}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <FileText className="w-4 h-4 text-gray-500" />
+                            <span>
+                              Inscrit le {driver.created_at 
+                                ? new Date(driver.created_at).toLocaleDateString('fr-FR')
+                                : 'N/A'
+                              }
+                            </span>
+                          </div>
                         </div>
-                      )}
+                      </div>
                     </div>
 
-                    {/* Contact Info */}
-                    <div className="space-y-2 mb-4">
-                      {driver.email && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Mail className="w-4 h-4 mr-2 text-gray-400" />
-                          <span className="truncate">{driver.email}</span>
-                        </div>
-                      )}
-                      {driver.phone && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                          <span>{driver.phone}</span>
-                        </div>
-                      )}
-                      {(driver.vehicle_make || driver.vehicle_model) && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Car className="w-4 h-4 mr-2 text-gray-400" />
-                          <span>
-                            {driver.vehicle_color} {driver.vehicle_make} {driver.vehicle_model}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Stats */}
-                    <div className="flex items-center justify-between pt-4 border-t">
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">{driver.total_rides || 0}</div>
-                        <div className="text-xs text-gray-500">Courses</div>
+                    {/* Statistiques du conducteur */}
+                    <div className="text-right space-y-2">
+                      <div className="flex items-center justify-end space-x-2">
+                        <Car className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-medium">{driver.total_rides || 0} courses</span>
                       </div>
-                      <div className="text-center">
-                        <div className="text-lg font-bold text-gray-900">
+                      <div className="flex items-center justify-end space-x-2">
+                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                        <span className="text-sm font-medium">{(driver.rating || 0).toFixed(1)}</span>
+                      </div>
+                      <div className="flex items-center justify-end space-x-2">
+                        <span className="text-sm font-medium text-green-600">
                           {(driver.total_earnings || 0).toLocaleString()} CDF
-                        </div>
-                        <div className="text-xs text-gray-500">Gains</div>
+                        </span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-end">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenDriverDetails(driver)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Voir détails
+                      </Button>
                     </div>
                   </div>
                 </Card>
               </motion.div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </motion.div>
       </div>
 
       {/* Detail Modal */}
