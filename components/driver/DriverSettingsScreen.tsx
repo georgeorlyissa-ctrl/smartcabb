@@ -4,7 +4,7 @@ import { Card } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 // Icônes SVG inline
 const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>);
@@ -24,6 +24,37 @@ const User = ({ className = "w-5 h-5" }: { className?: string }) => (<svg classN
 
 export function DriverSettingsScreen() {
   const { setCurrentScreen, state, setCurrentDriver, setCurrentView } = useAppState();
+  
+  // ✅ FIX: Construire l'objet vehicleInfo depuis les champs individuels du driver
+  const vehicleInfo = useMemo(() => {
+    const driver = state.currentDriver;
+    if (!driver) return null;
+    
+    // Si l'objet vehicle existe déjà, l'utiliser
+    if (driver.vehicle) {
+      return {
+        make: driver.vehicle.make || driver.vehicle_make || '',
+        model: driver.vehicle.model || driver.vehicle_model || '',
+        color: driver.vehicle.color || driver.vehicle_color || '',
+        plate: driver.vehicle.license_plate || driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle.category || driver.vehicle_category || driver.vehicle_type || 'standard'
+      };
+    }
+    
+    // Sinon, construire depuis les champs individuels
+    if (driver.vehicle_category || driver.vehicle_make || driver.vehicle_plate) {
+      return {
+        make: driver.vehicle_make || '',
+        model: driver.vehicle_model || '',
+        color: driver.vehicle_color || '',
+        plate: driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle_category || driver.vehicle_type || 'standard'
+      };
+    }
+    
+    return null;
+  }, [state.currentDriver]);
+  
   const [settings, setSettings] = useState({
     notifications: {
       newRides: true,
@@ -220,8 +251,8 @@ export function DriverSettingsScreen() {
               <div className="flex-1">
                 <h2 className="text-lg font-semibold">{state.currentDriver?.name}</h2>
                 <p className="text-gray-600">
-                  {state.currentDriver?.vehicleInfo 
-                    ? `${state.currentDriver.vehicleInfo.make} ${state.currentDriver.vehicleInfo.model}`
+                  {vehicleInfo 
+                    ? `${vehicleInfo.make} ${vehicleInfo.model}`
                     : 'Véhicule non configuré'
                   }
                 </p>
