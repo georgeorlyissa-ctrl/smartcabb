@@ -3,6 +3,7 @@ import { Card } from './ui/card';
 import { Car, Star } from '../lib/icons';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useAppState } from '../hooks/useAppState';
+import { getVehicleDisplayName } from '../lib/vehicle-helpers';
 
 export function AvailableDriversMap() {
   const { drivers } = useAppState();
@@ -75,8 +76,8 @@ export function AvailableDriversMap() {
                       </div>
                     </div>
                     <div className="text-xs text-gray-600 space-y-1">
-                      <p>{driver.vehicleInfo.make} {driver.vehicleInfo.model}</p>
-                      <p className="text-gray-500">{driver.vehicleInfo.plate}</p>
+                      <p>{getVehicleDisplayName(driver.vehicleInfo)}</p>
+                      <p className="text-gray-500">{driver.vehicleInfo?.plate || driver.vehicleInfo?.license_plate || 'N/A'}</p>
                     </div>
                   </div>
                   {/* Flèche du tooltip */}
