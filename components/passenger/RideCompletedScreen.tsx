@@ -3,6 +3,7 @@ import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentatio
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
+import { getVehicleDisplayName } from '../../lib/vehicle-helpers';
 import { 
   CheckCircle,
   MapPin,
@@ -144,7 +145,7 @@ export function RideCompletedScreen() {
                 </div>
                 <p className="text-sm text-gray-600">
                   <Car className="w-4 h-4 inline mr-1" />
-                  {assignedDriver?.vehicleInfo.color} {assignedDriver?.vehicleInfo.make}
+                  {getVehicleDisplayName(assignedDriver?.vehicleInfo)}
                 </p>
               </div>
             </div>
