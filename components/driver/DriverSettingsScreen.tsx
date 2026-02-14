@@ -30,8 +30,8 @@ export function DriverSettingsScreen() {
     const driver = state.currentDriver;
     if (!driver) return null;
     
-    // Si l'objet vehicle existe déjà, l'utiliser
-    if (driver.vehicle) {
+    // Si l'objet vehicle existe ET n'est pas vide, l'utiliser
+    if (driver.vehicle && (driver.vehicle.make || driver.vehicle.category || driver.vehicle.license_plate)) {
       return {
         make: driver.vehicle.make || driver.vehicle_make || '',
         model: driver.vehicle.model || driver.vehicle_model || '',
