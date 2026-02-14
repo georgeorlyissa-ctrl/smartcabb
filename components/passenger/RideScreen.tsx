@@ -8,6 +8,7 @@ import { AlternativeVehicleDialog } from './AlternativeVehicleDialog';
 import { CancelRideReasonModal } from './CancelRideReasonModal';
 import { VehicleCategory } from '../../lib/pricing';
 import { toast } from '../../lib/toast';
+import { getVehicleDisplayName } from '../../lib/vehicle-helpers';
 
 // Icônes SVG inline
 const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>);
@@ -872,7 +873,9 @@ export function RideScreen() {
                 <div className="bg-white rounded-xl p-4 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground flex-shrink-0">Véhicule</span>
-                    <span className="font-medium truncate ml-2">{driverData?.vehicle?.make} {driverData?.vehicle?.model}</span>
+                    <span className="font-medium truncate ml-2">
+                      {getVehicleDisplayName(driverData?.vehicle)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground flex-shrink-0">Couleur</span>
