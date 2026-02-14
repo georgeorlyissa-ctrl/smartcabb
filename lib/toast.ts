@@ -13,6 +13,7 @@ export type ToastType = 'success' | 'error' | 'info' | 'warning' | 'loading';
 
 // 🎯 Options de toast
 export interface ToastOptions {
+  id?: number; // ID pour réutiliser/mettre à jour un toast existant
   duration?: number;
   position?: 'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right';
   closeButton?: boolean;
@@ -218,7 +219,20 @@ function showToast(
   type: ToastType = 'info',
   options: ToastOptions = {}
 ): number {
-  const id = ++toastCounter;
+  // Si un ID est fourni, réutiliser cet ID et fermer l'ancien toast
+  let id: number;
+  if (options.id !== undefined) {
+    id = options.id;
+    // Fermer l'ancien toast avec cet ID s'il existe
+    const existingToast = activeToasts.get(id);
+    if (existingToast && existingToast.parentNode) {
+      existingToast.parentNode.removeChild(existingToast);
+      activeToasts.delete(id);
+    }
+  } else {
+    id = ++toastCounter;
+  }
+  
   const position = options.position || defaultPosition;
   const duration = options.duration ?? (type === 'loading' ? Infinity : 3000);
   
