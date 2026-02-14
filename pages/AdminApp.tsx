@@ -7,8 +7,6 @@ import { UsersManagementScreen } from '../components/UsersManagementScreen';
 import { UsersDiagnosticScreen } from '../components/admin/UsersDiagnosticScreen';
 
 // Import lazy des écrans admin pour optimisation
-// Import lazy des écrans admin pour optimisation
-// Import lazy des écrans admin pour optimisation
 const AdminLoginScreen = React.lazy(() => import('../components/admin/AdminLoginScreen').then(m => ({ default: m.AdminLoginScreen })));
 const AdminRegisterScreen = React.lazy(() => import('../components/admin/AdminRegisterScreen').then(m => ({ default: m.AdminRegisterScreen })));
 const AdminDashboard = React.lazy(() => import('../components/admin/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -144,7 +142,7 @@ function AdminAppContent() {
         {screenToShow === 'admin-login' && <AdminLoginScreen />}
         {screenToShow === 'admin-register' && <AdminRegisterScreen />}
         {screenToShow === 'admin-dashboard' && <AdminDashboard />}
-        {screenToShow === 'admin-drivers' && <DriversListScreen />}
+        {screenToShow === 'admin-drivers' && <DriversListScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'admin-clients' && <ClientsListScreen />}
         {screenToShow === 'admin-financial-reports' && <FinancialReportsScreen />}
         {screenToShow === 'admin-promo-codes' && <PromoCodesScreen />}
@@ -170,7 +168,7 @@ function AdminAppContent() {
         {screenToShow === 'admin-pending-recharges' && <PendingRechargesScreenNew />}
         
         {/* Drivers list (alias) */}
-        {screenToShow === 'drivers-list' && <DriversListScreen />}
+        {screenToShow === 'drivers-list' && <DriversListScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'clients-list' && <ClientsListScreen />}
         {screenToShow === 'contact-messages' && <ContactMessagesScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'postpaid-requests' && <PostpaidRequestsScreen />}
