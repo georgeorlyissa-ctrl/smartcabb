@@ -198,6 +198,55 @@ export function DriverDashboard() {
     }
   }, [driver, vehicleInfo]);
   
+  // ✅ FIX: Rafraîchir le profil du conducteur au montage pour récupérer les infos véhicule
+  useEffect(() => {
+    const refreshDriverProfile = async () => {
+      if (!driver?.id) return;
+      
+      try {
+        console.log('🔄 Rafraîchissement du profil conducteur...');
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.driver) {
+            const driverData = data.driver;
+            
+            // Mettre à jour le driver avec les infos complètes
+            const updatedDriver = {
+              ...driver,
+              vehicle_make: driverData.vehicle?.make || driverData.vehicle_make || driver.vehicle_make || '',
+              vehicle_model: driverData.vehicle?.model || driverData.vehicle_model || driver.vehicle_model || '',
+              vehicle_plate: driverData.vehicle?.license_plate || driverData.vehicle_plate || driver.vehicle_plate || '',
+              vehicle_category: driverData.vehicle?.category || driverData.vehicle_category || driver.vehicle_category || '',
+              vehicle_color: driverData.vehicle?.color || driverData.vehicle_color || driver.vehicle_color || '',
+              vehicle_year: driverData.vehicle?.year || driverData.vehicle_year || driver.vehicle_year || new Date().getFullYear()
+            };
+            
+            updateDriver(updatedDriver);
+            console.log('✅ Profil conducteur rafraîchi avec infos véhicule:', {
+              vehicle_make: updatedDriver.vehicle_make,
+              vehicle_model: updatedDriver.vehicle_model,
+              vehicle_plate: updatedDriver.vehicle_plate,
+              vehicle_category: updatedDriver.vehicle_category
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur rafraîchissement profil:', error);
+      }
+    };
+    
+    refreshDriverProfile();
+  }, []); // Une seule fois au montage
+  
   // ✅ v517.81: Utiliser le taux de change du panel admin (par défaut 2850)
   const exchangeRate = state.systemSettings?.exchangeRate || 2850;
   console.log(`💱 Taux de change actuel: 1 USD = ${exchangeRate} CDF`);
