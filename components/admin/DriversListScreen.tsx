@@ -41,6 +41,11 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
+  const handleBackClick = () => {
+    // ✅ Fix: Utiliser setCurrentScreen directement au lieu de onBack
+    setCurrentScreen('dashboard');
+  };
+
   const filteredDrivers = drivers.filter(driver => {
     const matchesSearch = (driver.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (driver.email || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -131,6 +136,10 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
 
   const debugDrivers = async () => {
     try {
+      console.log('🔍 ========== DIAGNOSTIC COMPLET ==========');
+      console.log('📊 Nombre de conducteurs affichés dans le frontend:', drivers.length);
+      console.log('📋 Liste des conducteurs dans le state:', drivers);
+      
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/debug-drivers`,
         {
@@ -143,8 +152,21 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('🔍 DEBUG - Tous les conducteurs:', data);
-        toast.success(`${data.total} conducteurs - Consultez la console pour les détails`);
+        console.log('🔍 DEBUG - Conducteurs dans le KV store (backend):', data);
+        console.log('📊 Total dans KV:', data.total);
+        console.log('📋 Détails:', data.drivers);
+        
+        // Comparaison
+        console.log('⚖️ COMPARAISON:');
+        console.log('  - Frontend affiche:', drivers.length, 'conducteurs');
+        console.log('  - Backend KV store contient:', data.total, 'conducteurs');
+        
+        if (drivers.length > data.total) {
+          console.warn('⚠️ PROBLÈME DÉTECTÉ: Le frontend affiche PLUS de conducteurs que le backend !');
+          console.warn('   Cela signifie que les données viennent probablement de Supabase Postgres et non du KV store.');
+        }
+        
+        toast.success(`Backend: ${data.total} conducteurs | Frontend: ${drivers.length} conducteurs - Consultez F12`);
       } else {
         const errorData = await response.json();
         console.error('❌ Erreur debug:', errorData);
@@ -208,7 +230,7 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
               <Button
-                onClick={() => onBack ? onBack() : setCurrentScreen('dashboard')}
+                onClick={handleBackClick}
                 variant="ghost"
                 size="sm"
               >
