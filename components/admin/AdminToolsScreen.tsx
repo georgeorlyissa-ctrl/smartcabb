@@ -20,6 +20,8 @@ export function AdminToolsScreen() {
   const [syncing, setSyncing] = useState(false);
   const [syncUserId, setSyncUserId] = useState('');
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [normalizing, setNormalizing] = useState(false);
+  const [normalizeResult, setNormalizeResult] = useState<any>(null);
 
   const handleCleanupAuthUsers = async () => {
     if (!confirm('⚠️ ATTENTION : Cette action va supprimer TOUS les utilisateurs auth (sauf les admins). Continuer ?')) {
@@ -107,6 +109,50 @@ export function AdminToolsScreen() {
       toast.error(error instanceof Error ? error.message : 'Erreur lors de la synchronisation');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleNormalizeDrivers = async () => {
+    if (!confirm('🔧 Normaliser les données de tous les conducteurs ? Cette action corrigera le problème "Véhicule non configuré".')) {
+      return;
+    }
+
+    setNormalizing(true);
+    setNormalizeResult(null);
+    
+    try {
+      console.log('🔧 Normalisation des conducteurs...');
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/normalize-drivers`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${publicAnonKey}`
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erreur lors de la normalisation');
+      }
+
+      console.log('✅ Résultat:', data);
+      setNormalizeResult(data);
+
+      toast.success(data.message, {
+        description: `${data.data.normalized} conducteur(s) normalisé(s) sur ${data.data.total}`,
+        duration: 5000
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la normalisation:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la normalisation');
+    } finally {
+      setNormalizing(false);
     }
   };
 
@@ -370,6 +416,82 @@ export function AdminToolsScreen() {
                 </Link>
               </div>
             </div>
+          </Card>
+        </div>
+
+        {/* Normalize Drivers Tool */}
+        <div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mt-6"
+        >
+          <Card className="p-6">
+            <div className="flex items-start space-x-4">
+              <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl mb-2">🔧 Normaliser les données des conducteurs</h2>
+                <p className="text-gray-600 text-sm mb-4">
+                  Cet outil corrige les problèmes de configuration des véhicules pour tous les conducteurs. 
+                  Utile pour résoudre le problème "Véhicule non configuré".
+                </p>
+                
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-orange-900 mb-2">Cette action va :</h4>
+                  <ul className="space-y-1 text-sm text-orange-700">
+                    <li>✓ Vérifier les données de tous les conducteurs</li>
+                    <li>✓ Corriger les problèmes de configuration des véhicules</li>
+                    <li>✓ Mettre à jour les données dans Supabase</li>
+                  </ul>
+                </div>
+
+                <Button
+                  onClick={handleNormalizeDrivers}
+                  disabled={normalizing}
+                  className="bg-orange-600 hover:bg-orange-700"
+                >
+                  {normalizing ? (
+                    <div className="flex items-center gap-2">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Normalisation en cours...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="w-4 h-4" />
+                      <span>Normaliser maintenant</span>
+                    </div>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Result Display */}
+            {normalizeResult && (
+              <div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
+              >
+                <div className="flex items-start space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-green-900 mb-2">Normalisation terminée avec succès !</h4>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-600">Total</p>
+                        <p className="text-lg font-semibold text-gray-900">{normalizeResult.data.total}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-600">Normalisés</p>
+                        <p className="text-lg font-semibold text-green-600">{normalizeResult.data.normalized}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
