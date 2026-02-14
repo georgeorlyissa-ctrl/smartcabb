@@ -63,6 +63,8 @@ async function fetchDriversFromKV(): Promise<Driver[]> {
     
     if (data.success && data.drivers) {
       console.log('✅ Drivers chargés depuis KV store:', data.count);
+      console.log('🔍 DEBUG - Premier conducteur:', data.drivers[0]); // 🔍 DEBUG
+      console.log('🔍 DEBUG - Statut du premier conducteur:', data.drivers[0]?.status); // 🔍 DEBUG
       return data.drivers;
     }
     
