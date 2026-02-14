@@ -111,7 +111,10 @@ export function DriversListScreen({ onBack }: DriversListScreenProps) {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Nettoyage réussi:', data);
-        toast.success(`${data.details.drivers} conducteur(s) invalide(s) supprimé(s) avec succès !`);
+        
+        // Le serveur renvoie data.data au lieu de data.details
+        const deletedCount = data.data?.drivers || data.details?.drivers || 0;
+        toast.success(`${deletedCount} conducteur(s) invalide(s) supprimé(s) avec succès !`);
         
         // Rafraîchir la liste
         await refresh();
