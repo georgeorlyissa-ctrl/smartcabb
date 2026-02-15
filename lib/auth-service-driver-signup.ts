@@ -26,9 +26,10 @@ export async function signUpDriver(driverData: {
   vehicleColor: string;
   vehicleCategory: 'standard' | 'comfort' | 'luxury';
   licenseNumber?: string;
+  profilePhoto?: string; // 📸 Photo en Base64
 }): Promise<AuthResult> {
   try {
-    const { fullName, email, phone, password, vehicleMake, vehicleModel, vehiclePlate, vehicleColor, vehicleCategory } = driverData;
+    const { fullName, email, phone, password, vehicleMake, vehicleModel, vehiclePlate, vehicleColor, vehicleCategory, profilePhoto } = driverData;
     
     console.log('📝 Inscription conducteur via serveur:', fullName, 'téléphone:', phone);
     
@@ -69,7 +70,8 @@ export async function signUpDriver(driverData: {
           vehicleModel,
           vehiclePlate,
           vehicleColor,
-          vehicleCategory
+          vehicleCategory,
+          profilePhoto: profilePhoto || null // 📸 Photo en Base64
         })
       }
     );
