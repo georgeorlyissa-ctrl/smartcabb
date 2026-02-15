@@ -541,236 +541,386 @@ export function GoogleMapView({
       return;
     }
 
-    const directionsService = new window.google.maps.DirectionsService();
-
-    if (!directionsRendererRef.current) {
-      directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+    // 🆕 UTILISER LE PROXY BACKEND au lieu de DirectionsService direct
+    // Cela évite les erreurs UNKNOWN_ERROR si la clé API frontend est invalide
+    
+    // Fonction helper pour créer les marqueurs départ/destination
+    const createRouteMarkers = (start: Location, end: Location) => {
+      if (!mapInstanceRef.current) return;
+      
+      // Supprimer les anciens marqueurs
+      if (routeMarkersRef.current.start) {
+        routeMarkersRef.current.start.setMap(null);
+      }
+      if (routeMarkersRef.current.end) {
+        routeMarkersRef.current.end.setMap(null);
+      }
+      
+      // 🚗 Marqueur DÉPART (vert avec voiture)
+      const startIcon = {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadow-start" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
+              </filter>
+            </defs>
+            <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4" filter="url(#shadow-start)"/>
+            <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
+          </svg>
+        `),
+        scaledSize: new window.google.maps.Size(48, 48),
+        anchor: new window.google.maps.Point(24, 24)
+      };
+      
+      routeMarkersRef.current.start = new window.google.maps.Marker({
+        position: start,
         map: mapInstanceRef.current,
-        suppressMarkers: true, // 🆕 Supprimer les marqueurs par défaut pour utiliser nos propres marqueurs
-        polylineOptions: {
-          strokeColor: '#3B82F6', // ✅ BLEU VIF plus visible que vert
-          strokeWeight: 8, // ✅ AUGMENTÉ de 6 à 8 pour MEILLEURE VISIBILITÉ
-          strokeOpacity: 1.0, // ✅ OPACITÉ MAXIMALE pour visibilité parfaite
-          zIndex: 1000 // ✅ Au-dessus de tout sauf des marqueurs
-        },
-        preserveViewport: false // ✅ Permet à la carte de s'ajuster automatiquement
+        icon: startIcon,
+        title: `Départ: ${start.address || 'Point de départ'}`,
+        zIndex: 3000,
+        optimized: false
       });
-    }
-
-    directionsService.route(
-      {
-        origin: effectiveRouteStart,
-        destination: effectiveRouteEnd,
-        travelMode: window.google.maps.TravelMode.DRIVING
-      },
-      (result, status) => {
-        if (status === window.google.maps.DirectionsStatus.OK && result) {
-          directionsRendererRef.current?.setDirections(result);
-          console.log('✅ Itinéraire Google Maps affiché avec succès');
-          console.log('📊 Distance:', result.routes[0]?.legs[0]?.distance?.text);
-          console.log('📊 Durée:', result.routes[0]?.legs[0]?.duration?.text);
-
-          // ���� Créer les marqueurs personnalisés de départ et destination
-          if (mapInstanceRef.current) {
-            // Supprimer les anciens marqueurs s'ils existent
-            if (routeMarkersRef.current.start) {
-              routeMarkersRef.current.start.setMap(null);
-            }
-            if (routeMarkersRef.current.end) {
-              routeMarkersRef.current.end.setMap(null);
-            }
-
-            // 🚗 MARQUEUR DE DÉPART - Voiture verte
-            const startIcon = {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <filter id="shadow-start" x="-50%" y="-50%" width="200%" height="200%">
-                      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
-                    </filter>
-                  </defs>
-                  <!-- Cercle de fond vert avec ombre forte -->
-                  <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4" filter="url(#shadow-start)"/>
-                  <!-- Icône voiture -->
-                  <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(48, 48),
-              anchor: new window.google.maps.Point(24, 24)
-            };
-
-            routeMarkersRef.current.start = new window.google.maps.Marker({
-              position: effectiveRouteStart,
-              map: mapInstanceRef.current,
-              icon: startIcon,
-              title: `Départ: ${effectiveRouteStart.address || 'Point de départ'}`,
-              zIndex: 3000, // ✅ Encore plus haut
-              optimized: false // ✅ Force le rendu du marqueur
-            });
-
-            console.log('✅ Marqueur DÉPART créé à:', effectiveRouteStart);
-
-            // InfoWindow pour le départ
-            const startInfoWindow = new window.google.maps.InfoWindow({
-              content: `
-                <div style="padding: 8px; text-align: center;">
-                  <strong style="color: #000000;">🟢 Départ</strong><br/>
-                  <small style="color: #374151;">${effectiveRouteStart.address || 'Point de départ'}</small>
-                </div>
-              `
-            });
-
-            routeMarkersRef.current.start.addListener('click', () => {
-              startInfoWindow.open(mapInstanceRef.current!, routeMarkersRef.current.start!);
-            });
-
-            // 🔴 MARQUEUR DE DESTINATION - Cercle rouge simple avec point blanc (PLUS GRAND)
-            const endIcon = {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <filter id="shadow-end" x="-50%" y="-50%" width="200%" height="200%">
-                      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
-                    </filter>
-                  </defs>
-                  <!-- Cercle extérieur rouge avec ombre forte -->
-                  <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4" filter="url(#shadow-end)"/>
-                  <!-- Point central blanc plus grand -->
-                  <circle cx="24" cy="24" r="8" fill="white"/>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(48, 48),
-              anchor: new window.google.maps.Point(24, 24)
-            };
-
-            routeMarkersRef.current.end = new window.google.maps.Marker({
-              position: effectiveRouteEnd,
-              map: mapInstanceRef.current,
-              icon: endIcon,
-              title: `Destination: ${effectiveRouteEnd.address || "Point d'arrivée"}`,
-              zIndex: 3000, // ✅ Encore plus haut
-              optimized: false // ✅ Force le rendu du marqueur
-            });
-
-            console.log('✅ Marqueur DESTINATION créé à:', effectiveRouteEnd);
-
-            // InfoWindow pour la destination
-            const endInfoWindow = new window.google.maps.InfoWindow({
-              content: `
-                <div style="padding: 8px; text-align: center;">
-                  <strong style="color: #EF4444;">🔴 Destination</strong><br/>
-                  <small style="color: #374151;">${effectiveRouteEnd.address || "Point d'arrivée"}</small>
-                </div>
-              `
-            });
-
-            routeMarkersRef.current.end.addListener('click', () => {
-              endInfoWindow.open(mapInstanceRef.current!, routeMarkersRef.current.end!);
-            });
-
-            // ✅ AJUSTER LA VUE POUR VOIR LES DEUX MARQUEURS ET LE TRAJET
-            // ⚠️ SEULEMENT SI L'UTILISATEUR N'A PAS INTERAGI
-            if (!disableAutoCenter || !userInteracted) {
-              const bounds = new window.google.maps.LatLngBounds();
-              bounds.extend(effectiveRouteStart);
-              bounds.extend(effectiveRouteEnd);
-              mapInstanceRef.current.fitBounds(bounds);
-              
-              // Ajouter un padding pour que les marqueurs ne soient pas collés aux bords
-              setTimeout(() => {
-                if (mapInstanceRef.current) {
-                  mapInstanceRef.current.panBy(0, 0); // Force un refresh
-                }
-              }, 100);
-
-              console.log('✅ Marqueurs départ/destination créés et carte ajustée');
-            } else {
-              console.log('✅ Marqueurs créés SANS ajuster la vue (utilisateur a interagi)');
+      
+      // 🔴 Marqueur DESTINATION (rouge avec point)
+      const endIcon = {
+        url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+          <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="shadow-end" x="-50%" y="-50%" width="200%" height="200%">
+                <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
+              </filter>
+            </defs>
+            <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4" filter="url(#shadow-end)"/>
+            <circle cx="24" cy="24" r="8" fill="white"/>
+          </svg>
+        `),
+        scaledSize: new window.google.maps.Size(48, 48),
+        anchor: new window.google.maps.Point(24, 24)
+      };
+      
+      routeMarkersRef.current.end = new window.google.maps.Marker({
+        position: end,
+        map: mapInstanceRef.current,
+        icon: endIcon,
+        title: `Destination: ${end.address || "Point d'arrivée"}`,
+        zIndex: 3000,
+        optimized: false
+      });
+      
+      // Ajuster la vue
+      if (!disableAutoCenter || !userInteracted) {
+        const bounds = new window.google.maps.LatLngBounds();
+        bounds.extend(start);
+        bounds.extend(end);
+        mapInstanceRef.current.fitBounds(bounds);
+      }
+      
+      console.log('✅ Marqueurs créés');
+    };
+    
+    const fetchDirections = async () => {
+      try {
+        const origin = `${effectiveRouteStart.lat},${effectiveRouteStart.lng}`;
+        const destination = `${effectiveRouteEnd.lat},${effectiveRouteEnd.lng}`;
+        
+        console.log('🗺️ Appel backend Directions API...');
+        
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/google-maps/directions?origin=${origin}&destination=${destination}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
             }
           }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success && data.status === 'OK' && data.routes && data.routes.length > 0) {
+          console.log('✅ Itinéraire reçu du backend');
+          
+          // Créer le DirectionsRenderer si nécessaire
+          if (!directionsRendererRef.current) {
+            directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+              map: mapInstanceRef.current,
+              suppressMarkers: true,
+              polylineOptions: {
+                strokeColor: '#3B82F6',
+                strokeWeight: 8,
+                strokeOpacity: 1.0,
+                zIndex: 1000
+              },
+              preserveViewport: false
+            });
+          }
+          
+          // Convertir la réponse backend en format DirectionsResult
+          const directionsResult = {
+            routes: data.routes.map((route: any) => ({
+              ...route,
+              overview_path: window.google.maps.geometry.encoding.decodePath(route.overview_polyline.points)
+            })),
+            geocoded_waypoints: data.geocoded_waypoints || []
+          };
+          
+          directionsRendererRef.current.setDirections(directionsResult);
+          console.log('✅ Itinéraire backend affiché sur la carte');
+          console.log('📊 Distance:', data.routes[0]?.legs[0]?.distance?.text);
+          console.log('📊 Durée:', data.routes[0]?.legs[0]?.duration?.text);
+          
+          // Créer les marqueurs (code existant ci-dessous)
+          createRouteMarkers(effectiveRouteStart, effectiveRouteEnd);
+          
         } else {
-          // 🆕 GESTION ÉLÉGANTE DES ERREURS - Pas de toast polluant, fallback intelligent
-          console.warn(`⚠️ Directions API erreur (${status}), affichage ligne approximative`);
-          
-          // Logger les détails en debug (pas en erreur)
-          console.debug('📍 Départ:', effectiveRouteStart);
-          console.debug('📍 Destination:', effectiveRouteEnd);
-          
-          // 🆕 FALLBACK : Dessiner une polyligne approximative entre départ et destination
-          if (mapInstanceRef.current) {
-            const approximatePath = new window.google.maps.Polyline({
-              path: [effectiveRouteStart, effectiveRouteEnd],
-              geodesic: true,
-              strokeColor: '#3B82F6',
-              strokeOpacity: 0.6,
-              strokeWeight: 6,
-              map: mapInstanceRef.current,
-              zIndex: 1000
-            });
-            
-            // Créer les marqueurs manuellement
-            if (routeMarkersRef.current.start) {
-              routeMarkersRef.current.start.setMap(null);
+          throw new Error(data.error || 'Aucun itinéraire trouvé');
+        }
+      } catch (error) {
+        console.warn('⚠️ Erreur backend Directions, fallback Directions API frontend:', error);
+        // Fallback : utiliser Directions API frontend
+        fallbackToFrontendDirections();
+      }
+    };
+    
+    // Fonction fallback : Utiliser Directions API frontend
+    const fallbackToFrontendDirections = () => {
+      const directionsService = new window.google.maps.DirectionsService();
+      
+      if (!directionsRendererRef.current) {
+        directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+          map: mapInstanceRef.current,
+          suppressMarkers: true,
+          polylineOptions: {
+            strokeColor: '#3B82F6',
+            strokeWeight: 8,
+            strokeOpacity: 1.0,
+            zIndex: 1000
+          },
+          preserveViewport: false
+        });
+      }
+      
+      directionsService.route(
+        {
+          origin: effectiveRouteStart,
+          destination: effectiveRouteEnd,
+          travelMode: window.google.maps.TravelMode.DRIVING
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK && result) {
+            directionsRendererRef.current?.setDirections(result);
+            console.log('✅ Itinéraire Google Maps affiché avec succès');
+            console.log('📊 Distance:', result.routes[0]?.legs[0]?.distance?.text);
+            console.log('📊 Durée:', result.routes[0]?.legs[0]?.duration?.text);
+
+            // Créer les marqueurs personnalisés de départ et destination
+            if (mapInstanceRef.current) {
+              // Supprimer les anciens marqueurs s'ils existent
+              if (routeMarkersRef.current.start) {
+                routeMarkersRef.current.start.setMap(null);
+              }
+              if (routeMarkersRef.current.end) {
+                routeMarkersRef.current.end.setMap(null);
+              }
+
+              // 🚗 MARQUEUR DE DÉPART - Voiture verte
+              const startIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <filter id="shadow-start" x="-50%" y="-50%" width="200%" height="200%">
+                        <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
+                      </filter>
+                    </defs>
+                    <!-- Cercle de fond vert avec ombre forte -->
+                    <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4" filter="url(#shadow-start)"/>
+                    <!-- Icône voiture -->
+                    <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(48, 48),
+                anchor: new window.google.maps.Point(24, 24)
+              };
+
+              routeMarkersRef.current.start = new window.google.maps.Marker({
+                position: effectiveRouteStart,
+                map: mapInstanceRef.current,
+                icon: startIcon,
+                title: `Départ: ${effectiveRouteStart.address || 'Point de départ'}`,
+                zIndex: 3000, // ✅ Encore plus haut
+                optimized: false // ✅ Force le rendu du marqueur
+              });
+
+              console.log('✅ Marqueur DÉPART créé à:', effectiveRouteStart);
+
+              // InfoWindow pour le départ
+              const startInfoWindow = new window.google.maps.InfoWindow({
+                content: `
+                  <div style="padding: 8px; text-align: center;">
+                    <strong style="color: #000000;">🟢 Départ</strong><br/>
+                    <small style="color: #374151;">${effectiveRouteStart.address || 'Point de départ'}</small>
+                  </div>
+                `
+              });
+
+              routeMarkersRef.current.start.addListener('click', () => {
+                startInfoWindow.open(mapInstanceRef.current!, routeMarkersRef.current.start!);
+              });
+
+              // 🔴 MARQUEUR DE DESTINATION - Cercle rouge simple avec point blanc (PLUS GRAND)
+              const endIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <filter id="shadow-end" x="-50%" y="-50%" width="200%" height="200%">
+                        <feDropShadow dx="0" dy="3" stdDeviation="4" flood-opacity="0.5"/>
+                      </filter>
+                    </defs>
+                    <!-- Cercle extérieur rouge avec ombre forte -->
+                    <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4" filter="url(#shadow-end)"/>
+                    <!-- Point central blanc plus grand -->
+                    <circle cx="24" cy="24" r="8" fill="white"/>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(48, 48),
+                anchor: new window.google.maps.Point(24, 24)
+              };
+
+              routeMarkersRef.current.end = new window.google.maps.Marker({
+                position: effectiveRouteEnd,
+                map: mapInstanceRef.current,
+                icon: endIcon,
+                title: `Destination: ${effectiveRouteEnd.address || "Point d'arrivée"}`,
+                zIndex: 3000, // ✅ Encore plus haut
+                optimized: false // ✅ Force le rendu du marqueur
+              });
+
+              console.log('✅ Marqueur DESTINATION créé à:', effectiveRouteEnd);
+
+              // InfoWindow pour la destination
+              const endInfoWindow = new window.google.maps.InfoWindow({
+                content: `
+                  <div style="padding: 8px; text-align: center;">
+                    <strong style="color: #EF4444;">🔴 Destination</strong><br/>
+                    <small style="color: #374151;">${effectiveRouteEnd.address || "Point d'arrivée"}</small>
+                  </div>
+                `
+              });
+
+              routeMarkersRef.current.end.addListener('click', () => {
+                endInfoWindow.open(mapInstanceRef.current!, routeMarkersRef.current.end!);
+              });
+
+              // ✅ AJUSTER LA VUE POUR VOIR LES DEUX MARQUEURS ET LE TRAJET
+              // ⚠️ SEULEMENT SI L'UTILISATEUR N'A PAS INTERAGI
+              if (!disableAutoCenter || !userInteracted) {
+                const bounds = new window.google.maps.LatLngBounds();
+                bounds.extend(effectiveRouteStart);
+                bounds.extend(effectiveRouteEnd);
+                mapInstanceRef.current.fitBounds(bounds);
+                
+                // Ajouter un padding pour que les marqueurs ne soient pas collés aux bords
+                setTimeout(() => {
+                  if (mapInstanceRef.current) {
+                    mapInstanceRef.current.panBy(0, 0); // Force un refresh
+                  }
+                }, 100);
+
+                console.log('✅ Marqueurs départ/destination créés et carte ajustée');
+              } else {
+                console.log('✅ Marqueurs créés SANS ajuster la vue (utilisateur a interagi)');
+              }
             }
-            if (routeMarkersRef.current.end) {
-              routeMarkersRef.current.end.setMap(null);
+          } else {
+            // 🆕 GESTION ÉLÉGANTE DES ERREURS - Pas de toast polluant, fallback intelligent
+            console.warn(`⚠️ Directions API erreur (${status}), affichage ligne approximative`);
+            
+            // Logger les détails en debug (pas en erreur)
+            console.debug('📍 Départ:', effectiveRouteStart);
+            console.debug('📍 Destination:', effectiveRouteEnd);
+            
+            // 🆕 FALLBACK : Dessiner une polyligne approximative entre départ et destination
+            if (mapInstanceRef.current) {
+              const approximatePath = new window.google.maps.Polyline({
+                path: [effectiveRouteStart, effectiveRouteEnd],
+                geodesic: true,
+                strokeColor: '#3B82F6',
+                strokeOpacity: 0.6,
+                strokeWeight: 6,
+                map: mapInstanceRef.current,
+                zIndex: 1000
+              });
+              
+              // Créer les marqueurs manuellement
+              if (routeMarkersRef.current.start) {
+                routeMarkersRef.current.start.setMap(null);
+              }
+              if (routeMarkersRef.current.end) {
+                routeMarkersRef.current.end.setMap(null);
+              }
+              
+              // Marqueur de départ
+              const startIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4"/>
+                    <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(48, 48),
+                anchor: new window.google.maps.Point(24, 24)
+              };
+              
+              routeMarkersRef.current.start = new window.google.maps.Marker({
+                position: effectiveRouteStart,
+                map: mapInstanceRef.current,
+                icon: startIcon,
+                title: `Départ: ${effectiveRouteStart.address || 'Point de départ'}`,
+                zIndex: 3000,
+                optimized: false
+              });
+              
+              // Marqueur de destination
+              const endIcon = {
+                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                  <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4"/>
+                    <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">📍</text>
+                  </svg>
+                `),
+                scaledSize: new window.google.maps.Size(48, 48),
+                anchor: new window.google.maps.Point(24, 24)
+              };
+              
+              routeMarkersRef.current.end = new window.google.maps.Marker({
+                position: effectiveRouteEnd,
+                map: mapInstanceRef.current,
+                icon: endIcon,
+                title: `Destination: ${effectiveRouteEnd.address || "Point d'arrivée"}`,
+                zIndex: 3000,
+                optimized: false
+              });
+              
+              // Ajuster la vue pour inclure les 2 points
+              if (!disableAutoCenter || !userInteracted) {
+                const bounds = new window.google.maps.LatLngBounds();
+                bounds.extend(effectiveRouteStart);
+                bounds.extend(effectiveRouteEnd);
+                mapInstanceRef.current.fitBounds(bounds);
+              }
+              
+              console.log('✅ Ligne approximative + marqueurs affichés (fallback)');
             }
-            
-            // Marqueur de départ
-            const startIcon = {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4"/>
-                  <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(48, 48),
-              anchor: new window.google.maps.Point(24, 24)
-            };
-            
-            routeMarkersRef.current.start = new window.google.maps.Marker({
-              position: effectiveRouteStart,
-              map: mapInstanceRef.current,
-              icon: startIcon,
-              title: `Départ: ${effectiveRouteStart.address || 'Point de départ'}`,
-              zIndex: 3000,
-              optimized: false
-            });
-            
-            // Marqueur de destination
-            const endIcon = {
-              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4"/>
-                  <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">📍</text>
-                </svg>
-              `),
-              scaledSize: new window.google.maps.Size(48, 48),
-              anchor: new window.google.maps.Point(24, 24)
-            };
-            
-            routeMarkersRef.current.end = new window.google.maps.Marker({
-              position: effectiveRouteEnd,
-              map: mapInstanceRef.current,
-              icon: endIcon,
-              title: `Destination: ${effectiveRouteEnd.address || "Point d'arrivée"}`,
-              zIndex: 3000,
-              optimized: false
-            });
-            
-            // Ajuster la vue pour inclure les 2 points
-            if (!disableAutoCenter || !userInteracted) {
-              const bounds = new window.google.maps.LatLngBounds();
-              bounds.extend(effectiveRouteStart);
-              bounds.extend(effectiveRouteEnd);
-              mapInstanceRef.current.fitBounds(bounds);
-            }
-            
-            console.log('✅ Ligne approximative + marqueurs affichés (fallback)');
           }
         }
-      }
-    );
+      );
+    };
+    
+    fetchDirections();
   }, [effectiveShowRoute, effectiveRouteStart, effectiveRouteEnd]);
 
   // 🚗 Marqueur véhicule en temps réel (se déplace)
