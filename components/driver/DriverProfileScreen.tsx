@@ -228,7 +228,7 @@ export function DriverProfileScreen() {
     try {
       // ✅ SAUVEGARDER DANS LE BACKEND (KV STORE)
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-profile/${state.currentDriver.id}`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${state.currentDriver.id}`,
         {
           method: 'POST',
           headers: {
@@ -335,7 +335,7 @@ export function DriverProfileScreen() {
 
           // ✅ SAUVEGARDER L'IMAGE EN BASE64 DANS LE BACKEND
           const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/update-profile/${state.currentDriver!.id}`,
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${state.currentDriver!.id}`,
             {
               method: 'POST',
               headers: {
