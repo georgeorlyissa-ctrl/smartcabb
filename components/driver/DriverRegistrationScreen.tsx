@@ -239,7 +239,8 @@ export function DriverRegistrationScreen() {
         vehicleModel: formData.vehicleModel,
         vehiclePlate: formData.vehiclePlate,
         vehicleColor: formData.vehicleColor,
-        vehicleCategory
+        vehicleCategory,
+        profilePhoto: profilePhotoPreview // 📸 Photo en Base64
       });
 
       if (result.success) {
