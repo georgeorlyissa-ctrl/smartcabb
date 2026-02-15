@@ -685,9 +685,10 @@ export function DriverDashboard() {
       }
     };
 
-    // Vérifier immédiatement puis toutes les 5 secondes
+    // ⚡ OPTIMISATION : Vérifier immédiatement puis toutes les 2 secondes pour une détection plus rapide
+    // Au lieu de 5 secondes, cela réduit le délai de notification de 60%
     checkRideRequests();
-    const interval = setInterval(checkRideRequests, 5000);
+    const interval = setInterval(checkRideRequests, 2000);
     
     return () => {
       console.log('🛑 Arrêt du polling des demandes');
