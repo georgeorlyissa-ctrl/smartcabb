@@ -771,29 +771,29 @@ export function DriverDashboard() {
     };
   }, [showRideRequest, rideRequest?.id, driver?.id]);
 
-  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 15 SECONDES
+  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 10 SECONDES
   // Si le conducteur ne répond pas, la demande est offerte au suivant
   useEffect(() => {
     if (!showRideRequest || !rideRequest?.id) {
       return;
     }
 
-    console.log('⏱️ Démarrage du timer de 15s pour la course:', rideRequest.id);
+    console.log('⏱️ Démarrage du timer de 10s pour la course:', rideRequest.id);
 
-    // Après 15 secondes, refuser automatiquement
+    // ⚡ OPTIMISATION : Après 10 secondes (au lieu de 15s), refuser automatiquement
     const timeoutId = setTimeout(() => {
-      console.log('⏰ Timeout de 15s atteint, refus automatique');
+      console.log('⏰ Timeout de 10s atteint, refus automatique');
       
       // ✅ ARRÊTER LA SONNERIE
       stopAllNotifications();
-      console.log('🔕 Sonnerie arrêtée - timeout 15s');
+      console.log('🔕 Sonnerie arrêtée - timeout 10s');
       
       setShowRideRequest(false);
       setRideRequest(null);
       toast.info('⏱️ Temps écoulé - Course offerte à un autre conducteur', {
         duration: 4000
       });
-    }, 15000); // 15 secondes
+    }, 10000); // ⚡ 10 secondes (optimisé)
 
     return () => {
       clearTimeout(timeoutId);
@@ -2411,7 +2411,7 @@ export function DriverDashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
             >
-              Refus automatique dans 15s
+              Refus automatique dans 10s
             </motion.div>
           </motion.div>
         </motion.div>
