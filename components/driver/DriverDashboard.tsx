@@ -229,7 +229,9 @@ export function DriverDashboard() {
               vehicle_category: driverData.vehicle_category || 'smart_standard',
               vehicle_color: driverData.vehicle_color || '',
               vehicle_year: driverData.vehicle_year || new Date().getFullYear(),
-              vehicle: driverData.vehicle || {}
+              vehicle: driverData.vehicle || {},
+              profile_photo: driverData.profile_photo || driverData.photo_url || driver.profile_photo || driver.photo_url || '',
+              photo_url: driverData.photo_url || driverData.profile_photo || driver.photo_url || driver.profile_photo || ''
             };
             
             updateDriver(updatedDriver);
@@ -1761,9 +1763,25 @@ export function DriverDashboard() {
       <div className="bg-white shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-6 h-6 text-blue-600" />
-            </div>
+            {/* Photo de profil du conducteur */}
+            {driver.profile_photo || driver.photo_url ? (
+              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-blue-500">
+                <ImageWithFallback 
+                  src={driver.profile_photo || driver.photo_url} 
+                  alt={driver.name}
+                  className="w-full h-full object-cover"
+                  fallback={
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-6 h-6 text-blue-600" />
+                    </div>
+                  }
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="w-6 h-6 text-blue-600" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl truncate">Bonjour {driver.name.split(' ')[0]}</h1>
               <p className="text-sm text-gray-600 truncate">
