@@ -439,10 +439,10 @@ export function RideScreen() {
       }
     };
 
-    // ⏰ DÉLAI INITIAL : Attendre 1500ms (1.5s) avant la première vérification
+    // ⏰ DÉLAI INITIAL : Attendre 800ms avant la première vérification
     // Le backend fait maintenant jusqu'à 3 tentatives de vérification (1s + 500ms + 1000ms = 2.5s max)
-    // Attendre 1.5s garantit que le backend a terminé sa vérification
-    console.log('⏰ Délai initial de 1500ms avant le premier polling...');
+    // ⚡ OPTIMISATION : Réduit de 1500ms à 800ms pour accélérer le processus
+    console.log('⏰ Délai initial de 800ms avant le premier polling...');
     
     initialDelayTimer = setTimeout(() => {
       console.log('✅ Début du polling du statut de la course');
@@ -457,7 +457,7 @@ export function RideScreen() {
       timeoutTimer = setTimeout(() => {
         checkAvailability();
       }, 30000);
-    }, 1500);
+    }, 800);
 
     return () => {
       clearInterval(checkInterval);
