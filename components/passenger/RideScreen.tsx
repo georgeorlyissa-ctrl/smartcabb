@@ -27,6 +27,9 @@ const Banknote = ({ className = "w-5 h-5" }: { className?: string }) => (<svg cl
 const Wallet = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>);
 const TrendingUp = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>);
 const Award = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="8" r="7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>);
+const AlertCircle = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><line x1="12" y1="8" x2="12" y2="12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><line x1="12" y1="16" x2="12.01" y2="16" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>);
+const RefreshCw = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><polyline points="1 20 1 14 7 14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>);
+const Radio = ({ className = "w-5 h-5" }: { className?: string }) => (<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /><path d="M16.24 7.76a6 6 0 010 8.49m-8.48-.01a6 6 0 010-8.49m11.31-2.82a10 10 0 010 14.14m-14.14 0a10 10 0 010-14.14" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} /></svg>);
 
 interface DriverData {
   id: string;
@@ -216,6 +219,36 @@ export function RideScreen() {
             console.log('📍 Navigation vers ride-in-progress screen');
             setCurrentScreen('ride-in-progress');
             return;
+          }
+          
+          // 🆕 Si la course est en recherche (auto-retry en cours)
+          if (ride.status === 'searching') {
+            console.log('🔄 Recherche en cours (cycle auto-retry):', ride.searchCycle || 1);
+            // Mettre à jour le message de recherche
+            if (updateRide && currentRide?.id) {
+              updateRide(currentRide.id, {
+                status: 'searching',
+                searchCycle: ride.searchCycle,
+                searchMessage: ride.searchMessage
+              });
+            }
+            return; // Continuer le polling
+          }
+          
+          // 🆕 Si on attend la décision du passager (après 2 cycles)
+          if (ride.status === 'awaiting_retry_decision') {
+            console.log('⚠️ En attente de décision passager (2 cycles échoués)');
+            clearInterval(checkInterval);
+            clearTimeout(timeoutTimer);
+            // Mettre à jour le state
+            if (updateRide && currentRide?.id) {
+              updateRide(currentRide.id, {
+                status: 'awaiting_retry_decision',
+                driversContacted: ride.driversContacted,
+                cyclesCompleted: ride.cyclesCompleted
+              });
+            }
+            return; // Arrêter le polling
           }
           
           // Si un conducteur a accepté la course
@@ -643,6 +676,86 @@ export function RideScreen() {
     setSearchingDriver(false);
   };
 
+  // 🆕 Handlers pour le système auto-retry
+  const handleRetrySearch = async () => {
+    if (!currentRide?.id) return;
+    
+    try {
+      console.log('🔄 Retry search (normal radius)');
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/retry-ride-search`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rideId: currentRide.id,
+            expandRadius: false
+          })
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('🔄 Nouvelle recherche lancée !');
+        // Réactiver la recherche
+        setSearchingDriver(true);
+        setError(null);
+      } else {
+        toast.error(data.error || 'Erreur lors de la relance');
+      }
+    } catch (error) {
+      console.error('❌ Erreur retry search:', error);
+      toast.error('Erreur lors de la relance');
+    }
+  };
+
+  const handleExpandedSearch = async () => {
+    if (!currentRide?.id) return;
+    
+    try {
+      console.log('📡 Expanded search (+10 km radius)');
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/retry-ride-search`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rideId: currentRide.id,
+            expandRadius: true // 🆕 Élargir le rayon
+          })
+        }
+      );
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('📡 Recherche élargie lancée ! (+10 km)');
+        // Réactiver la recherche
+        setSearchingDriver(true);
+        setError(null);
+      } else {
+        toast.error(data.error || 'Erreur lors de l\'élargissement');
+      }
+    } catch (error) {
+      console.error('❌ Erreur expanded search:', error);
+      toast.error('Erreur lors de l\'élargissement');
+    }
+  };
+
+  const handleCancelRideFromRetryModal = async () => {
+    // Réutiliser la logique existante
+    handleCancelRide();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50 flex flex-col">
       {/* 🆕 Dialogue d'alternative */}
@@ -666,6 +779,102 @@ export function RideScreen() {
         hasPenalty={driverFound} // Pénalité si un conducteur a déjà accepté
         penaltyAmount={driverFound ? (currentRide?.estimatedPrice || 0) * 0.5 : 0}
       />
+
+      {/* 🆕 MODAL 1 : Recherche en cours (auto-retry) */}
+      {currentRide?.status === 'searching' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl p-6 max-w-sm w-full"
+          >
+            <div className="flex items-center justify-center mb-4">
+              <div className="relative">
+                <motion.div
+                  className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                />
+                <RefreshCw className="w-6 h-6 text-blue-500 absolute inset-0 m-auto" />
+              </div>
+            </div>
+            
+            <h3 className="text-lg font-semibold text-center mb-2">
+              Recherche en cours...
+            </h3>
+            
+            <p className="text-sm text-gray-600 text-center">
+              {currentRide.searchMessage || 'Recherche de conducteurs disponibles...'}
+            </p>
+            
+            {currentRide.searchCycle && (
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-xs text-blue-700 text-center">
+                  Tentative {currentRide.searchCycle}/2
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
+      {/* 🆕 MODAL 2 : Aucun conducteur disponible (décision passager) */}
+      {currentRide?.status === 'awaiting_retry_decision' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl p-6 max-w-sm w-full"
+          >
+            {/* Header */}
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-8 h-8 text-yellow-600" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">
+                Aucun conducteur disponible
+              </h3>
+              <p className="text-sm text-gray-600">
+                {currentRide.driversContacted || 0} conducteurs contactés
+                <br />
+                {currentRide.cyclesCompleted || 0} tentatives effectuées
+              </p>
+            </div>
+            
+            {/* Options */}
+            <div className="space-y-3">
+              {/* Option 1 : Réessayer */}
+              <Button
+                onClick={handleRetrySearch}
+                className="w-full h-12 bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Réessayer
+              </Button>
+              
+              {/* Option 2 : Recherche élargie */}
+              <Button
+                onClick={handleExpandedSearch}
+                variant="outline"
+                className="w-full h-12 border-2 border-blue-500 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
+              >
+                <Radio className="w-4 h-4" />
+                Recherche élargie (+10 km)
+              </Button>
+              
+              {/* Option 3 : Annuler */}
+              <Button
+                onClick={handleCancelRideFromRetryModal}
+                variant="ghost"
+                className="w-full h-12 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Annuler la course
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-border">
