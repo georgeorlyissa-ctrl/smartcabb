@@ -110,13 +110,24 @@ function lazyWithRetry(componentImport: () => Promise<any>) {
           resolve(component);
         })
         .catch((error) => {
+          // ✅ FIX: Ne pas recharger automatiquement la page, juste retenter une fois
+          // La redirection automatique causait des boucles infinies et redirigeait vers 'landing'
           if (!hasRefreshed) {
-            console.log('⚠️ Échec chargement lazy, tentative de rafraîchissement...');
+            console.log('⚠️ Échec chargement lazy module, retry...');
             window.sessionStorage.setItem('retry-lazy-refreshed', 'true');
-            return window.location.reload();
+            // Retenter une seule fois après un court délai
+            setTimeout(() => {
+              componentImport()
+                .then(resolve)
+                .catch((retryError) => {
+                  console.error('❌ Échec chargement lazy après retry:', retryError);
+                  reject(retryError);
+                });
+            }, 100);
+          } else {
+            console.error('❌ Échec chargement lazy final:', error);
+            reject(error);
           }
-          console.error('❌ Échec chargement lazy après refresh:', error);
-          reject(error);
         });
     });
   });
