@@ -689,42 +689,85 @@ export function GoogleMapView({
             }
           }
         } else {
-          console.error('❌ Erreur calcul itinéraire:', status);
-          console.error('📍 Départ:', effectiveRouteStart);
-          console.error('📍 Destination:', effectiveRouteEnd);
+          // 🆕 GESTION ÉLÉGANTE DES ERREURS - Pas de toast polluant, fallback intelligent
+          console.warn(`⚠️ Directions API erreur (${status}), affichage ligne approximative`);
           
-          // Afficher un message d'erreur détaillé selon le statut
-          let errorMessage = '';
-          switch (status) {
-            case window.google.maps.DirectionsStatus.NOT_FOUND:
-              errorMessage = 'Impossible de trouver un itinéraire entre ces deux points';
-              break;
-            case window.google.maps.DirectionsStatus.ZERO_RESULTS:
-              errorMessage = 'Aucun itinéraire trouvé entre ces deux points';
-              break;
-            case window.google.maps.DirectionsStatus.REQUEST_DENIED:
-              errorMessage = 'Clé API Google Maps incorrecte ou Directions API non activée';
-              break;
-            case window.google.maps.DirectionsStatus.OVER_QUERY_LIMIT:
-              errorMessage = 'Quota API Google Maps dépassé';
-              break;
-            case window.google.maps.DirectionsStatus.INVALID_REQUEST:
-              errorMessage = 'Requête invalide (vérifiez les coordonnées)';
-              break;
-            default:
-              errorMessage = `Erreur inconnue: ${status}`;
+          // Logger les détails en debug (pas en erreur)
+          console.debug('📍 Départ:', effectiveRouteStart);
+          console.debug('📍 Destination:', effectiveRouteEnd);
+          
+          // 🆕 FALLBACK : Dessiner une polyligne approximative entre départ et destination
+          if (mapInstanceRef.current) {
+            const approximatePath = new window.google.maps.Polyline({
+              path: [effectiveRouteStart, effectiveRouteEnd],
+              geodesic: true,
+              strokeColor: '#3B82F6',
+              strokeOpacity: 0.6,
+              strokeWeight: 6,
+              map: mapInstanceRef.current,
+              zIndex: 1000
+            });
+            
+            // Créer les marqueurs manuellement
+            if (routeMarkersRef.current.start) {
+              routeMarkersRef.current.start.setMap(null);
+            }
+            if (routeMarkersRef.current.end) {
+              routeMarkersRef.current.end.setMap(null);
+            }
+            
+            // Marqueur de départ
+            const startIcon = {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="24" cy="24" r="20" fill="#10B981" stroke="white" stroke-width="4"/>
+                  <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">🚗</text>
+                </svg>
+              `),
+              scaledSize: new window.google.maps.Size(48, 48),
+              anchor: new window.google.maps.Point(24, 24)
+            };
+            
+            routeMarkersRef.current.start = new window.google.maps.Marker({
+              position: effectiveRouteStart,
+              map: mapInstanceRef.current,
+              icon: startIcon,
+              title: `Départ: ${effectiveRouteStart.address || 'Point de départ'}`,
+              zIndex: 3000,
+              optimized: false
+            });
+            
+            // Marqueur de destination
+            const endIcon = {
+              url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
+                <svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="24" cy="24" r="20" fill="#EF4444" stroke="white" stroke-width="4"/>
+                  <text x="24" y="30" font-size="20" text-anchor="middle" fill="white">📍</text>
+                </svg>
+              `),
+              scaledSize: new window.google.maps.Size(48, 48),
+              anchor: new window.google.maps.Point(24, 24)
+            };
+            
+            routeMarkersRef.current.end = new window.google.maps.Marker({
+              position: effectiveRouteEnd,
+              map: mapInstanceRef.current,
+              icon: endIcon,
+              title: `Destination: ${effectiveRouteEnd.address || "Point d'arrivée"}`,
+              zIndex: 3000,
+              optimized: false
+            });
+            
+            // Ajuster la vue pour inclure les 2 points
+            if (!disableAutoCenter || !userInteracted) {
+              const bounds = new window.google.maps.LatLngBounds();
+              bounds.extend(effectiveRouteStart);
+              bounds.extend(effectiveRouteEnd);
+              mapInstanceRef.current.fitBounds(bounds);
+            }
+            
+            console.log('✅ Ligne approximative + marqueurs affichés (fallback)');
           }
-          
-          console.error('💡 Détails:', errorMessage);
-          
-          // 🚨 Afficher un toast d'erreur pour informer l'utilisateur
-          toast.error(`Erreur carte: ${errorMessage}`, {
-            description: 'La carte affiche une trajectoire approximative',
-            duration: 5000
-          });
-          
-          // ⚠️ FALLBACK : Dessiner une ligne droite si l'itinéraire échoue
-          console.warn('⚠️ Affichage d\'une ligne droite en fallback');
         }
       }
     );
