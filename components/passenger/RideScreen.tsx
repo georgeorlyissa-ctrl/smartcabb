@@ -196,6 +196,20 @@ export function RideScreen() {
         if (data.success && data.ride) {
           const ride = data.ride;
           
+          // ✅ PROTECTION : Si la course est annulée, arrêter le polling
+          if (ride.status === 'cancelled') {
+            console.log('🚫 Course annulée détectée, arrêt du polling');
+            clearInterval(checkInterval);
+            clearTimeout(timeoutTimer);
+            setSearchingDriver(false);
+            toast.info('Course annulée', {
+              description: 'La course a été annulée',
+              duration: 3000
+            });
+            setCurrentScreen('map');
+            return;
+          }
+          
           // ✅ Si la course est EN COURS (driver a confirmé le code)
           if (ride.status === 'in_progress') {
             console.log('🚗 Course en cours détectée !');
@@ -814,6 +828,19 @@ export function RideScreen() {
                 </p>
               </div>
             )}
+
+            {/* ✅ FIX : Bouton d'annulation dans le modal */}
+            <div className="mt-6">
+              <Button
+                onClick={handleCancelRide}
+                variant="ghost"
+                className="w-full h-11 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                disabled={cancellingRide}
+              >
+                <X className="w-4 h-4" />
+                {cancellingRide ? 'Annulation...' : 'Annuler la course'}
+              </Button>
+            </div>
           </motion.div>
         </div>
       )}
