@@ -36,6 +36,7 @@ export function RideNotificationSound({ shouldPlay, rideDetails, onSoundComplete
     // Réinitialiser quand shouldPlay passe à false
     if (!shouldPlay) {
       hasPlayedRef.current = false;
+      console.log('🔄 Notification réinitialisée - prête pour la prochaine course');
       return;
     }
 
@@ -44,6 +45,7 @@ export function RideNotificationSound({ shouldPlay, rideDetails, onSoundComplete
       hasPlayedRef.current = true;
       
       console.log('🔊 Déclenchement du son de notification avec message vocal');
+      console.log('📍 Détails de la course:', rideDetails);
       
       // Préparer les détails de la course pour la notification
       const notificationDetails = rideDetails ? {
