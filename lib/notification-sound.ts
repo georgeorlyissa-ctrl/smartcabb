@@ -18,16 +18,18 @@ function playNotificationBeep() {
     oscillator.connect(gainNode);
     gainNode.connect(audioContext.destination);
 
-    // Fréquence agréable
-    oscillator.frequency.value = 800;
+    // Fréquence agréable et AUDIBLE
+    oscillator.frequency.value = 1000; // ⬆️ Augmenté de 800 à 1000 Hz
     oscillator.type = 'sine';
 
-    // Volume
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+    // Volume AUGMENTÉ pour être bien audible
+    gainNode.gain.setValueAtTime(0.8, audioContext.currentTime); // ⬆️ Augmenté de 0.3 à 0.8
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
 
     oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 0.5);
+    oscillator.stop(audioContext.currentTime + 0.8); // ⬆️ Durée augmentée de 0.5s à 0.8s
+    
+    console.log('🔊 Beep de notification joué à 1000Hz, volume 0.8');
   } catch (error) {
     console.error('Erreur lecture son:', error);
   }
@@ -111,8 +113,10 @@ export async function playRideNotification(rideDetails?: {
 }): Promise<void> {
   console.log('🔊 Déclenchement notification de course');
 
-  // 1. Son de notification
+  // 1. Son de notification RÉPÉTÉ 3 fois pour être sûr qu'il soit entendu
   playNotificationBeep();
+  setTimeout(() => playNotificationBeep(), 800);
+  setTimeout(() => playNotificationBeep(), 1600);
 
   // 2. Vibration
   vibrate([300, 100, 300, 100, 300]);
