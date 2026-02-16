@@ -82,58 +82,68 @@ export function RideInProgressScreen() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // 🆕 GESTIONNAIRE D'ERREURS GLOBAL pour éviter "Script error"
-  useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      // Empêcher les erreurs de se propager et causer un crash de l'interface
-      event.preventDefault();
-      console.error('🚨 Erreur interceptée dans RideInProgressScreen:', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error
-      });
-      
-      // Ne pas afficher de toast pour les erreurs Google Maps (déjà gérées)
-      if (event.message && !event.message.includes('Google Maps')) {
-        // Log silencieux pour debug
-        console.warn('Erreur non-critique interceptée et ignorée');
-      }
-    };
-
-    window.addEventListener('error', handleError);
-    
-    return () => {
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-
   // 🆕 POLLING EN TEMPS RÉEL : Récupérer les mises à jour de la course toutes les 3 secondes
   useEffect(() => {
     if (!currentRide?.id) return;
 
     console.log('🔄 Démarrage du polling pour la course:', currentRide.id);
+    
+    let isActive = true; // Flag pour éviter les mises à jour après unmount
 
     const pollRideStatus = async () => {
+      // ✅ PROTECTION: Ne pas continuer si le composant est démonté
+      if (!isActive) return;
+      
       try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${currentRide.id}`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            }
+        // ✅ PROTECTION: Vérifier que les variables nécessaires existent
+        if (!projectId || !publicAnonKey) {
+          console.error('❌ Configuration Supabase manquante');
+          return;
+        }
+        
+        const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${currentRide.id}`;
+        console.log('📡 Polling URL:', url);
+        
+        // ✅ Créer un timeout manuel (AbortSignal.timeout() n'est pas supporté partout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 secondes max
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          signal: controller.signal
+        }).catch(err => {
+          clearTimeout(timeoutId);
+          // ✅ Capturer spécifiquement les erreurs fetch
+          if (err.name === 'AbortError') {
+            console.warn('⚠️ Timeout du polling (5s dépassées)');
+          } else {
+            console.warn('⚠️ Erreur réseau lors du polling:', err.name);
           }
-        );
+          return null; // Retourner null au lieu de laisser l'erreur se propager
+        });
 
-        if (!response.ok) {
-          console.error('❌ Erreur polling:', response.status);
+        clearTimeout(timeoutId);
+
+        if (!response) {
+          // Requête échouée (timeout, erreur réseau, etc.)
           return;
         }
 
-        const updatedRide = await response.json();
+        if (!response.ok) {
+          console.error('❌ Erreur HTTP polling:', response.status, response.statusText);
+          return;
+        }
+
+        const updatedRide = await response.json().catch(err => {
+          console.error('❌ Erreur parsing JSON:', err);
+          return null;
+        });
+
+        if (!updatedRide) return;
 
         console.log('📥 Mise à jour reçue:', {
           status: updatedRide?.status,
@@ -142,29 +152,38 @@ export function RideInProgressScreen() {
         });
 
         // ✅ Mettre à jour le ride dans le contexte (avec protection)
-        if (updatedRide && updatedRide.id) {
+        if (isActive && updatedRide && updatedRide.id) {
           updateRide(updatedRide.id, updatedRide);
         }
 
-      } catch (error) {
-        console.error('❌ Erreur lors du polling:', error);
-        // Ne pas afficher de toast, juste logger
+      } catch (error: any) {
+        // ✅ NE PAS logger les erreurs "Script error" qui polluent la console
+        if (error?.message && error.message !== 'Script error.') {
+          console.error('❌ Erreur lors du polling:', {
+            name: error?.name,
+            message: error?.message
+          });
+        }
+        // Ignorer silencieusement les autres erreurs pour éviter la pollution
       }
     };
 
     // Polling toutes les 3 secondes
-    const interval = setInterval(pollRideStatus, 3000);
+    const interval = setInterval(() => {
+      if (isActive) {
+        pollRideStatus();
+      }
+    }, 3000);
 
-    // Premier polling immédiat (avec protection)
-    pollRideStatus().catch(err => {
-      console.error('❌ Erreur premier polling:', err);
-    });
+    // Premier polling immédiat
+    pollRideStatus();
 
     return () => {
       console.log('🛑 Arrêt du polling');
+      isActive = false;
       clearInterval(interval);
     };
-  }, [currentRide?.id]);
+  }, [currentRide?.id]); // ✅ Seulement currentRide.id comme dépendance
 
   // Mettre à jour l'heure du jour toutes les minutes
   useEffect(() => {
