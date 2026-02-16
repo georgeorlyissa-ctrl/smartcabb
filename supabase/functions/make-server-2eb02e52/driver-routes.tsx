@@ -10,7 +10,6 @@ const PRICING_CONFIG = {
   smart_standard: { course_heure: { jour: { usd: 7 }, nuit: { usd: 10 } } },
   smart_confort: { course_heure: { jour: { usd: 9 }, nuit: { usd: 15 } } },
   smart_plus: { course_heure: { jour: { usd: 15 }, nuit: { usd: 17 } } },
-  smart_plus_plus: { course_heure: { jour: { usd: 15 }, nuit: { usd: 20 } } },
   smart_business: { course_heure: { jour: { usd: 20 }, nuit: { usd: 25 } } }
 };
 
