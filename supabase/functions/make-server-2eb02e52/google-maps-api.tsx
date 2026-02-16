@@ -502,37 +502,15 @@ app.get('/directions', async (c) => {
     const route = data.routes[0];
     const leg = route.legs[0];
 
-    // Décoder la polyline
-    const coordinates = decodePolyline(route.overview_polyline.points);
+    console.log(`✅ Itinéraire: ${(leg.distance.value / 1000).toFixed(1)} km, ${Math.round(leg.duration.value / 60)} min`);
 
-    // Extraire les étapes
-    const steps = leg.steps.map((step: any) => ({
-      instruction: step.html_instructions?.replace(/<[^>]*>/g, '') || '',
-      distance: step.distance.value / 1000, // mètres → km
-      duration: step.duration.value / 60, // secondes → minutes
-      startLocation: {
-        lat: step.start_location.lat,
-        lng: step.start_location.lng
-      },
-      endLocation: {
-        lat: step.end_location.lat,
-        lng: step.end_location.lng
-      }
-    }));
-
-    const result = {
-      distance: leg.distance.value / 1000, // mètres → km
-      duration: leg.duration.value / 60, // secondes → minutes
-      coordinates,
-      polyline: route.overview_polyline.points,
-      steps
-    };
-
-    console.log(`✅ Itinéraire: ${result.distance.toFixed(1)} km, ${Math.round(result.duration)} min`);
-
+    // ✅ RETOURNER LES DONNÉES BRUTES DE GOOGLE MAPS (format DirectionsResult)
+    // Le frontend s'attend au format DirectionsResult standard de Google Maps
     return c.json({
       success: true,
-      route: result
+      status: data.status,
+      routes: data.routes,
+      geocoded_waypoints: data.geocoded_waypoints || []
     });
 
   } catch (error) {
