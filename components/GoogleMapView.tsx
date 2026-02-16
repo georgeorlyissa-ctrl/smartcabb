@@ -688,6 +688,12 @@ export function GoogleMapView({
     
     // Fonction fallback : Utiliser Directions API frontend
     const fallbackToFrontendDirections = () => {
+      // ✅ PROTECTION: Vérifier que Google Maps est complètement chargé
+      if (!window.google?.maps?.DirectionsService || !window.google?.maps?.TravelMode) {
+        console.warn('⚠️ Google Maps pas encore chargé pour fallback directions');
+        return;
+      }
+      
       const directionsService = new window.google.maps.DirectionsService();
       
       if (!directionsRendererRef.current) {
