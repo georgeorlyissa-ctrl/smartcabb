@@ -115,15 +115,28 @@ const loadGoogleMapsScript = async (): Promise<void> => {
       const originalConsoleError = console.error;
       const errorListener = (event: ErrorEvent | any) => {
         const errorMsg = event?.message || event?.error?.message || '';
+        
+        // ✅ BLOQUER SILENCIEUSEMENT les "Script error" (erreurs cross-origin)
+        if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+          console.warn('⚠️ Script error bloqué dans GoogleMapView (cross-origin)');
+          event.preventDefault && event.preventDefault();
+          event.stopPropagation && event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
+          return;
+        }
+        
         if (errorMsg.includes('RefererNotAllowedMapError') || 
             errorMsg.includes('ApiNotActivatedMapError') ||
             errorMsg.includes('InvalidKeyMapError')) {
           console.warn('⚠️ Erreur Google Maps API détectée:', errorMsg);
           console.warn('🔄 L\'application basculera vers OpenStreetMap');
+          event.preventDefault && event.preventDefault();
+          event.stopPropagation && event.stopPropagation();
+          event.stopImmediatePropagation && event.stopImmediatePropagation();
           // L'erreur sera gérée dans le composant
         }
       };
-      window.addEventListener('error', errorListener);
+      window.addEventListener('error', errorListener, true); // true = capture phase
 
       // Créer une fonction callback globale pour l'initialisation
       const callbackName = 'initGoogleMaps_' + Date.now();
