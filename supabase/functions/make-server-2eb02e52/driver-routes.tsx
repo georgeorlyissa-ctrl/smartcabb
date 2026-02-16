@@ -1307,6 +1307,32 @@ app.post('/toggle-online-status', async (c) => {
       }, 404);
     }
 
+    // ✅ v518.1: VÉRIFIER LE SOLDE AVANT DE PERMETTRE LA MISE EN LIGNE
+    if (isOnline) {
+      const accountBalance = driver.accountBalance || 0;
+      const vehicleCategory = driver.vehicle?.category || driver.vehicleCategory || 'smart_standard';
+      
+      // Calculer le solde minimum requis selon la catégorie
+      const exchangeRate = 2850; // Taux de change par défaut
+      const minimumBalance = getMinimumBalanceForCategory(vehicleCategory, exchangeRate);
+      
+      console.log(`🔍 Vérification solde conducteur: ${accountBalance} CDF (minimum requis: ${minimumBalance} CDF)`);
+      
+      if (accountBalance < minimumBalance) {
+        console.warn(`❌ Solde insuffisant: ${accountBalance} < ${minimumBalance} CDF`);
+        return c.json({
+          success: false,
+          error: 'Solde insuffisant',
+          message: `Votre solde (${accountBalance.toLocaleString()} CDF) est insuffisant. Minimum requis: ${minimumBalance.toLocaleString()} CDF pour votre catégorie ${vehicleCategory}.`,
+          currentBalance: accountBalance,
+          minimumRequired: minimumBalance,
+          shortfall: minimumBalance - accountBalance
+        }, 400);
+      }
+      
+      console.log(`✅ Solde suffisant: ${accountBalance} >= ${minimumBalance} CDF`);
+    }
+
     // Mettre à jour le statut en ligne
     driver.isOnline = isOnline;
     driver.is_available = isOnline;
