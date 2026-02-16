@@ -1676,28 +1676,39 @@ app.post('/complete', async (c) => {
     
     if (driverId) {
       try {
-        // Récupérer le conducteur
-        const driver = await kv.get(`user_${driverId}`);
+        // ✅ FIX CRITIQUE : Récupérer le solde depuis la clé séparée (comme dans toggle-online-status)
+        const balanceKey = `driver:${driverId}:balance`;
+        const balanceData = await kv.get(balanceKey);
         
-        if (driver) {
-          const currentBalance = driver.accountBalance || 0;
-          const deduction = commissionAmount; // 15% du prix de la course
-          const newBalance = currentBalance - deduction;
-          
-          console.log(`💰 Solde conducteur: ${currentBalance} - ${deduction} (15%) = ${newBalance} CDF`);
-          
-          // Mettre à jour le solde
-          const updatedDriver = {
-            ...driver,
-            accountBalance: newBalance,
-            updated_at: new Date().toISOString()
-          };
-          
-          await kv.set(`user_${driverId}`, updatedDriver);
-          console.log(`✅ Solde conducteur mis à jour: ${newBalance} CDF`);
+        let currentBalance = 0;
+        
+        if (balanceData) {
+          // Le solde peut être stocké comme un nombre ou comme un objet { balance: number }
+          currentBalance = typeof balanceData === 'number' ? balanceData : (balanceData.balance || 0);
         } else {
-          console.warn(`⚠️ Conducteur ${driverId} non trouvé, impossible de déduire la commission`);
+          // Fallback : essayer de récupérer depuis le profil du conducteur
+          const driver = await kv.get(`driver:${driverId}`) || await kv.get(`profile:${driverId}`);
+          if (driver) {
+            currentBalance = driver.wallet_balance || driver.account_balance || driver.balance || driver.accountBalance || 0;
+          }
         }
+        
+        const deduction = commissionAmount; // 15% du prix de la course
+        const newBalance = Math.max(0, currentBalance - deduction); // Ne pas permettre de solde négatif
+        
+        console.log(`💰 Déduction commission du solde conducteur:`);
+        console.log(`   Solde actuel: ${currentBalance.toLocaleString()} CDF`);
+        console.log(`   Commission (${commissionPercentage}%): ${deduction.toLocaleString()} CDF`);
+        console.log(`   Nouveau solde: ${newBalance.toLocaleString()} CDF`);
+        
+        // Mettre à jour le solde dans la clé séparée
+        await kv.set(balanceKey, {
+          balance: newBalance,
+          updated_at: new Date().toISOString()
+        });
+        
+        console.log(`✅ Solde conducteur mis à jour: ${currentBalance.toLocaleString()} → ${newBalance.toLocaleString()} CDF`);
+        
       } catch (error) {
         console.error('❌ Erreur déduction commission solde conducteur:', error);
         // Ne pas bloquer la complétion de la course si la déduction échoue
