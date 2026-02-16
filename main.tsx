@@ -56,6 +56,44 @@ if (typeof document === 'undefined') {
 // Le PWA peut être réactivé plus tard en décommentant le code du Service Worker
 // une fois que la configuration Vercel sera correctement ajustée pour servir /sw.js
 
+// 🛡️ BLOQUER TOUTES LES ERREURS "Script error" GLOBALES
+// Ces erreurs proviennent généralement de scripts cross-origin (Google Maps, etc.)
+// et ne peuvent pas être détectées précisément à cause de la politique CORS
+if (typeof window !== 'undefined') {
+  // Intercepter window.onerror
+  const originalWindowError = window.onerror;
+  window.onerror = function(message, source, lineno, colno, error) {
+    // Bloquer les "Script error" qui causent les dialogues
+    if (message === 'Script error.' || message === 'Script error') {
+      console.warn('⚠️ Script error bloqué (probablement cross-origin)');
+      return true; // Empêcher la propagation
+    }
+    
+    // Laisser passer les vraies erreurs
+    if (originalWindowError) {
+      return originalWindowError(message, source, lineno, colno, error);
+    }
+    return false;
+  };
+  
+  // Intercepter les promesses rejetées non capturées
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    
+    // Bloquer les erreurs "Script error" ou les timeouts d'AbortController
+    if (reason?.message === 'Script error.' || 
+        reason?.message === 'Script error' ||
+        reason?.name === 'AbortError' ||
+        reason?.message?.includes('aborted')) {
+      console.warn('⚠️ Promise rejection bloquée (Script error ou timeout)');
+      event.preventDefault(); // Empêcher l'affichage du dialogue
+      return;
+    }
+  });
+  
+  console.log('✅ Gestionnaire global d\'erreurs installé');
+}
+
 // ✅ Initialisation de l'application
 const initApp = () => {
   const rootElement = document.getElementById('root');
