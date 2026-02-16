@@ -388,18 +388,18 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
                 <div>
                   <p className="text-sm text-muted-foreground">Véhicule</p>
                   <p className="font-semibold">
-                    {driverData.vehicle.make} {driverData.vehicle.model} ({driverData.vehicle.year})
+                    {driverData.vehicle.make || 'Véhicule'} {driverData.vehicle.model || ''} {driverData.vehicle.year ? `(${driverData.vehicle.year})` : ''}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Couleur</p>
-                  <p className="font-medium">{driverData.vehicle.color}</p>
+                  <p className="font-medium">{driverData.vehicle.color || 'Non spécifiée'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Plaque</p>
-                  <p className="font-mono font-bold text-primary">{driverData.vehicle.license_plate}</p>
+                  <p className="font-mono font-bold text-primary">{driverData.vehicle.license_plate || 'N/A'}</p>
                 </div>
               </div>
             </div>
