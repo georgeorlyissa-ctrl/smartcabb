@@ -229,7 +229,7 @@ export function DriverRegistrationScreen() {
       }
       
       // Inscription via Supabase
-      const vehicleCategory = formData.vehicleType.replace('smart_', '') as 'standard' | 'comfort' | 'luxury';
+      const vehicleCategory = formData.vehicleType as 'smart_standard' | 'smart_confort' | 'smart_plus' | 'smart_business';
       
       const result = await signUpDriver({
         phone: formData.phone,
