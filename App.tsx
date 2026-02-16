@@ -181,6 +181,9 @@ function App() {
       try {
         console.log('🧹 Vérification de l\'intégrité des données...');
         
+        // ✅ DÉSACTIVÉ: Ne plus supprimer systématiquement les tokens Supabase
+        // Cela causait la déconnexion à chaque rafraîchissement de page
+        /*
         // 🔥 NOUVEAU: Nettoyer les tokens Supabase invalides
         const supabaseAuthKeys = Object.keys(localStorage).filter(key => 
           key.startsWith('sb-') && key.includes('-auth-token')
@@ -195,6 +198,7 @@ function App() {
           });
           console.log('✅ Tokens Supabase nettoyés - Connexion fraîche requise');
         }
+        */
         
         const keysToValidate = [
           'smartcab_current_user',
