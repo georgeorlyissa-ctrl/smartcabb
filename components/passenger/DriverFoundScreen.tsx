@@ -1,10 +1,11 @@
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { toast } from '../../lib/toast';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
 import { motion } from '../../lib/motion';
 import { useState, useEffect } from 'react';
+import { getVehicleDisplayName, getVehicleCategoryDescription } from '../../lib/vehicle-helpers';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 // Icônes SVG inline
 const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -73,11 +74,12 @@ interface DriverFoundScreenProps {
     total_rides: number;
     photo_url?: string; // ✅ Ajout photo
     vehicle?: {
-      make: string;
-      model: string;
-      year: number;
-      color: string;
-      license_plate: string;
+      make?: string;
+      model?: string;
+      year?: number;
+      color?: string;
+      license_plate?: string;
+      category?: string; // ✅ Catégorie du véhicule (smart_standard, etc.)
     };
   };
   // 🚫 SUPPRIMÉ : confirmationCode n'est plus nécessaire
@@ -111,6 +113,14 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
           const data = await response.json();
           if (data.driver) {
             console.log('✅ Données chauffeur chargées depuis la DB:', data.driver);
+            console.log('🚗 Véhicule du chauffeur:', {
+              make: data.driver.vehicle?.make,
+              model: data.driver.vehicle?.model,
+              color: data.driver.vehicle?.color,
+              license_plate: data.driver.vehicle?.license_plate,
+              category: data.driver.vehicle?.category,
+              displayName: getVehicleDisplayName(data.driver.vehicle)
+            });
             setDriverData({
               id: data.driver.id,
               full_name: data.driver.full_name,
@@ -388,7 +398,7 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
                 <div>
                   <p className="text-sm text-muted-foreground">Véhicule</p>
                   <p className="font-semibold">
-                    {driverData.vehicle.make || 'Véhicule'} {driverData.vehicle.model || ''} {driverData.vehicle.year ? `(${driverData.vehicle.year})` : ''}
+                    {getVehicleDisplayName(driverData.vehicle) || 'Véhicule'}
                   </p>
                 </div>
               </div>
