@@ -869,4 +869,173 @@ walletRoutes.post('/sync-kv-to-supabase/:userId', async (c) => {
   }
 });
 
+// ============================================
+// 🚗 GÉRER LE SOLDE DU CONDUCTEUR (ADD/SUBTRACT)
+// ============================================
+walletRoutes.post('/driver-balance', async (c) => {
+  try {
+    const { driverId, operation, amount } = await c.req.json();
+
+    if (!driverId || !operation || !amount || amount <= 0) {
+      return c.json({
+        success: false,
+        error: 'Données invalides (driverId, operation, amount requis)'
+      }, 400);
+    }
+
+    if (!['add', 'subtract'].includes(operation)) {
+      return c.json({
+        success: false,
+        error: 'Operation invalide (doit être "add" ou "subtract")'
+      }, 400);
+    }
+
+    console.log(`💰 ${operation === 'add' ? 'Ajout' : 'Déduction'} solde conducteur:`, {
+      driverId,
+      amount
+    });
+
+    // Récupérer le conducteur depuis le KV store
+    const driverKey = `driver:${driverId}`;
+    let driver: any = await kv.get(driverKey);
+
+    if (!driver) {
+      console.log('⚠️ Conducteur non trouvé dans KV, récupération depuis Supabase...');
+      
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', driverId)
+          .single();
+
+        if (profileError || !profile) {
+          console.error('❌ Conducteur introuvable dans Supabase:', profileError);
+          return c.json({
+            success: false,
+            error: 'Conducteur non trouvé dans la base de données'
+          }, 404);
+        }
+
+        // Créer le conducteur dans le KV store
+        driver = {
+          id: profile.id,
+          full_name: profile.full_name,
+          email: profile.email,
+          phone: profile.phone,
+          role: profile.role,
+          wallet_balance: profile.wallet_balance || 0,
+          created_at: profile.created_at,
+          updated_at: new Date().toISOString()
+        };
+
+        await kv.set(driverKey, driver);
+        console.log('✅ Conducteur créé dans le KV store:', driverKey);
+      } catch (err) {
+        console.error('❌ Erreur création conducteur dans KV:', err);
+        return c.json({
+          success: false,
+          error: 'Erreur lors de la création du profil conducteur'
+        }, 500);
+      }
+    }
+
+    // Calculer le nouveau solde
+    const currentBalance = driver.wallet_balance || 0;
+    let newBalance: number;
+
+    if (operation === 'add') {
+      newBalance = currentBalance + amount;
+    } else {
+      newBalance = currentBalance - amount;
+      
+      // Vérifier que le solde ne devient pas négatif
+      if (newBalance < 0) {
+        console.log('❌ Solde insuffisant:', {
+          actuel: currentBalance,
+          montant: amount,
+          nouveau: newBalance
+        });
+        return c.json({
+          success: false,
+          error: 'Solde insuffisant',
+          currentBalance,
+          required: amount
+        }, 400);
+      }
+    }
+
+    console.log('💰 Mise à jour du solde conducteur:', {
+      ancien: currentBalance,
+      montant: amount,
+      operation,
+      nouveau: newBalance
+    });
+
+    // Mettre à jour le conducteur avec le nouveau solde
+    const updatedDriver = {
+      ...driver,
+      wallet_balance: newBalance,
+      updated_at: new Date().toISOString()
+    };
+
+    // Sauvegarder dans le KV store
+    await kv.set(driverKey, updatedDriver);
+    console.log('✅ Solde conducteur mis à jour dans KV store');
+
+    // Créer une transaction dans l'historique
+    const transactionId = `driver-${operation}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const transaction = {
+      id: transactionId,
+      userId: driverId,
+      userName: driver.full_name,
+      amount: operation === 'add' ? amount : -amount,
+      type: operation === 'add' ? 'addition' : 'deduction',
+      method: 'wallet',
+      status: 'completed',
+      description: `${operation === 'add' ? 'Ajout' : 'Déduction'} de ${amount.toLocaleString()} CDF`,
+      balanceBefore: currentBalance,
+      balanceAfter: newBalance,
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+
+    // Sauvegarder la transaction
+    await kv.set(`transaction:driver:${transactionId}`, transaction);
+    console.log('✅ Transaction conducteur enregistrée:', transactionId);
+
+    // Synchroniser avec Supabase (optionnel)
+    try {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ wallet_balance: newBalance })
+        .eq('id', driverId);
+
+      if (updateError) {
+        console.error('⚠️ Erreur mise à jour Supabase wallet_balance:', updateError);
+      } else {
+        console.log('✅ Wallet balance conducteur synchronisé dans Supabase:', newBalance);
+      }
+    } catch (syncError) {
+      console.error('⚠️ Erreur sync Supabase:', syncError);
+    }
+
+    console.log(`✅ ${operation === 'add' ? 'Ajout' : 'Déduction'} solde conducteur réussi`);
+
+    return c.json({
+      success: true,
+      newBalance,
+      transaction,
+      message: `${amount.toLocaleString()} CDF ${operation === 'add' ? 'ajoutés au' : 'déduits du'} solde`
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur gestion solde conducteur:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur serveur'
+    }, 500);
+  }
+});
+
 export default walletRoutes;
