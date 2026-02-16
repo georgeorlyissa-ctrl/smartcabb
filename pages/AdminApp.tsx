@@ -52,6 +52,8 @@ function AdminAppContent() {
     
     console.log('👔 AdminApp - Démarrage avec currentScreen:', state.currentScreen);
     console.log('👔 AdminApp - location.pathname:', location.pathname);
+    console.log('👔 AdminApp - isAdmin:', state.isAdmin);
+    console.log('👔 AdminApp - currentUser:', state.currentUser?.id || 'none');
     
     // ✅ DÉTECTION DE ROUTE : Vérifier qu'on est bien sur une route admin
     const isAdminRoute = location.pathname.includes('/admin');
@@ -88,6 +90,19 @@ function AdminAppContent() {
       'admin-sync', 'admin-account-sync', 'cancellations', 'admin-users-diagnostic' // ✅ Ajouté
     ];
     
+    // ✅ FIX: Si l'admin est connecté et a un écran admin valide, ne rien changer
+    if (state.isAdmin && state.currentScreen && validAdminScreens.includes(state.currentScreen) && state.currentScreen !== 'admin-login') {
+      console.log('✅ Admin connecté avec écran valide, on garde:', state.currentScreen);
+      return; // Important : ne pas continuer pour éviter les redirections
+    }
+    
+    // ✅ FIX: Si l'admin est connecté mais n'a pas d'écran valide (refresh), aller au dashboard
+    if (state.isAdmin && (!state.currentScreen || !validAdminScreens.includes(state.currentScreen) || state.currentScreen === 'admin-login')) {
+      console.log('🔄 Admin connecté après refresh, redirection vers dashboard');
+      setCurrentScreen('admin-dashboard');
+      return;
+    }
+    
     // 🆕 CORRECTION : Ne pas écraser l'écran restauré depuis localStorage s'il est valide
     if (state.currentScreen && validAdminScreens.includes(state.currentScreen)) {
       console.log('✅ Écran admin restauré depuis localStorage:', state.currentScreen);
@@ -96,7 +111,7 @@ function AdminAppContent() {
       console.log('👔 AdminApp - Initialisation avec admin-login (aucun écran valide sauvegardé)');
       setCurrentScreen('admin-login');
     }
-  }, [location.pathname]);
+  }, [location.pathname, state.currentScreen, state.isAdmin, state.currentUser, setCurrentView, setCurrentScreen]);
   
   // État RLS local
   const showRLSModal = false;
