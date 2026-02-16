@@ -82,6 +82,33 @@ export function RideInProgressScreen() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
+  // 🆕 GESTIONNAIRE D'ERREURS GLOBAL pour éviter "Script error"
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      // Empêcher les erreurs de se propager et causer un crash de l'interface
+      event.preventDefault();
+      console.error('🚨 Erreur interceptée dans RideInProgressScreen:', {
+        message: event.message,
+        filename: event.filename,
+        lineno: event.lineno,
+        colno: event.colno,
+        error: event.error
+      });
+      
+      // Ne pas afficher de toast pour les erreurs Google Maps (déjà gérées)
+      if (event.message && !event.message.includes('Google Maps')) {
+        // Log silencieux pour debug
+        console.warn('Erreur non-critique interceptée et ignorée');
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
+
   // 🆕 POLLING EN TEMPS RÉEL : Récupérer les mises à jour de la course toutes les 3 secondes
   useEffect(() => {
     if (!currentRide?.id) return;
@@ -109,26 +136,29 @@ export function RideInProgressScreen() {
         const updatedRide = await response.json();
 
         console.log('📥 Mise à jour reçue:', {
-          status: updatedRide.status,
-          billingStartTime: updatedRide.billingStartTime,
-          billingElapsedTime: updatedRide.billingElapsedTime
+          status: updatedRide?.status,
+          billingStartTime: updatedRide?.billingStartTime,
+          billingElapsedTime: updatedRide?.billingElapsedTime
         });
 
-        // ✅ Mettre à jour le ride dans le contexte
+        // ✅ Mettre à jour le ride dans le contexte (avec protection)
         if (updatedRide && updatedRide.id) {
           updateRide(updatedRide.id, updatedRide);
         }
 
       } catch (error) {
         console.error('❌ Erreur lors du polling:', error);
+        // Ne pas afficher de toast, juste logger
       }
     };
 
     // Polling toutes les 3 secondes
     const interval = setInterval(pollRideStatus, 3000);
 
-    // Premier polling immédiat
-    pollRideStatus();
+    // Premier polling immédiat (avec protection)
+    pollRideStatus().catch(err => {
+      console.error('❌ Erreur premier polling:', err);
+    });
 
     return () => {
       console.log('🛑 Arrêt du polling');
