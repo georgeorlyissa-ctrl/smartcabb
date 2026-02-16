@@ -541,12 +541,24 @@ export function GoogleMapView({
       return;
     }
 
+    // ✅ PROTECTION: Vérifier que Google Maps est chargé
+    if (!window.google?.maps?.DirectionsService) {
+      console.warn('⚠️ Google Maps pas encore chargé pour afficher l\'itinéraire');
+      return;
+    }
+
     // 🆕 UTILISER LE PROXY BACKEND au lieu de DirectionsService direct
     // Cela évite les erreurs UNKNOWN_ERROR si la clé API frontend est invalide
     
     // Fonction helper pour créer les marqueurs départ/destination
     const createRouteMarkers = (start: Location, end: Location) => {
       if (!mapInstanceRef.current) return;
+      
+      // ✅ PROTECTION: Vérifier que Google Maps est chargé
+      if (!window.google?.maps?.Marker || !window.google?.maps?.Size || !window.google?.maps?.Point) {
+        console.warn('⚠️ Google Maps Marker API pas chargée');
+        return;
+      }
       
       // Supprimer les anciens marqueurs
       if (routeMarkersRef.current.start) {
