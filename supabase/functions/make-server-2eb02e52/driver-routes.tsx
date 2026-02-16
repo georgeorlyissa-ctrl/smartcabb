@@ -1326,7 +1326,20 @@ app.post('/toggle-online-status', async (c) => {
 
     // ✅ v518.1: VÉRIFIER LE SOLDE AVANT DE PERMETTRE LA MISE EN LIGNE
     if (isOnline) {
-      const accountBalance = driver.accountBalance || 0;
+      // ✅ FIX CRITIQUE : Récupérer le solde depuis la clé séparée (comme dans /:driverId/balance)
+      const balanceKey = `driver:${driverId}:balance`;
+      const balanceData = await kv.get(balanceKey);
+      
+      let accountBalance = 0;
+      
+      if (balanceData) {
+        // Le solde peut être stocké comme un nombre ou comme un objet { balance: number }
+        accountBalance = typeof balanceData === 'number' ? balanceData : (balanceData.balance || 0);
+      } else {
+        // Fallback : essayer de récupérer depuis le profil du conducteur
+        accountBalance = driver.wallet_balance || driver.account_balance || driver.balance || driver.accountBalance || 0;
+      }
+      
       const vehicleCategory = driver.vehicle?.category || driver.vehicleCategory || 'smart_standard';
       
       // Calculer le solde minimum requis selon la catégorie
@@ -1334,6 +1347,7 @@ app.post('/toggle-online-status', async (c) => {
       const minimumBalance = getMinimumBalanceForCategory(vehicleCategory, exchangeRate);
       
       console.log(`🔍 Vérification solde conducteur: ${accountBalance} CDF (minimum requis: ${minimumBalance} CDF)`);
+      console.log(`🔍 Solde récupéré depuis: ${balanceData ? 'clé balance séparée' : 'profil conducteur'}`);
       
       if (accountBalance < minimumBalance) {
         console.warn(`❌ Solde insuffisant: ${accountBalance} < ${minimumBalance} CDF`);
