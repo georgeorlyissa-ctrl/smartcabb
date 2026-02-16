@@ -24,7 +24,7 @@ export async function signUpDriver(driverData: {
   vehicleModel: string;
   vehiclePlate: string;
   vehicleColor: string;
-  vehicleCategory: 'standard' | 'comfort' | 'luxury';
+  vehicleCategory: 'smart_standard' | 'smart_confort' | 'smart_plus' | 'smart_business';
   licenseNumber?: string;
   profilePhoto?: string; // 📸 Photo en Base64
 }): Promise<AuthResult> {
