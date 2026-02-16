@@ -795,7 +795,7 @@ export function RideScreen() {
       />
 
       {/* 🆕 MODAL 1 : Recherche en cours (auto-retry) */}
-      {currentRide?.status === 'searching' && (
+      {currentRide?.status === 'searching' && !showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -846,7 +846,7 @@ export function RideScreen() {
       )}
 
       {/* 🆕 MODAL 2 : Aucun conducteur disponible (décision passager) */}
-      {currentRide?.status === 'awaiting_retry_decision' && (
+      {currentRide?.status === 'awaiting_retry_decision' && !showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
