@@ -57,6 +57,9 @@ export function MapView(props: MapViewProps) {
   useEffect(() => {
     // Écouter les erreurs Google Maps globales
     const errorListener = (event: ErrorEvent | any) => {
+      // Protection contre les erreurs undefined
+      if (!event) return;
+      
       const errorMsg = event?.message || event?.error?.message || String(event);
       
       if (errorMsg.includes('RefererNotAllowedMapError') || 
@@ -69,6 +72,9 @@ export function MapView(props: MapViewProps) {
         
         setGoogleMapsError(errorMsg);
         setUseOpenStreetMap(true);
+        
+        // Empêcher la propagation de l'erreur
+        event.preventDefault && event.preventDefault();
       }
     };
 
@@ -78,15 +84,20 @@ export function MapView(props: MapViewProps) {
     // Intercepter console.error pour détecter les erreurs Google Maps
     const originalConsoleError = console.error;
     console.error = (...args: any[]) => {
-      const errorStr = args.join(' ');
-      if (errorStr.includes('Google Maps') && 
-          (errorStr.includes('RefererNotAllowedMapError') || 
-           errorStr.includes('ApiNotActivatedMapError') ||
-           errorStr.includes('InvalidKeyMapError'))) {
-        console.warn('⚠️ Erreur Google Maps détectée via console.error');
-        setUseOpenStreetMap(true);
+      try {
+        const errorStr = args.join(' ');
+        if (errorStr.includes('Google Maps') && 
+            (errorStr.includes('RefererNotAllowedMapError') || 
+             errorStr.includes('ApiNotActivatedMapError') ||
+             errorStr.includes('InvalidKeyMapError'))) {
+          console.warn('⚠️ Erreur Google Maps détectée via console.error');
+          setUseOpenStreetMap(true);
+        }
+        originalConsoleError.apply(console, args);
+      } catch (err) {
+        // Protection en cas d'erreur dans le gestionnaire
+        originalConsoleError.apply(console, args);
       }
-      originalConsoleError.apply(console, args);
     };
 
     return () => {
