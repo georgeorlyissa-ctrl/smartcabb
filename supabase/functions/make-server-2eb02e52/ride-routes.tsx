@@ -279,6 +279,18 @@ async function startSequentialMatching(
       
       console.log(`\n🔄 [ITERATION ${i + 1}/${driversWithDistance.length}] Traitement du conducteur: ${driver.full_name || driver.id}`);
       
+      // ✅ FIX CRITIQUE #1 : Vérifier le statut de la course AVANT de continuer
+      const currentRideStatus = await kv.get(`ride_request_${rideId}`);
+      if (currentRideStatus && (currentRideStatus.status === 'accepted' || currentRideStatus.status === 'in_progress')) {
+        console.log(`✅ COURSE DÉJÀ ACCEPTÉE ! Arrêt immédiat de la boucle séquentielle.`);
+        console.log('🎯 ========== FIN MATCHING SÉQUENTIEL (DÉJÀ ACCEPTÉE) ==========');
+        // Nettoyer tous les compteurs
+        await kv.del(`ride_${rideId}:attempt_count`);
+        await kv.del(`ride_${rideId}:cycle_count`);
+        await kv.del(`ride_${rideId}:current_driver`);
+        return;
+      }
+      
       // Vérifier si ce driver a déjà refusé
       if (refusedDrivers.includes(driver.id)) {
         console.log(`⏭️ ${driver.full_name || driver.id} a déjà refusé, ignoré`);
@@ -292,15 +304,29 @@ async function startSequentialMatching(
       await kv.set(`ride_${rideId}:current_driver`, driver.id);
       await kv.set(`ride_${rideId}:notified_at`, new Date().toISOString());
       
-      // ✅ FIX CRITIQUE : Mettre à jour la course pour l'assigner au conducteur
+      // ✅ FIX CRITIQUE #2 : Vérifier ENCORE une fois avant d'assigner (double sécurité)
       const currentRide = await kv.get(`ride_request_${rideId}`);
-      if (currentRide) {
-        currentRide.assignedDriverId = driver.id;
-        currentRide.assignedDriverName = driver.full_name || driver.email;
-        currentRide.assignedAt = new Date().toISOString();
-        await kv.set(`ride_request_${rideId}`, currentRide);
-        console.log(`✅ Course ${rideId} assignée au conducteur ${driver.full_name}`);
+      if (!currentRide) {
+        console.log(`❌ Course ${rideId} introuvable, arrêt de la boucle`);
+        return;
       }
+      
+      // Si la course a déjà été acceptée, ne pas la réassigner
+      if (currentRide.status === 'accepted' || currentRide.status === 'in_progress') {
+        console.log(`✅ COURSE DÉJÀ ACCEPTÉE ! Pas de réassignation.`);
+        console.log('🎯 ========== FIN MATCHING SÉQUENTIEL (DÉJÀ ACCEPTÉE) ==========');
+        await kv.del(`ride_${rideId}:attempt_count`);
+        await kv.del(`ride_${rideId}:cycle_count`);
+        await kv.del(`ride_${rideId}:current_driver`);
+        return;
+      }
+      
+      // Assigner la course au conducteur actuel
+      currentRide.assignedDriverId = driver.id;
+      currentRide.assignedDriverName = driver.full_name || driver.email;
+      currentRide.assignedAt = new Date().toISOString();
+      await kv.set(`ride_request_${rideId}`, currentRide);
+      console.log(`✅ Course ${rideId} assignée au conducteur ${driver.full_name}`);
 
       // Envoyer la notification (SMS ou FCM selon disponibilité)
       const notificationSent = await sendDriverNotification(driver, rideId, pickup);
@@ -341,6 +367,17 @@ async function startSequentialMatching(
     console.log(`\n🔚 FIN DE LA BOUCLE SÉQUENTIELLE - Tous les conducteurs ont été notifiés`);
     console.log(`📊 Résumé: ${driversWithDistance.length} conducteurs traités, aucune acceptation`);
 
+    // ✅ FIX CRITIQUE #4 : Vérifier une dernière fois le statut avant les auto-retry
+    const finalRideCheck = await kv.get(`ride_request_${rideId}`);
+    if (finalRideCheck && (finalRideCheck.status === 'accepted' || finalRideCheck.status === 'in_progress')) {
+      console.log(`✅ COURSE DÉJÀ ACCEPTÉE ! Pas d'auto-retry.`);
+      console.log('🎯 ========== FIN MATCHING SÉQUENTIEL (DÉJÀ ACCEPTÉE) ==========');
+      await kv.del(`ride_${rideId}:attempt_count`);
+      await kv.del(`ride_${rideId}:cycle_count`);
+      await kv.del(`ride_${rideId}:current_driver`);
+      return;
+    }
+
     // 🔄 NOUVELLE LOGIQUE HYBRIDE : Auto-retry + Décision passager
     const cycleCount = await kv.get(`ride_${rideId}:cycle_count`) || 0;
     const MAX_AUTO_CYCLES = 2; // 2 cycles automatiques
@@ -359,6 +396,15 @@ async function startSequentialMatching(
       
       // ⚡ OPTIMISATION : Attendre 3 secondes au lieu de 5s
       await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // ✅ FIX CRITIQUE #5 : Vérifier le statut APRÈS le timeout avant de relancer
+      const rideBeforeRetry = await kv.get(`ride_request_${rideId}`);
+      if (rideBeforeRetry && (rideBeforeRetry.status === 'accepted' || rideBeforeRetry.status === 'in_progress')) {
+        console.log(`✅ COURSE ACCEPTÉE PENDANT LE TIMEOUT ! Annulation du retry.`);
+        await kv.del(`ride_${rideId}:attempt_count`);
+        await kv.del(`ride_${rideId}:cycle_count`);
+        return;
+      }
       
       // Relancer le matching (qui renverra la notification au même conducteur)
       console.log(`🔄 Relance du matching pour le conducteur ${singleDriver?.full_name}`);
@@ -386,6 +432,15 @@ async function startSequentialMatching(
       
       // ⚡ OPTIMISATION : Attendre 20 secondes au lieu de 30s entre les cycles
       await new Promise(resolve => setTimeout(resolve, 20000));
+      
+      // ✅ FIX CRITIQUE #6 : Vérifier le statut APRÈS le timeout avant de relancer
+      const rideBeforeCycleRetry = await kv.get(`ride_request_${rideId}`);
+      if (rideBeforeCycleRetry && (rideBeforeCycleRetry.status === 'accepted' || rideBeforeCycleRetry.status === 'in_progress')) {
+        console.log(`✅ COURSE ACCEPTÉE PENDANT LE TIMEOUT ! Annulation du cycle retry.`);
+        await kv.del(`ride_${rideId}:attempt_count`);
+        await kv.del(`ride_${rideId}:cycle_count`);
+        return;
+      }
       
       // Relancer le matching avec la même liste
       console.log(`🔄 Relance du matching (cycle ${cycleCount + 1})`);
@@ -445,6 +500,18 @@ async function sendDriverNotification(
 ): Promise<boolean> {
   try {
     console.log('📱 Tentative d\'envoi notification au conducteur:', driver.full_name || driver.id);
+    
+    // ✅ FIX CRITIQUE #3 : Vérifier le statut de la course AVANT d'envoyer la notification
+    const currentRide = await kv.get(`ride_request_${rideId}`);
+    if (!currentRide) {
+      console.log(`❌ Course ${rideId} introuvable, annulation de la notification`);
+      return false;
+    }
+    
+    if (currentRide.status === 'accepted' || currentRide.status === 'in_progress') {
+      console.log(`🚫 Course ${rideId} déjà acceptée ! Pas d'envoi de notification.`);
+      return false;
+    }
     
     // 1. PRIORITÉ : Récupérer le token FCM du driver depuis le KV store
     let fcmToken = driver.fcmToken || driver.fcm_token;
@@ -1218,6 +1285,12 @@ app.post('/accept', async (c) => {
     await kv.del(`ride_${rideId}:current_driver`);
     await kv.del(`ride_${rideId}:notified_at`);
     
+    // ✅ FIX CRITIQUE #7 : Nettoyer TOUS les compteurs d'auto-retry
+    await kv.del(`ride_${rideId}:attempt_count`);
+    await kv.del(`ride_${rideId}:cycle_count`);
+    await kv.del(`ride_${rideId}:refused_drivers`);
+    console.log('✅ Tous les compteurs de retry nettoyés');
+    
     // 🆕 CRITICAL : Invalider les notifications FCM des autres conducteurs
     console.log('🚫 Invalidation des notifications des autres conducteurs...');
     
@@ -1302,6 +1375,15 @@ app.post('/decline', async (c) => {
         success: false, 
         error: 'Course introuvable' 
       }, 404);
+    }
+    
+    // ✅ FIX CRITIQUE #8 : Ne PAS relancer le matching si la course est déjà acceptée
+    if (ride.status === 'accepted' || ride.status === 'in_progress') {
+      console.log('✅ Course déjà acceptée par un autre conducteur, pas de relance du matching');
+      return c.json({ 
+        success: true, 
+        message: 'Course déjà prise par un autre conducteur' 
+      });
     }
 
     // 🎯 NOUVEAU : Nettoyer les clés de matching pour permettre au système de passer au suivant
