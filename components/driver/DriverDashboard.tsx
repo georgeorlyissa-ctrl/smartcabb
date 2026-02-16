@@ -1105,8 +1105,20 @@ export function DriverDashboard() {
 
       if (!result.success) {
         // Si le backend refuse l'activation (solde insuffisant)
-        toast.error(result.error || 'Impossible de changer le statut');
-        if (result.error?.includes('Solde insuffisant')) {
+        console.error('❌ Erreur toggle online:', result);
+        
+        // ✅ v518.1: Afficher un message détaillé avec le montant manquant
+        if (result.message && result.currentBalance !== undefined && result.minimumRequired !== undefined) {
+          const shortfall = result.minimumRequired - result.currentBalance;
+          toast.error(
+            `💰 ${result.message}\n\nMontant manquant: ${shortfall.toLocaleString()} CDF\n\nVeuillez recharger votre compte.`,
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(result.error || result.message || 'Impossible de changer le statut');
+        }
+        
+        if (result.error?.includes('Solde insuffisant') || result.message?.includes('insuffisant')) {
           setShowPaymentModal(true);
         }
         return;
