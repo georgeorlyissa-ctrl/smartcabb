@@ -1708,6 +1708,43 @@ export function DriverDashboard() {
       // Forcer le re-render visuel du solde
       setBalanceRenderKey(prev => prev + 1);
       
+      // ✅ v518.2: RECHARGER LE SOLDE DEPUIS LE BACKEND APRÈS LA COURSE
+      // Pour refléter la déduction automatique de 15% effectuée par le backend
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Rechargement du solde après course pour voir la déduction de 15%...');
+          const balanceResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/balance`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            if (balanceData.success) {
+              const updatedBalance = balanceData.balance;
+              setAccountBalance(updatedBalance);
+              setBalanceRenderKey(prev => prev + 1);
+              localStorage.setItem(`driver_balance_${driver.id}`, updatedBalance.toString());
+              console.log(`✅ Solde mis à jour après course: ${updatedBalance.toLocaleString()} CDF`);
+              
+              // Notification de la déduction de commission
+              setTimeout(() => {
+                toast.info(
+                  `💰 Commission SmartCabb (${commissionPercentage}%): -${commissionAmount.toLocaleString()} CDF`,
+                  { duration: 5000 }
+                );
+              }, 2500);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Erreur rechargement solde après course:', error);
+        }
+      }, 3000); // Attendre 3 secondes pour laisser le backend traiter la déduction
+      
       // Mettre à jour l'état
       setCurrentRide(null);
       // 🚫 SUPPRIMÉ : setConfirmationCode('');
