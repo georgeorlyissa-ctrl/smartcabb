@@ -53,6 +53,7 @@ function PassengerAppContent() {
   useEffect(() => {
     console.log('🚀 PassengerApp monté - currentScreen:', currentScreen, 'location:', location.pathname);
     console.log('🚀 PassengerApp - currentView:', state.currentView);
+    console.log('🚀 PassengerApp - currentUser:', state.currentUser?.id || 'none');
     console.log('🚀 PassengerApp - pickup:', state.pickup?.address);
     console.log('🚀 PassengerApp - destination:', state.destination?.address);
     
@@ -65,6 +66,19 @@ function PassengerAppContent() {
     // ❌ NE PAS charger PassengerApp si on est sur un écran admin ou driver
     if (currentScreen?.startsWith('admin-') || currentScreen?.startsWith('driver-')) {
       console.log('⚠️ Écran admin/driver détecté, on ne touche pas à la vue');
+      return;
+    }
+    
+    // ✅ FIX: Si l'utilisateur est connecté et a un écran passager valide, ne rien changer
+    if (state.currentUser && currentScreen && !['landing', 'user-selection', 'login', 'register'].includes(currentScreen)) {
+      console.log('✅ Passager connecté avec écran valide, on garde:', currentScreen);
+      return; // Important : ne pas continuer pour éviter les redirections
+    }
+    
+    // ✅ FIX: Si l'utilisateur est connecté mais n'a pas d'écran valide (refresh), aller à map
+    if (state.currentUser && (!currentScreen || ['landing', 'user-selection', 'login', 'register'].includes(currentScreen))) {
+      console.log('🔄 Passager connecté après refresh, redirection vers map');
+      setCurrentScreen('map');
       return;
     }
     
@@ -88,7 +102,7 @@ function PassengerAppContent() {
       console.log('✅ Utilisateur déjà connecté, redirection vers map');
       setCurrentScreen('map');
     }
-  }, [location.pathname, currentScreen, state.currentView, user, setCurrentView, setCurrentScreen]); // Toutes les dépendances
+  }, [location.pathname, currentScreen, state.currentView, state.currentUser, user, setCurrentView, setCurrentScreen]); // Toutes les dépendances
 
   // ✅ Gérer le cas où currentScreen est vide PENDANT le render
   const screenToShow = useMemo(() => {
