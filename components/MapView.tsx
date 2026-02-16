@@ -62,6 +62,15 @@ export function MapView(props: MapViewProps) {
       
       const errorMsg = event?.message || event?.error?.message || String(event);
       
+      // ✅ BLOQUER SILENCIEUSEMENT les "Script error" (erreurs cross-origin)
+      if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
+        console.warn('⚠️ Script error bloqué dans MapView (cross-origin)');
+        event.preventDefault && event.preventDefault();
+        event.stopPropagation && event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
+        return;
+      }
+      
       if (errorMsg.includes('RefererNotAllowedMapError') || 
           errorMsg.includes('ApiNotActivatedMapError') ||
           errorMsg.includes('InvalidKeyMapError') ||
@@ -75,11 +84,13 @@ export function MapView(props: MapViewProps) {
         
         // Empêcher la propagation de l'erreur
         event.preventDefault && event.preventDefault();
+        event.stopPropagation && event.stopPropagation();
+        event.stopImmediatePropagation && event.stopImmediatePropagation();
       }
     };
 
-    // Écouter les erreurs globales
-    window.addEventListener('error', errorListener);
+    // Écouter les erreurs globales - AVEC CAPTURE POUR BLOQUER AVANT LES AUTRES
+    window.addEventListener('error', errorListener, true); // true = capture phase
 
     // Intercepter console.error pour détecter les erreurs Google Maps
     const originalConsoleError = console.error;
@@ -101,7 +112,7 @@ export function MapView(props: MapViewProps) {
     };
 
     return () => {
-      window.removeEventListener('error', errorListener);
+      window.removeEventListener('error', errorListener, true); // true = capture phase
       console.error = originalConsoleError;
     };
   }, []);
