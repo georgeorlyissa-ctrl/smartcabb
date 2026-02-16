@@ -5,6 +5,24 @@ import { isValidUUID, safeGetUserByIdWithCleanup } from "./uuid-validator.tsx";
 
 const app = new Hono();
 
+// ✅ v518.1: GRILLE TARIFAIRE PAR CATÉGORIE (pour calculer le solde minimum)
+const PRICING_CONFIG = {
+  smart_standard: { course_heure: { jour: { usd: 7 }, nuit: { usd: 10 } } },
+  smart_confort: { course_heure: { jour: { usd: 9 }, nuit: { usd: 15 } } },
+  smart_plus: { course_heure: { jour: { usd: 15 }, nuit: { usd: 17 } } },
+  smart_plus_plus: { course_heure: { jour: { usd: 15 }, nuit: { usd: 20 } } },
+  smart_business: { course_heure: { jour: { usd: 20 }, nuit: { usd: 25 } } }
+};
+
+// ✅ v518.1: FONCTION : Calculer le solde minimum requis selon la catégorie
+function getMinimumBalanceForCategory(category: string, exchangeRate: number = 2850): number {
+  const pricing = PRICING_CONFIG[category as keyof typeof PRICING_CONFIG];
+  if (!pricing) {
+    return PRICING_CONFIG.smart_standard.course_heure.jour.usd * exchangeRate;
+  }
+  return pricing.course_heure.jour.usd * exchangeRate;
+}
+
 // ============================================
 // 🔧 FONCTION UTILITAIRE : Récupérer un conducteur avec fallback Auth
 // ============================================
