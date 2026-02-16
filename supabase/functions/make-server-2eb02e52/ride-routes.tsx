@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv-wrapper.tsx";
 import * as matching from "./ride-matching.tsx";
 import { checkDriversAvailability, getCategoryName } from "./ride-availability-helper.tsx";
+import { safeGetUserByIdWithCleanup } from "./uuid-validator.tsx";
+import { normalizePhoneNumber, isValidPhoneNumber } from "./phone-utils.ts";
 
 const app = new Hono();
 
@@ -140,16 +142,21 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
 async function startSequentialMatching(
   rideId: string,
   pickup: { lat: number; lng: number; address: string },
-  vehicleType: string
+  vehicleType: string,
+  radiusBonus: number = 0 // 🆕 Bonus de rayon pour étendre la recherche (en km)
 ): Promise<void> {
   console.log('🎯 ========== DÉBUT MATCHING SÉQUENTIEL ==========');
   console.log('🆔 Ride ID:', rideId);
   console.log('📍 Pickup:', pickup.address);
   console.log('🚗 Type véhicule:', vehicleType);
+  console.log('📏 Rayon bonus:', radiusBonus > 0 ? `+${radiusBonus} km` : 'Standard (5 km)');
+  console.log('🕒 Timestamp:', new Date().toISOString());
 
   try {
+    console.log('🔍 [STEP 1] Récupération des conducteurs depuis KV store...');
     // 1. Récupérer tous les chauffeurs en ligne de la bonne catégorie
     const allDrivers = await kv.getByPrefix('driver:');
+    console.log('🔍 [STEP 1] Résultat getByPrefix:', allDrivers ? `${allDrivers.length} conducteurs` : 'NULL');
     
     if (!allDrivers || allDrivers.length === 0) {
       console.log('❌ Aucun conducteur trouvé dans le système');
@@ -205,6 +212,10 @@ async function startSequentialMatching(
     console.log(`🎯 ${eligibleDrivers.length} conducteur(s) éligible(s)`);
 
     // 2. Calculer la distance et trier par PROXIMITÉ puis NOTE
+    const BASE_MAX_DISTANCE = 5; // km
+    const maxDistance = BASE_MAX_DISTANCE + radiusBonus; // 🆕 Rayon élargi si retry
+    console.log(`📏 Rayon de recherche: ${maxDistance} km`);
+    
     const driversWithDistance = eligibleDrivers.map(driver => {
       const distance = calculateDistance(
         pickup.lat,
@@ -218,7 +229,25 @@ async function startSequentialMatching(
         distance,
         rating: driver.rating || 5.0
       };
+    }).filter(driver => {
+      // 🆕 Filtrer par distance maximale
+      if (driver.distance > maxDistance) {
+        console.log(`⏭️ ${driver.full_name || driver.id}: trop loin (${driver.distance.toFixed(2)}km > ${maxDistance}km)`);
+        return false;
+      }
+      return true;
     });
+
+    if (driversWithDistance.length === 0) {
+      console.log(`❌ Aucun conducteur dans un rayon de ${maxDistance} km`);
+      const ride = await kv.get(`ride_request_${rideId}`);
+      if (ride) {
+        ride.status = 'no_drivers';
+        ride.searchRadius = maxDistance;
+        await kv.set(`ride_request_${rideId}`, ride);
+      }
+      return;
+    }
 
     // Trier par distance (croissant) puis par note (décroissant)
     driversWithDistance.sort((a, b) => {
@@ -230,7 +259,7 @@ async function startSequentialMatching(
       return b.rating - a.rating;
     });
 
-    console.log('📊 Conducteurs triés par proximité + note:');
+    console.log(`📊 ${driversWithDistance.length} conducteurs dans le rayon de ${maxDistance} km (triés par proximité + note):`);
     driversWithDistance.forEach((d, i) => {
       console.log(`  ${i + 1}. ${d.full_name || d.id} - ${d.distance.toFixed(2)}km - ⭐${d.rating.toFixed(1)}`);
     });
@@ -239,13 +268,22 @@ async function startSequentialMatching(
     const refusedDrivers = await kv.get(`ride_${rideId}:refused_drivers`) || [];
     console.log('🚫 Conducteurs ayant déjà refusé:', refusedDrivers.length);
 
-    // 3. Envoyer la notification UN PAR UN avec timeout de 15 secondes
+    // 🔄 NOUVELLE LOGIQUE : Récupérer le nombre de tentatives déjà effectuées
+    const attemptCount = await kv.get(`ride_${rideId}:attempt_count`) || 0;
+    const MAX_RETRY_ATTEMPTS = 3; // Maximum 3 tentatives si un seul conducteur
+
+    // 3. Envoyer la notification UN PAR UN avec timeout de 10 secondes
+    console.log(`\n🔁 DÉBUT DE LA BOUCLE SÉQUENTIELLE (${driversWithDistance.length} conducteurs)`);
+    
     for (let i = 0; i < driversWithDistance.length; i++) {
       const driver = driversWithDistance[i];
+      
+      console.log(`\n🔄 [ITERATION ${i + 1}/${driversWithDistance.length}] Traitement du conducteur: ${driver.full_name || driver.id}`);
       
       // Vérifier si ce driver a déjà refusé
       if (refusedDrivers.includes(driver.id)) {
         console.log(`⏭️ ${driver.full_name || driver.id} a déjà refusé, ignoré`);
+        console.log(`🔄 Passage à l'itération suivante...`);
         continue;
       }
       
@@ -254,6 +292,16 @@ async function startSequentialMatching(
       // Sauvegarder dans le KV que ce driver a reçu la notification
       await kv.set(`ride_${rideId}:current_driver`, driver.id);
       await kv.set(`ride_${rideId}:notified_at`, new Date().toISOString());
+      
+      // ✅ FIX CRITIQUE : Mettre à jour la course pour l'assigner au conducteur
+      const currentRide = await kv.get(`ride_request_${rideId}`);
+      if (currentRide) {
+        currentRide.assignedDriverId = driver.id;
+        currentRide.assignedDriverName = driver.full_name || driver.email;
+        currentRide.assignedAt = new Date().toISOString();
+        await kv.set(`ride_request_${rideId}`, currentRide);
+        console.log(`✅ Course ${rideId} assignée au conducteur ${driver.full_name}`);
+      }
 
       // Envoyer la notification (SMS ou FCM selon disponibilité)
       const notificationSent = await sendDriverNotification(driver, rideId, pickup);
@@ -263,30 +311,123 @@ async function startSequentialMatching(
         continue;
       }
 
-      console.log(`⏳ Attente de 15 secondes pour la réponse de ${driver.full_name}...`);
+      console.log(`⏳ Attente de 10 secondes pour la réponse de ${driver.full_name}...`);
+      console.log(`⏰ Début d'attente: ${new Date().toISOString()}`);
 
-      // Attendre 15 secondes
-      await new Promise(resolve => setTimeout(resolve, 15000));
+      // ⚡ OPTIMISATION : Attendre 10 secondes au lieu de 15s pour réduire les délais
+      await new Promise(resolve => setTimeout(resolve, 10000));
 
+      console.log(`⏰ Fin d'attente: ${new Date().toISOString()}`);
+      
       // Vérifier si le driver a accepté
       const ride = await kv.get(`ride_request_${rideId}`);
+      
+      console.log(`📊 APRÈS TIMEOUT DE 10S pour ${driver.full_name}:`);
+      console.log(`   - Status de la course: ${ride?.status || 'INTROUVABLE'}`);
+      console.log(`   - Conducteur assigné: ${ride?.assignedDriverId || 'AUCUN'}`);
+      console.log(`   - Index conducteur actuel: [${i + 1}/${driversWithDistance.length}]`);
       
       if (ride && ride.status === 'accepted') {
         console.log(`✅ COURSE ACCEPTÉE par ${driver.full_name} !`);
         console.log('🎯 ========== FIN MATCHING SÉQUENTIEL (SUCCÈS) ==========');
+        // Nettoyer le compteur de tentatives
+        await kv.del(`ride_${rideId}:attempt_count`);
         return;
       }
 
       console.log(`⏭️ Pas de réponse de ${driver.full_name}, passage au conducteur suivant`);
+      console.log(`🔄 Continuation de la boucle vers le conducteur #${i + 2}...`);
     }
 
-    // Si aucun conducteur n'a accepté
+    console.log(`\n🔚 FIN DE LA BOUCLE SÉQUENTIELLE - Tous les conducteurs ont été notifiés`);
+    console.log(`📊 Résumé: ${driversWithDistance.length} conducteurs traités, aucune acceptation`);
+
+    // 🔄 NOUVELLE LOGIQUE HYBRIDE : Auto-retry + Décision passager
+    const cycleCount = await kv.get(`ride_${rideId}:cycle_count`) || 0;
+    const MAX_AUTO_CYCLES = 2; // 2 cycles automatiques
+    
+    // Si un seul conducteur disponible : retry avec limite (logique existante)
+    const eligibleDriversCount = driversWithDistance.filter(d => !refusedDrivers.includes(d.id)).length;
+    
+    if (eligibleDriversCount === 1 && attemptCount < MAX_RETRY_ATTEMPTS) {
+      const singleDriver = driversWithDistance.find(d => !refusedDrivers.includes(d.id));
+      console.log(`\n🔄 ========== RETRY AUTOMATIQUE (${attemptCount + 1}/${MAX_RETRY_ATTEMPTS}) ==========`);
+      console.log(`🎯 Un seul conducteur disponible: ${singleDriver?.full_name || singleDriver?.id}`);
+      console.log(`⏰ Nouvelle tentative dans 3 secondes...`);
+      
+      // Incrémenter le compteur de tentatives
+      await kv.set(`ride_${rideId}:attempt_count`, attemptCount + 1);
+      
+      // ⚡ OPTIMISATION : Attendre 3 secondes au lieu de 5s
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Relancer le matching (qui renverra la notification au même conducteur)
+      console.log(`🔄 Relance du matching pour le conducteur ${singleDriver?.full_name}`);
+      return await startSequentialMatching(rideId, pickup, vehicleType);
+    }
+    
+    // 🆕 LOGIQUE POUR PLUSIEURS CONDUCTEURS : Cycles automatiques limités
+    if (eligibleDriversCount > 1 && cycleCount < MAX_AUTO_CYCLES) {
+      console.log(`\n🔄 ========== AUTO-RETRY CYCLE ${cycleCount + 1}/${MAX_AUTO_CYCLES} ==========`);
+      console.log(`🎯 ${eligibleDriversCount} conducteurs disponibles, relance automatique`);
+      console.log(`⏰ Nouvelle tentative dans 20 secondes...`);
+      
+      // Incrémenter le compteur de cycles
+      await kv.set(`ride_${rideId}:cycle_count`, cycleCount + 1);
+      
+      // Mettre à jour le statut de la course pour notifier le passager
+      const ride = await kv.get(`ride_request_${rideId}`);
+      if (ride) {
+        ride.status = 'searching'; // Status intermédiaire
+        ride.searchCycle = cycleCount + 1;
+        ride.searchMessage = `Relance de la recherche (tentative ${cycleCount + 1}/${MAX_AUTO_CYCLES})...`;
+        await kv.set(`ride_request_${rideId}`, ride);
+        console.log(`📱 Passager notifié: cycle ${cycleCount + 1}/${MAX_AUTO_CYCLES}`);
+      }
+      
+      // ⚡ OPTIMISATION : Attendre 20 secondes au lieu de 30s entre les cycles
+      await new Promise(resolve => setTimeout(resolve, 20000));
+      
+      // Relancer le matching avec la même liste
+      console.log(`🔄 Relance du matching (cycle ${cycleCount + 1})`);
+      return await startSequentialMatching(rideId, pickup, vehicleType);
+    }
+
+    // 🆕 APRÈS MAX_AUTO_CYCLES : Demander au passager
+    if (cycleCount >= MAX_AUTO_CYCLES) {
+      console.log(`\n⚠️ ========== ÉCHEC APRÈS ${MAX_AUTO_CYCLES} CYCLES ==========`);
+      console.log(`🎯 ${eligibleDriversCount} conducteurs contactés, aucune réponse`);
+      console.log(`📱 Demande de décision au passager...`);
+      
+      const ride = await kv.get(`ride_request_${rideId}`);
+      if (ride) {
+        ride.status = 'awaiting_retry_decision';
+        ride.retryRequestedAt = new Date().toISOString();
+        ride.driversContacted = driversWithDistance.length;
+        ride.cyclesCompleted = cycleCount;
+        await kv.set(`ride_request_${rideId}`, ride);
+        console.log(`✅ Course en attente de décision passager`);
+      }
+      
+      // Nettoyer les compteurs
+      await kv.del(`ride_${rideId}:cycle_count`);
+      await kv.del(`ride_${rideId}:attempt_count`);
+      
+      console.log('🎯 ========== FIN MATCHING (ATTENTE DÉCISION) ==========');
+      return;
+    }
+
+    // Si aucun conducteur n'a accepté après toutes les tentatives (fallback)
     console.log('❌ Aucun conducteur n\'a accepté la course');
     const ride = await kv.get(`ride_request_${rideId}`);
     if (ride) {
       ride.status = 'no_drivers';
       await kv.set(`ride_request_${rideId}`, ride);
     }
+    
+    // Nettoyer le compteur de tentatives
+    await kv.del(`ride_${rideId}:attempt_count`);
+    await kv.del(`ride_${rideId}:cycle_count`);
     
     console.log('🎯 ========== FIN MATCHING SÉQUENTIEL (ÉCHEC) ==========');
 
@@ -362,8 +503,25 @@ async function sendDriverNotification(
 
     // 2. FALLBACK : SMS si pas de FCM ou si FCM a échoué
     if (driver.phone) {
-      console.log('📱 Fallback SMS au conducteur:', driver.phone);
-      const message = `SmartCabb: Nouvelle course disponible à ${pickup.address}. Ouvrez l'app pour accepter (15s).`;
+      console.log('📱 Fallback SMS au conducteur (numéro brut):', driver.phone);
+      
+      // ✅ NORMALISER LE NUMÉRO DE TÉLÉPHONE
+      const normalizedPhone = normalizePhoneNumber(driver.phone);
+      
+      if (!normalizedPhone) {
+        console.error('❌ Numéro de téléphone invalide:', driver.phone);
+        console.log('⚠️ Impossible de contacter ce conducteur (numéro invalide)');
+        return false;
+      }
+      
+      if (!isValidPhoneNumber(normalizedPhone)) {
+        console.error('❌ Numéro normalisé invalide:', normalizedPhone);
+        return false;
+      }
+      
+      console.log('✅ Numéro normalisé:', normalizedPhone);
+      
+      const message = `SmartCabb: Nouvelle course disponible à ${pickup.address}. Ouvrez l'app pour accepter (10s).`;
       
       try {
         // Envoyer le SMS via Africa's Talking
@@ -371,6 +529,8 @@ async function sendDriverNotification(
         const apiKey = Deno.env.get('AFRICAS_TALKING_API_KEY') ?? '';
         
         if (username && apiKey) {
+          console.log('📤 Envoi SMS à:', normalizedPhone, '(username:', username, ')');
+          
           const smsResponse = await fetch('https://api.africastalking.com/version1/messaging', {
             method: 'POST',
             headers: {
@@ -380,20 +540,39 @@ async function sendDriverNotification(
             },
             body: new URLSearchParams({
               username: username,
-              to: driver.phone,
+              to: normalizedPhone,
               message: message,
               from: 'SMARTCABB'
             }).toString()
           });
 
           const smsResult = await smsResponse.json();
+          console.log('📨 Réponse Africa\'s Talking:', JSON.stringify(smsResult, null, 2));
+          
           const status = smsResult.SMSMessageData?.Recipients?.[0]?.status || 'Unknown';
+          const statusCode = smsResult.SMSMessageData?.Recipients?.[0]?.statusCode || 'Unknown';
           
           if (status === 'Success' || smsResult.SMSMessageData?.Message === 'Sent') {
-            console.log('✅ SMS envoyé avec succès au conducteur:', driver.phone);
+            console.log('✅ SMS envoyé avec succès au conducteur:', normalizedPhone);
             return true;
+          } else if (status === 'InsufficientBalance') {
+            // ⚠️ CAS SPÉCIAL : Manque de crédit Africa's Talking
+            console.warn('💰 ⚠️ CRÉDIT AFRICA\'S TALKING INSUFFISANT ⚠️');
+            console.warn('📱 Le SMS ne peut pas être envoyé car le compte n\'a plus de crédit.');
+            console.warn('🔧 Action requise: Recharger le compte Africa\'s Talking sur https://account.africastalking.com');
+            console.warn('📞 Numéro concerné:', normalizedPhone);
+            console.warn('💡 Le conducteur sera notifié via polling (toutes les 2 secondes).');
+            
+            // ⚠️ AMÉLIORATION : Ne bloquer que si vraiment aucun moyen de contact
+            // Le conducteur peut toujours voir la course via le polling
+            console.log('ℹ️ Le conducteur verra la course via polling automatique (2s)');
+            console.log('✅ Continuation vers le prochain conducteur pour éviter les délais');
+            
+            // Ne pas bloquer complètement - laisser le polling faire son travail
+            return true; // Le conducteur verra via polling
           } else {
-            console.error('❌ Échec envoi SMS:', status);
+            console.error('❌ Échec envoi SMS:', status, '(code:', statusCode, ')');
+            console.error('📋 Détails:', smsResult);
           }
         } else {
           console.log('⚠️ Credentials Africa\'s Talking manquantes');
@@ -403,8 +582,15 @@ async function sendDriverNotification(
       }
     }
 
-    console.log('⚠️ Impossible de contacter ce conducteur (ni FCM ni SMS)');
-    return false;
+    // ⚠️ AMÉLIORATION : Même sans notification push, le polling détectera la course
+    console.warn('⚠️ Pas de notification push pour ce conducteur (ni FCM ni SMS)');
+    console.log('ℹ️ Le conducteur verra la course via polling automatique (toutes les 2 secondes)');
+    console.log('💡 Recommandation: Demander au conducteur d\'activer les notifications FCM');
+    console.log(`📱 ID conducteur concerné: ${driver.id}`);
+    
+    // Ne pas bloquer le système - le polling permettra au conducteur de voir la course
+    // Retourner true pour que le système continue
+    return true; // Le polling détectera la course assignée
 
   } catch (error) {
     console.error('❌ Erreur sendDriverNotification:', error);
@@ -570,9 +756,17 @@ app.post('/create', async (c) => {
 
     // 🎯 NOUVEAU : LANCER LE MATCHING SÉQUENTIEL IMMÉDIATEMENT
     // Le matching se fera en arrière-plan et notifiera les chauffeurs un par un
+    console.log('🚀 [CRITIQUE] Lancement du matching séquentiel pour:', rideId);
+    console.log('🚀 [CRITIQUE] Pickup:', JSON.stringify(pickup));
+    console.log('🚀 [CRITIQUE] VehicleType:', vehicleType || 'smart_standard');
+    
     startSequentialMatching(rideId, pickup, vehicleType || 'smart_standard').catch(error => {
-      console.error('❌ Erreur matching séquentiel (ne bloque pas la création):', error);
+      console.error('❌ [CRITIQUE] Erreur matching séquentiel (ne bloque pas la création):', error);
+      console.error('❌ [CRITIQUE] Error stack:', error instanceof Error ? error.stack : 'N/A');
+      console.error('❌ [CRITIQUE] Error type:', error instanceof Error ? error.constructor.name : typeof error);
     });
+    
+    console.log('🚀 [CRITIQUE] startSequentialMatching() lancé en arrière-plan');
 
     return c.json({
       success: true,
@@ -599,14 +793,78 @@ app.get('/pending/:driverId', async (c) => {
     console.log('🔍 Recherche de demandes en attente pour:', driverId);
 
     // Récupérer les infos du conducteur pour connaître sa catégorie de véhicule
-    const driver = await kv.get(`driver:${driverId}`);
+    let driver = await kv.get(`driver:${driverId}`);
     
     if (!driver) {
-      console.error('❌ Conducteur introuvable:', driverId);
-      return c.json({
-        success: false,
-        error: 'Conducteur introuvable'
-      }, 404);
+      console.warn(`⚠️ Conducteur ${driverId} non trouvé dans KV, tentative de récupération depuis Auth...`);
+      
+      // FALLBACK : Récupérer depuis Supabase Auth avec nettoyage auto des orphelins
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const supabase = createClient(supabaseUrl, serviceRoleKey);
+        
+        const { data, error: authError, wasOrphan } = await safeGetUserByIdWithCleanup(supabase, driverId, 'driver');
+        
+        if (wasOrphan) {
+          console.log('🧹 Profil orphelin nettoyé automatiquement');
+          return c.json({
+            success: false,
+            error: 'Conducteur introuvable (profil orphelin supprimé)'
+          }, 404);
+        }
+        
+        if (authError || !data?.user) {
+          console.error('❌ Conducteur introuvable dans Auth:', driverId, authError);
+          return c.json({
+            success: false,
+            error: 'Conducteur introuvable'
+          }, 404);
+        }
+        
+        const user = data.user;
+        console.log('✅ Conducteur trouvé dans Auth, création du profil KV...');
+        
+        // Créer l'objet conducteur depuis les données Auth
+        driver = {
+          id: driverId,
+          email: user.email || '',
+          full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+          phone: user.user_metadata?.phone || user.phone || '',
+          status: user.user_metadata?.status || 'pending',
+          driver_status: user.user_metadata?.driver_status || user.user_metadata?.status || 'pending',
+          is_available: user.user_metadata?.is_available || false,
+          isOnline: user.user_metadata?.isOnline || false,
+          location: user.user_metadata?.location || null,
+          current_location: user.user_metadata?.current_location || null,
+          rating: user.user_metadata?.rating || 0,
+          total_rides: user.user_metadata?.total_rides || 0,
+          vehicle: user.user_metadata?.vehicle || null,
+          vehicle_category: user.user_metadata?.vehicle_category || user.user_metadata?.vehicle?.category || 'standard',
+          license_plate: user.user_metadata?.license_plate || user.user_metadata?.vehicle?.license_plate || '',
+          vehicle_make: user.user_metadata?.vehicle_make || user.user_metadata?.vehicle?.make || '',
+          vehicle_model: user.user_metadata?.vehicle_model || user.user_metadata?.vehicle?.model || '',
+          vehicle_year: user.user_metadata?.vehicle_year || user.user_metadata?.vehicle?.year || '',
+          vehicle_color: user.user_metadata?.vehicle_color || user.user_metadata?.vehicle?.color || '',
+          profile_photo: user.user_metadata?.profile_photo || '',
+          wallet_balance: 0,
+          balance: 0,
+          created_at: user.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        // Sauvegarder dans le KV
+        await kv.set(`driver:${driverId}`, driver);
+        await kv.set(`profile:${driverId}`, driver);
+        console.log('✅ Profil conducteur créé dans KV depuis Auth');
+        
+      } catch (authError) {
+        console.error('❌ Erreur récupération depuis Auth:', authError);
+        return c.json({
+          success: false,
+          error: 'Conducteur introuvable'
+        }, 404);
+      }
     }
 
     // ✅ CORRECTION : Utiliser vehicle.category au lieu de vehicleInfo.type
@@ -960,7 +1218,44 @@ app.post('/accept', async (c) => {
     // 🎯 NOUVEAU : Nettoyer les clés de matching séquentiel
     await kv.del(`ride_${rideId}:current_driver`);
     await kv.del(`ride_${rideId}:notified_at`);
-
+    
+    // 🆕 CRITICAL : Invalider les notifications FCM des autres conducteurs
+    console.log('🚫 Invalidation des notifications des autres conducteurs...');
+    
+    // Marquer la course comme "prise" pour que les autres conducteurs ne puissent plus l'accepter
+    await kv.set(`ride_${rideId}:accepted_by`, driverId);
+    
+    // Récupérer tous les conducteurs qui auraient pu recevoir la notification
+    const allDrivers = await kv.getByPrefix('driver:');
+    let notificationsInvalidated = 0;
+    
+    for (const driver of allDrivers) {
+      if (!driver || driver.id === driverId) continue; // Ignorer le conducteur qui a accepté
+      
+      // Supprimer la notification de ce conducteur si elle existe
+      const notificationKey = `driver_notification:${driver.id}:${rideId}`;
+      const notification = await kv.get(notificationKey);
+      
+      if (notification) {
+        await kv.del(notificationKey);
+        notificationsInvalidated++;
+        console.log(`  ✅ Notification supprimée pour conducteur: ${driver.full_name || driver.id}`);
+        
+        // 🔔 Envoyer une notification FCM pour annuler visuellement la notification
+        try {
+          const fcmToken = driver.fcmToken || driver.fcm_token;
+          if (fcmToken) {
+            const { sendRideCancellationToDriver } = await import('./firebase-admin.tsx');
+            await sendRideCancellationToDriver(fcmToken, rideId, 'Course déjà acceptée par un autre conducteur');
+            console.log(`  📱 Notification d'annulation envoyée à: ${driver.full_name || driver.id}`);
+          }
+        } catch (error) {
+          console.debug(`  ⚠️ Erreur envoi notification annulation à ${driver.id}:`, error);
+        }
+      }
+    }
+    
+    console.log(`✅ ${notificationsInvalidated} notifications invalidées`);
     console.log('✅ Course acceptée par le conducteur:', driverId);
 
     // 🚫 SUPPRIMÉ : Envoi du code de confirmation par SMS (simplification UX)
@@ -1376,20 +1671,40 @@ app.post('/complete', async (c) => {
       }, 400);
     }
 
-    // ⚠️ v517.91: SUPPRESSION DE LA MISE À JOUR DU SOLDE CONDUCTEUR DANS LE BACKEND
-    // Le frontend gère déjà cette logique correctement dans DriverDashboard.tsx ligne 1039
-    // En gardant cette logique ici, on créait une DOUBLE ADDITION du gain au solde
-    // 
-    // AVANT (BUGGÉ):
-    // - Backend ajoutait le gain ici
-    // - Frontend ajoutait ENCORE le gain
-    // - Résultat: gain ajouté 2 fois!
-    //
-    // MAINTENANT (CORRIGÉ):
-    // - Seul le frontend ajoute le gain une seule fois
-    // - Le backend se contente de sauvegarder la course
+    // ✅ v518.1: DÉDUCTION AUTOMATIQUE DE 15% DU SOLDE CONDUCTEUR
+    // À chaque course clôturée, déduire 15% du prix final du solde du conducteur
+    console.log('💰 v518.1 - Déduction automatique de la commission du solde conducteur');
     
-    console.log('💰 v517.91 - Le solde conducteur sera mis à jour par le frontend uniquement');
+    if (driverId) {
+      try {
+        // Récupérer le conducteur
+        const driver = await kv.get(`user_${driverId}`);
+        
+        if (driver) {
+          const currentBalance = driver.accountBalance || 0;
+          const deduction = commissionAmount; // 15% du prix de la course
+          const newBalance = currentBalance - deduction;
+          
+          console.log(`💰 Solde conducteur: ${currentBalance} - ${deduction} (15%) = ${newBalance} CDF`);
+          
+          // Mettre à jour le solde
+          const updatedDriver = {
+            ...driver,
+            accountBalance: newBalance,
+            updated_at: new Date().toISOString()
+          };
+          
+          await kv.set(`user_${driverId}`, updatedDriver);
+          console.log(`✅ Solde conducteur mis à jour: ${newBalance} CDF`);
+        } else {
+          console.warn(`⚠️ Conducteur ${driverId} non trouvé, impossible de déduire la commission`);
+        }
+      } catch (error) {
+        console.error('❌ Erreur déduction commission solde conducteur:', error);
+        // Ne pas bloquer la complétion de la course si la déduction échoue
+      }
+    }
+    
     console.log(`   Gain net conducteur: ${driverEarnings} CDF (Commission: ${commissionAmount} CDF)`);
 
     // Mettre à jour la course
@@ -2565,13 +2880,46 @@ app.post('/:rideId/complete', async (c) => {
       billingElapsedTime = Math.floor((Date.now() - ride.billingStartTime) / 1000);
     }
 
+    // ✅ CALCUL DE LA COMMISSION (15%)
+    const finalPrice = ride.estimatedPrice || ride.finalPrice || 0;
+    const commissionAmount = Math.round(finalPrice * 0.15); // 15% de commission
+    const driverEarnings = finalPrice - commissionAmount;
+
+    // ✅ v518.1: DÉDUCTION AUTOMATIQUE DE 15% DU SOLDE CONDUCTEUR
+    if (driverId) {
+      try {
+        const driver = await kv.get(`user_${driverId}`);
+        
+        if (driver) {
+          const currentBalance = driver.accountBalance || 0;
+          const newBalance = currentBalance - commissionAmount;
+          
+          console.log(`💰 Déduction solde conducteur: ${currentBalance} - ${commissionAmount} (15%) = ${newBalance} CDF`);
+          
+          const updatedDriver = {
+            ...driver,
+            accountBalance: newBalance,
+            updated_at: new Date().toISOString()
+          };
+          
+          await kv.set(`user_${driverId}`, updatedDriver);
+          console.log(`✅ Solde conducteur mis à jour: ${newBalance} CDF`);
+        }
+      } catch (error) {
+        console.error('❌ Erreur déduction commission:', error);
+      }
+    }
+
     // Mettre à jour la course
     const completedRide = {
       ...ride,
       status: 'completed',
       billingElapsedTime,
       completedAt: new Date().toISOString(),
-      finalPrice: ride.estimatedPrice // Peut être calculé en fonction du temps de facturation
+      finalPrice: finalPrice,
+      commission: commissionAmount,
+      driverEarnings: driverEarnings,
+      commissionPercentage: 15
     };
 
     // Sauvegarder
@@ -2580,7 +2928,9 @@ app.post('/:rideId/complete', async (c) => {
     console.log('✅ Course clôturée:', { 
       rideId, 
       billingElapsedTime, 
-      finalPrice: completedRide.finalPrice 
+      finalPrice: completedRide.finalPrice,
+      commission: commissionAmount,
+      driverEarnings: driverEarnings
     });
 
     return c.json({
@@ -2684,5 +3034,458 @@ app.get('/notifications/:driverId', async (c) => {
     }, 500);
   }
 });
+
+// ============================================
+// 🧪 ROUTE DE TEST : Déclencher manuellement le matching
+// ============================================
+app.post('/test-matching/:rideId', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    console.log('🧪 [TEST] Déclenchement manuel du matching pour:', rideId);
+    
+    // Récupérer la course
+    const ride = await kv.get(`ride_request_${rideId}`);
+    if (!ride) {
+      return c.json({ success: false, error: 'Course introuvable' }, 404);
+    }
+    
+    console.log('🧪 [TEST] Course trouvée:', JSON.stringify(ride, null, 2));
+    
+    // Lancer le matching
+    console.log('🧪 [TEST] Lancement de startSequentialMatching...');
+    await startSequentialMatching(rideId, ride.pickup, ride.vehicleType || 'smart_standard');
+    console.log('🧪 [TEST] Matching terminé');
+    
+    return c.json({ success: true, message: 'Matching lancé' });
+  } catch (error) {
+    console.error('🧪 [TEST] Erreur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧪 ROUTE DE TEST : Lister tous les conducteurs
+// ============================================
+app.get('/test-drivers', async (c) => {
+  try {
+    console.log('🧪 [TEST] Récupération de tous les conducteurs...');
+    const allDrivers = await kv.getByPrefix('driver:');
+    
+    console.log('🧪 [TEST] Conducteurs trouvés:', allDrivers ? allDrivers.length : 0);
+    
+    if (!allDrivers || allDrivers.length === 0) {
+      return c.json({ success: true, drivers: [], count: 0 });
+    }
+    
+    const driversInfo = allDrivers.map(d => ({
+      id: d.id,
+      name: d.full_name || d.name,
+      isOnline: d.is_available || d.isOnline,
+      category: d.vehicle?.category || d.vehicle_category,
+      location: d.location,
+      rating: d.rating || 5.0
+    }));
+    
+    console.log('🧪 [TEST] Détails:', JSON.stringify(driversInfo, null, 2));
+    
+    return c.json({ 
+      success: true, 
+      drivers: driversInfo, 
+      count: driversInfo.length 
+    });
+  } catch (error) {
+    console.error('🧪 [TEST] Erreur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧪 ROUTE ADMIN : Supprimer TOUS les conducteurs
+// ============================================
+app.delete('/admin/delete-all-drivers', async (c) => {
+  try {
+    console.log('🗑️ [ADMIN] Suppression de TOUS les conducteurs...');
+    
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    
+    if (!allDrivers || allDrivers.length === 0) {
+      console.log('✅ Aucun conducteur à supprimer');
+      return c.json({ success: true, message: 'Aucun conducteur trouvé', deleted: 0 });
+    }
+    
+    console.log(`🗑️ [ADMIN] ${allDrivers.length} conducteur(s) à supprimer`);
+    
+    // Supprimer chaque conducteur ET TOUTES SES CLÉS ASSOCIÉES
+    const deleted = [];
+    let totalKeysDeleted = 0;
+    
+    for (const driver of allDrivers) {
+      if (driver && driver.id) {
+        console.log(`🗑️ Suppression de: ${driver.full_name || driver.id} (${driver.id})`);
+        
+        // Supprimer TOUTES les clés associées à ce conducteur
+        const keysToDelete = [
+          `driver:${driver.id}`,
+          `profile:${driver.id}`,
+          `wallet:${driver.id}`,
+          `driver_location:${driver.id}`,
+          `driver_status:${driver.id}`,
+          `fcm_token:${driver.id}`,
+          `driver_stats:${driver.id}`
+        ];
+        
+        for (const key of keysToDelete) {
+          try {
+            await kv.del(key);
+            totalKeysDeleted++;
+            console.log(`  ✅ Supprimé: ${key}`);
+          } catch (delError) {
+            console.warn(`  ⚠️ Erreur suppression ${key}:`, delError);
+          }
+        }
+        
+        deleted.push(driver.id);
+      }
+    }
+    
+    console.log(`✅ [ADMIN] ${deleted.length} conducteur(s) supprimé(s) (${totalKeysDeleted} clés au total)`);
+    
+    return c.json({ 
+      success: true, 
+      message: `${deleted.length} conducteur(s) supprimé(s) (${totalKeysDeleted} clés nettoyées)`,
+      deleted,
+      count: deleted.length,
+      totalKeysDeleted
+    });
+  } catch (error) {
+    console.error('🗑️ [ADMIN] Erreur suppression:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧪 ROUTE ADMIN : Supprimer TOUTES les courses
+// ============================================
+app.delete('/admin/delete-all-rides', async (c) => {
+  try {
+    console.log('🗑️ [ADMIN] Suppression de TOUTES les courses...');
+    
+    // Récupérer toutes les courses
+    const allRides = await kv.getByPrefix('ride_request_');
+    
+    if (!allRides || allRides.length === 0) {
+      console.log('✅ Aucune course à supprimer');
+      return c.json({ success: true, message: 'Aucune course trouvée', deleted: 0 });
+    }
+    
+    console.log(`🗑️ [ADMIN] ${allRides.length} course(s) à supprimer`);
+    
+    // Supprimer chaque course
+    const deleted = [];
+    for (const ride of allRides) {
+      if (ride && ride.id) {
+        console.log(`🗑️ Suppression de: ${ride.id}`);
+        await kv.del(`ride_request_${ride.id}`);
+        await kv.del(`ride_pending_${ride.id}`);
+        await kv.del(`ride_${ride.id}:current_driver`);
+        await kv.del(`ride_${ride.id}:notified_at`);
+        await kv.del(`ride_${ride.id}:refused_drivers`);
+        deleted.push(ride.id);
+      }
+    }
+    
+    console.log(`✅ [ADMIN] ${deleted.length} course(s) supprimée(s)`);
+    
+    return c.json({ 
+      success: true, 
+      message: `${deleted.length} course(s) supprimée(s)`,
+      deleted,
+      count: deleted.length
+    });
+  } catch (error) {
+    console.error('🗑️ [ADMIN] Erreur suppression courses:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧪 ROUTE ADMIN : Statut complet du système
+// ============================================
+app.get('/admin/system-status', async (c) => {
+  try {
+    console.log('📊 [ADMIN] Récupération du statut système...');
+    
+    // Compter les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    const onlineDrivers = allDrivers ? allDrivers.filter(d => d.is_available || d.isOnline) : [];
+    
+    // Compter les courses
+    const allRides = await kv.getByPrefix('ride_request_');
+    const pendingRides = allRides ? allRides.filter(r => r.status === 'pending') : [];
+    const acceptedRides = allRides ? allRides.filter(r => r.status === 'accepted') : [];
+    
+    // Détails des conducteurs
+    const driverDetails = allDrivers ? allDrivers.map(d => ({
+      id: d.id,
+      name: d.full_name || d.name,
+      phone: d.phone_number || d.phone,
+      isOnline: d.is_available || d.isOnline,
+      category: d.vehicle?.category || d.vehicle_category,
+      location: d.location ? {
+        lat: d.location.lat,
+        lng: d.location.lng,
+        hasGPS: !!(d.location.lat && d.location.lng)
+      } : null,
+      rating: d.rating || 5.0,
+      totalRides: d.total_rides || 0
+    })) : [];
+    
+    const status = {
+      timestamp: new Date().toISOString(),
+      drivers: {
+        total: allDrivers ? allDrivers.length : 0,
+        online: onlineDrivers.length,
+        offline: allDrivers ? allDrivers.length - onlineDrivers.length : 0,
+        details: driverDetails
+      },
+      rides: {
+        total: allRides ? allRides.length : 0,
+        pending: pendingRides.length,
+        accepted: acceptedRides.length,
+        other: allRides ? allRides.length - pendingRides.length - acceptedRides.length : 0
+      },
+      environment: {
+        hasFirebase: !!Deno.env.get('FIREBASE_SERVER_KEY'),
+        hasAfricasTalking: !!Deno.env.get('AFRICAS_TALKING_API_KEY'),
+        hasSupabase: !!Deno.env.get('SUPABASE_URL') && !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+      }
+    };
+    
+    console.log('📊 [ADMIN] Statut:', JSON.stringify(status, null, 2));
+    
+    return c.json({ success: true, status });
+  } catch (error) {
+    console.error('📊 [ADMIN] Erreur statut:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// ============================================
+// 🧪 PING : Tester que la route rides fonctionne
+// ============================================
+app.get('/ping', async (c) => {
+  return c.json({
+    success: true,
+    message: '🚗 Ride routes opérationnelles !',
+    timestamp: new Date().toISOString(),
+    routes: [
+      'POST /rides/create',
+      'GET /rides/debug-matching/:rideId',
+      'GET /rides/test-drivers',
+      'GET /rides/ping'
+    ]
+  });
+});
+
+// ============================================
+// 🧪 DEBUG : Diagnostiquer pourquoi les notifications ne marchent pas
+// ============================================
+app.get('/debug-matching/:rideId', async (c) => {
+  try {
+    const rideId = c.req.param('rideId');
+    console.log('🧪 [DEBUG] Diagnostic pour rideId:', rideId);
+    
+    // Récupérer la course
+    const ride = await kv.get(`ride_request_${rideId}`);
+    if (!ride) {
+      return c.json({ error: 'Course non trouvée', rideId }, 404);
+    }
+    
+    // Récupérer tous les conducteurs
+    const allDrivers = await kv.getByPrefix('driver:');
+    console.log(`🧪 Total conducteurs dans KV: ${allDrivers?.length || 0}`);
+    
+    const vehicleType = ride.vehicleType || 'smart_standard';
+    const requestedCategory = vehicleType.replace('smart_', '');
+    
+    // Analyser chaque conducteur
+    const analysis = allDrivers?.map(driver => {
+      const isOnline = driver.is_available || driver.isOnline;
+      const driverCategory = (driver.vehicle?.category || driver.vehicle_category || 'standard').replace('smart_', '');
+      const hasGPS = !!(driver.location && driver.location.lat && driver.location.lng);
+      const fcmToken = driver.fcmToken || driver.fcm_token;
+      const hasFCMToken = !!fcmToken;
+      
+      // Calculer distance si GPS disponible
+      let distance = null;
+      if (hasGPS && ride.pickup) {
+        const R = 6371;
+        const dLat = (ride.pickup.lat - driver.location.lat) * Math.PI / 180;
+        const dLng = (ride.pickup.lng - driver.location.lng) * Math.PI / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(driver.location.lat * Math.PI / 180) * Math.cos(ride.pickup.lat * Math.PI / 180) *
+          Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        distance = (R * c).toFixed(2);
+      }
+      
+      const isEligible = isOnline && (driverCategory === requestedCategory) && hasGPS;
+      
+      return {
+        id: driver.id,
+        name: driver.full_name || driver.name || driver.email,
+        isOnline,
+        driverCategory,
+        requestedCategory,
+        categoryMatch: driverCategory === requestedCategory,
+        hasGPS,
+        location: driver.location,
+        distance: distance ? `${distance} km` : 'N/A',
+        hasFCMToken,
+        hasPhone: !!driver.phone,
+        phone: driver.phone || 'N/A',
+        isEligible,
+        rejectionReason: !isEligible ? (
+          !isOnline ? 'HORS LIGNE' :
+          driverCategory !== requestedCategory ? `MAUVAISE CATÉGORIE (${driverCategory} ≠ ${requestedCategory})` :
+          !hasGPS ? 'PAS DE GPS' :
+          'AUTRE'
+        ) : null
+      };
+    }) || [];
+    
+    const eligibleDrivers = analysis.filter(d => d.isEligible);
+    const rejectedDrivers = analysis.filter(d => !d.isEligible);
+    
+    return c.json({
+      success: true,
+      ride: {
+        id: rideId,
+        status: ride.status,
+        vehicleType: ride.vehicleType,
+        requestedCategory,
+        pickup: ride.pickup,
+        createdAt: ride.createdAt
+      },
+      totalDrivers: allDrivers?.length || 0,
+      eligibleCount: eligibleDrivers.length,
+      rejectedCount: rejectedDrivers.length,
+      eligible: eligibleDrivers,
+      rejected: rejectedDrivers
+    });
+    
+  } catch (error) {
+    console.error('🧪 [DEBUG] Erreur:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur' 
+    }, 500);
+  }
+});
+
+// 🔄 ROUTE : Relancer la recherche de conducteurs (après décision passager)
+app.post('/retry-ride-search', async (c) => {
+  try {
+    const { rideId, expandRadius } = await c.req.json();
+    
+    console.log(`\n🔄 ========== RETRY MANUEL PAR LE PASSAGER ==========`);
+    console.log(`🎯 Course ID: ${rideId}`);
+    console.log(`📏 Expansion rayon: ${expandRadius ? 'OUI' : 'NON'}`);
+    
+    if (!rideId) {
+      return c.json({ 
+        success: false, 
+        error: 'rideId requis' 
+      }, 400);
+    }
+    
+    // Récupérer la course
+    const ride = await kv.get(`ride_request_${rideId}`);
+    
+    if (!ride) {
+      return c.json({ 
+        success: false, 
+        error: 'Course introuvable' 
+      }, 404);
+    }
+    
+    // Vérifier que la course est en attente de décision
+    if (ride.status !== 'awaiting_retry_decision') {
+      return c.json({ 
+        success: false, 
+        error: `Course non éligible pour retry (status: ${ride.status})` 
+      }, 400);
+    }
+    
+    console.log(`✅ Course trouvée, passager: ${ride.passenger?.name || ride.passenger_name}`);
+    
+    // Réinitialiser le statut
+    ride.status = 'pending';
+    ride.searchCycle = 0;
+    ride.searchMessage = expandRadius ? 'Recherche élargie en cours...' : 'Nouvelle recherche en cours...';
+    delete ride.retryRequestedAt;
+    delete ride.driversContacted;
+    delete ride.cyclesCompleted;
+    await kv.set(`ride_request_${rideId}`, ride);
+    
+    // Nettoyer les compteurs
+    await kv.del(`ride_${rideId}:cycle_count`);
+    await kv.del(`ride_${rideId}:attempt_count`);
+    await kv.del(`ride_${rideId}:refused_drivers`); // Remettre à zéro les refus
+    
+    console.log(`🧹 Compteurs réinitialisés`);
+    
+    // Relancer le matching
+    const pickup = ride.pickup || { lat: 0, lng: 0, address: '' };
+    const vehicleType = ride.vehicle_type || 'smart_standard';
+    
+    console.log(`🔄 Relance du matching avec:`);
+    console.log(`   - Pickup: ${pickup.address}`);
+    console.log(`   - Type: ${vehicleType}`);
+    console.log(`   - Expansion rayon: ${expandRadius ? 'OUI (+10km)' : 'NON'}`);
+    
+    // Lancer le matching en arrière-plan (ne pas attendre)
+    startSequentialMatching(rideId, pickup, vehicleType, expandRadius ? 10 : 0).catch(error => {
+      console.error('❌ Erreur dans retry matching:', error);
+    });
+    
+    console.log(`✅ Retry lancé avec succès`);
+    console.log('🎯 ========== FIN RETRY MANUEL ==========');
+    
+    return c.json({
+      success: true,
+      message: expandRadius ? 'Recherche élargie lancée' : 'Nouvelle recherche lancée',
+      rideId
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur retry-ride-search:', error);
+    return c.json({ 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Erreur serveur' 
+    }, 500);
+  }
+});
+
+// ⚠️ NOTE: Les routes admin ci-dessus (/admin/...) ne fonctionnent PAS car elles sont montées
+// sur le mauvais préfixe. Elles ont été migrées dans /supabase/functions/server/index.tsx
+// avec le bon préfixe /make-server-2eb02e52/admin/...
 
 export default app;
