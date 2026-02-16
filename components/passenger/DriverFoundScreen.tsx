@@ -121,6 +121,11 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
               category: data.driver.vehicle?.category,
               displayName: getVehicleDisplayName(data.driver.vehicle)
             });
+            console.log('🚗 VEHICLE RAW:', JSON.stringify(data.driver.vehicle));
+            console.log('🚗 VEHICLE_MAKE:', data.driver.vehicle_make);
+            console.log('🚗 VEHICLE_MODEL:', data.driver.vehicle_model);
+            console.log('🚗 VEHICLE_COLOR:', data.driver.vehicle_color);
+            console.log('🚗 VEHICLE_PLATE:', data.driver.vehicle_plate);
             setDriverData({
               id: data.driver.id,
               full_name: data.driver.full_name,
@@ -388,32 +393,30 @@ export function DriverFoundScreen({ driverData: initialDriverData, estimatedArri
             </div>
           </div>
 
-          {/* Détails du véhicule */}
-          {driverData.vehicle && (
-            <div className="p-6 border-b border-border">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Car className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Véhicule</p>
-                  <p className="font-semibold">
-                    {getVehicleDisplayName(driverData.vehicle) || 'Véhicule'}
-                  </p>
-                </div>
+          {/* Détails du véhicule - TOUJOURS AFFICHÉ */}
+          <div className="p-6 border-b border-border">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                <Car className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Couleur</p>
-                  <p className="font-medium">{driverData.vehicle.color || 'Non spécifiée'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Plaque</p>
-                  <p className="font-mono font-bold text-primary">{driverData.vehicle.license_plate || 'N/A'}</p>
-                </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Véhicule</p>
+                <p className="font-semibold">
+                  {driverData.vehicle ? getVehicleDisplayName(driverData.vehicle) : 'Véhicule'}
+                </p>
               </div>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Couleur</p>
+                <p className="font-medium">{driverData.vehicle?.color || 'Non spécifiée'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Plaque</p>
+                <p className="font-mono font-bold text-primary">{driverData.vehicle?.license_plate || 'N/A'}</p>
+              </div>
+            </div>
+          </div>
 
           {/* Badges de confiance */}
           <div className="p-6 bg-gradient-to-br from-green-50 to-emerald-50">
