@@ -24,12 +24,6 @@ const PRICING_CONFIG = {
       nuit: { usd: 17 }
     }
   },
-  smart_plus_plus: {
-    course_heure: {
-      jour: { usd: 15 },
-      nuit: { usd: 20 }
-    }
-  },
   smart_business: {
     course_heure: {
       jour: { usd: 20 },  // Estimation pour business
