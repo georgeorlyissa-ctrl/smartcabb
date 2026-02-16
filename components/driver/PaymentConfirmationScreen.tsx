@@ -91,6 +91,43 @@ export function PaymentConfirmationScreen() {
 
       toast.success('Paiement confirmé !');
       
+      // ✅ v518.1: Rafraîchir le solde du conducteur après la clôture de la course
+      // Le backend a automatiquement déduit 15% du solde
+      if (state.currentUser?.id || state.currentDriver?.id) {
+        const driverId = state.currentUser?.id || state.currentDriver?.id;
+        try {
+          console.log('💰 Rafraîchissement du solde après clôture de course...');
+          const balanceResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driverId}/balance`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            if (balanceData.success && balanceData.balance !== undefined) {
+              const newBalance = balanceData.balance;
+              console.log(`✅ Nouveau solde après commission: ${newBalance.toLocaleString()} CDF`);
+              
+              // Sauvegarder dans localStorage pour synchronisation
+              localStorage.setItem(`driver_balance_${driverId}`, newBalance.toString());
+              
+              // Afficher une notification
+              toast.info(
+                `💰 Votre nouveau solde: ${newBalance.toLocaleString()} CDF (commission déduite)`,
+                { duration: 5000 }
+              );
+            }
+          }
+        } catch (balanceError) {
+          console.error('❌ Erreur rafraîchissement solde:', balanceError);
+          // Ne pas bloquer la redirection si le rafraîchissement échoue
+        }
+      }
+      
       // Rediriger vers le dashboard
       setTimeout(() => {
         setCurrentScreen('driver-dashboard');
