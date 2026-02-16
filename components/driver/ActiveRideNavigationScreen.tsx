@@ -264,7 +264,7 @@ export function ActiveRideNavigationScreen() {
           <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-200">
             <p className="text-xs text-purple-700 font-medium mb-1">Distance</p>
             <p className="text-lg font-bold text-purple-900">
-              {currentRide.estimatedDistance || '~'} <span className="text-sm">km</span>
+              {currentRide.estimatedDistance ? Number(currentRide.estimatedDistance).toFixed(1) : '~'} <span className="text-sm">km</span>
             </p>
           </div>
         </div>
