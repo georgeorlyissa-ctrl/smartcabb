@@ -8,7 +8,6 @@ export type VehicleCategory =
   | 'smart_standard' 
   | 'smart_confort' 
   | 'smart_plus' 
-  | 'smart_plus_plus' 
   | 'smart_business';
 
 export type ServiceType = 
@@ -80,10 +79,10 @@ export const PRICING_CONFIG = {
   },
 
   smart_plus: {
-    name: 'Smart Cabb Plus',
-    vehicles: ['TOYOTA MARX', 'TOYOTA CROWN', 'MERCEDES C CLASS', 'HARRIER', 'VANGUARD'],
-    capacity: 3,
-    features: ['Climatisé', 'Sécurisé', 'Connexion Data gratuit'],
+    name: 'Smart Cabb Plus ou Familia',
+    vehicles: ['NOAH', 'ALPHARD', 'VOXY', 'TOYOTA MARX', 'TOYOTA CROWN', 'MERCEDES C CLASS', 'HARRIER', 'VANGUARD'],
+    capacity: 7,
+    features: ['Climatisé', 'Sécurisé', 'Connexion Data gratuit', 'Véhicule familial'],
     pricing: {
       course_heure: {
         jour: { usd: 15, hours: '06:00-20:59' },
@@ -97,34 +96,6 @@ export const PRICING_CONFIG = {
       trajet_aeroport: {
         aller: { usd: 50 },
         aller_retour: { usd: 90 },
-        notes: 'Le frais de Parking est à la charge du client'
-      }
-    },
-    rules: {
-      zone_lointaine: 'Toute course qui débute ou s\'achève vers la Zone Lointaine, est facturée doublement à la 1ère heure',
-      tolerance: '10 minutes de tolérance',
-      attente_aeroport: '1 heure après l\'atterrissage'
-    }
-  },
-
-  smart_plus_plus: {
-    name: 'Smart Cabb Plus Plus',
-    vehicles: ['NOAH', 'ALPHARD', 'VOXY'],
-    capacity: 7,
-    features: ['Climatisé', 'Sécurisé', 'Connexion Data gratuit'],
-    pricing: {
-      course_heure: {
-        jour: { usd: 15, hours: '06:00-20:59' },
-        nuit: { usd: 20, hours: '21:00-05:59' }
-      },
-      location_jour: {
-        usd: 100,
-        hours: '07:00-21:00',
-        notes: 'Le carburant consommé est à charge du client'
-      },
-      trajet_aeroport: {
-        aller: { usd: 60 },
-        aller_retour: { usd: 110 },
         notes: 'Le frais de Parking est à la charge du client'
       }
     },
@@ -170,7 +141,6 @@ export const MINIMUM_CREDITS_BY_CATEGORY = {
   smart_standard: 20000,      // ~7-10 USD
   smart_confort: 25000,        // ~9-15 USD
   smart_plus: 42000,           // ~15-17 USD
-  smart_plus_plus: 42000,      // ~15-20 USD
   smart_business: 160000       // ~160 USD (location jour)
 } as const;
 
