@@ -155,7 +155,6 @@ export function isValidCategory(category: string): category is VehicleCategory {
     'smart_standard',
     'smart_confort',
     'smart_plus',
-    'smart_plus_plus',
     'smart_business'
   ];
   
