@@ -118,7 +118,6 @@ const loadGoogleMapsScript = async (): Promise<void> => {
         
         // ✅ BLOQUER SILENCIEUSEMENT les "Script error" (erreurs cross-origin)
         if (errorMsg === 'Script error.' || errorMsg === 'Script error') {
-          console.warn('⚠️ Script error bloqué dans GoogleMapView (cross-origin)');
           event.preventDefault && event.preventDefault();
           event.stopPropagation && event.stopPropagation();
           event.stopImmediatePropagation && event.stopImmediatePropagation();
