@@ -177,6 +177,32 @@ function App() {
         console.log('🔄 Nouvelle version détectée - Cache rafraîchi');
       }
 
+      // 🚫 BLOQUER LES "Script error" CROSS-ORIGIN GLOBALEMENT
+      const globalErrorHandler = (event: ErrorEvent) => {
+        const errorMsg = event?.message || '';
+        
+        // ✅ Bloquer silencieusement les erreurs cross-origin (Google Maps, Firebase, etc.)
+        if (errorMsg === 'Script error.' || errorMsg === 'Script error' || errorMsg === '') {
+          console.warn('⚠️ Script error cross-origin bloqué (Google Maps/Firebase/etc.)');
+          event.preventDefault();
+          event.stopPropagation();
+          return true; // Empêcher la propagation
+        }
+        
+        return false;
+      };
+      
+      window.addEventListener('error', globalErrorHandler, true);
+      
+      // Bloquer aussi les promesses non catchées
+      window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+        const reason = event?.reason?.message || String(event?.reason || '');
+        if (reason.includes('Script error') || reason === '') {
+          console.warn('⚠️ Unhandled rejection cross-origin bloquée');
+          event.preventDefault();
+        }
+      });
+
       // 🧹 NETTOYAGE DU LOCALSTORAGE : Détecter et supprimer les données corrompues
       try {
         console.log('🧹 Vérification de l\'intégrité des données...');
@@ -289,7 +315,7 @@ function App() {
           const isViewPassengerButScreenDriver = savedView === 'passenger' && savedScreen.startsWith('driver-');
           
           const isViewAdminButScreenDriver = savedView === 'admin' && savedScreen.startsWith('driver-');
-          const isViewAdminButScreenPassenger = savedView === 'admin' && !isNeutralScreen && !savedScreen.startsWith('admin-');
+          const isViewAdminButScreenPassenger = savedView === 'admin' && !neutralScreen && !savedScreen.startsWith('admin-');
           
           if (isViewDriverButScreenAdmin || isViewDriverButScreenPassenger ||
               isViewPassengerButScreenAdmin || isViewPassengerButScreenDriver ||
