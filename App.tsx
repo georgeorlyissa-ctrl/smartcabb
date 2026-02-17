@@ -183,10 +183,10 @@ function App() {
         
         // ✅ Bloquer silencieusement les erreurs cross-origin (Google Maps, Firebase, etc.)
         if (errorMsg === 'Script error.' || errorMsg === 'Script error' || errorMsg === '') {
-          console.warn('⚠️ Script error cross-origin bloqué (Google Maps/Firebase/etc.)');
+          // Bloquer sans logger pour garder la console propre
           event.preventDefault();
           event.stopPropagation();
-          return true; // Empêcher la propagation
+          return true;
         }
         
         return false;
@@ -194,11 +194,11 @@ function App() {
       
       window.addEventListener('error', globalErrorHandler, true);
       
-      // Bloquer aussi les promesses non catchées
+      // Bloquer aussi les promesses non catchées silencieusement
       window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
         const reason = event?.reason?.message || String(event?.reason || '');
         if (reason.includes('Script error') || reason === '') {
-          console.warn('⚠️ Unhandled rejection cross-origin bloquée');
+          // Bloquer sans logger
           event.preventDefault();
         }
       });
