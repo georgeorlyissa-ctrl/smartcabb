@@ -1,12 +1,13 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
-import { useSettings } from '../../hooks/useSettings';
+import { useGlobalConfig } from '../../hooks/useGlobalConfig';
 import { useAppState } from '../../hooks/useAppState';
+import { PhoneMigrationButton } from './PhoneMigrationButton';
 import { 
   ArrowLeft, 
   Settings, 
@@ -18,23 +19,28 @@ import {
   Save,
   RotateCcw,
   MessageSquare
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 
 export function GlobalSettingsScreen() {
   const { setCurrentScreen } = useAppState();
-  const { settings, updateSetting, updateSettings, resetToDefaults, loading } = useSettings();
+  const { config, loading, updateConfig, refresh } = useGlobalConfig();
   
   // État local pour les modifications
-  const [localSettings, setLocalSettings] = useState(settings);
+  const [localConfig, setLocalConfig] = useState(config);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Synchroniser avec la config globale
+  useEffect(() => {
+    setLocalConfig(config);
+  }, [config]);
+
   // Mise à jour d'un paramètre local
-  const handleChange = <K extends keyof typeof settings>(
+  const handleChange = <K extends keyof typeof config>(
     key: K,
-    value: typeof settings[K]
+    value: typeof config[K]
   ) => {
-    setLocalSettings(prev => ({
+    setLocalConfig(prev => ({
       ...prev,
       [key]: value,
     }));
@@ -44,15 +50,15 @@ export function GlobalSettingsScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const success = await updateSettings(localSettings);
+      const success = await updateConfig(localConfig);
       
       if (success) {
         toast.success('Paramètres mis à jour avec succès', {
-          description: 'Les modifications seront appliquées partout dans l\'application',
+          description: 'Les modifications sont appliquées partout dans l\'application en temps réel',
         });
       } else {
         toast.error('Erreur lors de la mise à jour', {
-          description: 'Certains paramètres n\'ont pas pu être sauvegardés',
+          description: 'Les paramètres n\'ont pas pu être sauvegardés',
         });
       }
     } catch (error) {
@@ -64,17 +70,13 @@ export function GlobalSettingsScreen() {
     }
   };
 
-  // Réinitialiser aux valeurs par défaut
+  // Réinitialiser aux valeurs serveur
   const handleReset = async () => {
-    if (confirm('Voulez-vous vraiment réinitialiser tous les paramètres aux valeurs par défaut ?')) {
-      const success = await resetToDefaults();
-      
-      if (success) {
-        setLocalSettings(settings);
-        toast.success('Paramètres réinitialisés', {
-          description: 'Tous les paramètres ont été restaurés aux valeurs par défaut',
-        });
-      }
+    if (confirm('Voulez-vous vraiment annuler toutes les modifications non sauvegardées ?')) {
+      await refresh();
+      toast.success('Modifications annulées', {
+        description: 'Valeurs restaurées depuis le serveur',
+      });
     }
   };
 
@@ -152,12 +154,12 @@ export function GlobalSettingsScreen() {
                     min="0"
                     max="100"
                     step="0.5"
-                    value={localSettings.commissionRate}
+                    value={localConfig.commissionRate}
                     onChange={(e) => handleChange('commissionRate', parseFloat(e.target.value))}
                     className="mt-1"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Actuellement : {localSettings.commissionRate}%
+                    Actuellement : {localConfig.commissionRate}%
                   </p>
                 </div>
               </div>
@@ -173,10 +175,51 @@ export function GlobalSettingsScreen() {
             <Card className="p-6">
               <div className="flex items-center space-x-3 mb-6">
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <Clock className="w-5 h-5 text-green-600" />
+                  <DollarSign className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Tarification</h3>
+                  <h3 className="font-semibold">Taux de Change</h3>
+                  <p className="text-sm text-gray-600">Conversion USD ↔ CDF</p>
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="exchangeRate">1 USD = ? CDF</Label>
+                  <Input
+                    id="exchangeRate"
+                    type="number"
+                    min="1000"
+                    max="5000"
+                    step="10"
+                    value={localConfig.exchangeRate}
+                    onChange={(e) => handleChange('exchangeRate', parseFloat(e.target.value))}
+                    className="mt-1 text-xl font-bold"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💱 Actuellement : 1 USD = {localConfig.exchangeRate} CDF
+                  </p>
+                  <p className="text-xs text-orange-600 mt-2">
+                    ⚠️ Cette modification affecte tous les prix affichés dans l'application
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Horaires & Tarification */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <Card className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                  <Clock className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Horaires & Tarifs</h3>
                   <p className="text-sm text-gray-600">Horaires et multiplicateurs</p>
                 </div>
               </div>
@@ -188,7 +231,7 @@ export function GlobalSettingsScreen() {
                     <Input
                       id="nightTimeStart"
                       type="time"
-                      value={localSettings.nightTimeStart}
+                      value={localConfig.nightTimeStart}
                       onChange={(e) => handleChange('nightTimeStart', e.target.value)}
                       className="mt-1"
                     />
@@ -198,7 +241,7 @@ export function GlobalSettingsScreen() {
                     <Input
                       id="nightTimeEnd"
                       type="time"
-                      value={localSettings.nightTimeEnd}
+                      value={localConfig.nightTimeEnd}
                       onChange={(e) => handleChange('nightTimeEnd', e.target.value)}
                       className="mt-1"
                     />
@@ -212,7 +255,7 @@ export function GlobalSettingsScreen() {
                     type="number"
                     min="0"
                     max="60"
-                    value={localSettings.freeWaitingMinutes}
+                    value={localConfig.freeWaitingMinutes}
                     onChange={(e) => handleChange('freeWaitingMinutes', parseInt(e.target.value))}
                     className="mt-1"
                   />
@@ -226,7 +269,7 @@ export function GlobalSettingsScreen() {
                     min="1"
                     max="5"
                     step="0.1"
-                    value={localSettings.distantZoneMultiplier}
+                    value={localConfig.distantZoneMultiplier}
                     onChange={(e) => handleChange('distantZoneMultiplier', parseFloat(e.target.value))}
                     className="mt-1"
                   />
@@ -259,12 +302,12 @@ export function GlobalSettingsScreen() {
                     <p className="text-xs text-gray-500">Permettre le paiement après la course</p>
                   </div>
                   <Switch
-                    checked={localSettings.postpaidEnabled}
+                    checked={localConfig.postpaidEnabled}
                     onCheckedChange={(checked) => handleChange('postpaidEnabled', checked)}
                   />
                 </div>
 
-                {localSettings.postpaidEnabled && (
+                {localConfig.postpaidEnabled && (
                   <div>
                     <Label htmlFor="postpaidFee">Frais post-paiement (CDF)</Label>
                     <Input
@@ -272,7 +315,7 @@ export function GlobalSettingsScreen() {
                       type="number"
                       min="0"
                       step="100"
-                      value={localSettings.postpaidFee}
+                      value={localConfig.postpaidFee}
                       onChange={(e) => handleChange('postpaidFee', parseInt(e.target.value))}
                       className="mt-1"
                     />
@@ -285,7 +328,7 @@ export function GlobalSettingsScreen() {
                     <p className="text-xs text-gray-500">Paiement par carte/mobile money</p>
                   </div>
                   <Switch
-                    checked={localSettings.flutterwaveEnabled}
+                    checked={localConfig.flutterwaveEnabled}
                     onCheckedChange={(checked) => handleChange('flutterwaveEnabled', checked)}
                   />
                 </div>
@@ -317,7 +360,7 @@ export function GlobalSettingsScreen() {
                     <p className="text-xs text-gray-500">Notifications push et email</p>
                   </div>
                   <Switch
-                    checked={localSettings.notificationsEnabled}
+                    checked={localConfig.notificationsEnabled}
                     onCheckedChange={(checked) => handleChange('notificationsEnabled', checked)}
                   />
                 </div>
@@ -328,17 +371,17 @@ export function GlobalSettingsScreen() {
                     <p className="text-xs text-gray-500">Envoi de SMS aux utilisateurs</p>
                   </div>
                   <Switch
-                    checked={localSettings.smsEnabled}
+                    checked={localConfig.smsEnabled}
                     onCheckedChange={(checked) => handleChange('smsEnabled', checked)}
                   />
                 </div>
 
-                {localSettings.smsEnabled && (
+                {localConfig.smsEnabled && (
                   <div>
                     <Label htmlFor="smsProvider">Fournisseur SMS</Label>
                     <select
                       id="smsProvider"
-                      value={localSettings.smsProvider}
+                      value={localConfig.smsProvider}
                       onChange={(e) => handleChange('smsProvider', e.target.value as any)}
                       className="w-full mt-1 px-3 py-2 border rounded-md"
                     >
@@ -350,7 +393,7 @@ export function GlobalSettingsScreen() {
                 )}
 
                 {/* Bouton pour accéder aux paramètres SMS détaillés */}
-                {localSettings.smsEnabled && (
+                {localConfig.smsEnabled && (
                   <div className="pt-4 border-t">
                     <Button
                       variant="outline"
@@ -392,13 +435,13 @@ export function GlobalSettingsScreen() {
                   <Input
                     id="appVersion"
                     type="text"
-                    value={localSettings.appVersion}
+                    value={localConfig.appVersion}
                     onChange={(e) => handleChange('appVersion', e.target.value)}
                     className="mt-1"
                     disabled
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Version actuelle : {localSettings.appVersion}
+                    Version actuelle : {localConfig.appVersion}
                   </p>
                 </div>
 
@@ -408,7 +451,7 @@ export function GlobalSettingsScreen() {
                     <p className="text-xs text-gray-500">Désactiver temporairement l'application</p>
                   </div>
                   <Switch
-                    checked={localSettings.maintenanceMode}
+                    checked={localConfig.maintenanceMode}
                     onCheckedChange={(checked) => handleChange('maintenanceMode', checked)}
                   />
                 </div>
@@ -440,6 +483,28 @@ export function GlobalSettingsScreen() {
                     <li>Calculs de prix</li>
                     <li>Notifications SMS</li>
                   </ul>
+                </div>
+              </div>
+            </Card>
+          </motion.div>
+
+          {/* Migration des numéros de téléphone */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <Card className="p-6 bg-yellow-50 border-yellow-200">
+              <div className="flex items-start space-x-3 mb-4">
+                <Settings className="w-5 h-5 text-yellow-600 mt-1" />
+                <div>
+                  <h4 className="font-semibold text-yellow-900 mb-2">
+                    Outils de maintenance
+                  </h4>
+                  <p className="text-sm text-yellow-800 mb-4">
+                    Si des utilisateurs ne peuvent pas se connecter, normalisez tous les numéros de téléphone au format standard +243XXXXXXXXX.
+                  </p>
+                  <PhoneMigrationButton />
                 </div>
               </div>
             </Card>

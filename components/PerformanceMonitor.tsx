@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Activity, Wifi, Download, Package } from 'lucide-react';
+import { Activity, Wifi, Download, Package } from '../lib/icons';
 import { useOnlineStatus } from '../hooks/usePWA';
 
 interface PerformanceMetrics {
@@ -57,12 +57,15 @@ export function PerformanceMonitor() {
       // Cache status
       const cacheStatus = ('caches' in window) ? 'enabled' : 'disabled';
 
-      // Service Worker status
+      // Service Worker status - désactivé temporairement
       let swStatus: 'active' | 'inactive' = 'inactive';
+      // 🚫 Code désactivé pour éviter les erreurs de Service Worker
+      /*
       if ('serviceWorker' in navigator) {
         const registration = await navigator.serviceWorker.getRegistration();
         swStatus = registration?.active ? 'active' : 'inactive';
       }
+      */
 
       setMetrics({
         loadTime,
@@ -114,12 +117,11 @@ export function PerformanceMonitor() {
         <CardContent className="space-y-3 text-xs">
           {/* Temps de chargement */}
           <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-gray-600">
-              <Activity className="w-3 h-3" />
+            <span className="text-sm text-muted-foreground flex-1">
               Temps de chargement
             </span>
             <Badge variant={metrics.loadTime < 3000 ? 'default' : 'destructive'}>
-              {(metrics.loadTime / 1000).toFixed(2)}s
+              {((metrics.loadTime || 0) / 1000).toFixed(2)}s
             </Badge>
           </div>
 

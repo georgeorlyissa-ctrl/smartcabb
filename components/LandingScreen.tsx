@@ -7,7 +7,7 @@ import {
   Shield,
   UserPlus,
   LogIn
-} from 'lucide-react';
+} from '../lib/icons';
 
 export function LandingScreen() {
   console.log('🏠 LandingScreen - Composant monté - VERSION SIMPLE - BUILD:', Date.now());

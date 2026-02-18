@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { X, Download, Smartphone, WifiOff, Wifi } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 
+// ✅ Utiliser des emojis au lieu de lucide-react pour éviter les erreurs esm.sh
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -28,7 +28,7 @@ export function OnlineStatusIndicator() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-orange-500 text-white py-2 px-4 text-center text-sm font-medium flex items-center justify-center gap-2">
-      <WifiOff className="w-4 h-4" />
+      <span className="text-base">📡</span>
       Vous êtes hors ligne
     </div>
   );
@@ -123,7 +123,7 @@ export function PWAInstallPrompt() {
             className="absolute top-2 right-2 p-1 hover:bg-white/20 rounded-full transition-colors"
             aria-label="Fermer"
           >
-            <X className="w-5 h-5" />
+            <span className="text-base">❌</span>
           </button>
           
           <div className="flex items-center gap-3">
@@ -153,7 +153,7 @@ export function PWAInstallPrompt() {
                 <li>Appuyez sur <strong>"Ajouter"</strong></li>
               </ol>
               <div className="flex items-center gap-2 mt-4 p-3 bg-cyan-50 rounded-lg">
-                <Smartphone className="w-5 h-5 text-cyan-600 flex-shrink-0" />
+                <span className="text-base">📱</span>
                 <p className="text-xs text-cyan-700">
                   L'app fonctionnera comme une vraie application native !
                 </p>
@@ -170,12 +170,12 @@ export function PWAInstallPrompt() {
                 onClick={handleInstallClick}
                 className="w-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-semibold py-3 px-4 rounded-xl hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
               >
-                <Download className="w-5 h-5" />
+                <span className="text-base">⬇️</span>
                 Installer l'application
               </button>
 
               <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                <Smartphone className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                <span className="text-base">📱</span>
                 <p className="text-xs text-gray-600">
                   Fonctionne hors ligne • Notifications en temps réel • Géolocalisation
                 </p>

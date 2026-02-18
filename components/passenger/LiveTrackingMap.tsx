@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Navigation, Car, AlertCircle, Phone, MessageCircle } from 'lucide-react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
-import { motion } from 'motion/react';
+import { toast } from '../../lib/toast';
+import { motion } from '../../lib/motion';
+import { GoogleMapView } from '../GoogleMapView';
 
 interface Location {
   lat: number;
@@ -18,123 +18,17 @@ interface LiveTrackingMapProps {
   driverName: string;
 }
 
+interface Driver {
+  id: string;
+  name: string;
+  location: Location;
+}
+
 export function LiveTrackingMap({ driverId, pickup, destination, driverName }: LiveTrackingMapProps) {
   const { state } = useAppState();
   const [driverLocation, setDriverLocation] = useState<Location | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
-
-  // 🗺️ Charger Leaflet dynamiquement
-  useEffect(() => {
-    const loadLeaflet = async () => {
-      if (typeof window === 'undefined') return;
-
-      // Charger le CSS de Leaflet
-      if (!document.querySelector('link[href*="leaflet.css"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-      }
-
-      // Charger le JS de Leaflet
-      if (!(window as any).L) {
-        return new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.body.appendChild(script);
-        });
-      }
-    };
-
-    loadLeaflet().catch(err => {
-      console.error('❌ Erreur chargement Leaflet:', err);
-      setError('Impossible de charger la carte');
-    });
-  }, []);
-
-  // 🗺️ Initialiser la carte Leaflet
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current || typeof window === 'undefined') return;
-
-    const initMap = () => {
-      const L = (window as any).L;
-      if (!L) {
-        console.warn('⚠️ Leaflet pas encore chargé');
-        return;
-      }
-
-      try {
-        // Créer la carte centrée sur Kinshasa
-        const map = L.map(mapRef.current!).setView([pickup.lat, pickup.lng], 13);
-
-        // Ajouter les tuiles OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors',
-          maxZoom: 19
-        }).addTo(map);
-
-        // Icône personnalisée pour le pickup (vert)
-        const pickupIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `<div style="background-color: #10b981; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg>
-                 </div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 32]
-        });
-
-        // Icône personnalisée pour la destination (rouge)
-        const destinationIcon = L.divIcon({
-          className: 'custom-marker',
-          html: `<div style="background-color: #ef4444; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
-                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/></svg>
-                 </div>`,
-          iconSize: [32, 32],
-          iconAnchor: [16, 32]
-        });
-
-        // Ajouter les marqueurs de départ et arrivée
-        const pickupMarker = L.marker([pickup.lat, pickup.lng], { icon: pickupIcon })
-          .addTo(map)
-          .bindPopup(`<b>Départ</b><br/>${pickup.address || 'Point de départ'}`);
-
-        const destMarker = L.marker([destination.lat, destination.lng], { icon: destinationIcon })
-          .addTo(map)
-          .bindPopup(`<b>Destination</b><br/>${destination.address || 'Point d\'arrivée'}`);
-
-        markersRef.current = [pickupMarker, destMarker];
-        mapInstanceRef.current = map;
-
-        // Ajuster la vue pour montrer les deux points
-        const bounds = L.latLngBounds([
-          [pickup.lat, pickup.lng],
-          [destination.lat, destination.lng]
-        ]);
-        map.fitBounds(bounds, { padding: [50, 50] });
-
-        setIsLoading(false);
-        console.log('✅ Carte OpenStreetMap initialisée');
-      } catch (err) {
-        console.error('❌ Erreur initialisation carte:', err);
-        setError('Erreur initialisation de la carte');
-        setIsLoading(false);
-      }
-    };
-
-    // Essayer d'initialiser, sinon attendre un peu
-    if ((window as any).L) {
-      initMap();
-    } else {
-      const timer = setTimeout(initMap, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [pickup, destination]);
 
   // 🚗 Polling de la position du conducteur
   useEffect(() => {
@@ -159,9 +53,6 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
               lat: data.location.lat,
               lng: data.location.lng
             });
-
-            // Mettre à jour la carte avec la position du conducteur
-            updateDriverMarker(data.location.lat, data.location.lng);
           }
         }
       } catch (err) {
@@ -176,44 +67,11 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
     return () => clearInterval(interval);
   }, [driverId]);
 
-  // 🚗 Mettre à jour le marqueur du conducteur sur la carte
-  const updateDriverMarker = (lat: number, lng: number) => {
-    if (!mapInstanceRef.current) return;
-
-    const L = (window as any).L;
-    if (!L) return;
-
-    // Supprimer l'ancien marqueur de conducteur s'il existe
-    const existingDriverMarker = markersRef.current.find((m: any) => m.options?.isDriver);
-    if (existingDriverMarker) {
-      mapInstanceRef.current.removeLayer(existingDriverMarker);
-      markersRef.current = markersRef.current.filter((m: any) => !m.options?.isDriver);
-    }
-
-    // Créer un nouveau marqueur pour le conducteur (voiture bleue)
-    const driverIcon = L.divIcon({
-      className: 'custom-marker',
-      html: `<div style="background-color: #3b82f6; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>
-             </div>`,
-      iconSize: [40, 40],
-      iconAnchor: [20, 40]
-    });
-
-    const driverMarker = L.marker([lat, lng], { 
-      icon: driverIcon,
-      isDriver: true 
-    })
-      .addTo(mapInstanceRef.current)
-      .bindPopup(`<b>${driverName}</b><br/>Position actuelle`);
-
-    markersRef.current.push(driverMarker);
-
-    // Centrer légèrement sur le conducteur si la course est en cours
-    if (state.currentRide?.status === 'in_progress') {
-      mapInstanceRef.current.setView([lat, lng], 15, { animate: true });
-    }
-  };
+  // Marquer le chargement comme terminé après un court délai
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Fonction pour appeler le chauffeur
   const handleCallDriver = () => {
@@ -240,7 +98,12 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
     return (
       <div className="h-full flex items-center justify-center bg-gray-100 p-6">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          {/* AlertCircle icon inline */}
+          <svg className="w-12 h-12 text-red-500 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
           <p className="text-lg font-semibold text-gray-900 mb-2">Erreur de carte</p>
           <p className="text-sm text-gray-600">{error}</p>
         </div>
@@ -248,10 +111,27 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
     );
   }
 
+  // Préparer les données du conducteur pour GoogleMapView
+  const drivers: Driver[] = driverLocation ? [{
+    id: driverId,
+    name: driverName,
+    location: driverLocation
+  }] : [];
+
   return (
     <div className="relative h-full w-full">
-      {/* Carte Leaflet */}
-      <div ref={mapRef} className="h-full w-full" />
+      {/* 🗺️ CARTE GOOGLE MAPS avec itinéraire et position conducteur */}
+      <GoogleMapView
+        center={driverLocation || pickup}
+        zoom={14}
+        showRoute={true}
+        routeStart={pickup}
+        routeEnd={destination}
+        vehicleLocation={driverLocation || undefined}
+        enableGeolocation={false}
+        enableZoomControls={true}
+        className="w-full h-full"
+      />
 
       {/* Loader pendant le chargement */}
       {isLoading && (
@@ -272,7 +152,13 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-4">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
-              <Car className="w-6 h-6 text-white" />
+              {/* Car icon inline */}
+              <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M5 17h14v2a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2Z"/>
+                <path d="M15 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/>
+                <path d="M9 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"/>
+                <path d="M5 17V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v10"/>
+              </svg>
             </div>
             <div className="flex-1">
               <p className="text-sm text-gray-600">Votre chauffeur</p>
@@ -283,13 +169,19 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
                 onClick={handleCallDriver}
                 className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
               >
-                <Phone className="w-5 h-5 text-white" />
+                {/* Phone icon inline */}
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                </svg>
               </button>
               <button
                 onClick={handleWhatsApp}
                 className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center shadow-lg transition-colors"
               >
-                <MessageCircle className="w-5 h-5 text-white" />
+                {/* MessageCircle icon inline */}
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -320,12 +212,15 @@ export function LiveTrackingMap({ driverId, pickup, destination, driverName }: L
         <div className="bg-gradient-to-br from-red-500 to-red-600 text-white rounded-2xl shadow-2xl p-4 max-w-xs">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center flex-shrink-0">
-              <Navigation className="w-5 h-5 text-white" />
+              {/* Navigation icon inline */}
+              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+              </svg>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-white/80 uppercase tracking-wide mb-1">Destination</p>
               <p className="font-bold text-sm leading-tight line-clamp-2">
-                {destination.address || 'Point d\'arrivée'}
+                {destination.address || "Point d'arrivée"}
               </p>
             </div>
           </div>

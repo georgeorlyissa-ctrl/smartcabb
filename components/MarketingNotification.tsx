@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Card } from './ui/card';
 import { Button } from './ui/button';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink } from '../lib/icons';
 import { useAppState } from '../hooks/useAppState';
 import { MarketingCampaign } from '../types';
 
@@ -50,69 +50,67 @@ export function MarketingNotification({ userType }: MarketingNotificationProps) 
   }
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: -100, opacity: 0 }}
-        className="fixed top-4 left-4 right-4 z-50"
-      >
-        <Card className="p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 pr-4">
-              {currentCampaign.imageUrl && (
-                <div className="mb-3">
-                  <img 
-                    src={currentCampaign.imageUrl} 
-                    alt={currentCampaign.title}
-                    className="w-full h-24 object-cover rounded-lg"
-                  />
-                </div>
-              )}
-              
-              <h3 className="font-semibold text-lg mb-2">
-                {currentCampaign.title}
-              </h3>
-              
-              <p className="text-sm text-blue-100 mb-4">
-                {currentCampaign.message}
-              </p>
-              
-              <div className="flex gap-2">
-                {currentCampaign.actionUrl && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={handleAction}
-                    className="flex items-center gap-1"
-                  >
-                    <ExternalLink className="w-3 h-3" />
-                    Voir plus
-                  </Button>
-                )}
-                
+    <motion.div
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: -100, opacity: 0 }}
+      className="fixed top-4 left-4 right-4 z-50"
+    >
+      <Card className="p-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 pr-4">
+            {currentCampaign.imageUrl && (
+              <div className="mb-3">
+                <img 
+                  src={currentCampaign.imageUrl} 
+                  alt={currentCampaign.title}
+                  className="w-full h-24 object-cover rounded-lg"
+                />
+              </div>
+            )}
+            
+            <h3 className="font-semibold text-lg mb-2">
+              {currentCampaign.title}
+            </h3>
+            
+            <p className="text-sm text-blue-100 mb-4">
+              {currentCampaign.message}
+            </p>
+            
+            <div className="flex gap-2">
+              {currentCampaign.actionUrl && (
                 <Button
                   size="sm"
-                  variant="ghost"
-                  onClick={handleDismiss}
-                  className="text-white hover:bg-white/20"
+                  variant="secondary"
+                  onClick={handleAction}
+                  className="flex items-center gap-1"
                 >
-                  Fermer
+                  <ExternalLink className="w-3 h-3" />
+                  Voir plus
                 </Button>
-              </div>
+              )}
+              
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={handleDismiss}
+                className="text-white hover:bg-white/20"
+              >
+                Fermer
+              </Button>
             </div>
-            
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleDismiss}
-              className="text-white hover:bg-white/20 p-1"
-            >
-              <X className="w-4 h-4" />
-            </Button>
           </div>
-        </Card>
-      </motion.div>
-    </AnimatePresence>
+          
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={handleDismiss}
+            className="text-white hover:bg-white/20 p-1"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      </Card>
+    </motion.div>
   );
 }

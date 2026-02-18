@@ -1,7 +1,7 @@
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
-import { CheckCircle, Star } from 'lucide-react';
+import { CheckCircle, Star } from '../lib/icons';
 
 interface RideCompletionDialogProps {
   isOpen: boolean;

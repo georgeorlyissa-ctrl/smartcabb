@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, DollarSign, CheckCircle, XCircle, Clock, Filter, Search, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -11,7 +10,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
+import {
+  ArrowLeft,
+  DollarSign,
+  Search,
+  Filter,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertCircle,
+  FileText,
+  User,
+  MapPin,
+  Phone,
+  Mail,
+} from '../../lib/icons';
 
 // Fonction de formatage de date simple
 const formatDate = (dateString: string) => {
@@ -300,7 +314,7 @@ export function RefundManagementScreen({ onBack }: RefundManagementScreenProps) 
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-gray-600">Approuvés</span>
-            <CheckCircle className="w-5 h-5 text-green-600" />
+            <CheckCircle2 className="w-5 h-5 text-green-600" />
           </div>
           <div className="text-2xl">{stats.approved}</div>
         </Card>

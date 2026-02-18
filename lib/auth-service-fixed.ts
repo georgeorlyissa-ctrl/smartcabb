@@ -170,7 +170,8 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
               password
             });
             
-            if (!testError && testData.session) {
+            // ✅ FIX: Vérifier data.access_token au lieu de data.session
+            if (!testError && testData.access_token) {
               console.log('✅ Connexion réussie avec format:', testEmail);
               
               const profile = await profileService.getProfile(testData.user.id);
@@ -178,7 +179,7 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
                 success: true,
                 user: testData.user,
                 profile,
-                accessToken: testData.session?.access_token
+                accessToken: testData.access_token // ✅ FIX: Utiliser data.access_token directement
               };
             }
           }
@@ -239,7 +240,7 @@ export async function signIn(credentials: LoginCredentials): Promise<AuthResult>
       success: true,
       user: data.user,
       profile,
-      accessToken: data.session?.access_token
+      accessToken: data.access_token // ✅ FIX: Utiliser data.access_token directement
     };
     
   } catch (error) {

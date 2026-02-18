@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale avec AnimatePresence
 import { Button } from '../ui/button';
 import {
   ArrowLeft,
@@ -15,7 +15,7 @@ import {
   CheckCircle2,
   Bug,
   Clock
-} from 'lucide-react';
+} from '../../lib/icons';
 import { convertUSDtoCDF, formatCDF, getExchangeRate } from '../../lib/pricing';
 import { paymentService } from '../../lib/payment-service';
 import type { PaymentInitData } from '../../lib/payment-providers/base-provider';

@@ -1,5 +1,5 @@
-import { motion, AnimatePresence } from 'motion/react';
-import { User, Car, Shield, CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale avec AnimatePresence
+import { User, Car, Shield, CheckCircle } from '../lib/icons';
 import { useEffect, useState } from 'react';
 
 interface WelcomeMessageProps {

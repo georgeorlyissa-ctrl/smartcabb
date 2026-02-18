@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import * as SheetPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { X } from "../../lib/icons"; // ✅ FIX: Utiliser les icônes locales
 
 import { cn } from "./utils";
 

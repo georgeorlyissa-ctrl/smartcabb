@@ -14,12 +14,15 @@ import { RegisterScreen } from '../components/passenger/RegisterScreen';
 import { ForgotPasswordScreen } from '../components/ForgotPasswordScreen';
 import { ResetPasswordOTPScreen } from '../components/ResetPasswordOTPScreen';
 import { MapScreen } from '../components/passenger/MapScreen';
+import { MapScreenSimple } from '../components/passenger/MapScreenSimple'; // 🔍 VERSION DIAGNOSTIC
 import { EstimateScreen } from '../components/passenger/EstimateScreen';
 import { RideScreen } from '../components/passenger/RideScreen';
 import { DriverFoundScreen } from '../components/passenger/DriverFoundScreen';
 import { LiveTrackingMap } from '../components/passenger/LiveTrackingMap';
 import { LiveTrackingScreen } from '../components/passenger/LiveTrackingScreen';
 import { RideTrackingScreen } from '../components/passenger/RideTrackingScreen';
+import { RideCompletedScreen } from '../components/passenger/RideCompletedScreen';
+import { PaymentReceiptScreen } from '../components/passenger/PaymentReceiptScreen';
 import { PaymentScreen } from '../components/passenger/PaymentScreen';
 import { RatingScreen } from '../components/passenger/RatingScreen';
 import { SettingsScreen } from '../components/passenger/SettingsScreen';
@@ -50,6 +53,9 @@ function PassengerAppContent() {
   useEffect(() => {
     console.log('🚀 PassengerApp monté - currentScreen:', currentScreen, 'location:', location.pathname);
     console.log('🚀 PassengerApp - currentView:', state.currentView);
+    console.log('🚀 PassengerApp - currentUser:', state.currentUser?.id || 'none');
+    console.log('🚀 PassengerApp - pickup:', state.pickup?.address);
+    console.log('🚀 PassengerApp - destination:', state.destination?.address);
     
     // ✅ Si on est sur /app/passenger, forcer la vue à 'passenger'
     if (location.pathname.includes('/passenger')) {
@@ -63,9 +69,30 @@ function PassengerAppContent() {
       return;
     }
     
-    // Si on arrive sur /app sans écran défini, initialiser à 'landing'
+    // ✅ FIX: Si l'utilisateur est connecté et a un écran passager valide, ne rien changer
+    if (state.currentUser && currentScreen && !['landing', 'user-selection', 'login', 'register'].includes(currentScreen)) {
+      console.log('✅ Passager connecté avec écran valide, on garde:', currentScreen);
+      return; // Important : ne pas continuer pour éviter les redirections
+    }
+    
+    // ✅ FIX: Si l'utilisateur est connecté mais n'a pas d'écran valide (refresh), aller à map
+    if (state.currentUser && (!currentScreen || ['landing', 'user-selection', 'login', 'register'].includes(currentScreen))) {
+      console.log('🔄 Passager connecté après refresh, redirection vers map');
+      setCurrentScreen('map');
+      return;
+    }
+    
+    // 🆕 CORRECTION : Ne pas écraser l'écran restauré depuis localStorage
+    // Si currentScreen existe déjà (restauré depuis localStorage), le garder
+    if (currentScreen && currentScreen !== '') {
+      console.log('✅ Écran restauré depuis localStorage:', currentScreen);
+      // Ne rien faire, l'écran est déjà correct
+      return;
+    }
+    
+    // Si on arrive sur /app sans écran défini ET sans données sauvegardées, initialiser à 'landing'
     if (!currentScreen || currentScreen === '') {
-      console.log('🔄 Initialisation vers landing depuis PassengerApp');
+      console.log('🔄 Initialisation vers landing depuis PassengerApp (aucun état sauvegardé)');
       setCurrentView('passenger');
       setCurrentScreen('landing');
     }
@@ -75,7 +102,7 @@ function PassengerAppContent() {
       console.log('✅ Utilisateur déjà connecté, redirection vers map');
       setCurrentScreen('map');
     }
-  }, [location.pathname, currentScreen, state.currentView, user, setCurrentView, setCurrentScreen]); // Toutes les dépendances
+  }, [location.pathname, currentScreen, state.currentView, state.currentUser, user, setCurrentView, setCurrentScreen]); // Toutes les dépendances
 
   // ✅ Gérer le cas où currentScreen est vide PENDANT le render
   const screenToShow = useMemo(() => {
@@ -149,6 +176,12 @@ function PassengerAppContent() {
             <MapScreen />
           </ErrorBoundary>
         );
+      case 'map-simple':
+        return (
+          <ErrorBoundary>
+            <MapScreenSimple />
+          </ErrorBoundary>
+        );
       case 'estimate':
         return (
           <ErrorBoundary>
@@ -173,7 +206,6 @@ function PassengerAppContent() {
                 total_rides: 150,
                 vehicle: state.currentRide?.vehicleInfo
               }}
-              confirmationCode={state.currentRide?.confirmationCode || '0000'}
               estimatedArrival={3}
             />
           </ErrorBoundary>
@@ -213,10 +245,22 @@ function PassengerAppContent() {
             <DriverApproachingScreen />
           </ErrorBoundary>
         );
+      case 'ride-completed':
+        return (
+          <ErrorBoundary>
+            <RideCompletedScreen />
+          </ErrorBoundary>
+        );
       case 'payment':
         return (
           <ErrorBoundary>
             <PaymentScreen />
+          </ErrorBoundary>
+        );
+      case 'payment-receipt':
+        return (
+          <ErrorBoundary>
+            <PaymentReceiptScreen />
           </ErrorBoundary>
         );
       case 'rating':

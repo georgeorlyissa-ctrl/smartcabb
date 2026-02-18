@@ -1,33 +1,17 @@
 /**
- * 🌍 SERVICE DE GÉOCODAGE PROFESSIONNEL
+ * 🌍 SERVICE DE GÉOCODAGE - GOOGLE MAPS
  * 
- * Utilise Nominatim (OpenStreetMap) pour chercher des adresses précises
- * Exactement comme Yango, Uber, Bolt, etc.
+ * ✅ MIGRATION COMPLÈTE VERS GOOGLE MAPS API
+ * Remplace complètement Nominatim (OpenStreetMap)
  * 
  * Fonctionnalités :
- * - Recherche d'adresse en temps réel
- * - Reverse geocoding (coordonnées → adresse)
+ * - Recherche d'adresse en temps réel (Google Places)
+ * - Reverse geocoding (Google Geocoding API)
  * - Support complet de Kinshasa, RDC
  * - Cache pour optimiser les performances
  */
 
-interface NominatimResult {
-  place_id: number;
-  lat: string;
-  lon: string;
-  display_name: string;
-  address: {
-    road?: string;
-    suburb?: string;
-    city?: string;
-    state?: string;
-    country?: string;
-    neighbourhood?: string;
-    postcode?: string;
-  };
-  type: string;
-  importance: number;
-}
+import * as GoogleMapsService from './google-maps-service';
 
 export interface GeocodedAddress {
   id: string;
@@ -62,68 +46,28 @@ export async function searchAddress(query: string): Promise<GeocodedAddress[]> {
   }
 
   try {
-    // 🌍 NOMINATIM API (OpenStreetMap)
-    // Similaire à ce qu'utilise Yango en arrière-plan
-    const url = new URL('https://nominatim.openstreetmap.org/search');
-    url.searchParams.set('q', `${query}, Kinshasa, RDC`);
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('addressdetails', '1');
-    url.searchParams.set('limit', '10');
-    url.searchParams.set('countrycodes', 'cd'); // RDC uniquement
-    url.searchParams.set('accept-language', 'fr'); // Français
+    console.log('🔍 Google Maps - Recherche d\'adresse:', query);
 
-    console.log('🌍 Nominatim search:', url.toString());
+    const results = await GoogleMapsService.searchPlaces(query);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'SmartCabb/1.0' // Requis par Nominatim
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Nominatim error: ${response.status}`);
-    }
-
-    const results: NominatimResult[] = await response.json();
-
-    console.log(`📍 Nominatim a trouvé ${results.length} résultats pour "${query}"`);
+    console.log(`📍 Google Maps a trouvé ${results.length} résultats pour "${query}"`);
 
     // Transformer en format SmartCabb
-    const addresses: GeocodedAddress[] = results.map((result) => {
-      const address = result.address;
-      
-      // Construire le nom principal (comme Yango)
-      const mainName = address.road || 
-                       address.neighbourhood || 
-                       address.suburb || 
-                       result.display_name.split(',')[0];
-
-      // Construire la description (comme Yango)
-      const parts = [
-        address.suburb,
-        address.city || 'Kinshasa',
-        address.state
-      ].filter(Boolean);
-
-      return {
-        id: `nominatim-${result.place_id}`,
-        name: mainName,
-        description: parts.join(', '),
-        coordinates: {
-          lat: parseFloat(result.lat),
-          lng: parseFloat(result.lon)
-        },
-        type: result.type,
-        importance: result.importance
-      };
-    });
+    const addresses: GeocodedAddress[] = results.map((result) => ({
+      id: result.id,
+      name: result.name,
+      description: result.description,
+      coordinates: result.coordinates,
+      type: result.types?.[0] || 'place',
+      importance: result.rating || 1.0
+    }));
 
     // Mettre en cache
     searchCache.set(cacheKey, addresses);
 
     return addresses;
   } catch (error) {
-    console.error('❌ Erreur géocodage:', error);
+    console.error('❌ Erreur géocodage Google Maps:', error);
     return [];
   }
 }
@@ -141,56 +85,24 @@ export async function reverseGeocode(lat: number, lng: number): Promise<Geocoded
   }
 
   try {
-    // 🌍 NOMINATIM REVERSE API
-    const url = new URL('https://nominatim.openstreetmap.org/reverse');
-    url.searchParams.set('lat', lat.toString());
-    url.searchParams.set('lon', lng.toString());
-    url.searchParams.set('format', 'json');
-    url.searchParams.set('addressdetails', '1');
-    url.searchParams.set('accept-language', 'fr');
-    url.searchParams.set('zoom', '18'); // Précision maximale
+    console.log('📍 Google Maps - Reverse Geocoding:', lat, lng);
 
-    console.log('🌍 Nominatim reverse:', url.toString());
+    const result = await GoogleMapsService.reverseGeocode(lat, lng);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'User-Agent': 'SmartCabb/1.0'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Nominatim reverse error: ${response.status}`);
+    if (!result) {
+      console.error('❌ Aucune adresse trouvée');
+      return null;
     }
 
-    const result: NominatimResult = await response.json();
-
-    console.log('📍 Nominatim reverse geocoding réussi');
-
-    const address = result.address;
-
-    // Construire le nom (comme Yango)
-    const mainName = address.road || 
-                     address.neighbourhood || 
-                     address.suburb || 
-                     result.display_name.split(',')[0];
-
-    // Construire la description
-    const parts = [
-      address.suburb,
-      address.city || 'Kinshasa',
-      address.state
-    ].filter(Boolean);
+    console.log('✅ Google Maps reverse geocoding réussi');
 
     const geocodedAddress: GeocodedAddress = {
-      id: `nominatim-reverse-${result.place_id}`,
-      name: mainName,
-      description: parts.join(', '),
-      coordinates: {
-        lat: parseFloat(result.lat),
-        lng: parseFloat(result.lon)
-      },
-      type: result.type,
-      importance: result.importance
+      id: result.id,
+      name: result.name,
+      description: result.description,
+      coordinates: result.coordinates,
+      type: result.types?.[0] || 'place',
+      importance: result.rating || 1.0
     };
 
     // Mettre en cache
@@ -198,7 +110,7 @@ export async function reverseGeocode(lat: number, lng: number): Promise<Geocoded
 
     return geocodedAddress;
   } catch (error) {
-    console.error('❌ Erreur reverse geocoding:', error);
+    console.error('❌ Erreur reverse geocoding Google Maps:', error);
     return null;
   }
 }
@@ -213,8 +125,8 @@ export function clearGeocodingCache() {
 }
 
 /**
- * 🔄 SYSTÈME HYBRIDE : Base de données locale + Nominatim
- * Pour avoir des suggestions rapides (base locale) + recherche précise (Nominatim)
+ * 🔄 SYSTÈME HYBRIDE : Base de données locale + Google Maps
+ * Pour avoir des suggestions rapides (base locale) + recherche précise (Google Maps)
  */
 export async function hybridSearch(query: string, localResults: any[]): Promise<GeocodedAddress[]> {
   // 1. Utiliser d'abord la base locale (instantané)
@@ -227,25 +139,23 @@ export async function hybridSearch(query: string, localResults: any[]): Promise<
     importance: 1.0
   }));
 
-  // 2. En parallèle, lancer la recherche Nominatim (plus précis)
-  const nominatimPromise = searchAddress(query);
+  // 2. En parallèle, lancer la recherche Google Maps (plus précis)
+  const googleMapsPromise = searchAddress(query);
 
-  // 3. Attendre max 1 seconde pour Nominatim
-  const nominatimResults = await Promise.race([
-    nominatimPromise,
+  // 3. Attendre max 1 seconde pour Google Maps
+  const googleMapsResults = await Promise.race([
+    googleMapsPromise,
     new Promise<GeocodedAddress[]>(resolve => setTimeout(() => resolve([]), 1000))
   ]);
 
-  // 4. Fusionner les résultats (priorité à Nominatim)
-  // 4. Fusionner les résultats (priorité à Nominatim)
-  // 4. Fusionner les résultats (priorité à Nominatim)
-  const combined = [...nominatimResults];
+  // 4. Fusionner les résultats (priorité à Google Maps)
+  const combined = [...googleMapsResults];
   
-  // Ajouter les résultats locaux qui ne sont pas déjà dans Nominatim
+  // Ajouter les résultats locaux qui ne sont pas déjà dans Google Maps
   for (const localItem of local) {
-    const alreadyExists = combined.some(nom => 
-      Math.abs(nom.coordinates.lat - localItem.coordinates.lat) < 0.001 &&
-      Math.abs(nom.coordinates.lng - localItem.coordinates.lng) < 0.001
+    const alreadyExists = combined.some(gm => 
+      Math.abs(gm.coordinates.lat - localItem.coordinates.lat) < 0.001 &&
+      Math.abs(gm.coordinates.lng - localItem.coordinates.lng) < 0.001
     );
     
     if (!alreadyExists) {

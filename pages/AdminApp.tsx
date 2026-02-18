@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { useLocation, Routes, Route } from '../lib/simple-router';
 import { useAppState } from '../hooks/useAppState';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle } from '../lib/icons';
 import { AdminDiagnostic } from '../components/admin/AdminDiagnostic';
 import { UsersManagementScreen } from '../components/UsersManagementScreen';
+import { UsersDiagnosticScreen } from '../components/admin/UsersDiagnosticScreen';
 
 // Import lazy des écrans admin pour optimisation
 const AdminLoginScreen = React.lazy(() => import('../components/admin/AdminLoginScreen').then(m => ({ default: m.AdminLoginScreen })));
@@ -33,8 +34,10 @@ const BudgetDashboard = React.lazy(() => import('../components/admin/BudgetDashb
 const DataCleanupPanel = React.lazy(() => import('../components/admin/DataCleanupPanel').then(m => ({ default: m.DataCleanupPanel })));
 const PendingRechargesScreenNew = React.lazy(() => import('../components/admin/PendingRechargesScreenNew').then(m => ({ default: m.PendingRechargesScreenNew })));
 const AdminAnalyticsDashboard = React.lazy(() => import('../components/admin/AdminAnalyticsDashboard').then(m => ({ default: m.AdminAnalyticsDashboard })));
+const CancellationsScreen = React.lazy(() => import('../components/admin/CancellationsScreen').then(m => ({ default: m.CancellationsScreen })));
 const RLSBlockingScreen = React.lazy(() => import('../components/RLSBlockingScreen').then(m => ({ default: m.RLSBlockingScreen })));
 const RLSFixModal = React.lazy(() => import('../components/RLSFixModal').then(m => ({ default: m.RLSFixModal })));
+const AdminAccountSync = React.lazy(() => import('../components/admin/AdminAccountSync').then(m => ({ default: m.AdminAccountSync })));
 
 function AdminAppContent() {
   const { state, setCurrentScreen, setCurrentView, updateUser } = useAppState();
@@ -49,6 +52,8 @@ function AdminAppContent() {
     
     console.log('👔 AdminApp - Démarrage avec currentScreen:', state.currentScreen);
     console.log('👔 AdminApp - location.pathname:', location.pathname);
+    console.log('👔 AdminApp - isAdmin:', state.isAdmin);
+    console.log('👔 AdminApp - currentUser:', state.currentUser?.id || 'none');
     
     // ✅ DÉTECTION DE ROUTE : Vérifier qu'on est bien sur une route admin
     const isAdminRoute = location.pathname.includes('/admin');
@@ -81,14 +86,32 @@ function AdminAppContent() {
       // Alias sans préfixe admin-
       'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
       'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
-      'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management'
+      'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
+      'admin-sync', 'admin-account-sync', 'cancellations', 'admin-users-diagnostic' // ✅ Ajouté
     ];
     
-    if (!state.currentScreen || !validAdminScreens.includes(state.currentScreen)) {
-      console.log('👔 AdminApp - Initialisation avec admin-login');
+    // ✅ FIX: Si l'admin est connecté et a un écran admin valide, ne rien changer
+    if (state.isAdmin && state.currentScreen && validAdminScreens.includes(state.currentScreen) && state.currentScreen !== 'admin-login') {
+      console.log('✅ Admin connecté avec écran valide, on garde:', state.currentScreen);
+      return; // Important : ne pas continuer pour éviter les redirections
+    }
+    
+    // ✅ FIX: Si l'admin est connecté mais n'a pas d'écran valide (refresh), aller au dashboard
+    if (state.isAdmin && (!state.currentScreen || !validAdminScreens.includes(state.currentScreen) || state.currentScreen === 'admin-login')) {
+      console.log('🔄 Admin connecté après refresh, redirection vers dashboard');
+      setCurrentScreen('admin-dashboard');
+      return;
+    }
+    
+    // 🆕 CORRECTION : Ne pas écraser l'écran restauré depuis localStorage s'il est valide
+    if (state.currentScreen && validAdminScreens.includes(state.currentScreen)) {
+      console.log('✅ Écran admin restauré depuis localStorage:', state.currentScreen);
+      // Ne rien faire, l'écran est déjà correct
+    } else if (!state.currentScreen || !validAdminScreens.includes(state.currentScreen)) {
+      console.log('👔 AdminApp - Initialisation avec admin-login (aucun écran valide sauvegardé)');
       setCurrentScreen('admin-login');
     }
-  }, [location.pathname]);
+  }, [location.pathname, state.currentScreen, state.isAdmin, state.currentUser, setCurrentView, setCurrentScreen]);
   
   // État RLS local
   const showRLSModal = false;
@@ -110,7 +133,8 @@ function AdminAppContent() {
     // Alias sans préfixe admin-
     'drivers-list', 'clients-list', 'contact-messages', 'postpaid-requests', 'refund-management',
     'analytics-dashboard', 'financial-reports', 'audit-logs', 'backup-and-recovery',
-    'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management'
+    'sms-settings', 'global-settings', 'admin-diagnostic', 'data-cleanup', 'pending-recharges', 'admin-users-management',
+    'admin-sync', 'admin-account-sync', 'cancellations', 'admin-users-diagnostic' // ✅ Ajouté
   ];
   
   // ✅ FALLBACK AMÉLIORÉ : Vérifier si l'écran est dans la liste des écrans admin valides
@@ -133,7 +157,7 @@ function AdminAppContent() {
         {screenToShow === 'admin-login' && <AdminLoginScreen />}
         {screenToShow === 'admin-register' && <AdminRegisterScreen />}
         {screenToShow === 'admin-dashboard' && <AdminDashboard />}
-        {screenToShow === 'admin-drivers' && <DriversListScreen />}
+        {screenToShow === 'admin-drivers' && <DriversListScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'admin-clients' && <ClientsListScreen />}
         {screenToShow === 'admin-financial-reports' && <FinancialReportsScreen />}
         {screenToShow === 'admin-promo-codes' && <PromoCodesScreen />}
@@ -159,7 +183,7 @@ function AdminAppContent() {
         {screenToShow === 'admin-pending-recharges' && <PendingRechargesScreenNew />}
         
         {/* Drivers list (alias) */}
-        {screenToShow === 'drivers-list' && <DriversListScreen />}
+        {screenToShow === 'drivers-list' && <DriversListScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'clients-list' && <ClientsListScreen />}
         {screenToShow === 'contact-messages' && <ContactMessagesScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
         {screenToShow === 'postpaid-requests' && <PostpaidRequestsScreen />}
@@ -172,6 +196,10 @@ function AdminAppContent() {
         {screenToShow === 'global-settings' && <GlobalSettingsScreen />}
         {screenToShow === 'admin-diagnostic' && <AdminDiagnostic />}
         {screenToShow === 'admin-users-management' && <UsersManagementScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
+        {screenToShow === 'admin-users-diagnostic' && <UsersDiagnosticScreen onBack={() => setCurrentScreen('admin-dashboard')} />}
+        {screenToShow === 'admin-account-sync' && <AdminAccountSync />}
+        {screenToShow === 'admin-sync' && <AdminAccountSync />}
+        {screenToShow === 'cancellations' && <CancellationsScreen />}
       </div>
     </>
   );

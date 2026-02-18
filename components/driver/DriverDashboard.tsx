@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { Card } from '../ui/card';
@@ -8,7 +8,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { useAppState } from '../../hooks/useAppState';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
-import { SoundNotification } from '../SoundNotification';
+import { stopAllNotifications } from '../../lib/notification-sound'; // ✅ Import pour arrêter la sonnerie
+// import { SoundNotification } from '../SoundNotification'; // DÉSACTIVÉ: Remplacé par RideNotification
 import { RideTimer } from '../RideTimer';
 import { EmergencyAlert } from '../EmergencyAlert';
 import { CommissionSettings } from '../CommissionSettings';
@@ -17,27 +18,67 @@ import { supabase } from '../../lib/supabase';
 import { VEHICLE_PRICING, isDayTime, VehicleCategory } from '../../lib/pricing';
 import { useDriverLocation, isNearPickupLocation, calculateDistance } from '../../lib/gps-utils';
 import { reverseGeocodeWithCache } from '../../lib/geocoding';
-import { 
-  Power, 
-  Euro, 
-  Clock, 
-  Star, 
-  Navigation,
-  User,
-  Settings,
-  TrendingUp,
-  Car,
-  Key,
-  Percent,
-  CreditCard,
-  Lock,
-  CheckCircle,
-  AlertCircle,
-  MapPin,
-  Phone,
-  MessageSquare
-} from 'lucide-react';
-import { toast } from 'sonner';
+import { getVehicleDisplayName } from '../../lib/vehicle-helpers';
+import { toast } from '../../lib/toast';
+
+// Icônes SVG inline
+const Power = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+);
+const Euro = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+const Clock = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+const Star = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+);
+const Navigation = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+);
+const User = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+);
+const Settings = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+);
+const TrendingUp = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+);
+const Car = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" /></svg>
+);
+const Key = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" /></svg>
+);
+const Percent = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 8h6m-5 0a3 3 0 110 6H9l3 3m-3-6h6m6 1a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+const CreditCard = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>
+);
+const Lock = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+);
+const CheckCircle = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+const AlertCircle = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
+const MapPin = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+);
+const Phone = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+);
+const MessageSquare = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+);
+const PlayCircle = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+);
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { 
   notifyRideConfirmed,
@@ -48,6 +89,7 @@ import {
   notifyPaymentReceived,
   notifyRideCancelled
 } from '../../lib/sms-service';
+import { RideNotificationSound } from './RideNotificationSound';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {
@@ -108,19 +150,130 @@ async function updateBalanceInBackend(
 }
 
 export function DriverDashboard() {
-  const { state, setCurrentScreen, updateDriver, setCurrentDriver, setCurrentView, setCurrentRide } = useAppState();
+  const { state, setCurrentScreen, updateDriver, setCurrentDriver, setCurrentView, setCurrentRide, updateRide, clearCurrentRide } = useAppState();
   const driver = state.currentDriver; // Récupérer le conducteur actuel
+  
+  // ✅ FIX: Construire l'objet vehicleInfo depuis les champs individuels du driver
+  const vehicleInfo = useMemo(() => {
+    if (!driver) return null;
+    
+    // Si l'objet vehicle existe ET n'est pas vide, l'utiliser
+    if (driver.vehicle && (driver.vehicle.make || driver.vehicle.category || driver.vehicle.license_plate)) {
+      return {
+        make: driver.vehicle.make || driver.vehicle_make || '',
+        model: driver.vehicle.model || driver.vehicle_model || '',
+        color: driver.vehicle.color || driver.vehicle_color || '',
+        plate: driver.vehicle.license_plate || driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle.category || driver.vehicle_category || driver.vehicle_type || 'standard',
+        year: driver.vehicle.year || driver.vehicle_year || new Date().getFullYear(),
+        seats: driver.vehicle.seats || 4
+      };
+    }
+    
+    // Sinon, construire depuis les champs individuels
+    if (driver.vehicle_category || driver.vehicle_make || driver.vehicle_plate) {
+      return {
+        make: driver.vehicle_make || '',
+        model: driver.vehicle_model || '',
+        color: driver.vehicle_color || '',
+        plate: driver.vehicle_plate || driver.license_plate || '',
+        type: driver.vehicle_category || driver.vehicle_type || 'standard',
+        year: driver.vehicle_year || new Date().getFullYear(),
+        seats: 4
+      };
+    }
+    
+    return null;
+  }, [driver]);
+  
+  // ✅ DEBUG: Logger les infos du véhicule
+  useEffect(() => {
+    if (driver) {
+      console.log('🚗 Informations véhicule du conducteur:');
+      console.log('   - vehicle (objet):', driver.vehicle);
+      console.log('   - vehicle_category:', driver.vehicle_category);
+      console.log('   - vehicle_make:', driver.vehicle_make);
+      console.log('   - vehicle_model:', driver.vehicle_model);
+      console.log('   - vehicle_plate:', driver.vehicle_plate);
+      console.log('   - vehicleInfo construit:', vehicleInfo);
+    }
+  }, [driver, vehicleInfo]);
+  
+  // ✅ FIX: Rafraîchir le profil du conducteur pour récupérer les infos véhicule normalisées
+  useEffect(() => {
+    const refreshDriverProfile = async () => {
+      if (!driver?.id) return;
+      
+      try {
+        console.log('🔄 Rafraîchissement du profil conducteur depuis le backend...');
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.driver) {
+            const driverData = data.driver;
+            
+            // Mettre à jour le driver avec les infos complètes normalisées du backend
+            const updatedDriver = {
+              ...driver,
+              vehicle_make: driverData.vehicle_make || '',
+              vehicle_model: driverData.vehicle_model || '',
+              vehicle_plate: driverData.vehicle_plate || '',
+              vehicle_category: driverData.vehicle_category || 'smart_standard',
+              vehicle_color: driverData.vehicle_color || '',
+              vehicle_year: driverData.vehicle_year || new Date().getFullYear(),
+              vehicle: driverData.vehicle || {},
+              profile_photo: driverData.profile_photo || driverData.photo_url || driver.profile_photo || driver.photo_url || '',
+              photo_url: driverData.photo_url || driverData.profile_photo || driver.photo_url || driver.profile_photo || ''
+            };
+            
+            updateDriver(updatedDriver);
+            console.log('✅ Profil conducteur rafraîchi avec infos véhicule normalisées:', {
+              vehicle_make: updatedDriver.vehicle_make,
+              vehicle_model: updatedDriver.vehicle_model,
+              vehicle_plate: updatedDriver.vehicle_plate,
+              vehicle_category: updatedDriver.vehicle_category
+            });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur rafraîchissement profil:', error);
+      }
+    };
+    
+    // Déclencher immédiatement si driver.id change
+    refreshDriverProfile();
+  }, [driver?.id]); // Se déclenche quand l'ID change (notamment au montage)
   
   // ✅ v517.81: Utiliser le taux de change du panel admin (par défaut 2850)
   const exchangeRate = state.systemSettings?.exchangeRate || 2850;
   console.log(`💱 Taux de change actuel: 1 USD = ${exchangeRate} CDF`);
   
-  const [isOnline, setIsOnline] = useState(driver?.isOnline || false);
+  // ✅ v518.52 - PERSISTANCE DU STATUT EN LIGNE
+  // Restaurer le statut depuis localStorage au d��marrage
+  const [isOnline, setIsOnline] = useState(() => {
+    if (driver?.id) {
+      const savedStatus = localStorage.getItem(`driver_online_${driver.id}`);
+      if (savedStatus !== null) {
+        const isOnlineSaved = savedStatus === 'true';
+        console.log(`🔄 Statut "en ligne" restauré depuis localStorage: ${isOnlineSaved ? 'EN LIGNE' : 'HORS LIGNE'}`);
+        return isOnlineSaved;
+      }
+    }
+    return driver?.isOnline || false;
+  });
   const [rideRequest, setRideRequest] = useState<any>(null);
   const [showRideRequest, setShowRideRequest] = useState(false);
   // ✅ PLUS DE STATE LOCAL currentRide - On utilise state.currentRide du global
-  const [confirmationCode, setConfirmationCode] = useState<string>('');
-  const [enteredCode, setEnteredCode] = useState<string>('');
+  // 🚫 SUPPRIMÉ : const [confirmationCode, setConfirmationCode] = useState<string>('');
+  // 🚫 SUPPRIMÉ : const [enteredCode, setEnteredCode] = useState<string>('');
   const [rideStartTime, setRideStartTime] = useState<Date | null>(null);
   const [freeWaitingEnabled, setFreeWaitingEnabled] = useState(true);
   const [showCommissionSettings, setShowCommissionSettings] = useState(false);
@@ -219,36 +372,9 @@ export function DriverDashboard() {
     loadBalanceFromBackend();
   }, [driver?.id]);
   
-  // 🔄 Synchroniser le solde avec le backend toutes les 5 secondes
-  useEffect(() => {
-    if (!driver?.id) return;
-    
-    const syncInterval = setInterval(async () => {
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/balance`,
-          {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`
-            }
-          }
-        );
-        
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.balance !== accountBalance) {
-            setAccountBalance(data.balance);
-            setBalanceRenderKey(prev => prev + 1);
-            console.log(`🔄 Solde synchronisé: ${data.balance.toLocaleString()} CDF`);
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erreur sync solde:', error);
-      }
-    }, 5000); // Toutes les 5 secondes
-    
-    return () => clearInterval(syncInterval);
-  }, [driver?.id, accountBalance]);
+  // ✅ SUPPRIMÉ : La synchronisation automatique toutes les 5 secondes causait des conflits
+  // Le solde est maintenant géré uniquement par le backend comme source de vérité
+  // Les mises à jour se font explicitement via updateBalanceInBackend()
 
   // Auto-activer le post-payé si le solde est suffisant au chargement
   useEffect(() => {
@@ -274,6 +400,101 @@ export function DriverDashboard() {
       }
     }
   }, [driver?.id]); // Se déclenche une seule fois au chargement
+
+  // ✅ v518.52 - PERSISTANCE ET HEARTBEAT DU STATUT "EN LIGNE"
+  // Sauvegarder le statut dans localStorage ET envoyer au backend régulièrement
+  useEffect(() => {
+    if (!driver?.id) return;
+    
+    // 1. Sauvegarder dans localStorage immédiatement
+    localStorage.setItem(`driver_online_${driver.id}`, isOnline.toString());
+    console.log(`💾 Statut "${isOnline ? 'EN LIGNE' : 'HORS LIGNE'}" sauvegardé dans localStorage`);
+    
+    // 2. Envoyer au backend pour persistance
+    const updateOnlineStatus = async () => {
+      try {
+        // ✅ FIX CRITIQUE: Utiliser publicAnonKey au lieu de accessToken
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/heartbeat`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}` // ✅ Utiliser publicAnonKey
+            },
+            body: JSON.stringify({
+              driverId: driver?.id, // ✅ AJOUTER l'ID du conducteur
+              isOnline: isOnline,
+              location: driverLocation || null,
+              lastSeen: new Date().toISOString()
+            })
+          }
+        );
+        
+        if (response.ok) {
+          console.log(`💓 Heartbeat envoyé: ${isOnline ? 'EN LIGNE' : 'HORS LIGNE'}`);
+        }
+      } catch (error) {
+        console.error('❌ Erreur envoi heartbeat:', error);
+      }
+    };
+    
+    // Envoyer immédiatement
+    updateOnlineStatus();
+    
+    // 3. Si EN LIGNE, envoyer un heartbeat toutes les 30 secondes
+    if (isOnline) {
+      const heartbeatInterval = setInterval(updateOnlineStatus, 30000);
+      return () => clearInterval(heartbeatInterval);
+    }
+  }, [isOnline, driver?.id, driverLocation]);
+  
+  // ✅ v518.52 - DÉTECTER LE RETOUR SUR L'APPLICATION
+  // Restaurer et re-synchroniser le statut quand l'utilisateur revient
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && driver?.id) {
+        console.log('👁️ Application visible à nouveau, re-synchronisation...');
+        
+        // Restaurer le statut depuis localStorage
+        const savedStatus = localStorage.getItem(`driver_online_${driver.id}`);
+        if (savedStatus !== null) {
+          const wasOnline = savedStatus === 'true';
+          if (wasOnline !== isOnline) {
+            setIsOnline(wasOnline);
+            console.log(`🔄 Statut restauré: ${wasOnline ? 'EN LIGNE' : 'HORS LIGNE'}`);
+            
+            if (wasOnline) {
+              toast.info('🟢 Vous êtes toujours en ligne !', { duration: 3000 });
+            }
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [driver?.id, isOnline]);
+  
+  // ✅ v518.52 - NE PAS DÉSACTIVER LE STATUT LORS DE LA FERMETURE
+  // Au lieu de désactiver, sauvegarder simplement l'état actuel
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (driver?.id && isOnline) {
+        // Ne rien faire ! Le statut reste en ligne
+        console.log('🚪 Application fermée - Statut EN LIGNE maintenu');
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [driver?.id, isOnline]);
 
   // Détecter la proximité GPS au point de pickup
   useEffect(() => {
@@ -451,6 +672,10 @@ export function DriverDashboard() {
             // ou s'il a accepté une course (state.currentRide existe)
             // Cela évite l'annulation automatique quand le passager est déjà matché
             if (showRideRequest && !state.currentRide && !rideRequest) {
+              // ✅ ARRÊTER LA SONNERIE
+              stopAllNotifications();
+              console.log('🔕 Sonnerie arrêtée - fermeture du panneau');
+              
               setShowRideRequest(false);
               setRideRequest(null);
               console.log('✅ Fermeture du panneau de demande (pas de course active)');
@@ -462,9 +687,10 @@ export function DriverDashboard() {
       }
     };
 
-    // Vérifier immédiatement puis toutes les 5 secondes
+    // ⚡ OPTIMISATION : Vérifier immédiatement puis toutes les 2 secondes pour une détection plus rapide
+    // Au lieu de 5 secondes, cela réduit le délai de notification de 60%
     checkRideRequests();
-    const interval = setInterval(checkRideRequests, 5000);
+    const interval = setInterval(checkRideRequests, 2000);
     
     return () => {
       console.log('🛑 Arrêt du polling des demandes');
@@ -502,6 +728,11 @@ export function DriverDashboard() {
             // Cas 1: Le passager a annulé
             if (rideStatus === 'cancelled') {
               console.log('❌ Le passager a annulé sa course');
+              
+              // ✅ ARRÊTER LA SONNERIE
+              stopAllNotifications();
+              console.log('🔕 Sonnerie arrêtée - passager a annulé');
+              
               setShowRideRequest(false);
               setRideRequest(null);
               toast.error('😔 Le passager a annulé sa course', {
@@ -513,6 +744,11 @@ export function DriverDashboard() {
             // Cas 2: Un autre conducteur a accepté
             if (rideStatus === 'accepted' && assignedDriverId && assignedDriverId !== driver.id) {
               console.log('⚡ Course acceptée par un autre conducteur:', assignedDriverId);
+              
+              // ✅ ARRÊTER LA SONNERIE
+              stopAllNotifications();
+              console.log('🔕 Sonnerie arrêtée - course prise par un autre conducteur');
+              
               setShowRideRequest(false);
               setRideRequest(null);
               toast.info('🚗 Course déjà récupérée par un autre conducteur', {
@@ -535,29 +771,131 @@ export function DriverDashboard() {
     };
   }, [showRideRequest, rideRequest?.id, driver?.id]);
 
-  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 15 SECONDES
+  // 🔥 NOUVEAU: TIMEOUT AUTOMATIQUE APRÈS 10 SECONDES
   // Si le conducteur ne répond pas, la demande est offerte au suivant
   useEffect(() => {
     if (!showRideRequest || !rideRequest?.id) {
       return;
     }
 
-    console.log('⏱️ Démarrage du timer de 15s pour la course:', rideRequest.id);
+    console.log('⏱️ Démarrage du timer de 10s pour la course:', rideRequest.id);
 
-    // Après 15 secondes, refuser automatiquement
+    // ⚡ OPTIMISATION : Après 10 secondes (au lieu de 15s), refuser automatiquement
     const timeoutId = setTimeout(() => {
-      console.log('⏰ Timeout de 15s atteint, refus automatique');
+      console.log('⏰ Timeout de 10s atteint, refus automatique');
+      
+      // ✅ ARRÊTER LA SONNERIE
+      stopAllNotifications();
+      console.log('🔕 Sonnerie arrêtée - timeout 10s');
+      
       setShowRideRequest(false);
       setRideRequest(null);
       toast.info('⏱️ Temps écoulé - Course offerte à un autre conducteur', {
         duration: 4000
       });
-    }, 15000); // 15 secondes
+    }, 10000); // ⚡ 10 secondes (optimisé)
 
     return () => {
       clearTimeout(timeoutId);
     };
   }, [showRideRequest, rideRequest?.id]);
+
+  // 🔥 NOUVEAU: SYNCHRONISATION DE LA COURSE EN COURS
+  // Polling pour mettre à jour le statut de la course en temps réel côté driver
+  useEffect(() => {
+    if (!state.currentRide || !driver?.id) {
+      return;
+    }
+
+    // Ne synchroniser que si la course n'est pas terminée
+    // ✅ FIX: Continuer à synchroniser même si cancelled (pour détecter l'annulation)
+    if (state.currentRide.status === 'completed') {
+      return;
+    }
+
+    console.log('🔄 Démarrage synchronisation course en cours:', state.currentRide.id);
+
+    const syncCurrentRide = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/${state.currentRide.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`
+            }
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          
+          if (data.success && data.ride) {
+            const backendRide = data.ride;
+            
+            // ✅ ANNULATION: Si le passager a annulé, notifier et nettoyer
+            if (backendRide.status === 'cancelled' && state.currentRide.status !== 'cancelled') {
+              console.log('❌ Le passager a annulé la course');
+              
+              // ✅ ARRÊTER LA SONNERIE immédiatement
+              stopAllNotifications();
+              console.log('🔕 Sonnerie arrêtée suite à l\'annulation par le passager');
+              
+              // Notification
+              toast.error('😔 Le passager a annulé sa course', {
+                description: 'La course a été annulée par le passager.',
+                duration: 5000
+              });
+              
+              // Nettoyer la course en cours
+              if (clearCurrentRide) {
+                clearCurrentRide();
+              }
+              
+              // Réinitialiser les états locaux liés à la course
+              setShowRideRequest(false);
+              setRideRequest(null);
+              setRideStartTime(null);
+              setWaitingTimeStarted(false);
+              setWaitingStartTime(null);
+              setIsNearPickup(false);
+              setCanStartWaiting(false);
+              
+              return; // Arrêter le traitement
+            }
+            
+            // ✅ Mettre à jour le state local si le statut a changé
+            if (backendRide.status !== state.currentRide.status) {
+              console.log('🔄 Mise à jour statut course:', state.currentRide.status, '→', backendRide.status);
+              updateRide(state.currentRide.id, {
+                status: backendRide.status,
+                startedAt: backendRide.startedAt,
+                completedAt: backendRide.completedAt
+              });
+              
+              // Si la course a été démarrée mais qu'on n'a pas de rideStartTime local, le définir
+              if (backendRide.status === 'in_progress' && backendRide.startedAt && !rideStartTime) {
+                console.log('⏱️ Synchronisation rideStartTime depuis backend:', backendRide.startedAt);
+                setRideStartTime(new Date(backendRide.startedAt));
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur synchronisation course:', error);
+      }
+    };
+
+    // Synchroniser immédiatement
+    syncCurrentRide();
+
+    // Puis toutes les 3 secondes
+    const syncInterval = setInterval(syncCurrentRide, 3000);
+
+    return () => {
+      console.log('🛑 Arrêt synchronisation course');
+      clearInterval(syncInterval);
+    };
+  }, [state.currentRide?.id, state.currentRide?.status, driver?.id, rideStartTime, updateRide]);
 
   // ==================== FONCTION DE RAFRAÎCHISSEMENT TEMPS RÉEL ====================
   const refreshDriverData = async () => {
@@ -642,23 +980,8 @@ export function DriverDashboard() {
         console.error('❌ Erreur récupération stats:', response.status);
       }
       
-      // Synchroniser le solde depuis localStorage
-      const savedBalance = localStorage.getItem(`driver_balance_${driver.id}`);
-      if (savedBalance) {
-        // ✅ v517.88: Validation stricte après parseFloat
-        const balance = parseFloat(savedBalance);
-        
-        if (isNaN(balance)) {
-          console.error('❌ v517.88 - Solde localStorage invalide (NaN) lors du refresh, initialisation à 0');
-          console.error('   Valeur localStorage:', savedBalance);
-          localStorage.setItem(`driver_balance_${driver.id}`, '0');
-          setAccountBalance(0);
-        } else {
-          setAccountBalance(balance);
-          setBalanceRenderKey(prev => prev + 1);
-          console.log(`💰 Solde synchronisé: ${balance.toLocaleString()} CDF`);
-        }
-      }
+      // ✅ SUPPRIMÉ : Ne plus lire le solde depuis localStorage
+      // Le solde est maintenant chargé UNIQUEMENT depuis le backend (source de vérité unique)
       
       console.log('✅ v517.83 - Données du conducteur rafraîchies depuis KV store !');
       
@@ -691,7 +1014,7 @@ export function DriverDashboard() {
 
   // Fonction helper pour obtenir le tarif horaire correct selon le type de véhicule
   const getHourlyRate = (): number => {
-    const vehicleType = driver.vehicleInfo?.type as VehicleCategory;
+    const vehicleType = vehicleInfo?.type as VehicleCategory;
     if (!vehicleType || !VEHICLE_PRICING[vehicleType]) {
       return 7; // Fallback au tarif Smart Flex jour
     }
@@ -761,18 +1084,17 @@ export function DriverDashboard() {
 
     // Appeler l'API backend pour mettre à jour le statut
     try {
-      const session = await supabase.auth.getSession();
-      const accessToken = session.data.session?.access_token;
-
+      // ✅ FIX CRITIQUE: Utiliser publicAnonKey au lieu de accessToken
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/toggle-online-status`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${publicAnonKey}` // ✅ Utiliser publicAnonKey
           },
           body: JSON.stringify({
+            driverId: driver?.id, // ✅ AJOUTER l'ID du conducteur
             isOnline: newStatus,
             location: driverLocation || null
           })
@@ -783,8 +1105,20 @@ export function DriverDashboard() {
 
       if (!result.success) {
         // Si le backend refuse l'activation (solde insuffisant)
-        toast.error(result.error || 'Impossible de changer le statut');
-        if (result.error?.includes('Solde insuffisant')) {
+        console.error('❌ Erreur toggle online:', result);
+        
+        // ✅ v518.1: Afficher un message détaillé avec le montant manquant
+        if (result.message && result.currentBalance !== undefined && result.minimumRequired !== undefined) {
+          const shortfall = result.minimumRequired - result.currentBalance;
+          toast.error(
+            `💰 ${result.message}\n\nMontant manquant: ${shortfall.toLocaleString()} CDF\n\nVeuillez recharger votre compte.`,
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(result.error || result.message || 'Impossible de changer le statut');
+        }
+        
+        if (result.error?.includes('Solde insuffisant') || result.message?.includes('insuffisant')) {
           setShowPaymentModal(true);
         }
         return;
@@ -914,10 +1248,11 @@ export function DriverDashboard() {
         setPaymentOperator('');
         setRechargeAmount('');
         
-        // Dismiss le toast de loading et afficher le succès
+        // ✅ Fermer les toasts de loading et afficher le succès
+        toast.dismiss(toastId);
         toast.success(
           `✅ Recharge de ${amountToPay.toLocaleString()} CDF réussie via ${operatorNames[paymentOperator]} !`,
-          { id: toastId, duration: 5000 }
+          { duration: 5000 }
         );
         toast.info('Vous pouvez maintenant activer le mode Post-Payé et recevoir des courses.', {
           duration: 4000
@@ -935,12 +1270,21 @@ export function DriverDashboard() {
   };
 
   const handleAcceptRide = async () => {
+    // ✅ ARRÊTER LA SONNERIE dès que le conducteur accepte
+    stopAllNotifications();
+    console.log('🔕 Sonnerie arrêtée suite à l\'acceptation de la course');
+    
     // ✅ CORRECTION : Récupérer le VRAI prix depuis la base de données
     const estimatedCost = rideRequest?.estimatedPrice;
     
     // ❌ Vérifier si le prix existe dans la base de données
     if (!estimatedCost || estimatedCost === 0) {
       console.error('❌ Prix non trouvé dans la base de données !');
+      
+      // ✅ ARRÊTER LA SONNERIE
+      stopAllNotifications();
+      console.log('🔕 Sonnerie arrêtée - erreur prix');
+      
       toast.error('Erreur : Prix de la course introuvable. Veuillez réessayer.');
       setShowRideRequest(false);
       return;
@@ -959,6 +1303,10 @@ export function DriverDashboard() {
         `Vous devez recharger au moins ${(estimatedCost - accountBalance).toLocaleString()} CDF pour accepter cette course`,
         { duration: 5000 }
       );
+      
+      // ✅ ARRÊTER LA SONNERIE (déjà fait au début de handleAcceptRide, mais par sécurité)
+      stopAllNotifications();
+      console.log('🔕 Sonnerie arrêtée - solde insuffisant');
       
       // Refuser automatiquement la course
       setShowRideRequest(false);
@@ -987,10 +1335,17 @@ export function DriverDashboard() {
       return; // Arrêter l'exécution ici
     }
     
-    // ✅ APPELER LE BACKEND POUR ACCEPTER LA COURSE ET RÉCUPÉRER LE CODE PIN
-    let code: string;
+    // ✅ APPELER LE BACKEND POUR ACCEPTER LA COURSE (sans code de confirmation)
     try {
       console.log('📞 Appel backend pour accepter la course:', rideRequest.id);
+      console.log('🗺️ Coordonnées GPS reçues:', {
+        pickupLat: rideRequest.pickupLat,
+        pickupLng: rideRequest.pickupLng,
+        dropoffLat: rideRequest.dropoffLat,
+        dropoffLng: rideRequest.dropoffLng,
+        pickup: rideRequest.pickup,
+        destination: rideRequest.destination
+      });
       
       const acceptResponse = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/accept`,
@@ -1025,17 +1380,9 @@ export function DriverDashboard() {
         return;
       }
       
-      // ✅ RÉCUPÉRER LE CODE PIN DU BACKEND
-      code = acceptData.ride?.confirmationCode || acceptData.confirmationCode;
-      
-      if (!code) {
-        console.error('❌ Pas de code de confirmation reçu du backend');
-        toast.error('Erreur : code de confirmation manquant');
-        return;
-      }
-      
-      console.log('🔐 Code de confirmation reçu du backend:', code);
-      setConfirmationCode(code);
+      // 🚫 SUPPRIMÉ : Récupération du code de confirmation (simplification UX)
+      // Le conducteur peut maintenant démarrer directement sans code
+      console.log('✅ Course acceptée - Pas de code requis');
       
     } catch (error) {
       console.error('❌ Erreur lors de l\'appel backend:', error);
@@ -1049,18 +1396,19 @@ export function DriverDashboard() {
       passengerId: rideRequest.userId || rideRequest.passengerId,
       driverId: driver?.id,
       pickup: { 
-        lat: rideRequest.pickupLat, 
-        lng: rideRequest.pickupLng, 
-        address: rideRequest.pickupAddress 
+        lat: rideRequest.pickupLat || rideRequest.pickup?.lat, 
+        lng: rideRequest.pickupLng || rideRequest.pickup?.lng, 
+        address: rideRequest.pickupAddress || rideRequest.pickup?.address || 'Point de départ'
       },
       destination: { 
-        lat: rideRequest.dropoffLat, 
-        lng: rideRequest.dropoffLng, 
-        address: rideRequest.dropoffAddress 
+        lat: rideRequest.dropoffLat || rideRequest.destination?.lat, 
+        lng: rideRequest.dropoffLng || rideRequest.destination?.lng, 
+        address: rideRequest.dropoffAddress || rideRequest.destination?.address || 'Destination'
       },
+      distance: rideRequest.distanceKm || rideRequest.distance || 0, // ✅ AJOUT : distance pour la carte
       vehicleType: rideRequest.vehicleType || rideRequest.category || 'Smart Confort',
       status: 'accepted',
-      confirmationCode: code, // ⭐ CODE DU BACKEND
+      // 🚫 confirmationCode supprimé pour simplifier l'UX
       estimatedPrice: estimatedCost, // ✅ Prix réel de la demande depuis le backend
       estimatedDuration: Math.ceil((rideRequest.distanceKm || 5) / 20 * 60), // Estimation en minutes (20 km/h en ville)
       createdAt: new Date(),
@@ -1082,7 +1430,7 @@ export function DriverDashboard() {
     // ✅ Sauvegarder dans le state global de l'application
     console.log('✅ Course sauvegardée dans le state global avec setCurrentRide');
     
-    toast.success(`Course acceptée ! En attente du code de confirmation du passager.`);
+    toast.success(`✅ Course acceptée ! Vous pouvez démarrer la course quand le passager monte à bord.`);
     
     // 📱 SMS: Notification au passager que le conducteur a accepté
     if (rideRequest && driver) {
@@ -1092,10 +1440,10 @@ export function DriverDashboard() {
           driver.phone || '+243999999999',
           driver.name,
           rideRequest.passengerName || 'Passager',
-          `${driver.vehicleInfo?.make} ${driver.vehicleInfo?.model} - ${driver.vehicleInfo?.plate}`,
+          `${vehicleInfo?.make} ${vehicleInfo?.model} - ${vehicleInfo?.plate}`,
           rideRequest.pickup?.address || rideRequest.pickupAddress || 'Point de depart',
           rideRequest.destination?.address || rideRequest.dropoffAddress || 'Destination',
-          driver.vehicleInfo?.type || 'Standard',
+          vehicleInfo?.type || 'Standard',
           '5'
         );
         console.log('✅ SMS confirmation envoyé au passager et conducteur');
@@ -1106,6 +1454,10 @@ export function DriverDashboard() {
   };
 
   const handleDeclineRide = async () => {
+    // ✅ ARRÊTER LA SONNERIE dès que le conducteur refuse
+    stopAllNotifications();
+    console.log('🔕 Sonnerie arrêtée suite au refus de la course');
+    
     setShowRideRequest(false);
     toast.info('Course refusée');
     
@@ -1127,30 +1479,19 @@ export function DriverDashboard() {
   };
 
   const handleConfirmStart = async () => {
-    if (!enteredCode) {
-      toast.error('Veuillez entrer le code de confirmation du passager');
-      return;
-    }
+    // 🚫 SUPPRIMÉ : Vérification du code de confirmation (simplification UX)
+    // Le conducteur démarre directement la course sans code
     
-    console.log('🔐 Validation du code:');
-    console.log('  - Code entré par le driver:', enteredCode);
-    console.log('  - Code attendu (confirmationCode):', confirmationCode);
-    console.log('  - Code dans state.currentRide:', state.currentRide?.confirmationCode);
-    console.log('  - Match enteredCode === confirmationCode:', enteredCode === confirmationCode);
-    console.log('  - Match enteredCode === state.currentRide.confirmationCode:', enteredCode === state.currentRide?.confirmationCode);
+    console.log('✅ Démarrage de course sans code - simplification UX');
     
-    // ✅ VÉRIFIER AVEC LE CODE DU BACKEND (state.currentRide.confirmationCode)
-    const correctCode = state.currentRide?.confirmationCode || confirmationCode;
-    
-    if (enteredCode !== correctCode) {
-      console.error('❌ Code incorrect ! enteredCode:', enteredCode, 'vs correctCode:', correctCode);
-      toast.error(`Code incorrect ! Entré: ${enteredCode}, Attendu: ${correctCode}`);
-      return;
-    }
-    
-    console.log('✅ Code validé avec succès !');
-    
-    if (correctCode && state.currentRide) {
+    if (state.currentRide) {
+      // ✅ Vérification du statut avant appel backend
+      if (state.currentRide.status !== 'accepted') {
+        console.error('❌ Impossible de démarrer : statut actuel =', state.currentRide.status);
+        toast.error(`La course ne peut pas être démarrée (statut: ${state.currentRide.status})`);
+        return;
+      }
+
       // 🚀 APPELER LE BACKEND POUR DÉMARRER LA COURSE
       try {
         console.log('🚀 Appel backend pour démarrer la course...');
@@ -1165,8 +1506,8 @@ export function DriverDashboard() {
             },
             body: JSON.stringify({
               rideId: state.currentRide.id,
-              driverId: driver?.id,
-              confirmationCode: enteredCode
+              driverId: driver?.id
+              // 🚫 confirmationCode supprimé
             })
           }
         );
@@ -1181,15 +1522,35 @@ export function DriverDashboard() {
         const startData = await startResponse.json();
         console.log('✅ Backend a confirmé le démarrage:', startData);
         
-        // Mettre à jour le state local
-        setRideStartTime(new Date());
-        setCurrentRide({ 
-          ...state.currentRide, 
-          status: 'in_progress',
-          startedAt: startData.ride?.startedAt || new Date().toISOString()
+        // ✅ Gérer le cas où la course est déjà démarrée (idempotence)
+        if (startData.alreadyStarted) {
+          console.log('ℹ️ Course déjà démarrée, synchronisation state...');
+          // Utiliser le startedAt du backend pour synchroniser
+          if (startData.ride?.startedAt) {
+            setRideStartTime(new Date(startData.ride.startedAt));
+          }
+          toast.info('La course est déjà en cours', {
+            duration: 3000
+          });
+          return;
+        }
+        
+        // ✅ Mettre à jour le state global ET local
+        const startTime = new Date();
+        setRideStartTime(startTime);
+        
+        // ✅ Mettre à jour le state global pour que l'UI se rafraîchisse
+        if (updateRide) {
+          updateRide(state.currentRide.id, { 
+            status: 'in_progress',
+            startedAt: startData.ride?.startedAt || startTime.toISOString()
+          });
+        }
+        
+        toast.success('Course démarrée ! Le chronomètre tourne.', {
+          duration: 5000
         });
-        toast.success('Course démarrée !');
-        setEnteredCode('');
+        // 🚫 SUPPRIMÉ : setEnteredCode('');
         
       } catch (error) {
         console.error('❌ Erreur appel backend démarrage:', error);
@@ -1297,7 +1658,7 @@ export function DriverDashboard() {
               pickup: rideRequest?.pickup || state.currentRide.pickup,
               destination: rideRequest?.destination || state.currentRide.destination,
               distance: rideRequest?.distance || state.currentRide.distance || 0,
-              vehicleType: driver.vehicleInfo?.type || 'economic',
+              vehicleType: vehicleInfo?.type || 'economic',
               completedAt: new Date().toISOString(),
               createdAt: rideRequest?.createdAt || state.currentRide.createdAt || new Date().toISOString()
             })
@@ -1347,9 +1708,46 @@ export function DriverDashboard() {
       // Forcer le re-render visuel du solde
       setBalanceRenderKey(prev => prev + 1);
       
+      // ✅ v518.2: RECHARGER LE SOLDE DEPUIS LE BACKEND APRÈS LA COURSE
+      // Pour refléter la déduction automatique de 15% effectuée par le backend
+      setTimeout(async () => {
+        try {
+          console.log('🔄 Rechargement du solde après course pour voir la déduction de 15%...');
+          const balanceResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/balance`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            if (balanceData.success) {
+              const updatedBalance = balanceData.balance;
+              setAccountBalance(updatedBalance);
+              setBalanceRenderKey(prev => prev + 1);
+              localStorage.setItem(`driver_balance_${driver.id}`, updatedBalance.toString());
+              console.log(`✅ Solde mis à jour après course: ${updatedBalance.toLocaleString()} CDF`);
+              
+              // Notification de la déduction de commission
+              setTimeout(() => {
+                toast.info(
+                  `💰 Commission SmartCabb (${commissionPercentage}%): -${commissionAmount.toLocaleString()} CDF`,
+                  { duration: 5000 }
+                );
+              }, 2500);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Erreur rechargement solde après course:', error);
+        }
+      }, 3000); // Attendre 3 secondes pour laisser le backend traiter la déduction
+      
       // Mettre à jour l'état
       setCurrentRide(null);
-      setConfirmationCode('');
+      // 🚫 SUPPRIMÉ : setConfirmationCode('');
       setRideStartTime(null);
       
       // Rafraîchir les données du tableau de bord
@@ -1383,7 +1781,7 @@ export function DriverDashboard() {
       }
     } else {
       setCurrentRide(null);
-      setConfirmationCode('');
+      // 🚫 SUPPRIMÉ : setConfirmationCode('');
       setRideStartTime(null);
       toast.success('Course terminée !');
     }
@@ -1414,9 +1812,25 @@ export function DriverDashboard() {
       <div className="bg-white shadow-sm p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-6 h-6 text-blue-600" />
-            </div>
+            {/* Photo de profil du conducteur */}
+            {driver.profile_photo || driver.photo_url ? (
+              <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-blue-500">
+                <ImageWithFallback 
+                  src={driver.profile_photo || driver.photo_url} 
+                  alt={driver.name}
+                  className="w-full h-full object-cover"
+                  fallback={
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-6 h-6 text-blue-600" />
+                    </div>
+                  }
+                />
+              </div>
+            ) : (
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="w-6 h-6 text-blue-600" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="text-xl truncate">Bonjour {driver.name.split(' ')[0]}</h1>
               <p className="text-sm text-gray-600 truncate">
@@ -1454,7 +1868,7 @@ export function DriverDashboard() {
                     {formatCDF(accountBalance)}
                   </h2>
                   <span className="text-lg text-green-100 font-medium">
-                    (${(accountBalance / exchangeRate).toFixed(2)} USD)
+                    (${((accountBalance || 0) / (exchangeRate || 2850)).toFixed(2)} USD)
                   </span>
                 </div>
                 {postpaidPaid && postpaidEnabled && (
@@ -1553,7 +1967,10 @@ export function DriverDashboard() {
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Course en cours</h3>
             
-            {confirmationCode && state.currentRide.status === 'accepted' && (
+            {/* 🚫 SUPPRIMÉ : Section de saisie du code de confirmation (simplification UX) */}
+            {/* Le conducteur démarre directement la course avec le bouton "Démarrer" */}
+            
+            {false && state.currentRide.status === 'accepted' && (
               <div className="mb-4 p-4 bg-orange-50 rounded-lg border border-orange-200">
                 <div className="text-center mb-4">
                   <div className="flex items-center justify-center mb-2">
@@ -1581,12 +1998,12 @@ export function DriverDashboard() {
                           </p>
                           {driverLocation && state.currentRide && (
                             <p className="text-xs text-gray-600">
-                              Distance: {calculateDistance(
+                              Distance: {(calculateDistance(
                                 driverLocation.lat,
                                 driverLocation.lng,
                                 state.currentRide.pickup.lat,
                                 state.currentRide.pickup.lng
-                              ).toFixed(0)}m du point de départ
+                              ) || 0).toFixed(0)}m du point de départ
                             </p>
                           )}
                         </div>
@@ -1638,6 +2055,36 @@ export function DriverDashboard() {
               </div>
             )}
 
+            {/* ✅ NOUVEAU : Bouton direct pour démarrer la course quand statut = accepted */}
+            {state.currentRide.status === 'accepted' && !rideStartTime && (
+              <div className="mb-4">
+                <div className="mb-3 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                  <div className="flex items-center justify-center mb-2">
+                    <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-3">
+                      <Clock className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-green-800">Prêt à démarrer</p>
+                      <p className="text-xs text-green-600">Le passager vous attend</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleConfirmStart}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white py-6 text-lg font-semibold shadow-lg"
+                >
+                  <PlayCircle className="w-6 h-6 mr-2" />
+                  Démarrer la course
+                </Button>
+                
+                <p className="text-xs text-center text-gray-500 mt-2">
+                  Le chronomètre démarrera automatiquement
+                </p>
+              </div>
+            )}
+
+            {/* 🆕 AFFICHAGE DU CHRONOMÈTRE (seulement si rideStartTime est défini) */}
             {rideStartTime && state.currentRide.status === 'in_progress' && (
               <div className="mb-4">
                 <RideTimer
@@ -1646,6 +2093,24 @@ export function DriverDashboard() {
                   hourlyRate={getHourlyRate()}
                   showWaitingTime={true}
                 />
+              </div>
+            )}
+
+            {/* ⚠️ AVERTISSEMENT SI COURSE DÉMARRÉE MAIS PAS DE CHRONO LOCAL */}
+            {!rideStartTime && state.currentRide.status === 'in_progress' && (
+              <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-yellow-800">Course démarrée</p>
+                    <p className="text-xs text-yellow-700 mt-1">
+                      La course a été démarrée. Le chronomètre n'est pas disponible localement.
+                    </p>
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Vous pouvez terminer la course ci-dessous.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -1689,9 +2154,11 @@ export function DriverDashboard() {
                       <span className="text-xs">WhatsApp</span>
                     </a>
                     
-                    {/* Appel */}
+                    {/* Appel WhatsApp */}
                     <a
-                      href={`tel:${state.currentRide.passengerPhone}`}
+                      href={`https://wa.me/${state.currentRide.passengerPhone?.replace(/[^0-9]/g, '')}?text=`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex flex-col items-center justify-center p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors text-center"
                     >
                       <Phone className="w-5 h-5 mb-1" />
@@ -1720,12 +2187,17 @@ export function DriverDashboard() {
                   🚗 Voir les contrôles de navigation (avec chrono)
                 </Button>
                 
+                {/* ✅ BOUTON TERMINER LA COURSE (visible et imposant) */}
                 <Button
                   onClick={handleCompleteRide}
-                  className="w-full bg-green-500 hover:bg-green-600"
+                  className="w-full bg-red-500 hover:bg-red-600 text-white py-6 text-lg font-bold shadow-xl border-2 border-red-600"
                 >
+                  <CheckCircle className="w-6 h-6 mr-2" />
                   Terminer la course
                 </Button>
+                <p className="text-xs text-center text-gray-500">
+                  ⚠️ Cliquez uniquement quand le passager est arrivé à destination
+                </p>
               </div>
             )}
           </Card>
@@ -1766,7 +2238,7 @@ export function DriverDashboard() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm text-gray-600 truncate">Note</p>
-                <p className="text-lg font-semibold truncate">{driverRating > 0 ? driverRating.toFixed(1) : '0.0'} ⭐</p>
+                <p className="text-lg font-semibold truncate">{driverRating > 0 ? (driverRating || 0).toFixed(1) : '0.0'} ⭐</p>
               </div>
             </div>
           </Card>
@@ -1793,12 +2265,12 @@ export function DriverDashboard() {
               <Car className="w-5 h-5 text-gray-600" />
             </div>
             <div className="flex-1 min-w-0">
-              {driver?.vehicleInfo ? (
+              {vehicleInfo ? (
                 <>
                   <h3 className="font-semibold truncate">
-                    {driver.vehicleInfo.color} {driver.vehicleInfo.make} {driver.vehicleInfo.model}
+                    {getVehicleDisplayName(vehicleInfo)}
                   </h3>
-                  <p className="text-sm text-gray-600 font-mono truncate">{driver.vehicleInfo.plate}</p>
+                  <p className="text-sm text-gray-600 font-mono truncate">{vehicleInfo.plate || vehicleInfo.license_plate || 'Plaque non configurée'}</p>
                 </>
               ) : (
                 <div className="min-w-0">
@@ -1921,8 +2393,8 @@ export function DriverDashboard() {
         </Button>
       </div>
 
-      {/* Sound Notification */}
-      <SoundNotification shouldPlay={showRideRequest} duration={15000} />
+      {/* Sound Notification - DÉSACTIVÉ: Remplacé par le nouveau système RideNotification avec message vocal */}
+      {/* <SoundNotification shouldPlay={showRideRequest} duration={15000} /> */}
 
       {/* Ride Request Modal */}
       {showRideRequest && (
@@ -1956,7 +2428,7 @@ export function DriverDashboard() {
               <div className="flex justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Distance</p>
-                  <p className="font-semibold">{rideRequest?.distance?.toFixed(1) || rideRequest?.distanceKm?.toFixed(1) || '0'} km</p>
+                  <p className="font-semibold">{(rideRequest?.distance || rideRequest?.distanceKm || 0).toFixed(1)} km</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Estimation</p>
@@ -1988,7 +2460,7 @@ export function DriverDashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
             >
-              Refus automatique dans 15s
+              Refus automatique dans 10s
             </motion.div>
           </motion.div>
         </motion.div>
@@ -2160,6 +2632,9 @@ export function DriverDashboard() {
           </motion.div>
         </motion.div>
       )}
+
+      {/* 🔔 SYSTÈME DE NOTIFICATIONS SONORES - Joue le son + message vocal automatiquement */}
+      <RideNotificationSound shouldPlay={showRideRequest} rideDetails={rideRequest} />
     </motion.div>
   );
 }

@@ -1,516 +1,298 @@
-import { Link } from '../lib/simple-router';
 import { useState, useEffect } from 'react';
+import { motion } from '../lib/motion';
 import { ChatWidget } from '../components/ChatWidget';
-import { ImageWithFallback } from '../components/figma/ImageWithFallback';
+import { ProfessionalFooter } from '../components/ProfessionalFooter';
+import { SiteNavigation } from '../components/SiteNavigation';
+import { useLanguage } from '../contexts/LanguageContext';
+import { Link } from '../lib/simple-router';
 
 export function DriversLandingPage() {
-  const [language, setLanguage] = useState('fr');
-  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
-  const [currentVehicleIndex, setCurrentVehicleIndex] = useState(0);
+  const { t, language } = useLanguage();
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  const vehicles = [
-    {
-      src: '/vehicles/smartcabb_standard/Standard_1.png',
-      fallbackSrc: 'https://images.unsplash.com/photo-1648197323414-4255ea82d86b?w=600',
-      alt: 'SmartCabb Standard',
-      badge: 'SmartCabb Standard'
-    },
-    {
-      src: '/vehicles/smartcabb_confort/Confort_2.png',
-      fallbackSrc: 'https://images.unsplash.com/photo-1757782630151-8012288407e1?w=600',
-      alt: 'SmartCabb Confort',
-      badge: 'SmartCabb Confort'
-    },
-    {
-      src: '/vehicles/smartcabb_familiale/Familiale_1.png',
-      fallbackSrc: 'https://images.unsplash.com/photo-1720545044233-d2ac77fa6030?w=600',
-      alt: 'SmartCabb Familia',
-      badge: 'SmartCabb Familia'
-    },
-    {
-      src: '/vehicles/smartcabb_business/Bussiness_1.png',
-      fallbackSrc: 'https://images.unsplash.com/photo-1707726149138-879308167d60?w=600',
-      alt: 'SmartCabb Business',
-      badge: 'SmartCabb Business'
-    }
+  const driverImages = [
+    'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800&q=80',
+    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800&q=80',
+    'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800&q=80',
+    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800&q=80'
   ];
 
-  // Récupérer la langue depuis localStorage au chargement
-  useEffect(() => {
-    const savedLang = localStorage.getItem('smartcabb_lang') || 'fr';
-    setLanguage(savedLang);
-  }, []);
-
-  // Carousel automatique des véhicules
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentVehicleIndex((prevIndex) => (prevIndex + 1) % vehicles.length);
-    }, 4000); // Change toutes les 4 secondes
+      setCurrentImageIndex((prev) => (prev + 1) % driverImages.length);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
-  // Sauvegarder la langue dans localStorage quand elle change
-  const handleLanguageChange = (lang: string) => {
-    setLanguage(lang);
-    localStorage.setItem('smartcabb_lang', lang);
-    setShowLanguageDropdown(false);
-  };
+  const requirements = [
+    { icon: '🪪', textFR: 'Permis de conduire valide', textEN: 'Valid driver\'s license' },
+    { icon: '🚗', textFR: 'Véhicule en bon état', textEN: 'Vehicle in good condition' },
+    { icon: '📋', textFR: 'Casier judiciaire vierge', textEN: 'Clean criminal record' },
+    { icon: '🎂', textFR: 'Âge minimum 21 ans', textEN: 'Minimum age 21 years' }
+  ];
 
-  const t = (fr: string, en: string) => language === 'fr' ? fr : en;
+  const benefits = [
+    { icon: '💰', textFR: 'Revenus attractifs', textEN: 'Attractive income' },
+    { icon: '⏰', textFR: 'Horaires flexibles', textEN: 'Flexible hours' },
+    { icon: '🛡️', textFR: 'Assurance incluse', textEN: 'Insurance included' },
+    { icon: '📚', textFR: 'Formation gratuite', textEN: 'Free training' },
+    { icon: '📱', textFR: 'App facile à utiliser', textEN: 'Easy-to-use app' },
+    { icon: '🤝', textFR: 'Support 24/7', textEN: '24/7 support' }
+  ];
+
+  const steps = [
+    { 
+      num: '1', 
+      titleFR: 'Inscrivez-vous', 
+      titleEN: 'Sign up',
+      descFR: 'Remplissez le formulaire en ligne',
+      descEN: 'Fill out the online form'
+    },
+    { 
+      num: '2', 
+      titleFR: 'Vérification', 
+      titleEN: 'Verification',
+      descFR: 'Nous vérifions vos documents',
+      descEN: 'We verify your documents'
+    },
+    { 
+      num: '3', 
+      titleFR: 'Formation', 
+      titleEN: 'Training',
+      descFR: 'Formation gratuite à l\'utilisation de l\'app',
+      descEN: 'Free training on using the app'
+    },
+    { 
+      num: '4', 
+      titleFR: 'Commencez', 
+      titleEN: 'Start',
+      descFR: 'Commencez à gagner de l\'argent',
+      descEN: 'Start earning money'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif !important; }
         
-        body {
-          font-family: 'Poppins', sans-serif;
+        .gradient-text {
+          background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
-
-        html {
-          scroll-behavior: smooth;
+        
+        .hover-lift {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-
-        .language-dropdown {
-          position: relative;
-        }
-
-        .language-dropdown-menu {
-          position: absolute;
-          top: 100%;
-          right: 0;
-          background: white;
-          border-radius: 10px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-          min-width: 150px;
-          margin-top: 0.5rem;
-          overflow: hidden;
-          z-index: 1000;
-        }
-
-        .language-dropdown-item {
-          width: 100%;
-          padding: 0.75rem 1rem;
-          border: none;
-          background: transparent;
-          text-align: left;
-          cursor: pointer;
-          transition: background 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .language-dropdown-item:hover {
-          background: #f3f4f6;
-        }
-
-        .language-dropdown-item.active {
-          background: #e0f2f1;
-          color: #00BFA5;
-          font-weight: 600;
+        
+        .hover-lift:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 40px rgba(6, 182, 212, 0.2);
         }
       `}</style>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white shadow-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-base">
-                SC
-              </div>
-              <span className="text-xl font-bold">
-                SMART<span className="text-cyan-500">CABB</span>
-              </span>
-            </Link>
+      <SiteNavigation />
 
-            {/* Desktop Menu */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link to="/" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                Accueil
-              </Link>
-              <Link to="/services" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                Services
-              </Link>
-              <Link to="/drivers" className="font-medium text-cyan-500 transition-colors">
-                Chauffeurs
-              </Link>
-              <Link to="/contact" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                Contact
-              </Link>
-              <Link to="/about" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                À Propos
-              </Link>
-              
-              <Link 
-                to="/app/driver"
-                className="border-2 border-cyan-500 text-cyan-500 px-6 py-2 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all"
+      {/* Hero Section */}
+      <section className="relative pt-32 pb-20 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-blue-50"></div>
+        <div className="absolute top-20 right-0 w-96 h-96 bg-cyan-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              <div className="inline-block px-4 py-2 bg-cyan-100 rounded-full text-cyan-700 font-semibold text-sm mb-6">
+                💰 {language === 'fr' ? 'Gagnez plus avec SmartCabb' : 'Earn more with SmartCabb'}
+              </div>
+              <h1 className="text-6xl font-black mb-6">
+                {t('drivers.title')}
+              </h1>
+              <p className="text-xl text-gray-600 mb-8">
+                {t('drivers.subtitle')}
+              </p>
+              <Link
+                to="/app/driver/signup"
+                className="inline-block px-8 py-4 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white font-bold rounded-full hover:shadow-xl hover:scale-105 transition-all text-lg"
               >
-                Se connecter
+                {t('drivers.signup')}
               </Link>
+            </motion.div>
 
-              {/* Language Dropdown */}
-              <div className="language-dropdown">
-                <button
-                  onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <span className="font-semibold text-cyan-500">{language === 'fr' ? 'FR' : 'EN'}</span>
-                  <span className="text-sm text-gray-600">{language === 'fr' ? 'Français' : 'English'}</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showLanguageDropdown && (
-                  <div className="language-dropdown-menu">
-                    <button
-                      onClick={() => handleLanguageChange('fr')}
-                      className={`language-dropdown-item ${language === 'fr' ? 'active' : ''}`}
-                    >
-                      <span className="font-semibold">FR</span>
-                      <span>Français</span>
-                    </button>
-                    <button
-                      onClick={() => handleLanguageChange('en')}
-                      className={`language-dropdown-item ${language === 'en' ? 'active' : ''}`}
-                    >
-                      <span className="font-semibold">EN</span>
-                      <span>English</span>
-                    </button>
-                  </div>
-                )}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8 }}
+              className="relative"
+            >
+              <div className="relative aspect-square rounded-3xl overflow-hidden shadow-2xl">
+                {driverImages.map((img, index) => (
+                  <img
+                    key={index}
+                    src={img}
+                    alt="Driver"
+                    className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+                      index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                    }`}
+                  />
+                ))}
               </div>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section - Turquoise avec design de la capture */}
-      <section className="relative pt-24 pb-16 px-4 sm:px-6 lg:px-8 overflow-hidden bg-gradient-to-br from-cyan-500 via-teal-500 to-cyan-600">
-        <div className="max-w-7xl mx-auto text-center relative z-10">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4">
-            Rejoignez la famille SMARTCABB
-          </h1>
-          <p className="text-2xl md:text-3xl font-bold text-yellow-300 mb-3">
-            💰 Gagnez jusqu'à 1500$ par mois
-          </p>
-          <p className="text-lg text-white/90 mb-8 max-w-2xl mx-auto">
-            Conduisez quand vous voulez, avec des gains transparents et fiables
-          </p>
-          <Link
-            to="/app/driver"
-            className="inline-block bg-white text-cyan-600 px-8 py-3 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-lg"
-          >
-            S&apos;inscrire maintenant
-          </Link>
-        </div>
-      </section>
-
-      {/* Section Flotte - Design de la capture */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            {/* Texte à gauche */}
-            <div>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                  SC
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">
-                    SMART<span className="text-cyan-500">CABB</span>
-                  </div>
-                  <div className="text-sm text-gray-500">Conduisez avec nous</div>
-                </div>
-              </div>
-              
-              <h2 className="text-3xl font-bold text-blue-900 mb-4">
-                Une flotte moderne et diversifiée
-              </h2>
-              <p className="text-gray-600 leading-relaxed mb-6">
-                Rejoignez notre réseau de chauffeurs professionnels et conduisez des véhicules confortables et bien entretenus sur toute la Rép Dem Congo.
-              </p>
-
-              <div className="flex flex-wrap gap-6">
-                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z"/>
-                    <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd"/>
-                  </svg>
-                  <span>4 Catégories</span>
-                </div>
-                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/>
-                    <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z"/>
-                  </svg>
-                  <span>Véhicules Récents</span>
-                </div>
-                <div className="flex items-center gap-2 text-cyan-600 font-semibold">
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
-                  </svg>
-                  <span>Entretien Inclus</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Carousel de véhicules à droite */}
-            <div className="relative">
-              <div className="bg-white rounded-2xl shadow-xl p-6 relative">
-                {/* Badge Premium */}
-                <div className="absolute top-4 right-4 z-10">
-                  <span className="bg-yellow-400 text-gray-900 px-4 py-2 rounded-full font-bold text-sm shadow-lg">
-                    {vehicles[currentVehicleIndex].badge}
-                  </span>
-                </div>
-
-                {/* Images avec transition */}
-                <div className="relative h-80 bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl overflow-hidden">
-                  {vehicles.map((vehicle, index) => (
-                    <ImageWithFallback
-                      key={index}
-                      src={vehicle.src}
-                      fallbackSrc={vehicle.fallbackSrc}
-                      alt={vehicle.alt}
-                      className="absolute inset-0 w-full h-full object-contain p-4 transition-all duration-1000 ease-in-out"
-                      style={{
-                        opacity: currentVehicleIndex === index ? 1 : 0,
-                        transform: currentVehicleIndex === index ? 'scale(1)' : 'scale(0.9)',
-                      }}
-                    />
-                  ))}
-                </div>
-                
-                {/* Indicateurs de carousel */}
-                <div className="flex justify-center gap-2 mt-6">
-                  {vehicles.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentVehicleIndex(index)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        currentVehicleIndex === index
-                          ? 'bg-cyan-500 w-8'
-                          : 'bg-gray-300 w-2 hover:bg-gray-400'
-                      }`}
-                      aria-label={`Véhicule ${index + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Section Pourquoi - Design de la capture */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
+      {/* Requirements */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-3">
-              Pourquoi conduire avec nous ?
+            <h2 className="text-5xl font-black mb-4">
+              {t('drivers.requirements')}
             </h2>
-            <p className="text-gray-600 text-lg">
-              Découvrez les avantages d&apos;être chauffeur SmartCabb en Rép Dem Congo
+            <p className="text-xl text-gray-600">
+              {language === 'fr' ? 'Les conditions pour rejoindre notre équipe' : 'The requirements to join our team'}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Carte 1 - Excellent revenu */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center mb-4 text-3xl">
-                💰
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Excellent revenu
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Gagnez jusqu&apos;à 400$ par mois avec une commission comprise de 15 % sur chaque course et des bonus réguliers, une rémunération juste de 15.% pour maximiser vos gains.
-              </p>
-            </div>
-
-            {/* Carte 2 - Flexibilité totale */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-4 text-3xl">
-                📱
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Flexibilité totale
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Gérez votre emploi du temps librement. Travaillez à temps plein ou partiel selon vos besoins.
-              </p>
-            </div>
-
-            {/* Carte 3 - Support 24/7 */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-2xl flex items-center justify-center mb-4 text-3xl">
-                💡
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Support 24/7
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Assistance technique et support client disponibles 24h/24 pour vous accompagner.
-              </p>
-            </div>
-
-            {/* Carte 4 - Bonus et récompenses */}
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 hover:border-cyan-500 hover:shadow-xl transition-all">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl flex items-center justify-center mb-4 text-3xl">
-                ⭐
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Bonus et récompenses
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Profitez de bonus hebdomadaires et mensuels basés sur vos évaluations.
-              </p>
-            </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {requirements.map((req, index) => (
+              <motion.div
+                key={index}
+                className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl border-2 border-cyan-100 text-center hover-lift"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <div className="text-5xl mb-4">{req.icon}</div>
+                <p className="font-bold text-gray-800">
+                  {language === 'fr' ? req.textFR : req.textEN}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Section Conditions - Design de la capture */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
-        <div className="max-w-7xl mx-auto">
+      {/* Benefits */}
+      <section className="py-20 bg-gradient-to-b from-white to-slate-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-blue-900 mb-3">
-              Nos conditions
+            <h2 className="text-5xl font-black mb-4">
+              {t('drivers.benefits')}
             </h2>
-            <p className="text-gray-600 text-lg">
-              Ce dont vous avez besoin pour commencer
+            <p className="text-xl text-gray-600">
+              {language === 'fr' ? 'Pourquoi conduire avec SmartCabb' : 'Why drive with SmartCabb'}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {/* Condition 1 - Permis */}
-            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
-                📋
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Permis de conduire valide
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Permis de conduire valide en République Démocratique du Congo depuis au moins 2 ans.
-              </p>
-            </div>
-
-            {/* Condition 2 - Véhicule */}
-            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
-                🚗
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Véhicule OU Taxi Bleu
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Véhicule propre et en bon état OU carte taxi bleu si vous n&apos;avez pas fourni un véhicule.
-              </p>
-            </div>
-
-            {/* Condition 3 - Identité */}
-            <div className="bg-white rounded-2xl p-8 shadow-md hover:shadow-xl transition-all text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-green-200 rounded-2xl flex items-center justify-center mx-auto mb-6 text-4xl">
-                ✅
-              </div>
-              <h3 className="text-xl font-bold text-blue-900 mb-3">
-                Pièce d&apos;identité
-              </h3>
-              <p className="text-gray-600 text-sm leading-relaxed">
-                Carte d&apos;identité, passeport ou autre document officiel d&apos;identification valide requis.
-              </p>
-            </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={index}
+                className="p-6 bg-white rounded-2xl shadow-lg hover-lift"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="text-4xl">{benefit.icon}</div>
+                  <p className="font-bold text-lg text-gray-800">
+                    {language === 'fr' ? benefit.textFR : benefit.textEN}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-cyan-500 via-teal-500 to-cyan-600">
-        <div className="max-w-4xl mx-auto text-center text-white">
-          <h2 className="text-4xl font-bold mb-4">
-            Prêt à commencer ?
-          </h2>
-          <p className="text-xl mb-8 text-white/90">
-            Rejoignez SmartCabb aujourd&apos;hui et commencez à gagner dès demain
-          </p>
-          <Link
-            to="/app/driver"
-            className="inline-block bg-white text-cyan-600 px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all shadow-xl hover:scale-105"
+      {/* How it Works */}
+      <section className="py-20 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-5xl font-black mb-4">
+              {t('drivers.howItWorks')}
+            </h2>
+            <p className="text-xl text-gray-600">
+              {language === 'fr' ? 'Devenez chauffeur en 4 étapes simples' : 'Become a driver in 4 simple steps'}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {steps.map((step, index) => (
+              <motion.div
+                key={index}
+                className="relative p-6 bg-white rounded-2xl shadow-lg text-center"
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                viewport={{ once: true }}
+              >
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white rounded-full flex items-center justify-center font-black text-xl shadow-xl">
+                  {step.num}
+                </div>
+                <div className="mt-6">
+                  <h3 className="text-xl font-black mb-2">
+                    {language === 'fr' ? step.titleFR : step.titleEN}
+                  </h3>
+                  <p className="text-gray-600">
+                    {language === 'fr' ? step.descFR : step.descEN}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              to="/app/driver/signup"
+              className="inline-block px-8 py-4 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white font-bold rounded-full hover:shadow-xl hover:scale-105 transition-all text-lg"
+            >
+              {t('drivers.signup')}
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 bg-gradient-to-br from-cyan-500 to-cyan-600">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
           >
-            S&apos;inscrire maintenant
-          </Link>
-          <p className="mt-6 text-white/80 text-sm">
-            Inscription gratuite • Aucun engagement • Commencez à conduire en 48h
-          </p>
+            <h2 className="text-5xl font-black text-white mb-6">
+              {language === 'fr' ? 'Prêt à commencer ?' : 'Ready to start?'}
+            </h2>
+            <p className="text-xl text-cyan-50 mb-8">
+              {language === 'fr' 
+                ? 'Rejoignez des centaines de chauffeurs qui gagnent déjà avec SmartCabb'
+                : 'Join hundreds of drivers already earning with SmartCabb'}
+            </p>
+            <Link
+              to="/app/driver/signup"
+              className="inline-block px-8 py-4 bg-white text-cyan-600 font-bold rounded-full hover:shadow-2xl hover:scale-105 transition-all text-lg"
+            >
+              {t('drivers.signup')}
+            </Link>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            {/* Logo & Description */}
-            <div className="col-span-1">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-base">
-                  SC
-                </div>
-                <span className="text-xl font-bold">
-                  SMART<span className="text-cyan-500">CABB</span>
-                </span>
-              </div>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Votre solution de transport moderne et sécurisée en République Démocratique du Congo.
-              </p>
-            </div>
+      <ProfessionalFooter />
 
-            {/* Services */}
-            <div>
-              <h3 className="font-bold mb-4 text-cyan-500">Services</h3>
-              <div className="space-y-2">
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Standard</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Confort</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Plus</Link>
-                <Link to="/services" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">SmartCabb Business</Link>
-              </div>
-            </div>
-
-            {/* Company */}
-            <div>
-              <h3 className="font-bold mb-4 text-cyan-500">Entreprise</h3>
-              <div className="space-y-2">
-                <Link to="/about" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">À propos</Link>
-                <Link to="/drivers" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Devenir chauffeur</Link>
-                <Link to="/contact" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Contact</Link>
-              </div>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h3 className="font-bold mb-4 text-cyan-500">Support</h3>
-              <div className="space-y-2">
-                <Link to="/contact" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Centre d&apos;aide</Link>
-                <Link to="/terms" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">CGU</Link>
-                <Link to="/privacy" className="block text-gray-400 hover:text-cyan-500 transition-colors text-sm">Confidentialité</Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="border-t border-gray-800 pt-8 text-center">
-            <p className="text-gray-500 text-sm">
-              © 2026 SmartCabb. Tous droits réservés.
-            </p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Chat Widget */}
       <ChatWidget />
     </div>
   );

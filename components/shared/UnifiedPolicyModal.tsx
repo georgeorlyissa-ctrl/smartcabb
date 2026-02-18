@@ -1,7 +1,5 @@
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Shield, FileText, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Shield, FileText, X } from '../../lib/icons';
 import { PrivacyPolicy } from './PrivacyPolicy';
 import { TermsOfService } from './TermsOfService';
 import { memo } from 'react';
@@ -40,20 +38,8 @@ export const UnifiedPolicyModal = memo(function UnifiedPolicyModal({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.9, y: 20 }}
-        className="w-full max-w-2xl max-h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="w-full max-w-2xl max-h-[90vh] flex flex-col">
         <Card className="bg-white flex-1 flex flex-col">
           <div className="p-6 flex-1 flex flex-col">
             {/* Header */}
@@ -176,7 +162,7 @@ export const UnifiedPolicyModal = memo(function UnifiedPolicyModal({
             </div>
           </div>
         </Card>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 });

@@ -51,7 +51,9 @@ export function startUpdateDetection() {
     updateCheckInterval = setInterval(checkForUpdates, 5 * 60 * 1000);
   }
 
-  // 4. Écouter les messages du Service Worker
+  // 4. Écouter les messages du Service Worker - désactivé temporairement
+  // 🚫 Code désactivé pour éviter les erreurs de Service Worker
+  /*
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', (event) => {
       if (event.data && event.data.type === 'FORCE_RELOAD') {
@@ -66,6 +68,7 @@ export function startUpdateDetection() {
       window.location.reload();
     });
   }
+  */
 }
 
 export function stopUpdateDetection() {
@@ -129,7 +132,11 @@ export async function checkForUpdates() {
       if (lastModified) localStorage.setItem('app-last-modified', lastModified);
       if (etag) localStorage.setItem('app-etag', etag);
 
-      // Vider le cache du Service Worker
+      // Vider le cache du Service Worker - désactivé temporairement
+      // 🚫 Code désactivé pour éviter les erreurs de Service Worker
+      forceReload();
+      
+      /*
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         const messageChannel = new MessageChannel();
         navigator.serviceWorker.controller.postMessage(
@@ -146,6 +153,7 @@ export async function checkForUpdates() {
       } else {
         forceReload();
       }
+      */
     }
     
     return hasChanged;
@@ -194,9 +202,12 @@ if (isDevelopment()) {
       await Promise.all(names.map(name => caches.delete(name)));
       console.log('✅ Tous les caches supprimés:', names);
     }
+    // 🚫 Service Worker désactivé temporairement
+    /*
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
     }
+    */
     localStorage.clear();
     sessionStorage.clear();
     window.location.reload();

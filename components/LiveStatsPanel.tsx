@@ -1,5 +1,5 @@
-import { motion } from 'motion/react';
-import { Car, Users, DollarSign, TrendingUp, MapPin, Clock, RefreshCw } from 'lucide-react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
+import { Car, Users, DollarSign, TrendingUp, MapPin, Clock, RefreshCw, Star } from '../lib/icons';
 import { Card } from './ui/card';
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -13,7 +13,8 @@ export function LiveStatsPanel() {
     completedToday: 0,
     totalRevenue: 0,
     totalPassengers: 0,
-    totalRides: 0
+    totalRides: 0,
+    averageRating: 0
   });
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -42,13 +43,14 @@ export function LiveStatsPanel() {
 
         if (data.success && data.stats) {
           setStats({
-            onlineDrivers: data.stats.today?.activeDrivers || 0,
+            onlineDrivers: data.stats.allTime?.onlineDrivers || 0,
             totalDrivers: data.stats.allTime?.totalDrivers || 0,
-            activeRides: 0, // Les courses actives ne sont pas trackées dans le KV
+            activeRides: data.stats.allTime?.activeRides || 0,
             completedToday: data.stats.today?.rides || 0,
-            totalRevenue: data.stats.today?.revenue || 0,
-            totalPassengers: data.stats.today?.activePassengers || 0,
-            totalRides: data.stats.allTime?.totalRides || 0
+            totalRevenue: data.stats.allTime?.totalRevenue || 0,
+            totalPassengers: data.stats.allTime?.totalPassengers || 0,
+            totalRides: data.stats.allTime?.totalRides || 0,
+            averageRating: data.stats.allTime?.averageRating || 0
           });
         }
       } else {
@@ -117,6 +119,14 @@ export function LiveStatsPanel() {
       bgColor: 'bg-orange-100',
       trend: `${stats.completedToday} complétées`
     },
+    {
+      label: 'Note moyenne',
+      value: stats.averageRating.toFixed(1),
+      icon: Star,
+      color: 'text-yellow-600',
+      bgColor: 'bg-yellow-100',
+      trend: null
+    }
   ];
 
   if (loading) {

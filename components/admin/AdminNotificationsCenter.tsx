@@ -1,30 +1,22 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Bell, 
-  Send, 
-  Users, 
-  UserCheck, 
-  Car, 
-  MessageSquare,
-  ArrowLeft,
-  Search,
-  Filter,
-  Trash2,
-  Eye,
-  CheckCircle,
-  X,
-  Settings,
-  Info
-} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
+import { motion, AnimatePresence } from '../../lib/motion';
+import { 
+  ArrowLeft, 
+  Bell, 
+  Settings, 
+  Trash2, 
+  Eye, 
+  Info, 
+  CheckCircle 
+} from '../../lib/icons';
 
 // Fonction de formatage de date simple
 const formatDate = (dateString: string) => {
@@ -130,9 +122,13 @@ export function AdminNotificationsCenter({ onBack }: AdminNotificationsCenterPro
       }
       setNotifications(data || []);
     } catch (error: any) {
-      if (!isNetworkError(error) && !isTableNotFoundError(error)) {
-        logError('Erreur chargement notifications', error);
+      const isNetworkError = error.message?.includes('Failed to fetch') || 
+                            error.message?.includes('Network request failed');
+      if (!isNetworkError) {
+        console.error('Erreur chargement notifications:', error);
         toast.error('Erreur de chargement des notifications');
+      } else {
+        console.warn('⚠️ Impossible de charger les notifications (mode prévisualisation)');
       }
       setNotifications([]);
     } finally {

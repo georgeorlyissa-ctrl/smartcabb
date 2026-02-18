@@ -3,6 +3,17 @@
  * BUILD v517.74 - FIX BUILD VITE + MAIN.TSX
  */
 
+// 🎭 MOTION POLYFILL - DOIT ÊTRE EN PREMIER IMPORT
+import './lib/motion-polyfill';
+
+// 🍞 TOAST - Import global pour garantir sa disponibilité
+import { toast } from './lib/toast';
+
+// 🌍 Exposer toast globalement pour éviter les erreurs "toast is not defined"
+if (typeof window !== 'undefined') {
+  (window as any).toast = toast;
+}
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -12,6 +23,16 @@ import { logStartupDiagnostics, setupErrorInterceptors } from './utils/diagnosti
 const { createRoot } = ReactDOM;
 
 console.log('🚀 SmartCabb v517.74 - Démarrage...');
+
+// 🎭 VÉRIFICATION CRITIQUE: Motion polyfill chargé
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  if (window.motion) {
+    console.log('✅ Motion polyfill vérifié dans window:', typeof window.motion);
+  } else {
+    console.error('❌ Motion polyfill NON trouvé dans window');
+  }
+}
 
 // 🔍 DIAGNOSTICS AU DÉMARRAGE
 logStartupDiagnostics();
@@ -27,48 +48,13 @@ if (typeof document === 'undefined') {
   throw new Error('❌ Document non disponible');
 }
 
-// 🚀 ACTIVATION DU SERVICE WORKER PWA
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .then((registration) => {
-        console.log('✅ Service Worker enregistré:', registration.scope);
-
-        // Vérifier les mises à jour toutes les heures
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000);
-
-        // Écouter les mises à jour du SW
-        registration.addEventListener('updatefound', () => {
-          const newWorker = registration.installing;
-          
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('🔄 Nouvelle version disponible');
-                
-                if (confirm('Une nouvelle version de SmartCabb est disponible. Voulez-vous actualiser ?')) {
-                  newWorker.postMessage({ type: 'SKIP_WAITING' });
-                  window.location.reload();
-                }
-              }
-            });
-          }
-        });
-      })
-      .catch((error) => {
-        console.warn('⚠️ Erreur Service Worker:', error);
-      });
-
-    // Recharger quand le nouveau SW prend le contrôle
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('🔄 Service Worker mis à jour, rechargement...');
-      window.location.reload();
-    });
-  });
-}
+// 🚫 SERVICE WORKER DÉSACTIVÉ TEMPORAIREMENT POUR ÉVITER LES ERREURS
+// L'enregistrement du Service Worker est commenté ci-dessus (lignes 30-71)
+// pour éliminer l'erreur "Failed to update a ServiceWorker"
+// qui apparaissait sur smartcabb.com en production.
+// 
+// Le PWA peut être réactivé plus tard en décommentant le code du Service Worker
+// une fois que la configuration Vercel sera correctement ajustée pour servir /sw.js
 
 // ✅ Initialisation de l'application
 const initApp = () => {

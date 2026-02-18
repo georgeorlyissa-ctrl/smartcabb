@@ -1,11 +1,16 @@
-"use client";
+// ⚠️ STUB - Ce composant n'est pas utilisé dans SmartCabb
+// Version simplifiée sans @radix-ui pour éviter les erreurs de build
 
-import * as AspectRatioPrimitive from "@radix-ui/react-aspect-ratio";
+import * as React from "react";
 
-function AspectRatio({
-  ...props
-}: React.ComponentProps<typeof AspectRatioPrimitive.Root>) {
-  return <AspectRatioPrimitive.Root data-slot="aspect-ratio" {...props} />;
-}
+export const AspectRatio = React.forwardRef<HTMLDivElement, any>(
+  ({ ratio = 1, className, children, ...props }, ref) => {
+    return (
+      <div ref={ref} className={className} {...props}>
+        {children}
+      </div>
+    );
+  }
+);
 
-export { AspectRatio };
+AspectRatio.displayName = "AspectRatio";

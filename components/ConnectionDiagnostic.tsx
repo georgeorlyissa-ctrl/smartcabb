@@ -13,7 +13,7 @@ import {
   XCircle,
   RefreshCw,
   Shield
-} from 'lucide-react';
+} from '../lib/icons';
 import {
   runFullDiagnostic,
   getErrorMessage,

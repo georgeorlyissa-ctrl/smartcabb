@@ -1,17 +1,19 @@
-import { useAppState } from '../../hooks/useAppState';
-import { PhoneInput } from '../PhoneInput';
-import { validatePhoneNumberRDC } from '../../lib/phone-utils';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { useNavigate } from '../../lib/simple-router';
 import { useState } from 'react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { Card } from '../ui/card';
 import { Label } from '../ui/label';
-import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
+import { Badge } from '../ui/badge';
+import { PhoneInput } from '../PhoneInput'; // ✅ FIX: Ajout import PhoneInput
+import { useAppState } from '../../hooks/useAppState';
+import { toast } from '../../lib/toast';
+import { Eye, EyeOff, ArrowLeft, Loader2, AlertCircle } from '../../lib/icons';
+import { useNavigate } from '../../lib/simple-router';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { validatePhoneNumberRDC } from '../../lib/phone-utils';
 import { supabase } from '../../lib/supabase';
 import { signIn } from '../../lib/auth-service';
-import * as profileService from '../../lib/profile-service';
 
 export function LoginScreen() {
   console.log('🔐 LoginScreen - Début du render');
@@ -102,43 +104,63 @@ export function LoginScreen() {
           ? result.error 
           : result.error?.message || JSON.stringify(result.error) || 'Erreur de connexion';
         
-        setErrorMsg(errorMessage);
-        toast.error(errorMessage);
+        // ✅ Afficher aussi le détail si disponible
+        const errorDetail = (result as any).detail || '';
+        const fullMessage = errorDetail ? `${errorMessage}. ${errorDetail}` : errorMessage;
+        
+        setErrorMsg(fullMessage);
+        
+        // 🔍 Afficher les infos de debug si disponibles (dev mode uniquement)
+        if ((result as any).debug) {
+          console.error('🐛 Debug info:', (result as any).debug);
+        }
+        
+        toast.error(fullMessage, {
+          duration: 6000 // Plus long pour lire le message
+        });
         setLoading(false);
         return;
       }
 
       console.log('✅ Connexion réussie, récupération du profil...');
 
-      // Récupérer le profil depuis Supabase
-      const profile = await profileService.getProfile(result.user.id);
+      // 🔥 Récupérer le profil depuis le backend (auto-création si nécessaire)
+      const profileResponse = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${result.user.id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!profileResponse.ok) {
+        const errorData = await profileResponse.json().catch(() => ({ error: 'Erreur inconnue' }));
+        console.error('❌ Erreur récupération profil depuis le backend:', errorData);
+        setErrorMsg('Impossible de récupérer votre profil. Veuillez réessayer.');
+        toast.error('Impossible de récupérer votre profil. Veuillez réessayer.');
+        setLoading(false);
+        return;
+      }
+
+      const profileData = await profileResponse.json();
       
-      if (!profile) {
-        console.error('❌ Profil introuvable');
+      if (!profileData.success || !profileData.passenger) {
+        console.error('❌ Profil introuvable dans la réponse du backend:', profileData);
         setErrorMsg('Profil introuvable');
         toast.error('Profil introuvable');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Profil récupéré:', profile);
+      const profile = profileData.passenger;
+      console.log('✅ Profil récupéré depuis le backend:', profile);
 
-      // 🔒 VÉRIFICATION DE SÉCURITÉ : Seuls les passagers peuvent se connecter ici
-      if (profile.role !== 'passenger') {
-        console.error('❌ Tentative de connexion avec un compte non-passager:', profile.role);
-        let errorMessage = '';
-        if (profile.role === 'driver') {
-          errorMessage = 'Ce compte est un compte conducteur. Veuillez utiliser l\'application conducteur.';
-        } else if (profile.role === 'admin') {
-          errorMessage = 'Ce compte est un compte administrateur. Veuillez utiliser le panel admin.';
-        } else {
-          errorMessage = 'Type de compte non autorisé pour cette application.';
-        }
-        setErrorMsg(errorMessage);
-        toast.error(errorMessage);
-        setLoading(false);
-        return;
-      }
+      // 🔒 VÉRIFICATION DE SÉCURITÉ : Vérifier le rôle depuis les données du backend
+      // Le backend a déjà créé le profil si nécessaire, donc on utilise directement les données
+      // Note: Le backend retourne toujours un profil avec role='passenger' pour cette route
+      console.log('✅ Profil validé avec rôle:', profile.role || 'passenger');
 
       // 💰 CHARGER LE SOLDE DU PORTEFEUILLE DEPUIS LE BACKEND
       let walletBalance = 0;

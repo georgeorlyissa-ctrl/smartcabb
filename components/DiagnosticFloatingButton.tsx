@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { HelpCircle, X, Wrench, Search, Trash2, Home } from 'lucide-react';
+import { motion, AnimatePresence } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale avec AnimatePresence
+import { HelpCircle, X, Wrench, Search, Trash2, Home } from '../lib/icons';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 
@@ -14,22 +14,18 @@ export function DiagnosticFloatingButton() {
   return (
     <>
       {/* Bouton flottant */}
-      <AnimatePresence>
-        {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setIsOpen(true)}
-            className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
-            title="Outils de diagnostic"
-          >
-            <HelpCircle className="w-6 h-6" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      <motion.button
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0, opacity: 0 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
+        title="Outils de diagnostic"
+      >
+        <HelpCircle className="w-6 h-6" />
+      </motion.button>
 
       {/* Menu des outils */}
       <AnimatePresence>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Heart } from 'lucide-react';
+import { Heart } from '../lib/icons';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface TipSelectorProps {

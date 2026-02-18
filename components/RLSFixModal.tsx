@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
 import { Button } from './ui/button';
 import { Alert, AlertDescription } from './ui/alert';
@@ -10,9 +10,9 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle
-} from 'lucide-react';
+} from '../lib/icons';
 import { MANUAL_SQL_SCRIPT } from '../lib/disable-rls';
-import { toast } from 'sonner';
+import { toast } from '../lib/toast';
 
 interface RLSFixModalProps {
   isOpen: boolean;

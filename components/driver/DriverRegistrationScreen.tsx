@@ -1,18 +1,19 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
-import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from 'lucide-react';
-import { signUpDriver } from '../../lib/auth-service-driver-signup';
-import { sendSMS } from '../../lib/sms-service';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { PhoneInput } from '../PhoneInput';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Card } from '../ui/card';
 import { Checkbox } from '../ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { PhoneInput } from '../PhoneInput';
 import { PolicyModal } from '../PolicyModal';
+import { motion } from '../../lib/motion';
+import { toast } from '../../lib/toast';
+import { useAppState } from '../../hooks/useAppState';
+import { ArrowLeft, Lock, User, Car, Upload, FileCheck, AlertCircle, Camera } from '../../lib/icons';
+import { signUpDriver } from '../../lib/auth-service-driver-signup';
+import { sendSMS } from '../../lib/sms-service';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useNavigate } from '../../lib/simple-router';
 
 // Congolese names for realistic data
@@ -49,7 +50,8 @@ export function DriverRegistrationScreen() {
     vehicleColor: '',
     vehicleType: ''
   });
-  const [documents, setDocuments] = useState<File[]>([]);
+  // 🚫 Documents supprimés pour économiser de l'espace - validation physique uniquement
+  // const [documents, setDocuments] = useState<File[]>([]);
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
   const [profilePhotoPreview, setProfilePhotoPreview] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -57,11 +59,12 @@ export function DriverRegistrationScreen() {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [isOtherMake, setIsOtherMake] = useState(false);
 
-  // ✅ Un seul document obligatoire à télécharger : Permis de conduire
-  const requiredDocumentLabel = 'Permis de conduire';
+  // 🚫 SUPPRIMÉ : Un seul document obligatoire à télécharger : Permis de conduire
+  // const requiredDocumentLabel = 'Permis de conduire';
   
-  // 📋 Documents à déposer physiquement (mentionnés pour information)
+  // 📋 Documents à déposer physiquement au bureau SmartCabb
   const physicalDocuments = [
+    'Permis de conduire',
     'Volet jaune ou carte rose',
     'Attestation d\'assurance',
     'Carte grise du véhicule'
@@ -128,26 +131,8 @@ export function DriverRegistrationScreen() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const newFiles = Array.from(files);
-      
-      // Validate file types
-      const validFiles = newFiles.filter(file => {
-        const extension = file.name.toLowerCase().split('.').pop();
-        return extension === 'jpg' || extension === 'jpeg' || extension === 'pdf';
-      });
-      
-      if (validFiles.length !== newFiles.length) {
-        toast.error('Seuls les fichiers JPG et PDF sont acceptés');
-        return;
-      }
-      
-      setDocuments(prev => [...prev, ...validFiles]);
-      toast.success(`${validFiles.length} document(s) ajouté(s)`);
-    }
-  };
+  // 🚫 SUPPRIMÉ : handleFileUpload - Plus besoin d'upload de documents
+  // Les conducteurs apportent les documents physiquement au bureau
 
   const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -168,10 +153,11 @@ export function DriverRegistrationScreen() {
     }
   };
 
-  const removeDocument = (index: number) => {
-    setDocuments(prev => prev.filter((_, i) => i !== index));
-    toast.info('Document supprimé');
-  };
+  // 🚫 SUPPRIMÉ : removeDocument - Plus besoin car pas d'upload de documents
+  // const removeDocument = (index: number) => {
+  //   setDocuments(prev => prev.filter((_, i) => i !== index));
+  //   toast.info('Document supprimé');
+  // };
 
   const handleSubmit = async () => {
     // Validation
@@ -199,11 +185,12 @@ export function DriverRegistrationScreen() {
       return;
     }
 
-    // ✅ Vérifier qu'il y a au moins le permis de conduire (1 document minimum)
-    if (documents.length < 1) {
-      toast.error('Veuillez télécharger votre permis de conduire');
-      return;
-    }
+    // 🚫 SUPPRIMÉ : Vérification des documents (économie d'espace)
+    // Les documents seront déposés physiquement au bureau
+    // if (documents.length < 1) {
+    //   toast.error('Veuillez télécharger votre permis de conduire');
+    //   return;
+    // }
 
     if (!profilePhoto) {
       toast.error('Veuillez ajouter votre photo de profil');
@@ -242,7 +229,7 @@ export function DriverRegistrationScreen() {
       }
       
       // Inscription via Supabase
-      const vehicleCategory = formData.vehicleType.replace('smart_', '') as 'standard' | 'comfort' | 'luxury';
+      const vehicleCategory = formData.vehicleType as 'smart_standard' | 'smart_confort' | 'smart_plus' | 'smart_business';
       
       const result = await signUpDriver({
         phone: formData.phone,
@@ -252,7 +239,8 @@ export function DriverRegistrationScreen() {
         vehicleModel: formData.vehicleModel,
         vehiclePlate: formData.vehiclePlate,
         vehicleColor: formData.vehicleColor,
-        vehicleCategory
+        vehicleCategory,
+        profilePhoto: profilePhotoPreview // 📸 Photo en Base64
       });
 
       if (result.success) {
@@ -621,90 +609,37 @@ export function DriverRegistrationScreen() {
             </div>
           </div>
 
-          {/* Documents Upload */}
-          <div className="bg-white rounded-xl p-4 space-y-4">
-            <h3 className="font-medium text-gray-800">Documents requis</h3>
+          {/* 🚫 SUPPRIMÉ : Section Documents Upload pour économiser de l'espace */}
+          {/* Information sur les documents physiques */}
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-5 border-2 border-yellow-300">
+            <div className="flex items-start space-x-3 mb-3">
+              <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                <AlertCircle className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-yellow-900 mb-1">Documents requis</h3>
+                <p className="text-sm text-yellow-800">
+                  Apportez ces documents au bureau SmartCabb pour la validation
+                </p>
+              </div>
+            </div>
             
-            {/* Document obligatoire à télécharger */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-3 bg-blue-50 border-2 border-blue-300 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <FileCheck className="w-5 h-5 text-blue-600" />
-                  <div>
-                    <p className="text-sm font-medium text-blue-900">{requiredDocumentLabel}</p>
-                    <p className="text-xs text-blue-600">À télécharger ci-dessous</p>
-                  </div>
-                </div>
-                <span className="text-red-500 font-bold">*</span>
-              </div>
-            </div>
-
-            {/* Documents à déposer physiquement */}
-            <div className="p-3 bg-yellow-50 border-2 border-yellow-300 rounded-lg space-y-2">
-              <div className="flex items-start space-x-2">
-                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-yellow-900 mb-2">
-                    Documents à déposer physiquement au bureau :
-                  </p>
-                  <ul className="space-y-1">
-                    {physicalDocuments.map((doc, index) => (
-                      <li key={index} className="text-xs text-yellow-800 flex items-center space-x-2">
-                        <span className="w-1.5 h-1.5 bg-yellow-600 rounded-full"></span>
-                        <span>{doc}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Zone de téléchargement */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-              <input
-                type="file"
-                multiple
-                accept="image/*,.pdf"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="documents-upload"
-              />
-              <label htmlFor="documents-upload" className="cursor-pointer">
-                <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-1 font-medium">
-                  Cliquez pour télécharger votre permis de conduire
-                </p>
-                <p className="text-xs text-gray-500">
-                  JPG ou PDF uniquement (max. 5MB par fichier)
-                </p>
-              </label>
-            </div>
-
-            {documents.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-700">Documents téléchargés :</h4>
-                {documents.map((file, index) => (
-                  <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <FileCheck className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-green-700">{file.name}</span>
-                    </div>
-                    <button
-                      onClick={() => removeDocument(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-start space-x-2 p-3 bg-blue-50 rounded-lg">
-              <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-              <p className="text-xs text-blue-700">
-                Vos documents seront vérifiés par notre équipe. 
-                Vous recevrez une confirmation par SMS une fois la validation terminée.
+            <ul className="space-y-2 ml-13">
+              {physicalDocuments.map((doc, index) => (
+                <li key={index} className="text-sm text-yellow-800 flex items-start space-x-3">
+                  <span className="w-6 h-6 bg-yellow-500 text-white rounded-full flex items-center justify-center text-xs mt-0.5 flex-shrink-0">
+                    {index + 1}
+                  </span>
+                  <span className="pt-0.5">{doc}</span>
+                </li>
+              ))}
+            </ul>
+            
+            <div className="mt-4 p-3 bg-white/70 rounded-lg">
+              <p className="text-xs text-yellow-900">
+                <strong>📍 Adresse :</strong> Bureau SmartCabb, Kinshasa
+                <br />
+                <strong>📞 Info :</strong> Contactez-nous pour prendre rendez-vous
               </p>
             </div>
           </div>

@@ -1,22 +1,27 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { motion } from '../../lib/motion'; // ✅ FIX: Import depuis lib/motion
 import { 
   ArrowLeft, 
   DollarSign, 
   TrendingUp, 
-  Calendar,
+  Calendar, 
+  Star, 
+  Download, 
+  Filter,
   Clock,
   MapPin,
-  Star,
+  Award,
+  Target,
+  Trophy,
+  TrendingDown,
   AlertCircle,
-  Loader2,
-  TrendingDown
-} from 'lucide-react';
-import { toast } from 'sonner';
+  Loader2
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
+import { Button } from '../ui/button';
+import { Card } from '../ui/card';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function EarningsScreen() {
   const { state, setCurrentScreen } = useAppState();
@@ -260,7 +265,7 @@ export function EarningsScreen() {
 
                       <div className="flex items-center justify-between text-sm text-gray-600">
                         <span>
-                          {ride.distance ? `${ride.distance.toFixed(1)} km` : 'N/A'} • 
+                          {ride.distance ? `${(ride.distance || 0).toFixed(1)} km` : 'N/A'} • 
                           {ride.duration ? ` ${Math.round(ride.duration)} min` : ' N/A'}
                         </span>
                         <div className="flex items-center space-x-3">

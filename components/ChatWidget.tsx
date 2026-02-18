@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageCircle, X, Send } from '../lib/icons';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
@@ -78,7 +78,7 @@ export function ChatWidget({ language = 'fr' }: ChatWidgetProps) {
           message: userMessage,
           page: window.location.pathname,
           source: 'chat_widget',
-          language: language, // ✅ Envoi de la langue au backend
+          language: language,
         }),
       });
 

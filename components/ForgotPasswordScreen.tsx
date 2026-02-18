@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Import local au lieu de motion/react
 import { Button } from './ui/button';
 import { EmailPhoneInput } from './EmailPhoneInput';
-import { ArrowLeft, Mail, CheckCircle, Phone } from 'lucide-react';
+import { ArrowLeft, Mail, CheckCircle, Phone } from '../lib/icons'; // ✅ FIX: Import local au lieu de lucide-react
 import { toast } from '../lib/toast';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAppState } from '../hooks/useAppState';

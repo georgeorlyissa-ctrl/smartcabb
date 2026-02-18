@@ -66,12 +66,19 @@ export function usePWA() {
   };
 
   const updateServiceWorker = () => {
+    // 🚫 Service Worker désactivé temporairement
+    console.log('⚠️ PWA: Service Worker désactivé temporairement');
+    return;
+    
+    // Code commenté pour éviter les erreurs de Service Worker
+    /*
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
         registration.update();
         console.log('🔄 PWA: Mise à jour du Service Worker demandée');
       });
     }
+    */
   };
 
   const clearCache = async () => {

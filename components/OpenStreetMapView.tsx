@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { Location } from '../types/location';
+
+interface Location {
+  lat: number;
+  lng: number;
+}
 
 interface OpenStreetMapViewProps {
   center?: Location;

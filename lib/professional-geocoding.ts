@@ -1,17 +1,18 @@
 /**
  * 🌍 SERVICE DE GÉOCODAGE PROFESSIONNEL
  * 
- * EXACTEMENT COMME UBER, YANGO, BOLT
+ * ✅ MIGRATION COMPLÈTE VERS GOOGLE MAPS API
  * 
- * Utilise les VRAIES API professionnelles :
- * 1. Mapbox Geocoding API (comme Uber)
- * 2. Google Places API (comme Yango)
- * 3. Fallback intelligent vers Nominatim + base locale
+ * Utilise exclusivement Google Maps API :
+ * 1. Google Places API (recherche d'adresses)
+ * 2. Google Geocoding API (reverse geocoding)
+ * 3. Google Directions API (itinéraires)
+ * 4. Fallback : Base de données locale Kinshasa
  * 
  * SÉCURITÉ : Toutes les requêtes passent par le backend proxy
  */
 
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import * as GoogleMapsService from './google-maps-service';
 
 export interface ProfessionalPlace {
   id: string;
@@ -25,25 +26,22 @@ export interface ProfessionalPlace {
   distance?: number;
   rating?: number;
   userRatingsTotal?: number;
-  source: 'mapbox' | 'google_places' | 'nominatim' | 'local';
-  placeId?: string; // 🆕 Pour Google Places (obtenir coordonnées plus tard)
+  source: 'google_maps' | 'local';
+  placeId?: string;
 }
 
 export interface RouteInfo {
-  distance: number; // en mètres
-  duration: number; // en secondes
-  geometry: any; // GeoJSON LineString
+  distance: number; // en kilomètres
+  duration: number; // en minutes
+  coordinates: Array<{ lat: number; lng: number }>;
+  polyline: string;
   steps: any[];
 }
-
-// URL du backend
-const BACKEND_URL = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52`;
 
 /**
  * 🔍 RECHERCHE D'ADRESSES PROFESSIONNELLE
  * 
- * Utilise Mapbox ou Google Places (selon disponibilité)
- * avec fallback automatique vers Nominatim et base locale
+ * Utilise Google Maps avec fallback vers base locale
  */
 export async function searchProfessionalPlaces(
   query: string,
@@ -53,314 +51,84 @@ export async function searchProfessionalPlaces(
     return [];
   }
 
-  console.log('🌍 ===== RECHERCHE MAPBOX UNIQUEMENT =====');
-  console.log(`🔍 Query: "${query}"`);
+  console.log('🔍 ===== RECHERCHE GOOGLE MAPS =====');
+  console.log(`📝 Query: "${query}"`);
   console.log(`📍 Position:`, currentLocation);
 
   try {
-    // ✅ JUSTE MAPBOX - COMME UBER/YANGO
-    console.log('🔄 Recherche Mapbox...');
-    const mapboxResults = await searchWithMapbox(query, currentLocation);
+    // ✅ RECHERCHE HYBRIDE : Google Maps + Base locale
+    const results = await GoogleMapsService.hybridSearch(query, currentLocation);
     
-    if (mapboxResults.length > 0) {
-      console.log(`✅ Mapbox: ${mapboxResults.length} résultats`);
-      
-      // 🎯 FILTRE INTELLIGENT PAR DISTANCE (comme Uber)
-      // - Jusqu'à 10 km : tous les résultats
-      // - 10-20 km : seulement si très pertinents (terminaux, aéroport, etc.)
-      // - Plus de 20 km : on ignore (trop loin)
-      const MAX_DISTANCE_NORMAL = 10; // km
-      const MAX_DISTANCE_IMPORTANT = 20; // km (seulement lieux importants)
-      
-      const filtered = mapboxResults.filter((result) => {
-        // Pas de position = on garde (mais peu probable avec Mapbox)
-        if (!result.distance) return true;
-        
-        // Moins de 10 km = on garde toujours
-        if (result.distance <= MAX_DISTANCE_NORMAL) return true;
-        
-        // 10-20 km = seulement si c'est un lieu important
-        if (result.distance <= MAX_DISTANCE_IMPORTANT) {
-          const isImportant = 
-            result.name.toLowerCase().includes('aéroport') ||
-            result.name.toLowerCase().includes('terminus') ||
-            result.name.toLowerCase().includes('gare') ||
-            result.description.toLowerCase().includes('terminal') ||
-            result.description.toLowerCase().includes('🚌');
-          
-          console.log(`⚖️ ${result.name} (${result.distance.toFixed(1)}km) - Important: ${isImportant}`);
-          return isImportant;
-        }
-        
-        // Plus de 20 km = on ignore
-        console.log(`❌ ${result.name} ignoré (${result.distance.toFixed(1)}km - trop loin)`);
-        return false;
-      });
-      
-      console.log(`🎯 ${filtered.length} résultats après filtre distance`);
-      console.log('🌍 ===== RECHERCHE TERMINÉE =====');
-      return filtered;
-    }
+    console.log(`✅ ${results.length} résultats trouvés`);
+    console.log('🔍 ===== RECHERCHE TERMINÉE =====');
     
-    console.log('⚠️ Mapbox: 0 résultats');
-    console.log('🌍 ===== RECHERCHE TERMINÉE (AUCUN RÉSULTAT) =====');
-    return [];
+    return results;
 
   } catch (error) {
-    console.error('❌ Erreur recherche Mapbox:', error);
-    console.log('🌍 ===== RECHERCHE TERMINÉE (ERREUR) =====');
+    console.error('❌ Erreur recherche Google Maps:', error);
+    console.log('🔍 ===== RECHERCHE TERMINÉE (ERREUR) =====');
     return [];
   }
-}
-
-/**
- * 🗺️ RECHERCHE AVEC MAPBOX (comme Uber)
- */
-async function searchWithMapbox(
-  query: string,
-  currentLocation?: { lat: number; lng: number }
-): Promise<ProfessionalPlace[]> {
-  try {
-    const url = new URL(`${BACKEND_URL}/geocoding/search`);
-    url.searchParams.set('q', query);
-    
-    if (currentLocation) {
-      url.searchParams.set('proximity', `${currentLocation.lat},${currentLocation.lng}`);
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      if (error.fallback) {
-        return []; // Fallback vers la prochaine API
-      }
-      throw new Error(`Mapbox error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Calculer les distances si position actuelle fournie
-    return data.results.map((place: ProfessionalPlace) => {
-      if (currentLocation) {
-        place.distance = calculateDistance(
-          currentLocation.lat,
-          currentLocation.lng,
-          place.coordinates.lat,
-          place.coordinates.lng
-        );
-      }
-      return place;
-    });
-
-  } catch (error) {
-    console.warn('⚠️ Mapbox indisponible:', error);
-    return [];
-  }
-}
-
-/**
- * 🔍 RECHERCHE AVEC GOOGLE PLACES (comme Yango)
- * ⚠️ DÉSACTIVÉ : Retourne immédiatement un tableau vide
- */
-async function searchWithGooglePlaces(
-  query: string,
-  currentLocation?: { lat: number; lng: number }
-): Promise<ProfessionalPlace[]> {
-  // ⚠️ DÉSACTIVÉ : Ne plus appeler Google Places API
-  console.log('⏭️  searchWithGooglePlaces DÉSACTIVÉ (utilisation base locale uniquement)');
-  return [];
-}
-
-/**
- * 🌐 RECHERCHE AVEC NOMINATIM (fallback)
- */
-async function searchWithNominatim(
-  query: string,
-  currentLocation?: { lat: number; lng: number }
-): Promise<ProfessionalPlace[]> {
-  try {
-    // Importer le service Nominatim existant
-    const { searchAddress } = await import('./geocoding-service');
-    const results = await searchAddress(query);
-    
-    return results.map((result, index) => ({
-      id: result.id,
-      name: result.name,
-      description: result.description,
-      coordinates: result.coordinates,
-      fullAddress: result.description,
-      distance: currentLocation ? calculateDistance(
-        currentLocation.lat,
-        currentLocation.lng,
-        result.coordinates.lat,
-        result.coordinates.lng
-      ) : undefined,
-      source: 'nominatim' as const
-    }));
-
-  } catch (error) {
-    console.warn('⚠️ Nominatim indisponible:', error);
-    return [];
-  }
-}
-
-/**
- * 🗄️ RECHERCHE INTELLIGENTE AVEC BASE LOCALE (améliorée)
- * 
- * Recherche dans plusieurs champs et retourne les meilleurs résultats
- */
-async function searchWithLocalDatabaseIntelligent(
-  query: string,
-  currentLocation?: { lat: number; lng: number }
-): Promise<ProfessionalPlace[]> {
-  try {
-    console.log('🧠 Recherche intelligente dans base locale...');
-    
-    // Importer la base de données locale
-    const { searchLocationsByCommune, getLocationTypeLabel } = await import('./kinshasa-locations-database');
-    
-    // Rechercher avec le query original
-    let results = searchLocationsByCommune(query);
-    
-    console.log(`📊 Résultats bruts: ${results.length}`);
-    
-    // Si peu de résultats, essayer des variations
-    if (results.length < 5) {
-      console.log('🔍 Peu de résultats, essai de variations...');
-      
-      // Essayer sans accents
-      const queryNormalized = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      const resultsNormalized = searchLocationsByCommune(queryNormalized);
-      results = [...results, ...resultsNormalized];
-      
-      // Essayer des mots-clés individuels si le query contient plusieurs mots
-      if (query.includes(' ')) {
-        const keywords = query.split(' ').filter(k => k.length >= 3);
-        for (const keyword of keywords) {
-          const keywordResults = searchLocationsByCommune(keyword);
-          results = [...results, ...keywordResults];
-        }
-      }
-      
-      console.log(`📊 Après variations: ${results.length} résultats`);
-    }
-    
-    // Dédupliquer par nom et coordonnées
-    const uniqueResults = Array.from(
-      new Map(results.map(item => [`${item.nom}-${item.lat}-${item.lng}`, item])).values()
-    );
-    
-    console.log(`📊 Après déduplication: ${uniqueResults.length} résultats`);
-    
-    // Convertir et calculer distances
-    const placesWithDistance = uniqueResults.map((location, index) => ({
-      id: `local-${index}`,
-      name: location.nom,
-      description: `${getLocationTypeLabel(location.type)} • ${location.quartier || location.commune}, Kinshasa`,
-      coordinates: {
-        lat: location.lat,
-        lng: location.lng
-      },
-      distance: currentLocation ? calculateDistance(
-        currentLocation.lat,
-        currentLocation.lng,
-        location.lat,
-        location.lng
-      ) : undefined,
-      source: 'local' as const
-    }));
-    
-    // Trier par distance si position fournie, sinon trier par pertinence (ordre de recherche)
-    if (currentLocation) {
-      placesWithDistance.sort((a, b) => (a.distance || 999) - (b.distance || 999));
-      console.log('✅ Résultats triés par distance');
-    }
-    
-    // Limiter à 20 résultats (comme Yango)
-    const finalResults = placesWithDistance.slice(0, 20);
-    
-    console.log(`🎯 Retour de ${finalResults.length} résultats finaux`);
-    
-    return finalResults;
-
-  } catch (error) {
-    console.error('❌ Erreur base locale:', error);
-    return [];
-  }
-}
-
-/**
- * 🔄 DÉDUPLIQUER LES RÉSULTATS PAR NOM ET PROXIMITÉ
- */
-function deduplicateResults(results: ProfessionalPlace[]): ProfessionalPlace[] {
-  const seen = new Map<string, ProfessionalPlace>();
-  
-  for (const result of results) {
-    // Normaliser le nom pour comparer
-    const normalizedName = result.name.toLowerCase().trim();
-    
-    // Si on n'a pas encore vu ce nom, l'ajouter
-    if (!seen.has(normalizedName)) {
-      seen.set(normalizedName, result);
-    } else {
-      // Si on l'a déjà vu, garder celui avec la meilleure source (mapbox > google > nominatim > local)
-      const existing = seen.get(normalizedName)!;
-      const sourceRank: Record<string, number> = {
-        mapbox: 4,
-        google_places: 3,
-        nominatim: 2,
-        local: 1
-      };
-      
-      if (sourceRank[result.source] > sourceRank[existing.source]) {
-        seen.set(normalizedName, result);
-      }
-    }
-  }
-  
-  return Array.from(seen.values()).slice(0, 20); // Limiter à 20
 }
 
 /**
  * 🚗 CALCUL D'ITINÉRAIRE PROFESSIONNEL
  * 
- * Utilise Mapbox Directions API (comme Uber)
+ * Utilise Google Directions API
  */
 export async function calculateRoute(
   start: { lat: number; lng: number },
   end: { lat: number; lng: number }
 ): Promise<RouteInfo | null> {
   try {
-    const url = new URL(`${BACKEND_URL}/geocoding/directions`);
-    url.searchParams.set('start', `${start.lat},${start.lng}`);
-    url.searchParams.set('end', `${end.lat},${end.lng}`);
+    console.log('🚗 Calcul d\'itinéraire Google Maps:', start, '→', end);
 
-    console.log('🚗 Calcul d\'itinéraire Mapbox:', start, '→', end);
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      console.error('❌ Erreur calcul itinéraire:', response.status);
+    const route = await GoogleMapsService.calculateRoute(start, end);
+    
+    if (!route) {
+      console.error('❌ Aucun itinéraire trouvé');
       return null;
     }
 
-    const data = await response.json();
+    console.log(`✅ Itinéraire calculé: ${route.distance.toFixed(1)} km, ${Math.round(route.duration)} min`);
     
-    console.log(`✅ Itinéraire calculé: ${(data.distance / 1000).toFixed(1)} km, ${Math.round(data.duration / 60)} min`);
-    
-    return data;
+    return {
+      distance: route.distance,
+      duration: route.duration,
+      coordinates: route.coordinates,
+      polyline: route.polyline,
+      steps: route.steps
+    };
 
   } catch (error) {
     console.error('❌ Erreur calcul d\'itinéraire:', error);
+    return null;
+  }
+}
+
+/**
+ * 📍 REVERSE GEOCODING (Coordonnées → Adresse)
+ */
+export async function reverseGeocode(
+  lat: number,
+  lng: number
+): Promise<ProfessionalPlace | null> {
+  try {
+    console.log(`📍 Google Maps - Reverse Geocoding: (${lat}, ${lng})`);
+
+    const result = await GoogleMapsService.reverseGeocode(lat, lng);
+    
+    if (!result) {
+      console.error('❌ Aucune adresse trouvée');
+      return null;
+    }
+
+    console.log('✅ Reverse Geocoding réussi');
+    
+    return result;
+
+  } catch (error) {
+    console.error('❌ Erreur reverseGeocode:', error);
     return null;
   }
 }
@@ -376,27 +144,22 @@ export async function getPlaceCoordinates(placeId: string): Promise<{
   fullAddress: string;
 } | null> {
   try {
-    const url = new URL(`${BACKEND_URL}/geocoding/place-details`);
-    url.searchParams.set('place_id', placeId);
-
     console.log('📍 Récupération coordonnées pour place_id:', placeId);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${publicAnonKey}`
-      }
-    });
-
-    if (!response.ok) {
-      console.error('❌ Erreur récupération coordonnées:', response.status);
+    const place = await GoogleMapsService.getPlaceDetails(placeId);
+    
+    if (!place) {
+      console.error('❌ Lieu non trouvé');
       return null;
     }
-
-    const data = await response.json();
     
-    console.log(`✅ Coordonnées récupérées: ${data.coordinates.lat}, ${data.coordinates.lng}`);
+    console.log(`✅ Coordonnées récupérées: ${place.coordinates.lat}, ${place.coordinates.lng}`);
     
-    return data;
+    return {
+      coordinates: place.coordinates,
+      name: place.name,
+      fullAddress: place.fullAddress || place.description
+    };
 
   } catch (error) {
     console.error('❌ Erreur getPlaceCoordinates:', error);
@@ -405,30 +168,15 @@ export async function getPlaceCoordinates(placeId: string): Promise<{
 }
 
 /**
- * 📍 CALCULER LA DISTANCE ENTRE DEUX POINTS (Haversine)
+ * 📏 CALCULER LA DISTANCE ENTRE DEUX POINTS (Haversine)
  */
-function calculateDistance(
+export function calculateDistance(
   lat1: number,
   lng1: number,
   lat2: number,
   lng2: number
 ): number {
-  const R = 6371; // Rayon de la Terre en km
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c;
-  
-  return Math.round(distance * 10) / 10; // Arrondir à 0.1 km
-}
-
-function toRad(degrees: number): number {
-  return degrees * (Math.PI / 180);
+  return GoogleMapsService.calculateDistance(lat1, lng1, lat2, lng2);
 }
 
 /**
@@ -449,25 +197,16 @@ export function getEnrichedDescription(place: ProfessionalPlace): string {
 }
 
 /**
- * 🧪 TESTER LA DISPONIBILITÉ DES API
+ * 🧪 TESTER LA DISPONIBILITÉ DE GOOGLE MAPS API
  */
 export async function testAPIsAvailability(): Promise<{
-  mapbox: boolean;
-  googlePlaces: boolean;
-  nominatim: boolean;
+  googleMaps: boolean;
   local: boolean;
 }> {
-  const testQuery = 'lemba';
-  
-  const mapboxResults = await searchWithMapbox(testQuery);
-  const googleResults = await searchWithGooglePlaces(testQuery);
-  const nominatimResults = await searchWithNominatim(testQuery);
-  const localResults = await searchWithLocalDatabaseIntelligent(testQuery);
+  const googleMaps = await GoogleMapsService.testGoogleMapsAvailability();
   
   return {
-    mapbox: mapboxResults.length > 0,
-    googlePlaces: googleResults.length > 0,
-    nominatim: nominatimResults.length > 0,
-    local: localResults.length > 0
+    googleMaps,
+    local: true // Base locale toujours disponible
   };
 }

@@ -1,14 +1,14 @@
-import { useAppState } from '../../hooks/useAppState';
-import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
-// Import des icônes Lucide React
-import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from 'lucide-react';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Button } from '../ui/button';
+import { Home, Briefcase, Heart, Star, Plus, Trash2, Edit2, MapPin, Save, X, Navigation } from '../../lib/icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { motion, AnimatePresence } from 'motion/react';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { motion, AnimatePresence } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
+import { YangoStyleSearch } from './YangoStyleSearch';
+import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Ajouter pour récupérer userId
+import { toast } from '../../lib/toast'; // ✅ FIX: Ajouter import toast
 
 interface FavoriteLocation {
   id?: string;
@@ -19,6 +19,7 @@ interface FavoriteLocation {
   lng: number;
   icon: 'home' | 'work' | 'heart' | 'star';
   created_at?: string;
+  isLocalDatabase?: boolean; // 🆕 Indique si le lieu vient de la base locale
 }
 
 interface FavoriteLocationsProps {
@@ -35,16 +36,21 @@ const iconOptions = [
 ];
 
 export function FavoriteLocations({ onSelectLocation, currentLocation, className = "" }: FavoriteLocationsProps) {
-  const { state } = useAppState();
+  const { state } = useAppState(); // ✅ FIX: Récupérer state pour userId
   const [favorites, setFavorites] = useState<FavoriteLocation[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editingFavorite, setEditingFavorite] = useState<FavoriteLocation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState<{ name: string; address: string; lat: number; lng: number } | null>(null);
+
+  // ✅ FIX: Récupérer userId
+  const userId = state.currentUser?.id;
 
   // 🆕 VERSION 2.0 - Log de version pour vérifier le chargement
   useEffect(() => {
-    console.log('🚀 FavoriteLocations v2.0 chargé avec succès !');
-  }, []);
+    console.log('🚀 FavoriteLocations v2.2 avec userId fix chargé !');
+    console.log('👤 UserID:', userId);
+  }, [userId]);
 
   const [newFavorite, setNewFavorite] = useState<FavoriteLocation>({
     name: '',
@@ -57,27 +63,26 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   // 🆕 Charger les favoris depuis le backend KV store
   useEffect(() => {
     loadFavorites();
-  }, [state.currentUser]);
+  }, []);
 
   const loadFavorites = async () => {
-    if (!state.currentUser?.id) {
-      console.log('⚠️ Pas d\'utilisateur connecté, impossible de charger les favoris');
+    // ✅ FIX: Vérifier si userId existe
+    if (!userId) {
+      console.warn('⚠️ userId manquant, impossible de charger les favoris');
       return;
     }
 
     try {
-      console.log('🔍 Chargement des favoris pour:', state.currentUser.id);
-      console.log('🔍 URL:', `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`);
+      console.log('🔍 Chargement des favoris pour userId:', userId);
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${userId}/favorites`;
+      console.log('🔍 URL:', url);
       
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
-          }
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
         }
-      );
+      });
 
       console.log('📡 Réponse status:', response.status);
       const data = await response.json();
@@ -104,13 +109,14 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   };
 
   const handleAddFavorite = async () => {
-    if (!state.currentUser?.id) {
-      toast.error('Vous devez être connecté');
+    if (!newFavorite.name.trim() || !newFavorite.address.trim()) {
+      toast.error('Veuillez remplir tous les champs');
       return;
     }
 
-    if (!newFavorite.name.trim() || !newFavorite.address.trim()) {
-      toast.error('Veuillez remplir tous les champs');
+    // ✅ FIX: Vérifier si userId existe
+    if (!userId) {
+      toast.error('Utilisateur non connecté');
       return;
     }
 
@@ -118,55 +124,65 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
 
     try {
       if (editingFavorite?.id) {
-        // 🆕 Mise à jour via API
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites/${editingFavorite.id}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              name: newFavorite.name,
-              address: newFavorite.address,
-              lat: newFavorite.lat,
-              lng: newFavorite.lng,
-              icon: newFavorite.icon
-            })
-          }
-        );
+        // ✅ FIX: Mise à jour via API avec userId
+        const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${userId}/favorites/${editingFavorite.id}`;
+        console.log('📝 Modification favori URL:', url);
+        
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: newFavorite.name,
+            address: newFavorite.address,
+            lat: newFavorite.lat,
+            lng: newFavorite.lng,
+            icon: newFavorite.icon
+          })
+        });
 
-        if (!response.ok) throw new Error('Erreur mise à jour');
+        const data = await response.json();
+        console.log('📝 Réponse modification:', data);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur mise à jour');
+        }
         toast.success('Favori mis à jour');
       } else {
-        // 🆕 Création via API
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser.id}/favorites`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              name: newFavorite.name,
-              address: newFavorite.address,
-              lat: newFavorite.lat,
-              lng: newFavorite.lng,
-              icon: newFavorite.icon
-            })
-          }
-        );
+        // ✅ FIX: Création via API avec userId
+        const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${userId}/favorites`;
+        console.log('➕ Création favori URL:', url);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            name: newFavorite.name,
+            address: newFavorite.address,
+            lat: newFavorite.lat,
+            lng: newFavorite.lng,
+            icon: newFavorite.icon
+          })
+        });
 
-        if (!response.ok) throw new Error('Erreur création');
-        toast.success('Favori ajouté');
+        const data = await response.json();
+        console.log('➕ Réponse création:', data);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Erreur création');
+        }
+        toast.success('Favori ajouté avec succès !');
       }
 
       await loadFavorites();
       handleCloseDialog();
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('❌ Erreur:', error);
       toast.error('Erreur lors de l\'enregistrement');
     } finally {
       setIsLoading(false);
@@ -176,24 +192,35 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   const handleDeleteFavorite = async (id: string) => {
     if (!confirm('Supprimer ce lieu favori ?')) return;
 
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${state.currentUser?.id}/favorites/${id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
+    // ✅ FIX: Vérifier si userId existe
+    if (!userId) {
+      toast.error('Utilisateur non connecté');
+      return;
+    }
 
-      if (!response.ok) throw new Error('Erreur suppression');
+    try {
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/passengers/${userId}/favorites/${id}`;
+      console.log('🗑️ Suppression favori URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      console.log('🗑️ Réponse suppression:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur suppression');
+      }
 
       toast.success('Favori supprimé');
       await loadFavorites();
     } catch (error) {
-      console.error('Erreur:', error);
+      console.error('❌ Erreur:', error);
       toast.error('Erreur lors de la suppression');
     }
   };
@@ -213,6 +240,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
   const handleCloseDialog = () => {
     setShowAddDialog(false);
     setEditingFavorite(null);
+    setSelectedPlace(null);
     setNewFavorite({
       name: '',
       address: '',
@@ -249,6 +277,30 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
       default:
         // Par défaut, utiliser l'icône Home
         return { icon: Home, label: 'Domicile', color: 'text-blue-600' };
+    }
+  };
+
+  const handleSearchSelect = (result: any) => {
+    console.log('🎯 Lieu sélectionné depuis la recherche:', result);
+    
+    if (result.coordinates) {
+      setSelectedPlace({
+        name: result.name,
+        address: result.description,
+        lat: result.coordinates.lat,
+        lng: result.coordinates.lng
+      });
+      
+      // Pré-remplir le formulaire avec les informations du lieu
+      setNewFavorite({
+        ...newFavorite,
+        name: result.name,
+        address: result.description,
+        lat: result.coordinates.lat,
+        lng: result.coordinates.lng
+      });
+      
+      toast.success('Lieu trouvé ! Donnez-lui un nom personnalisé');
     }
   };
 
@@ -314,7 +366,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                 const IconComponent = iconData.icon;
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={favorite.id || `fav-${index}-${Math.random()}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -327,7 +379,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                         lng: lng
                       });
                     }}
-                    className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all group"
+                    className="w-full flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 hover:border-blue-500 hover:shadow-md transition-all group cursor-pointer"
                   >
                     <div className={`p-2 rounded-full bg-gray-100 ${iconData.color}`}>
                       <IconComponent className="w-5 h-5" />
@@ -360,7 +412,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </motion.button>
+                  </motion.div>
                 );
               } catch (error) {
                 console.error('❌ Erreur lors du rendu du favori:', error, favorite);
@@ -373,34 +425,62 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
 
       {/* Dialog d'ajout/modification */}
       <Dialog open={showAddDialog} onOpenChange={handleCloseDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingFavorite ? 'Modifier' : 'Ajouter'} un lieu favori
             </DialogTitle>
             <DialogDescription>
-              Enregistrez vos lieux fréquents pour y accéder rapidement
+              Recherchez d'abord le lieu, puis personnalisez son nom et son icône
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Nom du lieu */}
+            {/* 🆕 RECHERCHE GOOGLE MAPS */}
+            {!editingFavorite && (
+              <div>
+                <Label>Rechercher le lieu</Label>
+                <div className="mt-2">
+                  <YangoStyleSearch
+                    placeholder="Rechercher une adresse..."
+                    onSelect={handleSearchSelect}
+                    currentLocation={currentLocation}
+                  />
+                </div>
+                {selectedPlace && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-green-900">{selectedPlace.name}</p>
+                        <p className="text-xs text-green-700 mt-0.5">{selectedPlace.address}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Nom du lieu (personnalisable) */}
             <div>
-              <Label htmlFor="name">Nom du lieu</Label>
+              <Label htmlFor="name">Nom personnalisé</Label>
               <Input
                 id="name"
-                placeholder="Ex: Maison, Bureau..."
+                placeholder="Ex: Maison, Bureau, Chez Maman..."
                 value={newFavorite.name}
                 onChange={(e) => setNewFavorite({ ...newFavorite, name: e.target.value })}
                 className="mt-1"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Donnez un nom facile à retenir
+              </p>
             </div>
 
-            {/* Adresse */}
+            {/* Adresse (pré-remplie depuis la recherche) */}
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="address">Adresse complète</Label>
-                {currentLocation && (
+                <Label htmlFor="address">Adresse</Label>
+                {currentLocation && !selectedPlace && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -419,6 +499,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
                 value={newFavorite.address}
                 onChange={(e) => setNewFavorite({ ...newFavorite, address: e.target.value })}
                 className="mt-1"
+                disabled={!!selectedPlace}
               />
             </div>
 
@@ -460,7 +541,7 @@ export function FavoriteLocations({ onSelectLocation, currentLocation, className
               </Button>
               <Button
                 onClick={handleAddFavorite}
-                disabled={isLoading}
+                disabled={isLoading || !newFavorite.name.trim() || !newFavorite.address.trim()}
                 className="flex-1 bg-blue-600 hover:bg-blue-700"
               >
                 {isLoading ? 'Enregistrement...' : editingFavorite ? 'Modifier' : 'Ajouter'}

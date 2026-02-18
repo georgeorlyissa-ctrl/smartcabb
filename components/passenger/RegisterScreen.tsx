@@ -1,20 +1,33 @@
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { useNavigate } from '../../lib/simple-router';
-import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
-import { signUp } from '../../lib/auth-service';
-import { sendSMS } from '../../lib/sms-service';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Checkbox } from '../ui/checkbox';
 import { PhoneInput } from '../PhoneInput';
 import { PolicyModal } from '../PolicyModal';
-import { ArrowLeft, AlertCircle } from '../../lib/icons';
+import { signUp } from '../../lib/auth-service';
+import { sendSMS } from '../../lib/sms-service';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+
+// Icônes inline (évite import lib/icons qui n'existe plus)
+const ArrowLeftIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="m12 19-7-7 7-7" />
+    <path d="M19 12H5" />
+  </svg>
+);
+
+const AlertCircleIcon = ({ className }: { className?: string }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" x2="12" y1="8" y2="12" />
+    <line x1="12" x2="12.01" y1="16" y2="16" />
+  </svg>
+);
 
 export function RegisterScreen() {
   const { setCurrentScreen, setCurrentUser, setCurrentView } = useAppState();
-  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -178,11 +191,10 @@ export function RegisterScreen() {
             console.log('⬅️ Retour vers la page d\'accueil');
             setCurrentView(null);
             setCurrentScreen('landing');
-            navigate('/');
           }}
           className="w-10 h-10"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeftIcon className="w-5 h-5" />
         </Button>
         <h1 className="text-xl">Inscription</h1>
         <div className="w-10" />
@@ -212,7 +224,7 @@ export function RegisterScreen() {
           {errorMsg && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
               <div className="flex items-center gap-3 mb-3">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <AlertCircleIcon className="w-5 h-5 text-red-500 flex-shrink-0" />
                 <p className="text-red-800 font-medium">{errorMsg}</p>
               </div>
               

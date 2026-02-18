@@ -253,6 +253,42 @@ input[type="tel"] {
   }
 }
 
+/* 🗺️ Leaflet Map Markers - Fix z-index et visibilité */
+.leaflet-marker-pane {
+  z-index: 600 !important;
+}
+
+.leaflet-shadow-pane {
+  z-index: 500 !important;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400 !important;
+}
+
+.leaflet-map-pane {
+  z-index: auto !important;
+}
+
+/* Marqueurs personnalisés */
+.custom-marker,
+.modern-start-marker,
+.modern-end-marker,
+.driver-marker {
+  z-index: 1000 !important;
+  pointer-events: auto !important;
+}
+
+/* Route markers dots */
+.route-dot-marker {
+  z-index: 500 !important;
+}
+
+/* S'assurer que tous les marqueurs sont visibles */
+.leaflet-marker-icon {
+  z-index: inherit !important;
+}
+
 /* Spin animation */
 @keyframes spin-slow {
   from {
@@ -364,6 +400,22 @@ input[type="tel"] {
   100% {
     background-position: 1000px 0;
   }
+}
+
+/* Animation de scale-in pour le badge de sélection */
+@keyframes scale-in {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .glassmorphism-shimmer {

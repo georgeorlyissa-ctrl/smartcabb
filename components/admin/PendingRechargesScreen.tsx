@@ -1,14 +1,13 @@
-import { useState } from 'react';
-import { formatCDF } from '../../lib/pricing';
 import { WalletTransaction, User as UserType } from '../../types';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { useAppState } from '../../hooks/useAppState';
+import { useState } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, AlertCircle, User, DollarSign, Phone } from '../../lib/admin-icons';
 
 export function PendingRechargesScreen() {
   const { setCurrentScreen, state, updateUser } = useAppState();

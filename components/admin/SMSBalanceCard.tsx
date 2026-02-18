@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import { MessageSquare, RefreshCw, AlertTriangle, TrendingUp, Send, XCircle, CheckCircle } from 'lucide-react';
+import { MessageSquare, RefreshCw, TrendingUp, CheckCircle, Send, XCircle, AlertTriangle } from '../../lib/admin-icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 interface SMSBalanceData {
   balance: {

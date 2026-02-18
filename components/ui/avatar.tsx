@@ -1,53 +1,16 @@
-"use client";
+// ⚠️ STUB - Ce composant n'est pas utilisé dans SmartCabb
+// Version simplifiée sans @radix-ui pour éviter les erreurs de build
 
 import * as React from "react";
-import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
-import { cn } from "./utils";
-
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
-  return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
-      className={cn(
-        "relative flex size-10 shrink-0 overflow-hidden rounded-full",
-        className,
-      )}
-      {...props}
-    />
-  );
+export function Avatar({ children, ...props }: any) {
+  return <div {...props}>{children}</div>;
 }
 
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  );
+export function AvatarImage({ ...props }: any) {
+  return <img {...props} alt="" />;
 }
 
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className,
-      )}
-      {...props}
-    />
-  );
+export function AvatarFallback({ children, ...props }: any) {
+  return <div {...props}>{children}</div>;
 }
-
-export { Avatar, AvatarImage, AvatarFallback };

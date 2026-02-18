@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../lib/motion'; // ✅ FIX: Import depuis lib/motion
 import { useAppState } from '../hooks/useAppState';
 import { SmartCabbLogo } from './SmartCabbLogo';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { User, Car, Sparkles, ArrowRight } from 'lucide-react';
+import { User, Car, Sparkles, ArrowRight } from '../lib/icons';
 import { Button } from './ui/button';
 
 interface WelcomeBackScreenProps {

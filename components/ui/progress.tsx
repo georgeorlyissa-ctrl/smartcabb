@@ -1,31 +1,12 @@
-"use client";
+// ⚠️ STUB - Ce composant n'est pas utilisé dans SmartCabb
+// Version simplifiée sans @radix-ui pour éviter les erreurs de build
 
 import * as React from "react";
-import * as ProgressPrimitive from "@radix-ui/react-progress";
 
-import { cn } from "./utils";
-
-function Progress({
-  className,
-  value,
-  ...props
-}: React.ComponentProps<typeof ProgressPrimitive.Root>) {
+export function Progress({ value = 0, className, ...props }: any) {
   return (
-    <ProgressPrimitive.Root
-      data-slot="progress"
-      className={cn(
-        "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
-        className,
-      )}
-      {...props}
-    >
-      <ProgressPrimitive.Indicator
-        data-slot="progress-indicator"
-        className="bg-primary h-full w-full flex-1 transition-all"
-        style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
-      />
-    </ProgressPrimitive.Root>
+    <div className={className} {...props}>
+      <div style={{ width: `${value}%` }} />
+    </div>
   );
 }
-
-export { Progress };

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from './ui/button';
-import { Users, Plus, Minus } from 'lucide-react';
+import { Users, Plus, Minus } from '../lib/icons';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface PassengerCountSelectorProps {

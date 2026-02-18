@@ -1,379 +1,188 @@
-import { motion } from 'motion/react';
-import { Link } from '../lib/simple-router';
-import { useState } from 'react';
+import { motion } from '../lib/motion';
+import { ChatWidget } from '../components/ChatWidget';
+import { ProfessionalFooter } from '../components/ProfessionalFooter';
+import { SiteNavigation } from '../components/SiteNavigation';
+import { useLanguage } from '../contexts/LanguageContext';
 
 export function PrivacyPage() {
-  const [language, setLanguage] = useState('fr');
-  const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
+  const { t, language } = useLanguage();
+
+  const sections = language === 'fr' ? [
+    {
+      title: '1. Collecte des données',
+      content: 'SmartCabb collecte les données personnelles nécessaires au fonctionnement du service : nom, numéro de téléphone, adresse email, position GPS, historique des courses. Ces données sont essentielles pour assurer la sécurité et la qualité du service.'
+    },
+    {
+      title: '2. Utilisation des données',
+      content: 'Vos données sont utilisées pour : faciliter les réservations, améliorer notre service, assurer la sécurité des utilisateurs, traiter les paiements, et communiquer avec vous concernant votre compte et nos services.'
+    },
+    {
+      title: '3. Données de localisation',
+      content: 'Nous utilisons votre position GPS uniquement pendant l\'utilisation de l\'application pour : calculer les tarifs, optimiser les trajets, assurer le suivi en temps réel, et garantir votre sécurité. Vous pouvez désactiver la localisation à tout moment.'
+    },
+    {
+      title: '4. Partage des données',
+      content: 'Vos données personnelles ne sont jamais vendues à des tiers. Nous partageons uniquement les informations nécessaires avec nos chauffeurs partenaires pour réaliser la course (prénom, numéro de téléphone, position de départ et d\'arrivée).'
+    },
+    {
+      title: '5. Sécurité des données',
+      content: 'SmartCabb met en œuvre des mesures de sécurité techniques et organisationnelles pour protéger vos données contre tout accès non autorisé, perte ou altération. Nos serveurs sont sécurisés et les données sensibles sont chiffrées.'
+    },
+    {
+      title: '6. Conservation des données',
+      content: 'Nous conservons vos données personnelles aussi longtemps que nécessaire pour fournir nos services et respecter nos obligations légales. Vous pouvez demander la suppression de vos données à tout moment.'
+    },
+    {
+      title: '7. Vos droits',
+      content: 'Conformément à la législation en vigueur, vous disposez d\'un droit d\'accès, de rectification, de suppression et d\'opposition au traitement de vos données personnelles. Pour exercer ces droits, contactez privacy@smartcabb.com.'
+    },
+    {
+      title: '8. Cookies',
+      content: 'Notre site web et notre application utilisent des cookies pour améliorer votre expérience utilisateur. Vous pouvez gérer vos préférences de cookies dans les paramètres de votre navigateur.'
+    },
+    {
+      title: '9. Modifications de la politique',
+      content: 'SmartCabb se réserve le droit de modifier cette politique de confidentialité. Les utilisateurs seront informés de tout changement important par email ou notification dans l\'application.'
+    },
+    {
+      title: '10. Contact',
+      content: 'Pour toute question concernant cette politique de confidentialité ou le traitement de vos données, contactez notre délégué à la protection des données : privacy@smartcabb.com'
+    }
+  ] : [
+    {
+      title: '1. Data Collection',
+      content: 'SmartCabb collects personal data necessary for service operation: name, phone number, email address, GPS location, ride history. This data is essential to ensure service security and quality.'
+    },
+    {
+      title: '2. Data Use',
+      content: 'Your data is used to: facilitate bookings, improve our service, ensure user security, process payments, and communicate with you about your account and our services.'
+    },
+    {
+      title: '3. Location Data',
+      content: 'We use your GPS location only while using the app to: calculate fares, optimize routes, ensure real-time tracking, and guarantee your safety. You can disable location at any time.'
+    },
+    {
+      title: '4. Data Sharing',
+      content: 'Your personal data is never sold to third parties. We only share necessary information with our partner drivers to complete the ride (first name, phone number, pickup and drop-off location).'
+    },
+    {
+      title: '5. Data Security',
+      content: 'SmartCabb implements technical and organizational security measures to protect your data from unauthorized access, loss or alteration. Our servers are secure and sensitive data is encrypted.'
+    },
+    {
+      title: '6. Data Retention',
+      content: 'We retain your personal data as long as necessary to provide our services and comply with our legal obligations. You can request deletion of your data at any time.'
+    },
+    {
+      title: '7. Your Rights',
+      content: 'In accordance with applicable law, you have the right to access, rectify, delete and object to the processing of your personal data. To exercise these rights, contact privacy@smartcabb.com.'
+    },
+    {
+      title: '8. Cookies',
+      content: 'Our website and app use cookies to improve your user experience. You can manage your cookie preferences in your browser settings.'
+    },
+    {
+      title: '9. Policy Changes',
+      content: 'SmartCabb reserves the right to modify this privacy policy. Users will be informed of any significant changes by email or app notification.'
+    },
+    {
+      title: '10. Contact',
+      content: 'For any questions about this privacy policy or the processing of your data, contact our data protection officer: privacy@smartcabb.com'
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+        * { font-family: 'Inter', sans-serif !important; }
         
-        body {
-          font-family: 'Poppins', sans-serif;
-        }
-
-        .language-dropdown {
-          position: relative;
-        }
-
-        .language-dropdown-menu {
-          position: absolute;
-          top: 100%;
-          right: 0;
-          background: white;
-          border-radius: 10px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-          min-width: 150px;
-          margin-top: 0.5rem;
-          overflow: hidden;
-          z-index: 1000;
-        }
-
-        .language-dropdown-item {
-          width: 100%;
-          padding: 0.75rem 1rem;
-          border: none;
-          background: transparent;
-          text-align: left;
-          cursor: pointer;
-          transition: background 0.2s;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-        }
-
-        .language-dropdown-item:hover {
-          background: #f3f4f6;
-        }
-
-        .language-dropdown-item.active {
-          background: #e0f2f1;
-          color: #00BFA5;
-          font-weight: 600;
+        .gradient-text {
+          background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
       `}</style>
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl flex items-center justify-center text-white font-bold text-base">
-                SC
-              </div>
-              <span className="text-xl font-bold">
-                SMART<span className="text-cyan-500">CABB</span>
-              </span>
-            </Link>
+      <SiteNavigation />
 
-            <div className="hidden md:flex items-center gap-8">
-              <Link to="/" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                {language === 'fr' ? 'Accueil' : 'Home'}
-              </Link>
-              <Link to="/services" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                Services
-              </Link>
-              <Link to="/drivers" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                {language === 'fr' ? 'Chauffeurs' : 'Drivers'}
-              </Link>
-              <Link to="/contact" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                Contact
-              </Link>
-              <Link to="/about" className="font-medium text-gray-700 hover:text-cyan-500 transition-colors">
-                {language === 'fr' ? 'À Propos' : 'About'}
-              </Link>
-              
-              <Link to="/app">
-                <button className="border-2 border-cyan-500 text-cyan-500 px-6 py-2 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all">
-                  {language === 'fr' ? 'Connexion' : 'Login'}
-                </button>
-              </Link>
-
-              <div className="language-dropdown">
-                <button
-                  onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <span className="font-semibold text-cyan-500">{language === 'fr' ? 'FR' : 'EN'}</span>
-                  <span className="text-sm text-gray-600">{language === 'fr' ? 'Français' : 'English'}</span>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {showLanguageDropdown && (
-                  <div className="language-dropdown-menu">
-                    <button
-                      onClick={() => { setLanguage('fr'); setShowLanguageDropdown(false); }}
-                      className={`language-dropdown-item ${language === 'fr' ? 'active' : ''}`}
-                    >
-                      <span className="font-semibold">FR</span>
-                      <span className="text-sm">Français</span>
-                    </button>
-                    <button
-                      onClick={() => { setLanguage('en'); setShowLanguageDropdown(false); }}
-                      className={`language-dropdown-item ${language === 'en' ? 'active' : ''}`}
-                    >
-                      <span className="font-semibold">EN</span>
-                      <span className="text-sm">English</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+      {/* Hero */}
+      <section className="relative pt-32 pb-20 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-white to-blue-50"></div>
+        
+        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+          >
+            <div className="inline-block px-4 py-2 bg-cyan-100 rounded-full text-cyan-700 font-semibold text-sm mb-6">
+              🔒 {t('legal.privacy')}
             </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white">
-        <div className="max-w-7xl mx-auto text-center">
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-5xl md:text-6xl font-extrabold mb-6"
-          >
-            {language === 'fr' ? 'Politique de confidentialité' : 'Privacy Policy'}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="text-xl text-white/90"
-          >
-            {language === 'fr' 
-              ? 'Dernière mise à jour : 7 janvier 2026'
-              : 'Last updated: January 7, 2026'
-            }
-          </motion.p>
+            <h1 className="text-6xl font-black mb-6">
+              {t('legal.privacy')}
+            </h1>
+            <p className="text-lg text-gray-600">
+              {t('legal.lastUpdate')} : {language === 'fr' ? '2 février 2026' : 'February 2, 2026'}
+            </p>
+          </motion.div>
         </div>
       </section>
 
-      {/* Content Section */}
-      <section className="py-20 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="prose prose-lg max-w-none">
-            {language === 'fr' ? (
-              <>
-                <h2>1. Introduction</h2>
-                <p>
-                  SmartCabb s'engage à protéger la vie privée de ses utilisateurs. Cette politique de confidentialité 
-                  explique comment nous collectons, utilisons, partageons et protégeons vos informations personnelles.
-                </p>
+      {/* Content */}
+      <section className="py-20">
+        <div className="max-w-4xl mx-auto px-6 lg:px-8">
+          <div className="bg-white rounded-3xl shadow-xl p-8 md:p-12">
+            
+            {/* Intro */}
+            <div className="mb-12 p-6 bg-cyan-50 rounded-xl border-2 border-cyan-100">
+              <p className="text-gray-700 leading-relaxed">
+                {language === 'fr'
+                  ? 'Chez SmartCabb, nous prenons très au sérieux la protection de vos données personnelles. Cette politique de confidentialité explique comment nous collectons, utilisons et protégeons vos informations.'
+                  : 'At SmartCabb, we take the protection of your personal data very seriously. This privacy policy explains how we collect, use and protect your information.'}
+              </p>
+            </div>
 
-                <h2>2. Informations collectées</h2>
-                <p>Nous collectons les types d'informations suivants :</p>
-                <ul>
-                  <li><strong>Informations d'inscription :</strong> nom, prénom, numéro de téléphone, adresse email</li>
-                  <li><strong>Informations de localisation :</strong> position GPS pour faciliter les trajets</li>
-                  <li><strong>Informations de paiement :</strong> méthodes de paiement et historique des transactions</li>
-                  <li><strong>Données d'utilisation :</strong> historique des courses, préférences, évaluations</li>
-                  <li><strong>Informations de l'appareil :</strong> modèle, système d'exploitation, identifiant unique</li>
-                </ul>
+            <div className="space-y-8">
+              {sections.map((section, index) => (
+                <motion.div
+                  key={index}
+                  className="pb-8 border-b border-gray-200 last:border-0"
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: index * 0.05 }}
+                  viewport={{ once: true }}
+                >
+                  <h2 className="text-2xl font-black mb-4 text-gray-900">
+                    {section.title}
+                  </h2>
+                  <p className="text-gray-600 leading-relaxed">
+                    {section.content}
+                  </p>
+                </motion.div>
+              ))}
+            </div>
 
-                <h2>3. Utilisation des informations</h2>
-                <p>Nous utilisons vos informations pour :</p>
-                <ul>
-                  <li>Faciliter et améliorer nos services de transport</li>
-                  <li>Traiter vos paiements et transactions</li>
-                  <li>Vous envoyer des notifications concernant vos courses</li>
-                  <li>Assurer la sécurité et prévenir les fraudes</li>
-                  <li>Améliorer l'expérience utilisateur</li>
-                  <li>Respecter nos obligations légales</li>
-                </ul>
-
-                <h2>4. Partage des informations</h2>
-                <p>Nous partageons vos informations uniquement dans les cas suivants :</p>
-                <ul>
-                  <li><strong>Avec les chauffeurs :</strong> pour faciliter la prise en charge</li>
-                  <li><strong>Prestataires de services :</strong> pour le traitement des paiements et l'hébergement</li>
-                  <li><strong>Autorités légales :</strong> si requis par la loi</li>
-                </ul>
-                <p>Nous ne vendons jamais vos données personnelles à des tiers.</p>
-
-                <h2>5. Sécurité des données</h2>
-                <p>
-                  Nous utilisons des mesures de sécurité techniques et organisationnelles pour protéger vos informations 
-                  contre l'accès non autorisé, la perte, la divulgation ou la destruction.
-                </p>
-
-                <h2>6. Vos droits</h2>
-                <p>Vous avez le droit de :</p>
-                <ul>
-                  <li>Accéder à vos données personnelles</li>
-                  <li>Corriger ou mettre à jour vos informations</li>
-                  <li>Supprimer votre compte et vos données</li>
-                  <li>Vous opposer au traitement de vos données</li>
-                  <li>Retirer votre consentement à tout moment</li>
-                </ul>
-
-                <h2>7. Conservation des données</h2>
-                <p>
-                  Nous conservons vos données personnelles aussi longtemps que nécessaire pour fournir nos services 
-                  et respecter nos obligations légales.
-                </p>
-
-                <h2>8. Cookies et technologies similaires</h2>
-                <p>
-                  Nous utilisons des cookies et technologies similaires pour améliorer votre expérience, 
-                  analyser l'utilisation de nos services et personnaliser le contenu.
-                </p>
-
-                <h2>9. Modifications de la politique</h2>
-                <p>
-                  Nous pouvons modifier cette politique de confidentialité à tout moment. Les modifications 
-                  seront publiées sur cette page avec une date de mise à jour.
-                </p>
-
-                <h2>10. Contact</h2>
-                <p>
-                  Pour toute question concernant cette politique, contactez-nous à :<br />
-                  📞 +243 990 666 661<br />
-                  ✉️ contact@smartcabb.com
-                </p>
-              </>
-            ) : (
-              <>
-                <h2>1. Introduction</h2>
-                <p>
-                  SmartCabb is committed to protecting the privacy of its users. This privacy policy 
-                  explains how we collect, use, share and protect your personal information.
-                </p>
-
-                <h2>2. Information Collected</h2>
-                <p>We collect the following types of information:</p>
-                <ul>
-                  <li><strong>Registration information:</strong> name, surname, phone number, email address</li>
-                  <li><strong>Location information:</strong> GPS position to facilitate rides</li>
-                  <li><strong>Payment information:</strong> payment methods and transaction history</li>
-                  <li><strong>Usage data:</strong> ride history, preferences, ratings</li>
-                  <li><strong>Device information:</strong> model, operating system, unique identifier</li>
-                </ul>
-
-                <h2>3. Use of Information</h2>
-                <p>We use your information to:</p>
-                <ul>
-                  <li>Facilitate and improve our transport services</li>
-                  <li>Process your payments and transactions</li>
-                  <li>Send you notifications about your rides</li>
-                  <li>Ensure security and prevent fraud</li>
-                  <li>Improve user experience</li>
-                  <li>Comply with our legal obligations</li>
-                </ul>
-
-                <h2>4. Information Sharing</h2>
-                <p>We share your information only in the following cases:</p>
-                <ul>
-                  <li><strong>With drivers:</strong> to facilitate pickup</li>
-                  <li><strong>Service providers:</strong> for payment processing and hosting</li>
-                  <li><strong>Legal authorities:</strong> if required by law</li>
-                </ul>
-                <p>We never sell your personal data to third parties.</p>
-
-                <h2>5. Data Security</h2>
-                <p>
-                  We use technical and organizational security measures to protect your information 
-                  against unauthorized access, loss, disclosure or destruction.
-                </p>
-
-                <h2>6. Your Rights</h2>
-                <p>You have the right to:</p>
-                <ul>
-                  <li>Access your personal data</li>
-                  <li>Correct or update your information</li>
-                  <li>Delete your account and data</li>
-                  <li>Object to the processing of your data</li>
-                  <li>Withdraw your consent at any time</li>
-                </ul>
-
-                <h2>7. Data Retention</h2>
-                <p>
-                  We retain your personal data for as long as necessary to provide our services 
-                  and comply with our legal obligations.
-                </p>
-
-                <h2>8. Cookies and Similar Technologies</h2>
-                <p>
-                  We use cookies and similar technologies to improve your experience, 
-                  analyze the use of our services and personalize content.
-                </p>
-
-                <h2>9. Policy Modifications</h2>
-                <p>
-                  We may modify this privacy policy at any time. Changes 
-                  will be posted on this page with an update date.
-                </p>
-
-                <h2>10. Contact</h2>
-                <p>
-                  For any questions regarding this policy, contact us at:<br />
-                  📞 +243 990 666 661<br />
-                  ✉️ contact@smartcabb.com
-                </p>
-              </>
-            )}
+            <div className="mt-12 p-6 bg-green-50 rounded-xl border-2 border-green-200">
+              <p className="text-sm text-gray-700">
+                <strong className="text-green-600">
+                  {language === 'fr' ? 'Vos données sont protégées' : 'Your data is protected'}
+                </strong>{' '}
+                {language === 'fr' 
+                  ? 'SmartCabb s\'engage à respecter la confidentialité de vos données et à les utiliser uniquement pour améliorer votre expérience.'
+                  : 'SmartCabb is committed to respecting the confidentiality of your data and using it only to improve your experience.'}
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 px-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-10 h-10 bg-cyan-500 rounded-xl flex items-center justify-center text-white font-bold">
-                  SC
-                </div>
-                <span className="text-xl font-bold">SMARTCABB</span>
-              </div>
-              <p className="text-gray-400 text-sm">
-                {language === 'fr' 
-                  ? 'La solution de transport moderne en République Démocratique du Congo.'
-                  : 'The modern transport solution in the Democratic Republic of Congo.'
-                }
-              </p>
-            </div>
+      <ProfessionalFooter />
 
-            <div>
-              <h3 className="font-bold mb-4">{language === 'fr' ? 'Liens rapides' : 'Quick links'}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Accueil' : 'Home'}</Link></li>
-                <li><Link to="/services" className="hover:text-cyan-500 transition">Services</Link></li>
-                <li><Link to="/drivers" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Chauffeurs' : 'Drivers'}</Link></li>
-                <li><Link to="/contact" className="hover:text-cyan-500 transition">Contact</Link></li>
-                <li><Link to="/about" className="hover:text-cyan-500 transition">{language === 'fr' ? 'À Propos' : 'About'}</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-bold mb-4">Applications</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/app" className="hover:text-cyan-500 transition">{language === 'fr' ? 'App Passagers' : 'Passenger App'}</Link></li>
-                <li><Link to="/driver" className="hover:text-cyan-500 transition">{language === 'fr' ? 'App Conducteurs' : 'Driver App'}</Link></li>
-                <li><Link to="/admin" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Panel Admin' : 'Admin Panel'}</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-bold mb-4">{language === 'fr' ? 'Légal' : 'Legal'}</h3>
-              <ul className="space-y-2 text-sm text-gray-400">
-                <li><Link to="/terms" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Conditions d\'utilisation' : 'Terms of service'}</Link></li>
-                <li><Link to="/privacy" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Politique de confidentialité' : 'Privacy policy'}</Link></li>
-                <li><Link to="/legal" className="hover:text-cyan-500 transition">{language === 'fr' ? 'Mentions légales' : 'Legal notice'}</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2026 SmartCabb. {language === 'fr' ? 'Tous droits réservés.' : 'All rights reserved.'}</p>
-          </div>
-        </div>
-      </footer>
+      <ChatWidget />
     </div>
   );
 }

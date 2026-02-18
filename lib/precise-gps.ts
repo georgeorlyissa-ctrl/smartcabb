@@ -20,6 +20,7 @@ interface GPSCoordinates {
   timestamp: number;
   speed?: number;
   heading?: number;
+  altitude?: number;
 }
 
 interface KalmanFilter {
@@ -295,18 +296,22 @@ export class PreciseGPSTracker {
       accuracy: position.coords.accuracy,
       timestamp: position.timestamp,
       speed: position.coords.speed || undefined,
-      heading: position.coords.heading || undefined
+      heading: position.coords.heading || undefined,
+      altitude: position.coords.altitude || undefined
     };
 
-    console.log('📡 Position brute reçue:', {
+    console.log('📍 Position GPS reçue:', {
       coords: `${rawCoords.lat.toFixed(6)}, ${rawCoords.lng.toFixed(6)}`,
       accuracy: `±${Math.round(rawCoords.accuracy)}m`,
+      altitude: rawCoords.altitude ? `${Math.round(rawCoords.altitude)}m` : 'N/A',
+      heading: rawCoords.heading ? `${Math.round(rawCoords.heading)}°` : 'N/A',
       speed: rawCoords.speed ? `${rawCoords.speed.toFixed(1)} m/s` : 'N/A'
     });
 
-    // ✅ FILTRAGE 1 : Rejeter les positions de mauvaise qualité (>100m)
-    if (rawCoords.accuracy > 100) {
-      console.warn('⚠️ Position rejetée : précision trop faible (>100m)');
+    // ✅ FILTRAGE 1 : Rejeter les positions de mauvaise qualité (>500m pour Kinshasa)
+    // 🆕 ASSOUPLISSEMENT : Passé de 100m à 500m pour géolocalisation urbaine en RDC
+    if (rawCoords.accuracy > 500) {
+      console.warn('⚠️ Position rejetée : précision trop faible (>500m)');
       return;
     }
 
@@ -365,44 +370,72 @@ export class PreciseGPSTracker {
  */
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
-    // Utiliser Nominatim (OpenStreetMap) comme Uber
-    const response = await fetch(
-      `https://nominatim.openstreetmap.org/reverse?` +
-      `format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
-      {
-        headers: {
-          'User-Agent': 'SmartCabb/1.0',
-          'Accept-Language': 'fr'
-        }
+    // 🆕 UTILISER LE BACKEND POUR ÉVITER CORS ET RATE LIMIT
+    const projectId = 'zaerjqchzqmcxqblkfkg';
+    const publicAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InphZXJqcWNoenFtY3hxYmxrZmtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxNDMyOTgsImV4cCI6MjA3NTcxOTI5OH0.qwFRKsi9Gw4VVYoEGBBCIj0-lAZOxtqlGQ0eT6cPhik'; // ✅ CORRIGÉ : bon token
+    const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/nominatim/reverse?lat=${lat}&lng=${lng}`;
+    
+    console.log('🌍 Geocoding:', lat, lng);
+    console.log('🔗 URL:', url);
+    
+    const response = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`
       }
-    );
+    });
 
     if (!response.ok) {
+      console.error('❌ Geocoding HTTP error:', response.status);
       throw new Error(`Erreur geocoding: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    if (data.error) {
-      throw new Error(data.error);
+    console.log('✅ Geocoding response complète:', JSON.stringify(data, null, 2));
+
+    // Le backend retourne : { success: true, result: { name, description, address: {...}, ... } }
+    if (data.success && data.result) {
+      const place = data.result;
+      
+      console.log('📍 result.name:', place.name);
+      console.log('📍 result.description:', place.description);
+      console.log('📍 result.address:', place.address);
+      
+      // Priorité 1: name (si pas vide et pas "Position inconnue")
+      if (place.name && place.name.trim() !== '' && place.name !== 'Position inconnue') {
+        console.log('✅ Retourne result.name:', place.name);
+        return place.name;
+      }
+      
+      // Priorité 2: description
+      if (place.description && place.description.trim() !== '') {
+        console.log('✅ Retourne result.description:', place.description);
+        return place.description;
+      }
+      
+      // Priorité 3: address (c'est un OBJET, pas une string !)
+      if (place.address && typeof place.address === 'object') {
+        const parts = [];
+        if (place.address.street) parts.push(place.address.street);
+        if (place.address.neighborhood) parts.push(place.address.neighborhood);
+        if (place.address.city) parts.push(place.address.city);
+        
+        if (parts.length > 0) {
+          const addressString = parts.join(', ');
+          console.log('✅ Retourne address construite:', addressString);
+          return addressString;
+        }
+      }
     }
 
-    // Construire une adresse lisible
-    const addr = data.address || {};
-    const parts = [
-      addr.road || addr.pedestrian || addr.footway,
-      addr.suburb || addr.neighbourhood || addr.quarter,
-      addr.city || addr.town || addr.village || 'Kinshasa'
-    ].filter(Boolean);
-
-    const address = parts.join(', ') || data.display_name || `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    
-    console.log('🏠 Adresse trouvée:', address);
-    return address;
+    // Fallback si aucune donnée utilisable
+    console.warn('⚠️ Geocoding: Pas d\'adresse trouvée, utilisation des coordonnées');
+    return `${Math.abs(lat).toFixed(6)}°${lat < 0 ? 'S' : 'N'}, ${Math.abs(lng).toFixed(6)}°${lng < 0 ? 'W' : 'E'}`;
     
   } catch (error) {
     console.error('❌ Erreur geocoding:', error);
-    return `${lat.toFixed(6)}°S, ${lng.toFixed(6)}°E`;
+    // Retourner les coordonnées formatées en cas d'erreur
+    return `${Math.abs(lat).toFixed(6)}°${lat < 0 ? 'S' : 'N'}, ${Math.abs(lng).toFixed(6)}°${lng < 0 ? 'W' : 'E'}`;
   }
 }
 

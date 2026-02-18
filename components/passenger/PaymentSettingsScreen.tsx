@@ -1,6 +1,5 @@
-import { useAppState } from '../../hooks/useAppState';
 import { useState, useEffect } from 'react';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { Button } from '../ui/button'; // ✅ FIX: Import manquant
 import { Card, CardContent } from '../ui/card'; // ✅ FIX: Import manquant
 import { 
@@ -14,7 +13,7 @@ import {
   Wallet,
   Shield,
   AlertCircle
-} from 'lucide-react';
+} from '../../lib/icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../ui/dialog';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';

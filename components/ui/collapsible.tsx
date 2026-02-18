@@ -1,33 +1,28 @@
-"use client";
+// ⚠️ STUB - Ce composant n'est pas utilisé dans SmartCabb
+// Version simplifiée sans @radix-ui pour éviter les erreurs de build
 
-import * as CollapsiblePrimitive from "@radix-ui/react-collapsible";
+import * as React from "react";
 
-function Collapsible({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.Root>) {
-  return <CollapsiblePrimitive.Root data-slot="collapsible" {...props} />;
-}
+export const Collapsible = React.forwardRef<HTMLDivElement, any>(
+  ({ children, ...props }, ref) => {
+    return <div ref={ref} {...props}>{children}</div>;
+  }
+);
 
-function CollapsibleTrigger({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleTrigger>) {
-  return (
-    <CollapsiblePrimitive.CollapsibleTrigger
-      data-slot="collapsible-trigger"
-      {...props}
-    />
-  );
-}
+Collapsible.displayName = "Collapsible";
 
-function CollapsibleContent({
-  ...props
-}: React.ComponentProps<typeof CollapsiblePrimitive.CollapsibleContent>) {
-  return (
-    <CollapsiblePrimitive.CollapsibleContent
-      data-slot="collapsible-content"
-      {...props}
-    />
-  );
-}
+export const CollapsibleTrigger = React.forwardRef<HTMLButtonElement, any>(
+  ({ children, ...props }, ref) => {
+    return <button ref={ref} {...props}>{children}</button>;
+  }
+);
 
-export { Collapsible, CollapsibleTrigger, CollapsibleContent };
+CollapsibleTrigger.displayName = "CollapsibleTrigger";
+
+export const CollapsibleContent = React.forwardRef<HTMLDivElement, any>(
+  ({ children, ...props }, ref) => {
+    return <div ref={ref} {...props}>{children}</div>;
+  }
+);
+
+CollapsibleContent.displayName = "CollapsibleContent";

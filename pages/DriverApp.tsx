@@ -10,7 +10,7 @@ import { DriverProfileScreen } from '../components/driver/DriverProfileScreen';
 import { ClientInfoScreen } from '../components/driver/ClientInfoScreen';
 import { ConfirmationCodeScreen } from '../components/driver/ConfirmationCodeScreen';
 import { DriverWalletScreen } from '../components/driver/DriverWalletScreen';
-import { ActiveRideScreen } from '../components/driver/ActiveRideScreen';
+import { ActiveRideNavigationScreen } from '../components/driver/ActiveRideNavigationScreen';
 import { PaymentConfirmationScreen } from '../components/driver/PaymentConfirmationScreen';
 import { useAppState } from '../hooks/useAppState';
 import { WelcomeBackScreen } from '../components/WelcomeBackScreen';
@@ -37,6 +37,7 @@ function DriverAppContent() {
     console.log('🚗 DriverApp - Démarrage avec currentScreen:', currentScreen);
     console.log('🚗 DriverApp - Location pathname:', location.pathname);
     console.log('🚗 DriverApp - currentView:', state.currentView);
+    console.log('🚗 DriverApp - currentDriver:', state.currentDriver?.id || 'none');
     
     // ✅ Si on est sur /driver OU /app/driver, s'assurer qu'on est en mode conducteur
     if (location.pathname.includes('/driver')) {
@@ -44,13 +45,26 @@ function DriverAppContent() {
       console.log('🔄 Forçage de la vue à driver');
       setCurrentView('driver');
       
-      // Si on a déjà un écran driver valide, ne rien changer
+      // ✅ FIX: Si l'utilisateur est connecté et a un écran driver valide, ne rien changer
+      if (state.currentDriver && currentScreen && currentScreen.startsWith('driver-') && currentScreen !== 'driver-welcome' && currentScreen !== 'driver-login') {
+        console.log('✅ Conducteur connecté avec écran driver valide, on garde:', currentScreen);
+        return; // Important : ne pas continuer pour éviter les redirections
+      }
+      
+      // ✅ FIX: Si l'utilisateur est connecté mais n'a pas d'écran driver (refresh), aller au dashboard
+      if (state.currentDriver && (!currentScreen || !currentScreen.startsWith('driver-'))) {
+        console.log('🔄 Conducteur connecté après refresh, redirection vers dashboard');
+        setCurrentScreen('driver-dashboard');
+        return;
+      }
+      
+      // Si on a déjà un écran driver valide (mais pas connecté), ne rien changer
       if (currentScreen && currentScreen.startsWith('driver-')) {
         console.log('✅ Écran driver déjà défini, on garde:', currentScreen);
         return; // Important : ne pas continuer
       }
       
-      // Si on a un écran non-driver ou pas d'écran, initialiser
+      // Si on a un écran non-driver ou pas d'écran, initialiser vers welcome SEULEMENT si pas connecté
       if (!currentScreen || 
           currentScreen === 'landing' || 
           currentScreen === 'user-selection' ||
@@ -60,7 +74,7 @@ function DriverAppContent() {
         setCurrentScreen('driver-welcome');
       }
     }
-  }, [location.pathname, currentScreen, state.currentView, setCurrentView, setCurrentScreen]); // Toutes les dépendances
+  }, [location.pathname, currentScreen, state.currentView, state.currentDriver, setCurrentView, setCurrentScreen]); // Toutes les dépendances
 
   // Show RLS blocking screen if there's a critical RLS issue
   if (showRLSBlockingScreen) {
@@ -91,7 +105,7 @@ function DriverAppContent() {
         {(currentScreen === 'driver-client-info' || currentScreen === 'client-info') && <ClientInfoScreen />}
         {currentScreen === 'driver-wallet' && <DriverWalletScreen />}
         {(currentScreen === 'driver-confirmation-code' || currentScreen === 'confirmation-code') && <ConfirmationCodeScreen />}
-        {(currentScreen === 'driver-active-ride' || currentScreen === 'active-ride') && <ActiveRideScreen />}
+        {(currentScreen === 'driver-active-ride' || currentScreen === 'active-ride') && <ActiveRideNavigationScreen />}
         {(currentScreen === 'driver-payment-confirmation' || currentScreen === 'payment-confirmation') && <PaymentConfirmationScreen />}
         {(currentScreen === 'welcome-back' || currentScreen === 'welcome-back-driver') && (
           <WelcomeBackScreen 

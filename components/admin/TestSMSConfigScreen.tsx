@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw } from '../../lib/admin-icons';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 
 export function TestSMSConfigScreen() {

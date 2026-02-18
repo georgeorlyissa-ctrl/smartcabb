@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity, User, Save, Shield, Ban, Trash2, AlertCircle, DollarSign } from 'lucide-react';
+import { X, Star, MapPin, Phone, Mail, Calendar, Car, CreditCard, TrendingUp, CheckCircle, XCircle, Clock, Activity, User, Save, Shield, Ban, Trash2, AlertCircle, DollarSign } from '../../lib/admin-icons';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -8,7 +8,7 @@ import { Input } from '../ui/input';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { safeFormatDate, safeFormatDateShort } from '../../utils/dateHelpers'; // 🔥 IMPORT
 
@@ -38,25 +38,39 @@ function formatName(name: string): string {
 }
 
 interface DriverDetailModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onClose?: () => void; // ✅ Support ancienne syntaxe
   driver: EnrichedDriver | null;
   vehicle: Vehicle | null;
-  rides: EnrichedRide[];
-  onUpdate: () => void;
+  rides?: EnrichedRide[]; // ✅ Rendre optionnel
+  onUpdate?: () => void;
+  onRefresh?: () => void; // ✅ Support ancienne syntaxe
 }
 
 export function DriverDetailModal({ 
-  open, 
+  open = true, // ✅ Par défaut true si non fourni
   onOpenChange, 
+  onClose, // ✅ Support ancienne syntaxe
   driver,
   vehicle,
-  rides,
-  onUpdate 
+  rides = [], // ✅ Par défaut tableau vide
+  onUpdate,
+  onRefresh // ✅ Support ancienne syntaxe
 }: DriverDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isEditingVehicle, setIsEditingVehicle] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  // ✅ Fonction helper pour appeler le bon callback de rafraîchissement
+  const handleRefresh = () => {
+    if (onUpdate) {
+      onUpdate();
+    } else if (onRefresh) {
+      onRefresh();
+    }
+  };
+  
   const [formData, setFormData] = useState({
     full_name: driver?.full_name || '',
     email: driver?.email || '',
@@ -107,6 +121,46 @@ export function DriverDetailModal({
       if (profileUpdated && driverUpdated) {
         toast.success('Profil mis à jour avec succès');
         
+        // ✅ CORRECTION CRITIQUE : Toujours synchroniser le statut dans Auth user_metadata
+        // MÊME si le statut n'a pas changé dans le KV store, car il peut être désynchronisé dans Auth
+        try {
+          console.log('🔄 Synchronisation du statut dans Supabase Auth user_metadata...');
+          console.log('📊 Statut à synchroniser:', formData.status);
+          console.log('🆔 Driver ID:', driver.id);
+          
+          const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/update-driver-auth-metadata`;
+          console.log('🌐 URL appelée:', url);
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${publicAnonKey}`
+            },
+            body: JSON.stringify({
+              driverId: driver.id,
+              status: formData.status
+            })
+          });
+          
+          console.log('📡 Réponse HTTP:', response.status, response.statusText);
+          
+          const result = await response.json();
+          console.log('📋 Résultat:', result);
+          
+          if (result.success) {
+            console.log('✅ Statut synchronisé dans Auth user_metadata');
+            toast.success('✅ Statut synchronisé dans Auth');
+          } else {
+            console.warn('⚠️ Erreur synchronisation Auth:', result.error);
+            toast.warning(`⚠️ Erreur synchro Auth: ${result.error}`);
+          }
+        } catch (authSyncError) {
+          console.error('❌ Erreur synchronisation Auth:', authSyncError);
+          toast.error(`❌ Erreur synchro Auth: ${authSyncError}`);
+          // Continue même si la synchro échoue
+        }
+        
         // 📱 Envoyer SMS de notification au conducteur
         if (driver.phone) {
           try {
@@ -131,7 +185,7 @@ export function DriverDetailModal({
         }
         
         setIsEditing(false);
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la mise à jour');
       }
@@ -175,7 +229,7 @@ export function DriverDetailModal({
         }
         
         setIsEditingVehicle(false);
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la mise à jour du véhicule');
       }
@@ -210,7 +264,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la modification du statut');
       }
@@ -232,6 +286,45 @@ export function DriverDetailModal({
       if (updated) {
         toast.success('Conducteur approuvé');
         
+        // ⏳ ATTENDRE 2 SECONDES pour que le backend synchronise les 3 sources
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // 🐛 DEBUG : Appeler la route de debug pour vérifier la synchronisation
+        try {
+          console.log('🐛 Appel de la route de debug pour vérifier la synchronisation...');
+          const debugResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driver.id}/debug`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (debugResponse.ok) {
+            const debugData = await debugResponse.json();
+            console.log('🐛 ========== RÉSULTAT DEBUG ==========');
+            console.log('📊 KV Store status:', debugData.debug?.sources?.kv_store?.status);
+            console.log('📊 Auth user_metadata status:', debugData.debug?.sources?.auth?.status_in_metadata);
+            console.log('📊 Postgres drivers status:', debugData.debug?.sources?.postgres_drivers?.status);
+            console.log('🐛 =====================================');
+            
+            // Vérifier les incohérences
+            const kvStatus = debugData.debug?.sources?.kv_store?.status;
+            const authStatus = debugData.debug?.sources?.auth?.status_in_metadata;
+            const pgStatus = debugData.debug?.sources?.postgres_drivers?.status;
+            
+            if (kvStatus !== 'approved' || authStatus !== 'approved' || pgStatus !== 'approved') {
+              console.error('❌ INCOHÉRENCE DÉTECTÉE !');
+              toast.warning(`Incohérence détectée - KV: ${kvStatus}, Auth: ${authStatus}, PG: ${pgStatus}`);
+            } else {
+              console.log('✅ Toutes les sources sont synchronisées !');
+            }
+          }
+        } catch (debugError) {
+          console.error('❌ Erreur debug:', debugError);
+        }
+        
         // 📱 Envoyer SMS de validation au conducteur
         if (driver.phone) {
           console.log('📱 Envoi SMS de validation au conducteur:', driver.phone);
@@ -249,7 +342,7 @@ export function DriverDetailModal({
           toast.warning('Conducteur approuvé, mais pas de numéro de téléphone pour envoyer le SMS');
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de l\'approbation');
       }
@@ -291,7 +384,7 @@ export function DriverDetailModal({
           console.warn('⚠️ Pas de numéro de téléphone pour le conducteur');
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors du rejet');
       }
@@ -336,7 +429,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la suspension');
       }
@@ -377,7 +470,7 @@ export function DriverDetailModal({
           }
         }
         
-        onUpdate();
+        handleRefresh();
       } else {
         toast.error('Erreur lors de la réactivation');
       }
@@ -451,8 +544,8 @@ export function DriverDetailModal({
       console.log('🗑️ Détails suppression:', data);
       
       // Fermer le modal et rafraîchir
-      onOpenChange(false);
-      onUpdate();
+      onOpenChange?.(false);
+      handleRefresh();
     } catch (error) {
       toast.error(`❌ Erreur: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
       console.error('Erreur suppression:', error);
@@ -475,7 +568,15 @@ export function DriverDetailModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      // ✅ Support des deux syntaxes : onOpenChange ET onClose
+      if (onOpenChange) {
+        onOpenChange(isOpen);
+      }
+      if (onClose && !isOpen) {
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">

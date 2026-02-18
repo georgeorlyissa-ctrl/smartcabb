@@ -1,24 +1,70 @@
-import { motion } from 'motion/react';
+import { toast } from '../../lib/toast';
 import { Button } from '../ui/button';
 import { useAppState } from '../../hooks/useAppState';
 import { useTranslation } from '../../hooks/useTranslation';
-import { 
-  ArrowLeft, 
-  Phone, 
-  MessageCircle, 
-  Star,
-  Car,
-  User,
-  MapPin,
-  Clock,
-  Shield,
-  Award,
-  Navigation
-} from 'lucide-react';
+import { motion } from '../../lib/motion';
 import { useState, useEffect } from 'react';
+import { getVehicleDisplayName, getVehicleCategoryDescription } from '../../lib/vehicle-helpers';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
 
+// Icônes SVG inline
+const ArrowLeft = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
+const Phone = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
+
+const MessageCircle = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+  </svg>
+);
+
+const Star = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} fill="currentColor" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+  </svg>
+);
+
+const Car = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+  </svg>
+);
+
+const User = ({ className = "w-10 h-10" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
+const MapPin = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const Clock = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const Award = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="12" cy="8" r="7" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+  </svg>
+);
+ 
 interface DriverFoundScreenProps {
   driverData: {
     id: string;
@@ -28,18 +74,19 @@ interface DriverFoundScreenProps {
     total_rides: number;
     photo_url?: string; // ✅ Ajout photo
     vehicle?: {
-      make: string;
-      model: string;
-      year: number;
-      color: string;
-      license_plate: string;
+      make?: string;
+      model?: string;
+      year?: number;
+      color?: string;
+      license_plate?: string;
+      category?: string; // ✅ Catégorie du véhicule (smart_standard, etc.)
     };
   };
-  confirmationCode: string;
+  // 🚫 SUPPRIMÉ : confirmationCode n'est plus nécessaire
   estimatedArrival: number; // en minutes
 }
 
-export function DriverFoundScreen({ driverData: initialDriverData, confirmationCode, estimatedArrival }: DriverFoundScreenProps) {
+export function DriverFoundScreen({ driverData: initialDriverData, estimatedArrival }: DriverFoundScreenProps) {
   const { t } = useTranslation();
   const { setCurrentScreen, state, updateRide } = useAppState();
   const [arrivalTime, setArrivalTime] = useState(estimatedArrival);
@@ -66,6 +113,14 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
           const data = await response.json();
           if (data.driver) {
             console.log('✅ Données chauffeur chargées depuis la DB:', data.driver);
+            console.log('🚗 Véhicule du chauffeur:', {
+              make: data.driver.vehicle?.make,
+              model: data.driver.vehicle?.model,
+              color: data.driver.vehicle?.color,
+              license_plate: data.driver.vehicle?.license_plate,
+              category: data.driver.vehicle?.category,
+              displayName: getVehicleDisplayName(data.driver.vehicle)
+            });
             setDriverData({
               id: data.driver.id,
               full_name: data.driver.full_name,
@@ -135,8 +190,8 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
               duration: 5000
             });
             
-            // Navigation vers l'écran de tracking
-            setCurrentScreen('ride-tracking');
+            // Navigation vers l'écran de suivi en temps réel
+            setCurrentScreen('ride-in-progress');
           }
         }
       } catch (error) {
@@ -157,13 +212,87 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
     // Ouvrir WhatsApp avec le numéro du chauffeur
     const phoneNumber = driverData.phone.replace(/\D/g, ''); // Retirer les caractères non numériques
     const message = encodeURIComponent(
-      `Bonjour ${driverData.full_name}, je suis votre passager SmartCabb. Mon code de confirmation est ${confirmationCode}.`
+      `Bonjour ${driverData.full_name}, je suis votre passager SmartCabb.`
     );
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
   };
 
   const handlePhoneCall = () => {
     window.location.href = `tel:${driverData.phone}`;
+  };
+
+  // ✅ ANNULATION DE LA COURSE (flèche retour)
+  const handleCancelRide = async () => {
+    if (!state.currentRide?.id) {
+      // Si pas de course active, retour simple
+      setCurrentScreen('map');
+      return;
+    }
+
+    // Confirmation de l'annulation
+    const confirmCancel = window.confirm(
+      'Êtes-vous sûr de vouloir annuler cette course ? Le chauffeur sera notifié.'
+    );
+
+    if (!confirmCancel) return;
+
+    try {
+      console.log('🚫 Annulation de la course:', state.currentRide.id);
+
+      // Appeler l'API backend pour annuler la course
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/rides/cancel`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            rideId: state.currentRide.id,
+            passengerId: state.user?.id,
+            cancelledBy: 'passenger',
+            reason: 'Annulation depuis écran chauffeur trouvé'
+          })
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Course annulée avec succès:', data);
+
+        // Notification
+        toast.success('Course annulée', {
+          description: 'Votre course a été annulée. Le chauffeur a été notifié.',
+          duration: 5000
+        });
+
+        // Mettre à jour le state local
+        if (updateRide) {
+          updateRide(state.currentRide.id, {
+            status: 'cancelled',
+            cancelledBy: 'passenger',
+            cancelledAt: new Date().toISOString()
+          });
+        }
+
+        // Retour à la carte
+        setCurrentScreen('map');
+      } else {
+        const error = await response.json();
+        console.error('❌ Erreur annulation:', error);
+        toast.error('Erreur', {
+          description: error.error || 'Impossible d\'annuler la course',
+          duration: 5000
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur annulation course:', error);
+      toast.error('Erreur', {
+        description: 'Impossible de contacter le serveur',
+        duration: 5000
+      });
+    }
   };
 
   return (
@@ -174,7 +303,7 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setCurrentScreen('map')}
+            onClick={handleCancelRide}
             className="w-10 h-10 hover:bg-muted"
           >
             <ArrowLeft className="w-5 h-5 text-primary" />
@@ -204,31 +333,12 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
           </div>
           <h2 className="text-2xl font-bold text-green-600 mb-2">Chauffeur en route !</h2>
           <p className="text-muted-foreground text-center">
-            Votre chauffeur arrive dans environ <span className="font-semibold text-primary">{arrivalTime} min</span>
+            Votre conducteur arrive dans <span className="font-semibold text-primary">quelques instants</span>
           </p>
         </motion.div>
 
-        {/* Code de confirmation */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6"
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <Shield className="w-6 h-6 text-amber-600" />
-            <h3 className="font-semibold text-amber-900">Code de confirmation</h3>
-          </div>
-          <div className="bg-white rounded-xl p-4 border-2 border-amber-300">
-            <p className="text-xs text-muted-foreground mb-2">Donnez ce code au chauffeur avant de démarrer</p>
-            <div className="text-4xl font-bold text-center text-amber-600 tracking-widest">
-              {confirmationCode}
-            </div>
-          </div>
-          <p className="text-xs text-amber-700 mt-3 text-center">
-            ⚠️ Ne partagez ce code qu'avec votre chauffeur
-          </p>
-        </motion.div>
+        {/* 🚫 SUPPRIMÉ : Code de confirmation pour simplifier l'UX */}
+        {/* Le conducteur démarre directement sans demander de code */}
 
         {/* Informations du chauffeur */}
         <motion.div
@@ -249,11 +359,21 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
                     onError={(e) => {
                       // Fallback si l'image ne charge pas
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                      const nextSibling = e.currentTarget.nextElementSibling;
+                      if (nextSibling instanceof HTMLElement) {
+                        nextSibling.classList.remove('hidden');
+                      }
                     }}
                   />
                 ) : null}
-                <User className={`w-10 h-10 text-primary ${driverData.photo_url ? 'hidden' : ''}`} />
+                {/* Avatar avec initiales si pas de photo */}
+                {!driverData.photo_url && driverData.full_name ? (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-600 text-white font-bold text-2xl">
+                    {driverData.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  </div>
+                ) : null}
+                {/* Icône User en fallback final */}
+                <User className={`w-10 h-10 text-primary ${driverData.photo_url || driverData.full_name ? 'hidden' : ''}`} />
               </div>
               <div className="flex-1">
                 <h3 className="text-xl font-bold">{driverData.full_name}</h3>
@@ -278,18 +398,18 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
                 <div>
                   <p className="text-sm text-muted-foreground">Véhicule</p>
                   <p className="font-semibold">
-                    {driverData.vehicle.make} {driverData.vehicle.model} ({driverData.vehicle.year})
+                    {getVehicleDisplayName(driverData.vehicle) || 'Véhicule'}
                   </p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Couleur</p>
-                  <p className="font-medium">{driverData.vehicle.color}</p>
+                  <p className="font-medium">{driverData.vehicle.color || 'Non spécifiée'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Plaque</p>
-                  <p className="font-mono font-bold text-primary">{driverData.vehicle.license_plate}</p>
+                  <p className="font-mono font-bold text-primary">{driverData.vehicle.license_plate || 'N/A'}</p>
                 </div>
               </div>
             </div>
@@ -353,14 +473,6 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
       {/* Boutons d'action fixes en bas */}
       <div className="bg-white border-t border-border p-4 space-y-3">
         <Button
-          onClick={() => setCurrentScreen('driver-approaching')}
-          className="w-full bg-primary hover:bg-primary/90 text-white py-6 text-lg"
-        >
-          <Navigation className="w-5 h-5 mr-2" />
-          Voir la distance et l'ETA
-        </Button>
-        
-        <Button
           onClick={handleWhatsAppCall}
           className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg"
         >
@@ -378,7 +490,7 @@ export function DriverFoundScreen({ driverData: initialDriverData, confirmationC
         </Button>
 
         <p className="text-xs text-center text-muted-foreground">
-          En attente que le chauffeur confirme votre code...
+          Votre chauffeur arrive. Il démarrera la course à son arrivée.
         </p>
       </div>
     </div>

@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { useAppState } from '../../hooks/useAppState';
-import { ArrowLeft, Tag, Check, X, Gift, Percent } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Tag, Check, X, Gift, Percent } from '../../lib/icons';
+import { useAppState } from '../../hooks/useAppState'; // ✅ FIX: Import manquant
+import { toast } from '../../lib/toast';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Card } from '../ui/card';
 import { formatCDF } from '../../lib/pricing';
 import { supabase } from '../../lib/supabase';
+import { useState, useEffect } from 'react';
+import { motion } from '../../lib/motion';
 
 interface PromoCode {
   code: string;

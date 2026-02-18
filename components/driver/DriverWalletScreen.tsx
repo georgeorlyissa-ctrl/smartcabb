@@ -1,27 +1,28 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
-import { Card } from '../ui/card';
-import { Badge } from '../ui/badge';
 import { useAppState } from '../../hooks/useAppState';
-import { usePayment } from '../../hooks/usePayment';
+import { useState } from 'react';
 import { 
   ArrowLeft, 
-  Wallet, 
-  CreditCard, 
+  Plus, 
+  TrendingUp, 
+  DollarSign, 
   Calendar,
-  CheckCircle,
+  CreditCard,
+  History,
+  Wallet,
   AlertCircle,
-  Loader2,
-  Smartphone,
-  TrendingUp,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  XCircle,
   Clock,
-  Gift,
-  DollarSign,
-  FileText,
+  Filter,
+  Search,
+  ChevronRight,
+  Info,
   Download
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/icons';
+import { toast } from '../../lib/toast';
 
 // ✅ v517.77 - Helper pour formater les montants CDF de manière sécurisée
 const formatCDF = (amount: number | null | undefined): string => {

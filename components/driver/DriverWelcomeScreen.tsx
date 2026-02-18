@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { getSession } from "../../lib/auth-service";
 import { useNavigate } from "../../lib/simple-router";
 import { useAppState } from '../../hooks/useAppState';
 import { WelcomeBackScreen } from '../WelcomeBackScreen';
 import { SmartCabbLogo } from '../SmartCabbLogo';
 import { Button } from '../ui/button';
-import { ArrowLeft, Car } from 'lucide-react';
+import { ArrowLeft, Car } from '../../lib/icons';
 
 export function DriverWelcomeScreen() {
   console.log("🚗 DriverWelcomeScreen - Composant monté");

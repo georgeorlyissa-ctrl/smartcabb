@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -22,8 +22,8 @@ import {
   FileText,
   DollarSign,
   RefreshCw
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import { formatCDF } from '../../lib/pricing';
 import { supabase } from '../../lib/supabase';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

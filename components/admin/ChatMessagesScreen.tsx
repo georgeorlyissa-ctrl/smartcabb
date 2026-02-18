@@ -1,31 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card } from '../ui/card';
+import { supabase } from '../../lib/supabase';
+import { toast } from '../../lib/toast';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
+import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { 
-  MessageCircle, 
-  Send, 
-  Check, 
-  Clock, 
-  User, 
-  Mail, 
-  Phone,
-  Calendar,
-  Search,
-  X,
-  CheckCircle2,
+import {
+  MessageCircle,
+  ArrowLeft,
   Bell,
   BellOff,
-  RefreshCw,
   Volume2,
-  ArrowLeft  // Added ArrowLeft import
-} from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { toast } from 'sonner';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { useAppState } from '../../hooks/useAppState';  // Added useAppState import
+  RefreshCw,
+  Clock,
+  CheckCircle2,
+  Calendar,
+  Search,
+  User,
+  Mail,
+  X,
+  Send,
+} from '../../lib/icons';
 
 interface ChatMessage {
   id: string;

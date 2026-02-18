@@ -24,11 +24,12 @@ export async function signUpDriver(driverData: {
   vehicleModel: string;
   vehiclePlate: string;
   vehicleColor: string;
-  vehicleCategory: 'standard' | 'comfort' | 'luxury';
+  vehicleCategory: 'smart_standard' | 'smart_confort' | 'smart_plus' | 'smart_business';
   licenseNumber?: string;
+  profilePhoto?: string; // 📸 Photo en Base64
 }): Promise<AuthResult> {
   try {
-    const { fullName, email, phone, password, vehicleMake, vehicleModel, vehiclePlate, vehicleColor, vehicleCategory } = driverData;
+    const { fullName, email, phone, password, vehicleMake, vehicleModel, vehiclePlate, vehicleColor, vehicleCategory, profilePhoto } = driverData;
     
     console.log('📝 Inscription conducteur via serveur:', fullName, 'téléphone:', phone);
     
@@ -69,7 +70,8 @@ export async function signUpDriver(driverData: {
           vehicleModel,
           vehiclePlate,
           vehicleColor,
-          vehicleCategory
+          vehicleCategory,
+          profilePhoto: profilePhoto || null // 📸 Photo en Base64
         })
       }
     );
@@ -102,7 +104,8 @@ export async function signUpDriver(driverData: {
       password
     });
 
-    if (authError || !authData.session) {
+    // ✅ FIX: Vérifier authData.access_token au lieu de authData.session
+    if (authError || !authData.access_token) {
       console.error('❌ Erreur connexion:', authError);
       return {
         success: false,
@@ -110,13 +113,13 @@ export async function signUpDriver(driverData: {
       };
     }
 
-    console.log('✅ Connexion réussie après inscription');
-
+    console.log('✅ Conducteur créé et connecté:', serverData.profile.full_name);
+    
     return {
       success: true,
       user: authData.user,
       profile: serverData.profile,
-      accessToken: authData.session.access_token
+      accessToken: authData.access_token // ✅ FIX: Utiliser authData.access_token directement
     };
 
   } catch (error) {

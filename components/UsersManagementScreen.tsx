@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw } from 'lucide-react';
+import { Search, Download, Copy, Eye, EyeOff, Filter, UserCircle, Users, Shield, RefreshCw, Activity } from '../lib/icons';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from "sonner";
+import { toast } from '../lib/toast';
+import { useAppState } from '../hooks/useAppState';
 
 interface User {
   id: string;
@@ -34,6 +35,7 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
   const [roleFilter, setRoleFilter] = useState<'all' | 'Passager' | 'Conducteur' | 'Administrateur'>('all');
   const [showPasswords, setShowPasswords] = useState<{ [key: string]: boolean }>({});
   const [stats, setStats] = useState({ passengers: 0, drivers: 0, admins: 0 });
+  const { setCurrentScreen } = useAppState();
 
   // Charger tous les utilisateurs
   const loadUsers = async () => {
@@ -147,6 +149,90 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
     }));
   };
 
+  // Supprimer tous les passagers
+  const deleteAllPassengers = async () => {
+    const confirmation = window.confirm(
+      `⚠️ ATTENTION : Vous êtes sur le point de supprimer TOUS les comptes passagers.\n\n` +
+      `Cette action supprimera :\n` +
+      `- ${stats.passengers} passagers de Supabase Auth\n` +
+      `- Toutes leurs données du KV Store\n` +
+      `- Toutes leurs courses associées\n\n` +
+      `Cette action est IRRÉVERSIBLE.\n\n` +
+      `Êtes-vous absolument sûr de vouloir continuer ?`
+    );
+
+    if (!confirmation) {
+      return;
+    }
+
+    // Double confirmation
+    const doubleConfirm = window.confirm(
+      `⚠️ DERNIÈRE CONFIRMATION\n\n` +
+      `Vous allez supprimer ${stats.passengers} passagers.\n` +
+      `Cliquez sur OK pour confirmer.`
+    );
+
+    if (!doubleConfirm) {
+      return;
+    }
+
+    try {
+      toast.info('🗑️ Suppression en cours...', { duration: 5000 });
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/admin/passengers/delete-all`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+        }
+      );
+
+      const data = await response.json();
+      console.log('📥 Résultat suppression:', data);
+
+      if (data.success) {
+        // Afficher les erreurs détaillées dans la console
+        if (data.errors && data.errors.length > 0) {
+          console.error('⚠️ Erreurs détaillées:', data.errors);
+          data.errors.forEach((err: any, idx: number) => {
+            console.error(`  ${idx + 1}. ${err.name} (${err.id}): ${err.error}`);
+          });
+        }
+
+        // Afficher le résumé
+        const successMessage = 
+          `✅ Suppression terminée :\n` +
+          `• ${data.deleted.fromAuth} passagers supprimés de Supabase Auth\n` +
+          `• ${data.deleted.fromKV} entrées KV supprimées\n` +
+          `• ${data.deleted.rides} courses supprimées`;
+        
+        const errorMessage = data.errors.length > 0 
+          ? `\n\n⚠️ ${data.errors.length} erreurs (voir console pour détails)`
+          : '';
+        
+        if (data.errors.length > 0) {
+          toast.error(successMessage + errorMessage, { duration: 10000 });
+        } else {
+          toast.success(successMessage, { duration: 8000 });
+        }
+        
+        // Recharger la liste
+        setTimeout(() => {
+          loadUsers();
+        }, 1000);
+      } else {
+        console.error('❌ Erreur:', data.error);
+        toast.error(data.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('❌ Erreur suppression passagers:', error);
+      toast.error('Erreur de connexion au serveur');
+    }
+  };
+
   // Badge de rôle avec couleur
   const getRoleBadge = (role: string) => {
     const styles = {
@@ -204,6 +290,23 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
               <p className="text-gray-600">Visualisez tous les comptes SmartCabb avec leurs identifiants</p>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={() => setCurrentScreen('admin-users-diagnostic')}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Activity className="w-4 h-4" />
+                Diagnostic & Nettoyage
+              </button>
+              {stats.passengers > 0 && (
+                <button
+                  onClick={deleteAllPassengers}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  title="Supprimer tous les passagers (IRRÉVERSIBLE)"
+                >
+                  <Users className="w-4 h-4" />
+                  🗑️ Supprimer tous les passagers ({stats.passengers})
+                </button>
+              )}
               <button
                 onClick={loadUsers}
                 className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-colors flex items-center gap-2"
@@ -462,7 +565,7 @@ export function UsersManagementScreen({ onBack }: UsersManagementScreenProps) {
                           )}
                           {user.rating !== undefined && (
                             <div className="text-gray-600">
-                              Note: <span className="text-gray-900">⭐ {user.rating.toFixed(1)}</span>
+                              Note: <span className="text-gray-900">⭐ {(user.rating || 0).toFixed(1)}</span>
                             </div>
                           )}
                           {user.totalTrips !== undefined && (

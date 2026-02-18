@@ -1,12 +1,13 @@
 "use client";
 
 // 🔥 v311.5 - Version simplifiée SANS recharts (évite les erreurs de build Vercel)
-import { useMemo } from 'react';
-import { motion } from 'motion/react';
-import { Button } from '../ui/button';
 import { Card } from '../ui/card';
+import { motion } from '../../lib/motion';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { toast } from '../../lib/toast';
+import { useState, useEffect, useMemo } from 'react';
 import { useSupabaseData } from '../../hooks/useSupabaseData';
-import { TrendingUp, Calendar, DollarSign } from 'lucide-react';
+import { TrendingUp, Calendar, DollarSign } from '../../lib/admin-icons';
 
 export function StatsCharts() {
   const { rides, drivers } = useSupabaseData();
@@ -45,7 +46,11 @@ export function StatsCharts() {
     const categories = ['SmartCabb Standard', 'SmartCabb Confort', 'SmartCabb Plus', 'SmartCabb Business'];
     
     return categories.map(category => {
-      const categoryRides = rides.filter(r => r.category === category && r.status === 'completed');
+      // Filtrer par vehicle_category qui vient du KV store
+      const categoryRides = rides.filter(r => {
+        const vehicleType = r.vehicle_category || '';
+        return vehicleType === category && r.status === 'completed';
+      });
       const revenue = categoryRides.reduce((sum, r) => sum + (r.total_amount || 0), 0);
       
       return {
@@ -57,17 +62,46 @@ export function StatsCharts() {
   }, [rides]);
 
   // Données de performance des conducteurs (top 5)
+  // Calculer le nombre de courses et la note moyenne pour chaque conducteur
   const topDriversData = useMemo(() => {
-    const sortedDrivers = [...drivers]
-      .sort((a, b) => b.total_rides - a.total_rides)
-      .slice(0, 5);
+    // Créer un map des statistiques par conducteur
+    const driverStats = new Map();
     
-    return sortedDrivers.map(driver => ({
-      nom: driver.full_name?.split(' ')[0] || 'Conducteur',
-      courses: driver.total_rides,
-      note: driver.rating
-    }));
-  }, [drivers]);
+    rides.forEach(ride => {
+      if (ride.status === 'completed' && ride.driver_id) {
+        const currentStats = driverStats.get(ride.driver_id) || {
+          driverId: ride.driver_id,
+          totalRides: 0,
+          totalRating: 0,
+          ratingsCount: 0
+        };
+        
+        currentStats.totalRides++;
+        if (ride.rating) {
+          currentStats.totalRating += ride.rating;
+          currentStats.ratingsCount++;
+        }
+        
+        driverStats.set(ride.driver_id, currentStats);
+      }
+    });
+    
+    // Enrichir avec les infos des conducteurs
+    const enrichedDrivers = drivers.map(driver => {
+      const stats = driverStats.get(driver.id) || { totalRides: 0, totalRating: 0, ratingsCount: 0 };
+      return {
+        id: driver.id,
+        nom: driver.full_name || 'Conducteur',
+        courses: stats.totalRides,
+        note: stats.ratingsCount > 0 ? stats.totalRating / stats.ratingsCount : 0
+      };
+    });
+    
+    // Trier par nombre de courses et prendre le top 5
+    return enrichedDrivers
+      .sort((a, b) => b.courses - a.courses)
+      .slice(0, 5);
+  }, [drivers, rides]);
 
   const maxCourses = Math.max(...last7DaysData.map(d => d.courses), 1);
   const maxCompletees = Math.max(...last7DaysData.map(d => d.completees), 1);

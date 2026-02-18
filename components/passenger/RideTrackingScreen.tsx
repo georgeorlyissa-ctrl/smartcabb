@@ -1,21 +1,13 @@
-import { motion } from 'motion/react';
+import { motion } from '../../lib/motion'; // ✅ FIX: Utiliser l'implémentation locale
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { useAppState } from '../../hooks/useAppState';
-import { InteractiveMapView } from '../InteractiveMapView';
-import { 
-  Navigation,
-  MapPin,
-  Clock,
-  Phone,
-  MessageCircle,
-  Share2,
-  AlertTriangle
-} from 'lucide-react';
+import { GoogleMapView } from '../GoogleMapView';
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
+import { Phone, MessageCircle, Share2, AlertTriangle, MapPin, Clock } from '../icons/RideIcons';
 
 interface Location {
   lat: number;
@@ -194,8 +186,8 @@ export function RideTrackingScreen() {
           console.log('🔍 Statut course:', data.ride?.status);
           
           if (data.ride?.status === 'completed') {
-            console.log('✅ Course terminée, redirection vers paiement');
-            setCurrentScreen('payment');
+            console.log('✅ Course terminée, redirection vers ride-completed');
+            setCurrentScreen('ride-completed');
           }
         } else {
           console.debug('⚠️ Erreur récupération statut:', response.status);
@@ -255,27 +247,17 @@ Contact : ${currentRide.driver?.phone}`;
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Carte en plein écran */}
+      {/* Carte en plein écran avec Google Maps */}
       <div className="flex-1 relative">
-        <InteractiveMapView
+        <GoogleMapView
           center={driverLocation || currentRide.pickup}
-          drivers={driverLocation ? [{
-            id: currentRide.driverId || '',
-            name: currentRide.driver?.name || 'Conducteur',
-            location: driverLocation,
-            available: true,
-            rating: currentRide.driver?.rating || 5,
-            vehicleInfo: currentRide.driver?.vehicle || {
-              make: 'Véhicule',
-              model: '',
-              color: '',
-              licensePlate: ''
-            }
-          }] : []}
+          zoom={14}
           showRoute={true}
           routeStart={currentRide.pickup}
           routeEnd={currentRide.destination}
-          enableGeolocation={true}
+          vehicleLocation={driverLocation || undefined}
+          enableZoomControls={true}
+          enableGeolocation={false}
           className="w-full h-full"
         />
 

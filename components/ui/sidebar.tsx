@@ -1,9 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-import { VariantProps, cva } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
+import { VariantProps, cva } from "../../lib/class-variance-authority";
+import { PanelLeft as PanelLeftIcon } from "../../lib/icons"; // ✅ FIX: Utiliser les icônes locales
 
 import { useIsMobile } from "./use-mobile";
 import { cn } from "./utils";
@@ -395,13 +394,10 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
 
 function SidebarGroupLabel({
   className,
-  asChild = false,
   ...props
-}: React.ComponentProps<"div"> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : "div";
-
+}: React.ComponentProps<"div">) {
   return (
-    <Comp
+    <div
       data-slot="sidebar-group-label"
       data-sidebar="group-label"
       className={cn(
@@ -416,13 +412,10 @@ function SidebarGroupLabel({
 
 function SidebarGroupAction({
   className,
-  asChild = false,
   ...props
-}: React.ComponentProps<"button"> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : "button";
-
+}: React.ComponentProps<"button">) {
   return (
-    <Comp
+    <button
       data-slot="sidebar-group-action"
       data-sidebar="group-action"
       className={cn(
@@ -496,23 +489,20 @@ const sidebarMenuButtonVariants = cva(
 );
 
 function SidebarMenuButton({
-  asChild = false,
-  isActive = false,
+  className,
   variant = "default",
   size = "default",
+  isActive = false,
   tooltip,
-  className,
   ...props
 }: React.ComponentProps<"button"> & {
-  asChild?: boolean;
   isActive?: boolean;
   tooltip?: string | React.ComponentProps<typeof TooltipContent>;
 } & VariantProps<typeof sidebarMenuButtonVariants>) {
-  const Comp = asChild ? Slot : "button";
   const { isMobile, state } = useSidebar();
 
   const button = (
-    <Comp
+    <button
       data-slot="sidebar-menu-button"
       data-sidebar="menu-button"
       data-size={size}
@@ -547,17 +537,13 @@ function SidebarMenuButton({
 
 function SidebarMenuAction({
   className,
-  asChild = false,
   showOnHover = false,
   ...props
 }: React.ComponentProps<"button"> & {
-  asChild?: boolean;
   showOnHover?: boolean;
 }) {
-  const Comp = asChild ? Slot : "button";
-
   return (
-    <Comp
+    <button
       data-slot="sidebar-menu-action"
       data-sidebar="menu-action"
       className={cn(
@@ -667,20 +653,16 @@ function SidebarMenuSubItem({
 }
 
 function SidebarMenuSubButton({
-  asChild = false,
-  size = "md",
-  isActive = false,
   className,
+  size = "md",
+  isActive,
   ...props
 }: React.ComponentProps<"a"> & {
-  asChild?: boolean;
   size?: "sm" | "md";
   isActive?: boolean;
 }) {
-  const Comp = asChild ? Slot : "a";
-
   return (
-    <Comp
+    <a
       data-slot="sidebar-menu-sub-button"
       data-sidebar="menu-sub-button"
       data-size={size}

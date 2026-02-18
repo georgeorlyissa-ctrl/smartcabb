@@ -1,16 +1,17 @@
-import { motion } from 'motion/react';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
-import { useAppState } from '../../hooks/useAppState';
+import { motion } from '../../lib/motion'; // ✅ FIX: Import local au lieu de motion/react
 import { 
-  CheckCircle,
-  XCircle,
-  Clock,
-  DollarSign
-} from 'lucide-react';
+  CheckCircle, 
+  XCircle, 
+  DollarSign, 
+  User, 
+  Calendar 
+} from '../../lib/icons'; // ✅ FIX: Import local au lieu de lucide-react
 import { useState, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
-import { toast } from 'sonner';
+import { toast } from '../../lib/toast';
 
 export function PaymentConfirmationScreen() {
   const { state, setCurrentScreen, updateRide } = useAppState();
@@ -90,6 +91,43 @@ export function PaymentConfirmationScreen() {
 
       toast.success('Paiement confirmé !');
       
+      // ✅ v518.1: Rafraîchir le solde du conducteur après la clôture de la course
+      // Le backend a automatiquement déduit 15% du solde
+      if (state.currentUser?.id || state.currentDriver?.id) {
+        const driverId = state.currentUser?.id || state.currentDriver?.id;
+        try {
+          console.log('💰 Rafraîchissement du solde après clôture de course...');
+          const balanceResponse = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/drivers/${driverId}/balance`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`
+              }
+            }
+          );
+          
+          if (balanceResponse.ok) {
+            const balanceData = await balanceResponse.json();
+            if (balanceData.success && balanceData.balance !== undefined) {
+              const newBalance = balanceData.balance;
+              console.log(`✅ Nouveau solde après commission: ${newBalance.toLocaleString()} CDF`);
+              
+              // Sauvegarder dans localStorage pour synchronisation
+              localStorage.setItem(`driver_balance_${driverId}`, newBalance.toString());
+              
+              // Afficher une notification
+              toast.info(
+                `💰 Votre nouveau solde: ${newBalance.toLocaleString()} CDF (commission déduite)`,
+                { duration: 5000 }
+              );
+            }
+          }
+        } catch (balanceError) {
+          console.error('❌ Erreur rafraîchissement solde:', balanceError);
+          // Ne pas bloquer la redirection si le rafraîchissement échoue
+        }
+      }
+      
       // Rediriger vers le dashboard
       setTimeout(() => {
         setCurrentScreen('driver-dashboard');
@@ -130,7 +168,7 @@ export function PaymentConfirmationScreen() {
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             className="w-24 h-24 mx-auto mb-4"
           >
-            <Clock className="w-24 h-24 text-blue-600" />
+            <Calendar className="w-24 h-24 text-blue-600" />
           </motion.div>
           <h2 className="text-xl font-semibold mb-2">En attente du paiement</h2>
           <p className="text-gray-600">Le passager est en train de payer...</p>
@@ -154,7 +192,7 @@ export function PaymentConfirmationScreen() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Distance</span>
-                <span className="font-medium">{currentRide.distance?.toFixed(1) || 'N/A'} km</span>
+                <span className="font-medium">{(currentRide.distance || 0).toFixed(1) || 'N/A'} km</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Durée</span>

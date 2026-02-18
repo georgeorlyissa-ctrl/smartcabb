@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from '../../lib/motion';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { 
@@ -13,7 +13,7 @@ import {
   AlertTriangle, 
   CheckCircle, 
   Loader2,
-  BarChart3,
+  BarChart,
   Users,
   Car,
   MapPin,
@@ -21,11 +21,11 @@ import {
   Megaphone,
   Wallet,
   Bell,
-  MessageCircle,
+  MessageSquare,
   Phone,
   ArrowLeft
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../../lib/admin-icons';
+import { toast } from '../../lib/toast';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
 
@@ -57,7 +57,7 @@ export function DataCleanupPanel() {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/stats`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/reset/database-stats`,
         {
           method: 'GET',
           headers: {
@@ -68,12 +68,25 @@ export function DataCleanupPanel() {
 
       const data = await response.json();
 
-      if (data.success) {
-        setStats(data.stats);
-        console.log('📊 Statistiques chargées:', data.stats);
-      } else {
-        toast.error('Erreur lors du chargement des statistiques');
-      }
+      // Convertir le nouveau format vers l'ancien format
+      const convertedStats: DataStats = {
+        rides: data.tables?.find((t: any) => t.name === 'rides')?.count || 0,
+        passengers: data.tables?.find((t: any) => t.name === 'profiles')?.count || 0,
+        drivers: data.tables?.find((t: any) => t.name === 'drivers')?.count || 0,
+        vehicles: data.tables?.find((t: any) => t.name === 'vehicles')?.count || 0,
+        profiles: data.tables?.find((t: any) => t.name === 'profiles')?.count || 0,
+        promoCodes: data.tables?.find((t: any) => t.name === 'promo_codes')?.count || 0,
+        campaigns: 0, // Pas de table campaigns
+        walletTransactions: data.tables?.find((t: any) => t.name === 'transactions')?.count || 0,
+        notifications: data.tables?.find((t: any) => t.name === 'notifications')?.count || 0,
+        messages: 0, // Pas de table messages
+        sms: 0, // Pas de table sms
+        contacts: 0, // Pas de table contacts
+        backups: 0 // Pas de table backups
+      };
+
+      setStats(convertedStats);
+      console.log('📊 Statistiques chargées:', convertedStats);
     } catch (error: any) {
       console.error('❌ Erreur:', error);
       toast.error('Erreur de connexion');
@@ -86,11 +99,19 @@ export function DataCleanupPanel() {
   const performCleanup = async (type: 'all' | 'rides' | 'drivers') => {
     setLoading(true);
     try {
-      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/cleanup/${type}`;
-      console.log('🧹 Nettoyage en cours...', { type, url });
+      // Mapper les types vers les nouveaux endpoints
+      const endpointMap = {
+        'all': 'reset-users-only', // Supprime users mais garde les settings
+        'rides': 'reset-rides-only', // Supprime seulement les rides
+        'drivers': 'reset-users-only' // Pour drivers, on utilise users-only aussi
+      };
+      
+      const endpoint = endpointMap[type];
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52/reset/${endpoint}`;
+      console.log('🧹 Nettoyage en cours...', { type, endpoint, url });
       
       const response = await fetch(url, {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${publicAnonKey}`,
           'Content-Type': 'application/json'
@@ -110,20 +131,21 @@ export function DataCleanupPanel() {
       console.log('📦 Données reçues:', data);
 
       if (data.success) {
-        toast.success(data.message);
+        const message = `✅ Nettoyage réussi ! ${data.summary.totalDeleted} lignes supprimées dans ${data.summary.tablesCleared} tables`;
+        toast.success(message, { duration: 5000 });
         
-        // Afficher les détails si disponibles
-        if (data.deleted) {
-          console.log('✅ Données supprimées:', data.deleted);
-          const total = Object.values(data.deleted).reduce((sum: number, val) => sum + (typeof val === 'number' ? val : 0), 0);
-          toast.success(`${total} éléments supprimés au total`, { duration: 5000 });
-        }
+        // Afficher les détails
+        console.log('✅ Données supprimées:', data.cleared);
         
         // Recharger les stats
         await loadStats();
       } else {
         console.error('❌ Échec:', data);
-        toast.error(data.message || 'Erreur lors du nettoyage');
+        toast.error('Erreur lors du nettoyage');
+        
+        if (data.errors && data.errors.length > 0) {
+          console.error('❌ Erreurs détaillées:', data.errors);
+        }
       }
     } catch (error: any) {
       console.error('❌ Erreur réseau:', error);
@@ -170,7 +192,7 @@ export function DataCleanupPanel() {
           {loading ? (
             <Loader2 className="w-4 h-4 animate-spin mr-2" />
           ) : (
-            <BarChart3 className="w-4 h-4 mr-2" />
+            <BarChart className="w-4 h-4 mr-2" />
           )}
           Actualiser
         </Button>
@@ -226,7 +248,7 @@ export function DataCleanupPanel() {
             color="yellow"
           />
           <StatCard
-            icon={MessageCircle}
+            icon={MessageSquare}
             label="Messages"
             value={stats.messages}
             color="indigo"

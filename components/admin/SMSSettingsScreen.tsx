@@ -3,15 +3,16 @@
  * Pour configurer Africa's Talking ou Twilio
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { useAppState } from '../../hooks/useAppState';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { toast } from 'sonner';
-import { ArrowLeft, Send, CheckCircle, XCircle, Loader2, Info, RefreshCw } from 'lucide-react';
+import { toast } from '../../lib/toast';
+import { ArrowLeft, Send, CheckCircle, XCircle, Loader2, Info, RefreshCw } from '../../lib/admin-icons';
 import { supabase } from '../../lib/supabase';
 import { Alert, AlertDescription } from '../ui/alert';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';

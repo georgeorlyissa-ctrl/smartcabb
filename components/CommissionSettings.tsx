@@ -19,8 +19,8 @@ import {
   CheckCircle,
   Receipt,
   Info
-} from 'lucide-react';
-import { toast } from 'sonner';
+} from '../lib/icons';
+import { toast } from '../lib/toast';
 
 interface CommissionSettingsProps {
   userType: 'admin' | 'driver';

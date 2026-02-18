@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Car, Lock, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { Car, Lock, Eye, EyeOff } from '../../lib/icons';
+import { toast } from '../../lib/toast';
 import { signIn } from '../../lib/auth-service';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
 import { useAppState } from '../../hooks/useAppState';
@@ -111,19 +111,31 @@ export function DriverLoginScreen() {
           status: driverData.status || 'pending',
           is_available: driverData.is_available || false,
           photo: driverData.photo,
-          vehicleInfo: driverData.vehicle ? {
+          // ✅ FIX CRITIQUE : Construire vehicleInfo depuis l'objet vehicle OU depuis les champs individuels
+          vehicleInfo: (driverData.vehicle && (driverData.vehicle.make || driverData.vehicle.category || driverData.vehicle.license_plate)) ? {
             make: driverData.vehicle.make || '',
             model: driverData.vehicle.model || '',
             color: driverData.vehicle.color || '',
             plate: driverData.vehicle.license_plate || '',
             category: driverData.vehicle.category || '',
+            type: driverData.vehicle.category || '',
             year: driverData.vehicle.year || new Date().getFullYear(),
             seats: driverData.vehicle.seats || 4
+          } : (driverData.vehicle_make || driverData.vehicle_model || driverData.vehicle_plate || driverData.vehicle_category) ? {
+            // FALLBACK : Construire depuis les champs individuels si vehicle n'existe pas ou est vide
+            make: driverData.vehicle_make || '',
+            model: driverData.vehicle_model || '',
+            color: driverData.vehicle_color || '',
+            plate: driverData.vehicle_plate || '',
+            category: driverData.vehicle_category || driverData.vehicle_type || '',
+            type: driverData.vehicle_category || driverData.vehicle_type || '',
+            year: driverData.vehicle_year || new Date().getFullYear(),
+            seats: 4
           } : null,
-          vehicle_make: driverData.vehicle?.make || '',
-          vehicle_model: driverData.vehicle?.model || '',
-          vehicle_plate: driverData.vehicle?.license_plate || '',
-          vehicle_category: driverData.vehicle?.category || '',
+          vehicle_make: driverData.vehicle?.make || driverData.vehicle_make || '',
+          vehicle_model: driverData.vehicle?.model || driverData.vehicle_model || '',
+          vehicle_plate: driverData.vehicle?.license_plate || driverData.vehicle_plate || '',
+          vehicle_category: driverData.vehicle?.category || driverData.vehicle_category || '',
           rating: driverData.rating || 0,
           total_rides: driverData.total_rides || 0,
           wallet_balance: driverData.wallet_balance || 0
