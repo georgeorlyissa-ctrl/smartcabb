@@ -361,7 +361,11 @@ export function UsersDiagnosticScreen({ onBack }: UsersDiagnosticScreenProps) {
                       <td className="px-4 py-3 text-gray-900">{user.name}</td>
                       <td className="px-4 py-3 text-gray-700">{user.phone}</td>
                       <td className="px-4 py-3 text-gray-700 text-sm">{user.email}</td>
+
                       <td className="px-4 py-3 text-gray-500 text-xs font-mono">{user.id.substring(0, 8)}...</td>
+
+                      <td className="px-4 py-3 text-gray-500 text-xs font-mono">{user.id?.substring(0, 8) || 'N/A'}...</td>
+
                       <td className="px-4 py-3 text-gray-600 text-sm">
                         {new Date(user.createdAt).toLocaleDateString('fr-FR')}
                       </td>
@@ -402,7 +406,11 @@ export function UsersDiagnosticScreen({ onBack }: UsersDiagnosticScreenProps) {
                     <tr key={user.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-gray-900">{user.email}</td>
                       <td className="px-4 py-3 text-gray-700">{user.phone || 'N/A'}</td>
+
                       <td className="px-4 py-3 text-gray-500 text-xs font-mono">{user.id.substring(0, 8)}...</td>
+
+                      <td className="px-4 py-3 text-gray-500 text-xs font-mono">{user.id?.substring(0, 8) || 'N/A'}...</td>
+
                       <td className="px-4 py-3">
                         {user.inKV ? (
                           <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">✓ Oui</span>

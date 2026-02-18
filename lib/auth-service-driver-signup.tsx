@@ -133,3 +133,6 @@ export async function signUpDriver(driverData: DriverSignUpData) {
 }
 
 export default signUpDriver;
+
+
+

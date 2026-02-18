@@ -2,7 +2,9 @@ import { Hono } from 'npm:hono';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import * as kv from './kv-wrapper.tsx';
 import { isValidUUID } from './uuid-validator.tsx';
+
 import { normalizePhoneNumber, isValidPhoneNumber } from './phone-utils.ts';
+
 
 const authRoutes = new Hono();
 
@@ -35,6 +37,7 @@ authRoutes.post('/auth/login', async (c) => {
     const isPhone = /^[0-9+\s\-()]+$/.test(userIdentifier.trim());
     let emailToUse = userIdentifier;
     let matchingProfile: any = null; // 🔥 Déclarer ici pour être accessible partout
+
 
     if (isPhone) {
       console.log('📱 Numéro de téléphone détecté, recherche de l\'email associé...');
@@ -87,7 +90,11 @@ authRoutes.post('/auth/login', async (c) => {
       const allPassengers = await kv.getByPrefix('passenger:');
       const allUsers = [...allProfiles, ...allDrivers, ...allPassengers];
 
+
       matchingProfile = allUsers.find(p => {
+
+      const matchingProfile = allUsers.find(p => {
+
         if (!p || !p.phone) return false;
         const normalizedProfilePhone = normalizeToStandardFormat(p.phone);
         return normalizedProfilePhone === normalizedSearchPhone;
@@ -107,6 +114,7 @@ authRoutes.post('/auth/login', async (c) => {
 
     // Connexion avec Supabase Auth
     console.log('🔐 Connexion Supabase Auth avec email:', emailToUse);
+
     let authData, authError;
     
     // Première tentative avec l'email trouvé
@@ -200,6 +208,12 @@ authRoutes.post('/auth/login', async (c) => {
         }
       }
     }
+
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: emailToUse,
+      password
+    });
+
 
     if (authError) {
       console.error('❌ Erreur authentification:', authError);
@@ -820,6 +834,7 @@ authRoutes.post('/test-sms-send', async (c) => {
     }
 
     console.log('🧪 TEST ENVOI SMS à:', phoneNumber);
+
     
     // ✅ NORMALISER LE NUMÉRO DE TÉLÉPHONE
     const normalizedPhone = normalizePhoneNumber(phoneNumber);
@@ -834,6 +849,7 @@ authRoutes.post('/test-sms-send', async (c) => {
     }
     
     console.log('✅ Numéro normalisé:', phoneNumber, '→', normalizedPhone);
+
 
     // Récupérer les credentials
     const username = Deno.env.get('AFRICAS_TALKING_USERNAME') ?? '';
@@ -877,7 +893,10 @@ authRoutes.post('/test-sms-send', async (c) => {
         },
         body: new URLSearchParams({
           username: username,
+
           to: normalizedPhone,
+
+          to: phoneNumber,
           message: smsMessage
         }).toString()
       });
@@ -900,8 +919,12 @@ authRoutes.post('/test-sms-send', async (c) => {
             status: status,
             messageId: messageId,
             cost: cost,
+
             phoneNumber: normalizedPhone,
             originalPhone: phoneNumber
+
+            phoneNumber: phoneNumber
+
           },
           rawResponse: smsResult
         });
@@ -1405,6 +1428,12 @@ authRoutes.post('/send-reset-otp', async (c) => {
       const smsMessage = `SmartCabb: Votre code de réinitialisation est ${otpCode}. Valide pendant 13 minutes. Ne partagez ce code avec personne.`;
 
       console.log('📤 Envoi SMS à:', normalizedPhone);
+
+    try {
+      const smsMessage = `SmartCabb: Votre code de réinitialisation est ${otpCode}. Valide pendant 13 minutes. Ne partagez ce code avec personne.`;
+
+      console.log('📤 Envoi SMS à:', phoneNumber);
+
       console.log('📝 Message:', smsMessage);
 
       const smsResponse = await fetch('https://api.africastalking.com/version1/messaging', {
@@ -1416,7 +1445,11 @@ authRoutes.post('/send-reset-otp', async (c) => {
         },
         body: new URLSearchParams({
           username: username,
+
           to: normalizedPhone,
+
+          to: phoneNumber,
+
           message: smsMessage,
           from: 'SMARTCABB' // ✅ Sender ID officiel SmartCabb
         }).toString()
@@ -1442,12 +1475,19 @@ authRoutes.post('/send-reset-otp', async (c) => {
         await supabase
           .from('sms_logs')
           .insert({
+
             phone_number: normalizedPhone,
+            phone_number: phoneNumber,
+
             message: smsMessage,
             status: smsResult.SMSMessageData?.Recipients?.[0]?.status || 'unknown',
             provider: 'africas_talking',
             type: 'reset_password_otp',
+
             metadata: { otpCode: otpCode, response: smsResult, originalPhone: phoneNumber }
+
+            metadata: { otpCode: otpCode, response: smsResult }
+
           });
       } catch (error) {
         console.warn('⚠️ Impossible d\'enregistrer le SMS dans la table:', error);
@@ -3317,5 +3357,7 @@ authRoutes.post('/auth/admin/quick-create', async (c) => {
     return c.json({ success: false, error: String(error) }, 500);
   }
 });
+
+export default authRoutes;
 
 export default authRoutes;

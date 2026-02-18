@@ -177,6 +177,32 @@ function App() {
         console.log('🔄 Nouvelle version détectée - Cache rafraîchi');
       }
 
+      // 🚫 BLOQUER LES "Script error" CROSS-ORIGIN GLOBALEMENT
+      const globalErrorHandler = (event: ErrorEvent) => {
+        const errorMsg = event?.message || '';
+        
+        // ✅ Bloquer silencieusement les erreurs cross-origin (Google Maps, Firebase, etc.)
+        if (errorMsg === 'Script error.' || errorMsg === 'Script error' || errorMsg === '') {
+          // Bloquer sans logger pour garder la console propre
+          event.preventDefault();
+          event.stopPropagation();
+          return true;
+        }
+        
+        return false;
+      };
+      
+      window.addEventListener('error', globalErrorHandler, true);
+      
+      // Bloquer aussi les promesses non catchées silencieusement
+      window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+        const reason = event?.reason?.message || String(event?.reason || '');
+        if (reason.includes('Script error') || reason === '') {
+          // Bloquer sans logger
+          event.preventDefault();
+        }
+      });
+
       // 🧹 NETTOYAGE DU LOCALSTORAGE : Détecter et supprimer les données corrompues
       try {
         console.log('🧹 Vérification de l\'intégrité des données...');

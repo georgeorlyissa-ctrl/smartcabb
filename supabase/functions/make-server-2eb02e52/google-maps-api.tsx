@@ -502,6 +502,7 @@ app.get('/directions', async (c) => {
     const route = data.routes[0];
     const leg = route.legs[0];
 
+
     // Décoder la polyline
     const coordinates = decodePolyline(route.overview_polyline.points);
 
@@ -533,6 +534,17 @@ app.get('/directions', async (c) => {
     return c.json({
       success: true,
       route: result
+
+    console.log(`✅ Itinéraire: ${(leg.distance.value / 1000).toFixed(1)} km, ${Math.round(leg.duration.value / 60)} min`);
+
+    // ✅ RETOURNER LES DONNÉES BRUTES DE GOOGLE MAPS (format DirectionsResult)
+    // Le frontend s'attend au format DirectionsResult standard de Google Maps
+    return c.json({
+      success: true,
+      status: data.status,
+      routes: data.routes,
+      geocoded_waypoints: data.geocoded_waypoints || []
+
     });
 
   } catch (error) {

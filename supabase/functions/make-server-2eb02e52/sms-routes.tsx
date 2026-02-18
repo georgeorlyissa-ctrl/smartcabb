@@ -22,8 +22,13 @@ async function sendViaAfricasTalking(to: string, message: string): Promise<{ suc
   }
 
   // ✅ VALIDER ET FORMATER LE NUMÉRO DE TÉLÉPHONE
+
   const formattedPhone = normalizePhoneNumber(to);
   if (!formattedPhone || !isValidPhoneNumber(formattedPhone)) {
+
+  const formattedPhone = formatPhoneNumberForRDC(to);
+  if (!formattedPhone) {
+
     const errorMsg = `Numéro de téléphone invalide: ${to}. Format requis: +243XXXXXXXXX (9 chiffres après +243)`;
     console.error('❌', errorMsg);
     console.error('📋 Formats acceptés: +243XXXXXXXXX, 243XXXXXXXXX, 0XXXXXXXXX, ou XXXXXXXXX (9 chiffres)');

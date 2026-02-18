@@ -12,6 +12,7 @@ function isServiceUnavailableError(error: any): boolean {
   
   const message = error.message || error.toString();
   return message.includes('<!DOCTYPE html>') ||
+
          message.includes('<html>') ||
          message.includes('Cloudflare') ||
          message.includes('SSL handshake failed') ||

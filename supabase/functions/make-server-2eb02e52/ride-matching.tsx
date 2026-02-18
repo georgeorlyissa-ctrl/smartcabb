@@ -157,7 +157,11 @@ export async function assignRideToDriver(
       rideId,
       driverId,
       createdAt: new Date().toISOString(),
+
       expiresAt: new Date(Date.now() + 10000).toISOString() // ⚡ 10 secondes (optimisé)
+
+      expiresAt: new Date(Date.now() + 15000).toISOString() // 15 secondes
+
     });
 
     console.log('✅ Course assignée avec succès');

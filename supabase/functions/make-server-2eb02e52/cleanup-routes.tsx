@@ -268,6 +268,7 @@ cleanupRoutes.delete('/delete-all-drivers', async (c) => {
   }
 });
 
+
 /**
  * 🔧 FIX - Corriger les statuts de tous les conducteurs
  * POST /cleanup/fix-driver-statuses
@@ -432,3 +433,5 @@ cleanupRoutes.post('/normalize-drivers', async (c) => {
 });
 
 export default cleanupRoutes;
+
+

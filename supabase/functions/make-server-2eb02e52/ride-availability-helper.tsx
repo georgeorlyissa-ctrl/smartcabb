@@ -200,4 +200,8 @@ export async function checkDriversAvailability(vehicleType: string) {
     console.error('❌ Erreur vérification disponibilité conducteurs:', error);
     throw error;
   }
+
 }
+
+}
+

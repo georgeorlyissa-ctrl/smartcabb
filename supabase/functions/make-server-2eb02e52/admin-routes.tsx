@@ -1500,6 +1500,7 @@ adminRoutes.post('/update-driver-auth-metadata', async (c) => {
   }
 });
 
+
 // ============================================
 // 🗑️ SUPPRIMER TOUS LES PASSAGERS
 // ============================================
@@ -1742,3 +1743,6 @@ adminRoutes.post('/passengers/delete-all', async (c) => {
 });
 
 export default adminRoutes;
+
+export default adminRoutes;
+

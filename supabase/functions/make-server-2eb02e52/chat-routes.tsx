@@ -6,7 +6,10 @@ import { cors } from 'npm:hono/cors';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { generateAutoReply, analyzeSentiment } from './chat-auto-replies.tsx';
 import * as kv from './kv-wrapper.tsx';
+
 import { normalizePhoneNumber, isValidPhoneNumber } from './phone-utils.ts';
+
+
 
 const app = new Hono();
 

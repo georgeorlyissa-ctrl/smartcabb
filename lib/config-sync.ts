@@ -10,6 +10,9 @@
 
 import { projectId, publicAnonKey } from '../utils/supabase/info.tsx';
 
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+
+
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-2eb02e52`;
 
 /**
@@ -286,4 +289,8 @@ export async function initConfigSync(): Promise<GlobalConfig> {
   }, 15 * 60 * 1000); // ⚡ 15 minutes au lieu de 5
   
   return config;
+
 }
+
+}
+

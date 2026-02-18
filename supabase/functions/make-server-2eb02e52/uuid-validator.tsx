@@ -3,6 +3,7 @@
  * Évite l'erreur "@supabase/auth-js: Expected parameter to be UUID but is not"
  */
 
+
 import * as kv from './kv-wrapper.tsx';
 
 export function isValidUUID(id: string | null | undefined): boolean {
@@ -30,6 +31,7 @@ export function safeGetUserById(supabase: any, userId: string | null | undefined
   
   return supabase.auth.admin.getUserById(userId);
 }
+
 
 /**
  * Récupère un utilisateur par ID, gère les profils orphelins automatiquement
@@ -100,3 +102,4 @@ export async function safeGetUserByIdWithCleanup(
     return { data: null, error: err, wasOrphan: false };
   }
 }
+

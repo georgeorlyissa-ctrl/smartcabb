@@ -37,11 +37,15 @@ const app = new Hono();
 // 🔄 REDÉPLOIEMENT FORCÉ V7 - FIX NORMALISATION TÉLÉPHONE - 14/02/2026
 // ✅ Normalisation centralisée des numéros de téléphone (phone-utils.ts)
 // ✅ Fix erreur InvalidPhoneNumber Africa's Talking
+// 🔄 REDÉPLOIEMENT FORCÉ V6 - SÉCURITÉ OWASP TOP 10 - 02/02/2026
 // ✅ Firebase Cloud Messaging pour notifications push
 // ✅ Notifications sonores avec adresses dynamiques
 // ✅ Architecture 100% standalone
 // 🔒 Protection OWASP Top 10 2021
+
 console.log('🔄 Serveur SmartCabb V7 - Fix Téléphone - 14/02/2026');
+console.log('🔄 Serveur SmartCabb V6 - Sécurité OWASP - 02/02/2026');
+
 
 // 🚀 Démarrage immédiat du serveur (pas d'attente bloquante)
 console.log('🚀 Démarrage du serveur SmartCabb...');
@@ -67,11 +71,18 @@ if (supabaseUrl) {
 // Enable logger
 app.use('*', logger(console.log));
 
+// 🔒 MIDDLEWARE DE SÉCURITÉ OWASP (appliqué à toutes les routes)
+app.use('*', securityMiddleware);
+
 // Enable CORS for all routes and methods
 app.use(
   "/*",
   cors({
+
     origin: ["https://smartcabb.com", "https://www.smartcabb.com", "http://localhost:3000", "http://localhost:5173"],
+
+    origin: ["https://smartcabb.com", "https://www.smartcabb.com", "http://localhost:3000"],
+
     allowHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length", "X-RateLimit-Remaining"],
@@ -116,6 +127,45 @@ app.get("/make-server-2eb02e52/diagnostic/supabase", async (c) => {
   }
 
   return c.json(diagnostics);
+});
+
+// ✅ ENDPOINT MAPBOX API KEY
+app.get('/make-server-2eb02e52/config/mapbox-key', (c) => {
+  try {
+    const mapboxKey = Deno.env.get('MAPBOX_API_KEY');
+    if (!mapboxKey) {
+      console.warn('⚠️ MAPBOX_API_KEY not found in environment');
+      return c.json({ success: false, error: 'API key not configured' }, 500);
+    }
+    return c.json({ success: true, apiKey: mapboxKey });
+  } catch (error) {
+    console.error('❌ Error loading Mapbox key:', error);
+    return c.json({ success: false, error: 'Failed to load API key' }, 500);
+  }
+});
+
+// ✅ ENDPOINT GOOGLE MAPS API KEY (FRONTEND)
+app.get('/make-server-2eb02e52/config/google-maps-key', (c) => {
+  try {
+    // Essayer plusieurs noms possibles de variables d'environnement
+    const googleMapsKey = 
+      Deno.env.get('GOOGLE_MAPS_API_KEY') || 
+      Deno.env.get('GOOGLE_MAPS_SERVER_API_KEY') ||
+      Deno.env.get('API_KEY');
+    
+    if (!googleMapsKey) {
+      console.warn('⚠️ GOOGLE_MAPS_API_KEY not found in environment');
+      console.warn('⚠️ Tried: GOOGLE_MAPS_API_KEY, GOOGLE_MAPS_SERVER_API_KEY, API_KEY');
+      return c.json({ success: false, error: 'API key not configured' }, 500);
+    }
+    console.log('✅ Google Maps API key fournie au frontend (source: ' + 
+      (Deno.env.get('GOOGLE_MAPS_API_KEY') ? 'GOOGLE_MAPS_API_KEY' : 
+       Deno.env.get('GOOGLE_MAPS_SERVER_API_KEY') ? 'GOOGLE_MAPS_SERVER_API_KEY' : 'API_KEY') + ')');
+    return c.json({ success: true, apiKey: googleMapsKey });
+  } catch (error) {
+    console.error('❌ Error loading Google Maps key:', error);
+    return c.json({ success: false, error: 'Failed to load API key' }, 500);
+  }
 });
 
 // ✅ ENDPOINT MAPBOX API KEY
@@ -1166,6 +1216,9 @@ app.post("/make-server-2eb02e52/signup-passenger", async (c) => {
     };
 
     // D��terminer l'email à utiliser
+
+    // Déterminer l'email à utiliser
+
     let finalEmail: string;
     let usesPhoneAuth = false;
     
@@ -2886,6 +2939,9 @@ app.get("/make-server-2eb02e52/drivers/:driverId", async (c) => {
   }
 });
 
+/**
+ * ✅ FIX #3: Récupère la localisation GPS en temps réel d'un conducteur
+ */
 /**
  * ✅ FIX #3: Récupère la localisation GPS en temps réel d'un conducteur
  */

@@ -380,6 +380,7 @@ export async function securityMiddleware(c: Context, next: Next) {
   const path = c.req.path;
   const method = c.req.method;
 
+
   // ✅ WHITELIST : Routes publiques exemptées du middleware de sécurité
   const publicRoutes = [
     '/make-server-2eb02e52/health',
@@ -562,4 +563,8 @@ export default {
   validateURL,
   securityMiddleware,
   validateUserInput
+
 };
+
+};
+
